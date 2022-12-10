@@ -86,7 +86,7 @@ public class JsonRpcHttpServerHook
     {
         string title = Svr.ServerFriendlyNameHtml;
 
-        string note = $"<p><b>{title} Web &amp; API Server.</b> This system is <a href='https://github.com/IPA-CyberLab' target='_blank'><b>open source software published in GitHub</b></a> licensed under <a href='https://www.apache.org/licenses/LICENSE-2.0' target='_blank'>Apache License 2.0</a> with ABSOLUTELY NO WARRANTY.<BR>Copyright &copy; 2018-{Env.BuildTimeStamp.Year} IPA CyberLab. All Rights Reserved.</p>";
+        string note = $"<p><b>{title} Web &amp; API サーバー.</b> 本システムは、<a href='https://github.com/IPA-CyberLab' target='_blank'><b>GitHub 上でホストされているオープンソースソフトウェア</b></a> です。<a href='https://www.apache.org/licenses/LICENSE-2.0' target='_blank'>Apache License 2.0</a> ライセンスで無償・無保証で提供されています。<BR>Copyright &copy; 2018-{Env.BuildTimeStamp.Year} IPA サイバー技術研究室. All Rights Reserved.</p>";
 
         string menu = GetHeaderMenuText(includeAdminPages);
 
@@ -101,15 +101,15 @@ public class JsonRpcHttpServerHook
 
         string adminIcon = "<i class='fas fa-key'></i>";
 
-        items.Add(new Tuple<string, string, string>($"<i class='fas fa-user'></i> {title} Control Panel", Svr.ControlAbsoluteUrlPath, ""));
-        items.Add(new Tuple<string, string, string>($"<i class='fas fa-dice-d6'></i> {title} JSON-RPC APIs", Svr.RpcAbsoluteUrlPath, ""));
+        items.Add(new Tuple<string, string, string>($"<i class='fas fa-user'></i> {title} のコントロールパネル (Web フォーム)", Svr.ControlAbsoluteUrlPath, ""));
+        items.Add(new Tuple<string, string, string>($"<i class='fas fa-dice-d6'></i> {title} JSON-RPC の API 一覧・リファレンス・直接呼び出し", Svr.RpcAbsoluteUrlPath, ""));
 
         if (includeAdminPages)
         {
-            items.Add(new Tuple<string, string, string>($"{adminIcon} Admin Object Editor", Svr.AdminObjEditAbsoluteUrlPath, ""));
-            items.Add(new Tuple<string, string, string>($"{adminIcon} Admin Full Text Search", Svr.AdminObjSearchAbsoluteUrlPath, ""));
-            items.Add(new Tuple<string, string, string>($"{adminIcon} Admin Config Editor", Svr.AdminConfigAbsoluteUrlPath, ""));
-            items.Add(new Tuple<string, string, string>($"{adminIcon} Admin Log Browser", Svr.AdminLogBrowserAbsoluteUrlPath, "_blank"));
+            items.Add(new Tuple<string, string, string>($"{adminIcon} オブジェクトエディタ (管理者用)", Svr.AdminObjEditAbsoluteUrlPath, ""));
+            items.Add(new Tuple<string, string, string>($"{adminIcon} フルテキスト検索 (管理者用)", Svr.AdminObjSearchAbsoluteUrlPath, ""));
+            items.Add(new Tuple<string, string, string>($"{adminIcon} 設定エディタ (管理者用)", Svr.AdminConfigAbsoluteUrlPath, ""));
+            items.Add(new Tuple<string, string, string>($"{adminIcon} ログブラウザ (管理者用)", Svr.AdminLogBrowserAbsoluteUrlPath, "_blank"));
         }
 
         List<string> o = new List<string>();
@@ -302,7 +302,7 @@ public class JsonRpcHttpServer : JsonRpcServer
     // /admin_config の共通ハンドラ
     public virtual async Task AdminConfig_CommonRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData, WebMethods method)
     {
-        await Admin_CommonAsync(request, response, routeData, "Admin Config Page", AdminFormsOperation.ConfigForm, method,
+        await Admin_CommonAsync(request, response, routeData, "設定エディタ (管理者用)", AdminFormsOperation.ConfigForm, method,
             async (w, postData, c) =>
             {
                 string configBody = "";
@@ -325,7 +325,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                         configBody = postCollection._GetStr("configbody");
                         await this.Config.HadbBasedServicePoint!.AdminForm_SetDynamicConfigTextAsync(configBody, c);
 
-                        msg = "The settings you specified have been properly applied to the server database.";
+                        msg = "設定内容は、正常にデータベースに保存され、本システムに反映されました。";
 
                         this.FlushCache();
                     }
@@ -347,7 +347,7 @@ public class JsonRpcHttpServer : JsonRpcServer
 
                 if (msg._IsFilled()) w.WriteLine($"<p><B><font color={msgColor}>{msg._EncodeHtml(true)}</font></B></p>");
 
-                w.WriteLine("<input class='button is-link' type='submit' style='font-weight: bold' value='Apply Now (Be Careful!)'>");
+                w.WriteLine("<input class='button is-link' type='submit' style='font-weight: bold' value='直ちに適用する (十分注意してクリックしてください)'>");
 
                 w.WriteLine("</form>");
             });
@@ -370,7 +370,7 @@ public class JsonRpcHttpServer : JsonRpcServer
     // /admin_objedit の共通ハンドラ
     public virtual async Task AdminObjEdit_CommonRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData, WebMethods method)
     {
-        await Admin_CommonAsync(request, response, routeData, "Database Object Low Level Viewer and Editor", AdminFormsOperation.ObjEdit, method,
+        await Admin_CommonAsync(request, response, routeData, "低レベルデータベースオブジェクト ビューア兼エディタ", AdminFormsOperation.ObjEdit, method,
             async (w, postData, c) =>
             {
                 string objBody = "";
@@ -403,7 +403,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                             }
                             catch (Exception ex)
                             {
-                                objBody = "*** Error: " + ex.ToString();
+                                objBody = "*** エラー: " + ex.ToString();
                             }
                         }
                         else
@@ -411,7 +411,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                             currentObj = await this.Config.HadbBasedServicePoint!.AdminForm_DirectGetObjectAsync(qsUid, c);
                             if (currentObj == null)
                             {
-                                objBody = $"Error: UID '{qsUid}' not found.";
+                                objBody = $"エラー: 指定された UID '{qsUid}' のオブジェクトが存在しません。";
                             }
                             else
                             {
@@ -447,7 +447,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                             {
                                 currentObj = await this.Config.HadbBasedServicePoint!.AdminForm_DirectSetObjectAsync(uid, objectBody, HadbObjectSetFlag.Update, type, nameSpace, c);
 
-                                postMsg = "OK! Your post data is written to the database.";
+                                postMsg = "OK! 指定されたデータ項目は、正常にデータベースに書き込みされました。";
 
                                 showUpdateButton = true;
 
@@ -458,7 +458,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                             else
                             {
                                 currentObj = await this.Config.HadbBasedServicePoint!.AdminForm_DirectSetObjectAsync(uid, "", HadbObjectSetFlag.Delete, type, nameSpace, c);
-                                postMsg = "OK! Your post data is deleted from the database.";
+                                postMsg = "OK! 指定されたデータ項目は、正常にデータベースから削除されました。";
 
                                 showUpdateButton = false;
 
@@ -485,7 +485,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                     <div class='field'>
                         <p class='control'>
                             <input class='input is-info text-box single-line' name='uid' type='text' value='{qsUid}' />
-                            Example: DATA_0123456789_123_012345678901234_01234_01234
+                            入力例: DATA_0123456789_123_012345678901234_01234_01234
                         </p>
                     </div>
 ";
@@ -495,7 +495,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                 w.WriteLine($@"
                     <div class='field is-horizontal'>
                         <div class='field-label is-normal'>
-                            <label class='label'><i class='fas fa-cubes'></i> Target Object UID:<BR>(Unique ID)</label>
+                            <label class='label'><i class='fas fa-cubes'></i> 対象のオブジェクト ID:<BR>(ユニーク ID)</label>
                         </div>
                         <div class='field-body'>
                             {uidEditBoxStr}
@@ -511,9 +511,9 @@ public class JsonRpcHttpServer : JsonRpcServer
                         <div class='field-body'>
                             <div class='field'>
                                 <div class='control'>
-                                    <input class='button is-link' type='submit' style='font-weight: bold' value='Search Current Object by UID'>
-                                    &nbsp;&nbsp;<input {qsMetadata._HtmlCheckedIfTrue()} id='metadata' name='metadata' type='checkbox' value='1' /><label for='metadata'>&nbsp;Show Object Metadata</label>
-                                    &nbsp;&nbsp;<input {qsArchive._HtmlCheckedIfTrue()} id='archive' name='archive' type='checkbox' value='1' /><label for='archive'>&nbsp;Show Archived Object History</label>
+                                    <input class='button is-link' type='submit' style='font-weight: bold' value='UID を用いてオブジェクトを検索'>
+                                    &nbsp;&nbsp;<input {qsMetadata._HtmlCheckedIfTrue()} id='metadata' name='metadata' type='checkbox' value='1' /><label for='metadata'>&nbsp;オブジェクトのメタデータを表示</label>
+                                    &nbsp;&nbsp;<input {qsArchive._HtmlCheckedIfTrue()} id='archive' name='archive' type='checkbox' value='1' /><label for='archive'>&nbsp;オブジェクトの変更履歴データを表示</label>
                                     <p>　</p>
 ");
 
@@ -542,9 +542,9 @@ public class JsonRpcHttpServer : JsonRpcServer
                 if (currentObj != null)
                 {
                     w.WriteLine("<p>");
-                    w.WriteLine($"Object UID: <code><b>{currentObj.Uid}</b></code>, ");
-                    w.WriteLine($"Object Type: <code><b>{currentObj.UserDataTypeName}</b></code>, ");
-                    w.WriteLine($"Object NameSpace: <code><b>{currentObj.NameSpace}</b></code>");
+                    w.WriteLine($"オブジェクトの UID: <code><b>{currentObj.Uid}</b></code>, ");
+                    w.WriteLine($"オブジェクトの型名: <code><b>{currentObj.UserDataTypeName}</b></code>, ");
+                    w.WriteLine($"オブジェクトの名前空間: <code><b>{currentObj.NameSpace}</b></code>");
                     w.WriteLine("</p>");
                 }
 
@@ -561,8 +561,8 @@ public class JsonRpcHttpServer : JsonRpcServer
 
                 if (showUpdateButton)
                 {
-                    w.WriteLine("<input class='button is-link' type='submit' style='font-weight: bold' value='Update Object Now (Be Careful!)'>");
-                    w.WriteLine($"&nbsp;&nbsp;<input id='delete' name='delete' type='checkbox' value='1' /><label for='delete'>&nbsp;Delete This Object (Dangerous!)</label>");
+                    w.WriteLine("<input class='button is-link' type='submit' style='font-weight: bold' value='このオブジェクトの内容を更新する (注意してクリックしてください)'>");
+                    w.WriteLine($"&nbsp;&nbsp;<input id='delete' name='delete' type='checkbox' value='1' /><label for='delete'>&nbsp;このオブジェクトを削除する (慎重にクリックしてください)</label>");
                 }
 
                 w.WriteLine("</form>");
@@ -584,7 +584,7 @@ public class JsonRpcHttpServer : JsonRpcServer
     // /admin_search の共通ハンドラ
     public virtual async Task AdminObjSearch_CommonRequestHandler(HttpRequest request, HttpResponse response, RouteData routeData, WebMethods method)
     {
-        await Admin_CommonAsync(request, response, routeData, "Database Object Full Text Search Engine", AdminFormsOperation.ObjSearch, method,
+        await Admin_CommonAsync(request, response, routeData, "データベース上の全オブジェクトに対するフルテキスト検索エンジン", AdminFormsOperation.ObjSearch, method,
             async (w, postData, c) =>
             {
                 var queryList = request.Query;
@@ -626,13 +626,13 @@ public class JsonRpcHttpServer : JsonRpcServer
                 w.WriteLine($@"
                     <div class='field is-horizontal'>
                         <div class='field-label is-normal'>
-                            <label class='label'><i class='fas fa-search'></i> Search String:</label>
+                            <label class='label'><i class='fas fa-search'></i> 検索文字列:</label>
                         </div>
                         <div class='field-body'>
                             <div class='field'>
                                 <p class='control'>
                                     <input class='input is-info text-box single-line' name='q' type='text' value='{q._EncodeHtml()}' />
-                                    Example: hello<BR><i>You can use 'AND' / 'OR' operators between words and a '!word' or '-word' negative operator before a word.</i>
+                                    入力例: hello<BR><i>'AND' または 'OR' キーワードを複数の単語間に指定できます。また、単語の前に '!' または '-' 文字を付加すると、その単語が含まれている項目を明示的に除外できます。</i>
                                 </p>
                             </div>
                         </div>
@@ -647,10 +647,10 @@ public class JsonRpcHttpServer : JsonRpcServer
                         <div class='field-body'>
                             <div class='field'>
                                 <div class='control'>
-                                    <input class='button is-link' type='submit' style='font-weight: bold' value='Search Object'>
-                                    &nbsp;&nbsp;<input {wordmode._HtmlCheckedIfTrue()} id='wordmode' name='wordmode' type='checkbox' value='1' /><label for='wordmode'>&nbsp;<b>Word Mode</b></label>
-                                    &nbsp;&nbsp;<input {fieldnamemode._HtmlCheckedIfTrue()} id='fieldnamemode' name='fieldnamemode' type='checkbox' value='1' /><label for='fieldnamemode'>&nbsp;<b>Field Name Mode</b> (e.g. 'Age=123')</label>
-                                    &nbsp;&nbsp;<input {download._HtmlCheckedIfTrue()} id='download' name='download' type='checkbox' value='1' /><label for='download'>&nbsp;<b>Show Download Button (slow)</b></label>
+                                    <input class='button is-link' type='submit' style='font-weight: bold' value='オブジェクトの検索'>
+                                    &nbsp;&nbsp;<input {wordmode._HtmlCheckedIfTrue()} id='wordmode' name='wordmode' type='checkbox' value='1' /><label for='wordmode'>&nbsp;<b>単語単位で検索する</b></label>
+                                    &nbsp;&nbsp;<input {fieldnamemode._HtmlCheckedIfTrue()} id='fieldnamemode' name='fieldnamemode' type='checkbox' value='1' /><label for='fieldnamemode'>&nbsp;<b>変数名付き検索モード</b> (例: 'Age=123')</label>
+                                    &nbsp;&nbsp;<input {download._HtmlCheckedIfTrue()} id='download' name='download' type='checkbox' value='1' /><label for='download'>&nbsp;<b>ダウンロードボタンを表示 (注意: 応答速度が低下します)</b></label>
                                     <p>　</p>
 ");
 
@@ -668,13 +668,13 @@ public class JsonRpcHttpServer : JsonRpcServer
                             <!-- Left empty for spacing -->
                         </div>
                         <div class='field-label is-normal'>
-                            <label class='label'><i class='fas fa-sort-amount-down'></i> Sort By Field:<BR>(Optional)</label>
+                            <label class='label'><i class='fas fa-sort-amount-down'></i> 変数名でソートする:<BR>(オプション)</label>
                         </div>
                         <div class='field-body'>
                             <div class='field'>
                                 <p class='control'>
                                     <input class='input is-info text-box single-line' name='sort' type='text' value='{sort._EncodeHtml()}' />
-                                    Example: Age <i>(Specify JSON-based field name here. Prepend '!' before a field name means descending sort.)</i>
+                                    入力例: Age <i>(JSON 上の変数名を指定してください。変数名に '!' を前置すると、逆順ソートされます。)</i>
                                 </p>
                             </div>
                         </div>
@@ -689,13 +689,13 @@ public class JsonRpcHttpServer : JsonRpcServer
                             <!-- Left empty for spacing -->
                         </div>
                         <div class='field-label is-normal'>
-                            <label class='label'><i class='fas fa-dice-d6'></i> Type Name:<BR>(Optional)</label>
+                            <label class='label'><i class='fas fa-dice-d6'></i> 型名:<BR>(Optional)</label>
                         </div>
                         <div class='field-body'>
                             <div class='field'>
                                 <p class='control'>
                                     <input class='input is-info text-box single-line' name='type' type='text' value='{type._EncodeHtml()}' />
-                                    Example: User <i>(Specify JSON-based type name here.)</i>
+                                    入力例: User <i>(JSON 上のオブジェクトの型名を指定してください。)</i>
                                 </p>
                             </div>
                         </div>
@@ -710,13 +710,13 @@ public class JsonRpcHttpServer : JsonRpcServer
                             <!-- Left empty for spacing -->
                         </div>
                         <div class='field-label is-normal'>
-                            <label class='label'><i class='fas fa-stream'></i> Namespace String:<BR>(Optional)</label>
+                            <label class='label'><i class='fas fa-stream'></i> 名前空間文字列:<BR>(Optional)</label>
                         </div>
                         <div class='field-body'>
                             <div class='field'>
                                 <p class='control'>
                                     <input class='input is-info text-box single-line' name='ns' type='text' value='{ns._EncodeHtml()}' />
-                                    Example: NS_SYSTEM1 <i>(Specify namespace here.)</i>
+                                    入力例: NS_SYSTEM1 <i>(Specify namespace here.)</i>
                                 </p>
                             </div>
                         </div>
@@ -729,7 +729,7 @@ public class JsonRpcHttpServer : JsonRpcServer
                             <!-- Left empty for spacing -->
                         </div>
                         <div class='field-label is-normal'>
-                            <label class='label'><i class='fas fa-list'></i> Max Results Count:<BR>(Optional)</label>
+                            <label class='label'><i class='fas fa-list'></i> 検索結果の最大数:<BR>(Optional)</label>
                         </div>
                         <div class='field-body'>
                             <div class='field'>
@@ -749,7 +749,7 @@ public class JsonRpcHttpServer : JsonRpcServer
 
                     string bomUtfDownloadFileName = $"JSON_{request.Host.Host}_{now._ToYymmddStr(yearTwoDigits: true)}_{now._ToHhmmssStr()}"._MakeVerySafeAsciiOnlyNonSpaceFileName() + ".json";
 
-                    w.WriteLine($"<h3 id='results' class='title is-5'>" + $"Search Results: {result.NumResultObjects} Objects" + "</h3>");
+                    w.WriteLine($"<h3 id='results' class='title is-5'>" + $"検索結果: {result.NumResultObjects} 個のオブジェクト" + "</h3>");
 
                     if (download)
                     {
@@ -757,7 +757,7 @@ public class JsonRpcHttpServer : JsonRpcServer
 
                         w.WriteLine(Str.GenerateHtmlDownloadJavaScript(bomUtfData, Consts.MimeTypes.Binary, bomUtfDownloadFileName, "download2"));
 
-                        w.WriteLine($"<a class='button is-primary' id='download2' style='font-weight: bold' href='#' download='{bomUtfDownloadFileName}' onclick='handleDownload()'><i class='far fa-folder-open'></i>&nbsp;Download JSON Result Data ({bomUtfData.Length._ToString3()} bytes)</a>");
+                        w.WriteLine($"<a class='button is-primary' id='download2' style='font-weight: bold' href='#' download='{bomUtfDownloadFileName}' onclick='handleDownload()'><i class='far fa-folder-open'></i>&nbsp;検索結果を JSON データとしてダウンロードする ({bomUtfData.Length._ToString3()} バイト)</a>");
                     }
 
                     w.Write("<pre><code class='language-json'>");
@@ -1047,11 +1047,11 @@ public class JsonRpcHttpServer : JsonRpcServer
 
         var bomUtfData = callResults.ResultString._GetBytes_UTF8(bom: true);
 
-        string title = $"{mi.Name} API Returned OK. Returned {bomUtfData.Length._ToString3()} bytes JSON Result Data.";
+        string title = $"{mi.Name} API は、正常に応答データを返しました。応答データは、{bomUtfData.Length._ToString3()} バイトの JSON データです。";
 
         if (callResults.AllError && callResults.SingleErrorMessage._IsFilled())
         {
-            title = $"{mi.Name} API Returned An Error.";
+            title = $"{mi.Name} API の実行中にエラーが発生しました。";
         }
 
         Control_WriteHtmlHeader(w, title);
@@ -1077,27 +1077,27 @@ public class JsonRpcHttpServer : JsonRpcServer
             w.WriteLine($@"
 <article class='message is-danger'>
   <div class='message-body'>
-    <strong>Error Message:</strong><BR>{callResults.SingleErrorMessage._EncodeHtml()}
+    <strong>エラーメッセージ:</strong><BR>{callResults.SingleErrorMessage._EncodeHtml()}
   </div>
 </article>");
 
-            w.WriteLine($"<a class='button is-danger is-rounded' style='font-weight: bold' href='javascript:history.go(-1)'><i class='fas fa-arrow-circle-left'></i>&nbsp;Back to the Previous Control Panel Web Form and Try Again</a>");
+            w.WriteLine($"<a class='button is-danger is-rounded' style='font-weight: bold' href='javascript:history.go(-1)'><i class='fas fa-arrow-circle-left'></i>&nbsp;コントロールパネルの Web フォームに戻って再試行する</a>");
             w.WriteLine("<p>　</p>");
         }
 
-        w.WriteLine($"<p><b>The JSON result data are as follows.</b> You may see the <a href='{this.RpcAbsoluteUrlPath}#{mi.Name}' target='_blank'><b>API Reference Manual of the {mi.Name} API</a></b>.</p>");
+        w.WriteLine($"<p><b>返却された JSON データは以下のとおりです。</b> 詳しい解説が、<a href='{this.RpcAbsoluteUrlPath}#{mi.Name}' target='_blank'><b>{mi.Name} API のリファレンスマニュアル</a></b> に記載されている場合があります。</p>");
 
-        w.WriteLine($"<a class='button is-primary' id='download' style='font-weight: bold' href='#' download='{bomUtfDownloadFileName}' onclick='handleDownload()'><i class='far fa-folder-open'></i>&nbsp;Download JSON Result Data ({bomUtfData.Length._ToString3()} bytes)</a>");
+        w.WriteLine($"<a class='button is-primary' id='download' style='font-weight: bold' href='#' download='{bomUtfDownloadFileName}' onclick='handleDownload()'><i class='far fa-folder-open'></i>&nbsp;JSON 応答データ ({bomUtfData.Length._ToString3()} バイト)</a>");
 
         if (mi.ParametersByIndex.Length == 0)
         {
-            w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-sync'></i>&nbsp;Refresh {mi.Name} API Result</a>");
+            w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-sync'></i>&nbsp;{mi.Name} API を再度呼び出す</a>");
         }
 
-        w.WriteLine($"<a class='button is-success' style='font-weight: bold' href='{this.ControlAbsoluteUrlPath}'><i class='fas fa-user'></i>&nbsp;Return to Control Panel Web Form API Index</a>");
+        w.WriteLine($"<a class='button is-success' style='font-weight: bold' href='{this.ControlAbsoluteUrlPath}'><i class='fas fa-user'></i>&nbsp;コントロールパネルの Web フォームの API 一覧に戻る</a>");
 
 
-        w.WriteLine($"<p><i>Timestamp: {timeStamp._ToDtStr(true)}, Took time: {TimeSpan.FromSeconds(tookTick)._ToTsStr(true, true)}.</i></p>");
+        w.WriteLine($"<p><i>実行日時: {timeStamp._ToDtStr(true)}, 実行に要した時間: {TimeSpan.FromSeconds(tookTick)._ToTsStr(true, true)}.</i></p>");
 
         w.Write("<pre><code class='language-json'>");
 
@@ -1107,25 +1107,25 @@ public class JsonRpcHttpServer : JsonRpcServer
 
         if (mi.ParametersByIndex.Length >= 1)
         {
-            w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-user'></i>&nbsp;Open Another {mi.Name} API Control Panel Web Form</a>");
+            w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-user'></i>&nbsp;新規の {mi.Name} API のコントロールパネルの Web フォームを表示</a>");
         }
         else
         {
-            w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-sync'></i>&nbsp;Refresh {mi.Name} API Result</a>");
+            w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-sync'></i>&nbsp;{mi.Name} API を再度呼び出す</a>");
         }
 
-        w.WriteLine($"<a class='button is-success' style='font-weight: bold' href='{this.ControlAbsoluteUrlPath}'><i class='fas fa-user'></i>&nbsp;Return to Control Panel Web Form API Index</a>");
+        w.WriteLine($"<a class='button is-success' style='font-weight: bold' href='{this.ControlAbsoluteUrlPath}'><i class='fas fa-user'></i>&nbsp;コントロールパネルの Web フォームの API 一覧に戻る</a>");
 
         w.WriteLine("<p>　</p>");
 
 
         w.WriteLine("<hr />");
 
-        w.WriteLine($"<p><b><a href='{this.ControlAbsoluteUrlPath}'><i class='fas fa-user'></i> API Control Panel Index</a></b> > <b><a href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-user'></i> {mi.Name} API Control Panel Web Form</a></b></p>");
+        w.WriteLine($"<p><b><a href='{this.ControlAbsoluteUrlPath}'><i class='fas fa-user'></i> API コントロールパネルの API 一覧</a></b> > <b><a href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-user'></i> {mi.Name} API コントロールパネルの Web フォーム</a></b></p>");
 
         if (this.Config.EnableBuiltinRichWebPages)
         {
-            w.WriteLine($"<p><b><a href='{this.RpcAbsoluteUrlPath}'><i class='fas fa-book-open'></i> API Reference Document Index</a></b> > <b><a href='{this.RpcAbsoluteUrlPath}#{mi.Name}'><i class='fas fa-book-open'></i> {mi.Name} API Document</a></b></p>");
+            w.WriteLine($"<p><b><a href='{this.RpcAbsoluteUrlPath}'><i class='fas fa-book-open'></i> すべての API のリファレンスドキュメント一覧</a></b> > <b><a href='{this.RpcAbsoluteUrlPath}#{mi.Name}'><i class='fas fa-book-open'></i> {mi.Name} API のドキュメント</a></b></p>");
         }
 
         w.WriteLine("<p>　</p><HR>");
@@ -1147,7 +1147,7 @@ public class JsonRpcHttpServer : JsonRpcServer
         StringWriter w = new StringWriter();
         var mi = this.Api.GetMethodInfo(methodName);
 
-        Control_WriteHtmlHeader(w, $"{mi.Name} - {this.ServerFriendlyNameHtml} Web API Form");
+        Control_WriteHtmlHeader(w, $"{mi.Name} - {this.ServerFriendlyNameHtml} Web API フォーム");
 
         w.WriteLine($"<form action='{this.ControlAbsoluteUrlPath}{mi.Name}/' method='get'>");
         w.WriteLine($"<input name='_call' type='hidden' value='1'/>");
@@ -1159,7 +1159,7 @@ public class JsonRpcHttpServer : JsonRpcServer
 
         w.WriteLine(this.Hook.GetHeaderMenuText());
 
-        w.WriteLine($"<h2 class='title is-4'>" + $"<i class='fas fa-user'></i> {this.ServerFriendlyNameHtml} Web API Form - {mi.Name} API" + "</h2>");
+        w.WriteLine($"<h2 class='title is-4'>" + $"<i class='fas fa-user'></i> {this.ServerFriendlyNameHtml} Web API 呼び出しフォーム - {mi.Name} API" + "</h2>");
 
         w.WriteLine($"<h3 class='title is-5'>" + $"{mi.Name} API: {mi.Description._EncodeHtml()}" + "</h3>");
 
@@ -1170,7 +1170,7 @@ public class JsonRpcHttpServer : JsonRpcServer
             requireAuthStr = "<i class='fas fa-key'></i> ";
         }
 
-        w.WriteLine($"<p><b><a href='{this.ControlAbsoluteUrlPath}'><i class='fas fa-user'></i> API Control Panel Index</a></b> > <b><a href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-user'></i> {requireAuthStr} {mi.Name} API Control Panel Web Form</a></b></p>");
+        w.WriteLine($"<p><b><a href='{this.ControlAbsoluteUrlPath}'><i class='fas fa-user'></i> コントロールパネル API 一覧</a></b> > <b><a href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-user'></i> {requireAuthStr} {mi.Name} API 呼び出し用 Web フォーム</a></b></p>");
 
         int index = 0;
 
@@ -1178,7 +1178,7 @@ public class JsonRpcHttpServer : JsonRpcServer
         {
             index++;
 
-            string sampleStr = p.SampleValueOneLineStr._IsEmpty() ? "" : $"<p>Input Example: <code>{p.SampleValueOneLineStr._RemoveQuotation()._EncodeHtmlCodeBlock()}</code></p>";
+            string sampleStr = p.SampleValueOneLineStr._IsEmpty() ? "" : $"<p>入力例: <code>{p.SampleValueOneLineStr._RemoveQuotation()._EncodeHtmlCodeBlock()}</code></p>";
 
             string defaultValueStr = p.DefaultValue._ObjectToJson(compact: true);
             if (p.DefaultValue == null) defaultValueStr = "";
@@ -1197,7 +1197,7 @@ public class JsonRpcHttpServer : JsonRpcServer
             {
                 StringWriter optionsStr = new StringWriter();
 
-                optionsStr.WriteLine($"<option value='__Not_Selected__' selected>▼ Select Item</option>");
+                optionsStr.WriteLine($"<option value='__Not_Selected__' selected>▼ 項目の選択</option>");
 
                 foreach (var kv in p.EnumValuesList!)
                 {
@@ -1238,15 +1238,15 @@ public class JsonRpcHttpServer : JsonRpcServer
                 <div class='field-body'>
                     <div class='field'>
                         <div class='control'>
-                            <input class='button is-link' type='submit' style='font-weight: bold' value='Call this API with Parameters'>
+                            <input class='button is-link' type='submit' style='font-weight: bold' value='これらのパラメータを指定してこの API を呼び出す'>
                             <p>　</p>
 ");
 
 
         if (this.Config.EnableBuiltinRichWebPages)
         {
-            w.WriteLine("<p><b>You may see this API reference before calling the API.</b></p>");
-            w.WriteLine($"<p><b><a href='{this.RpcAbsoluteUrlPath}'><i class='fas fa-book-open'></i> API Reference Document Index</a></b> > <b><a href='{this.RpcAbsoluteUrlPath}#{mi.Name}'><i class='fas fa-book-open'></i> {mi.Name} API Document</a></b></p>");
+            w.WriteLine("<p><b>API の呼び出し方法や効果などの解説に関するドキュメントが参考になる場合があります。</b></p>");
+            w.WriteLine($"<p><b><a href='{this.RpcAbsoluteUrlPath}'><i class='fas fa-book-open'></i> すべての API のリファレンスドキュメント一覧</a></b> > <b><a href='{this.RpcAbsoluteUrlPath}#{mi.Name}'><i class='fas fa-book-open'></i> {mi.Name} API のドキュメント</a></b></p>");
         }
 
         w.WriteLine(@"
@@ -1595,7 +1595,7 @@ code[class*=""language-""], pre[class*=""language-""] {
         int methodIndex = 0;
 
 
-        Control_WriteHtmlHeader(w, $"{this.ServerFriendlyNameHtml} - JSON-RPC Server API Control Panel Index");
+        Control_WriteHtmlHeader(w, $"{this.ServerFriendlyNameHtml} - JSON-RPC サーバー API コントロール パネル - API 一覧");
 
         w.WriteLine($@"
     <div class='container is-fluid'>
@@ -1605,11 +1605,11 @@ code[class*=""language-""], pre[class*=""language-""] {
 
         {this.Hook.GetHeaderMenuText()}
 
-<h2 class='title is-4'><i class='fas fa-user'></i> {this.ServerFriendlyNameHtml} - JSON-RPC Server API Control Panel Index</h2>
+<h2 class='title is-4'><i class='fas fa-user'></i> {this.ServerFriendlyNameHtml} - JSON-RPC サーバー API コントロール パネル API 一覧</h2>
         
-<h4 class='title is-5'>List of all {methodList.Count} API Control Panel Web Forms:</h4>
+<h4 class='title is-5'>このサーバーには、{methodList.Count} 個の API が存在します。これらは、以下のコントロールパネルの Web フォームから簡単に呼び出せます。</h4>
 
-<p><a href='{this.RpcAbsoluteUrlPath}'><i class='fas fa-hand-point-right'></i> <b>Call JSON-RPC APIs directly from curl/wget or your application.</a></b></p>
+<p><a href='{this.RpcAbsoluteUrlPath}'><i class='fas fa-hand-point-right'></i> <b>コマンドラインの curl/wget ツールや任意の開発アプリケーションから、JSON-RPC API を直接呼び出すことも可能です。</a></b></p>
 ");
 
         w.WriteLine("<ul>");
@@ -1625,7 +1625,7 @@ code[class*=""language-""], pre[class*=""language-""] {
                 requireAuthStr = "<i class='fas fa-key'></i> ";
             }
 
-            string titleStr = $"<a href='{this.ControlAbsoluteUrlPath}{m.Name}/'><b><i class='fas fa-user'></i> {requireAuthStr}Control Panel Web Form #{methodIndex}: {m.Name} API</b></a>{(m.Description._IsFilled() ? " <BR>" : "")} <b>{m.Description._EncodeHtml()}</b>".Trim();
+            string titleStr = $"<a href='{this.ControlAbsoluteUrlPath}{m.Name}/'><b><i class='fas fa-user'></i> {requireAuthStr}{methodIndex}. {m.Name} API を Web フォームから呼び出す</b></a>{(m.Description._IsFilled() ? " <BR>" : "")} <b>{m.Description._EncodeHtml()}</b>".Trim();
 
             //w.WriteLine();
             //w.WriteLine($"- {helpStr}");
@@ -1674,7 +1674,7 @@ code[class*=""language-""], pre[class*=""language-""] {
         int methodIndex = 0;
 
 
-        Control_WriteHtmlHeader(w, $"{this.ServerFriendlyNameHtml} - JSON-RPC Server API Reference Document Index");
+        Control_WriteHtmlHeader(w, $"{this.ServerFriendlyNameHtml} - JSON-RPC サーバー API リファレンスドキュメント一覧");
 
         w.WriteLine($@"
     <div class='container is-fluid'>
@@ -1684,11 +1684,11 @@ code[class*=""language-""], pre[class*=""language-""] {
 
         {this.Hook.GetHeaderMenuText()}
 
-<h2 class='title is-4'><i class='fas fa-dice-d6'></i> {this.ServerFriendlyNameHtml} - JSON-RPC Server API Reference Document Index</h2>
+<h2 class='title is-4'><i class='fas fa-dice-d6'></i> {this.ServerFriendlyNameHtml} - JSON-RPC サーバー API リファレンスドキュメント一覧および直接呼び出し方法</h2>
         
-<h4 class='title is-5'>List of all {methodList.Count} RPC-API Methods:</h4>
+<h4 class='title is-5'>{methodList.Count} 個の RPC-API メソッドが存在します。各 API のリファレンスと呼び出し方の解説は、以下のとおりです:</h4>
 
-<p><a href='{this.ControlAbsoluteUrlPath}'><i class='fas fa-home'></i> <b>Call JSON-RPC APIs easily from the control panel web forms.</a></b></p>
+<p><a href='{this.ControlAbsoluteUrlPath}'><i class='fas fa-home'></i> <b>Web フォームからも、各 JSON-RPC API を簡単に呼び出すことができます。</a></b></p>
 
 ");
 
@@ -1698,7 +1698,7 @@ code[class*=""language-""], pre[class*=""language-""] {
         {
             methodIndex++;
 
-            string titleStr = $"<a href='#{m.Name}'><b><i class='fas fa-dice-d6'></i> RPC Method #{methodIndex}: {m.Name} API</b></a>{(m.Description._IsFilled() ? "<BR>" : "")} <b>{m.Description._EncodeHtml()}</b>".Trim();
+            string titleStr = $"<a href='#{m.Name}'><b><i class='fas fa-dice-d6'></i> {methodIndex}. {m.Name} API</b></a>{(m.Description._IsFilled() ? "<BR>" : "")} <b>{m.Description._EncodeHtml()}</b>".Trim();
 
             //w.WriteLine();
             //w.WriteLine($"- {helpStr}");
@@ -1721,7 +1721,7 @@ code[class*=""language-""], pre[class*=""language-""] {
 
             w.WriteLine($"<hr id={m.Name}>");
 
-            string titleStr = $"<i class='fas fa-dice-d6'></i> RPC Method #{methodIndex}: {m.Name} API{(m.Description._IsFilled() ? ":" : "")} {m.Description._EncodeHtml()}".Trim();
+            string titleStr = $"<i class='fas fa-dice-d6'></i> RPC メソッド #{methodIndex}: {m.Name} API{(m.Description._IsFilled() ? ":" : "")} {m.Description._EncodeHtml()}".Trim();
 
             w.WriteLine($"<h4 class='title is-5'>{titleStr}</h4>");
 
@@ -1732,21 +1732,21 @@ code[class*=""language-""], pre[class*=""language-""] {
                 requireAuthStr = "<i class='fas fa-key'></i> ";
             }
 
-            w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-user'></i>&nbsp;{requireAuthStr}&nbsp;Call this {mi.Name} API with Control Panel Web Form</a>");
+            w.WriteLine($"<a class='button is-info' style='font-weight: bold' href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-user'></i>&nbsp;{requireAuthStr}&nbsp;この {mi.Name} API を コントロールパネルの Web フォームから呼び出す</a>");
 
             w.WriteLine();
             w.WriteLine("<p>　</p>");
-            w.WriteLine($"<p>RPC Method Name: <b><code class='language-shell'>{m.Name}()</code></b></p>");
-            w.WriteLine($"<p>RPC Definition: <b><code class='language-shell'>{m.Name}({(m.ParametersHelpList.Select(x => x.Name + ": " + x.TypeName + (x.Mandatory ? "" : " = " + x.DefaultValue._ObjectToJson(compact: true)))._Combine(", "))}): {m.RetValueTypeName};</code></b></p>");
+            w.WriteLine($"<p>RPC メソッド名: <b><code class='language-shell'>{m.Name}()</code></b></p>");
+            w.WriteLine($"<p>RPC の定義: <b><code class='language-shell'>{m.Name}({(m.ParametersHelpList.Select(x => x.Name + ": " + x.TypeName + (x.Mandatory ? "" : " = " + x.DefaultValue._ObjectToJson(compact: true)))._Combine(", "))}): {m.RetValueTypeName};</code></b></p>");
             w.WriteLine();
 
             if (m.Description._IsFilled())
             {
-                w.WriteLine($"<p>RPC Description: <b>{m.Description._EncodeHtml()}</b></p>");
+                w.WriteLine($"<p>RPC の説明: <b>{m.Description._EncodeHtml()}</b></p>");
                 w.WriteLine();
             }
 
-            w.WriteLine($"<p>RPC Authenication Required: {m.RequireAuth._ToBoolYesNoStr()}</p>");
+            w.WriteLine($"<p>RPC の呼び出し時の認証要求: {m.RequireAuth._ToBoolYesNoStr()}</p>");
             w.WriteLine();
 
             var pl = m.ParametersHelpList;
@@ -1757,29 +1757,29 @@ code[class*=""language-""], pre[class*=""language-""] {
 
             if (pl.Count == 0)
             {
-                w.WriteLine($"<p>No RPC Input Parameters.</p>");
+                w.WriteLine($"<p>この RPC には、入力パラメータは不要です。</p>");
                 w.WriteLine();
             }
             else
             {
-                w.WriteLine($"<p>RPC Input: {pl.Count} Parameters</p>");
+                w.WriteLine($"<p>この RPC を呼び出すため際は、下記の {pl.Count} 個の入力パラメータを指定します。</p>");
 
                 for (int i = 0; i < pl.Count; i++)
                 {
                     var pp = pl[i];
                     string? qsSampleOrDefaultValue = null;
 
-                    w.WriteLine("<p>" + $"Parameter #{i + 1}: <b><code class='language-shell'>{pp.Name}</code></b>".TrimEnd() + "</p>");
+                    w.WriteLine("<p>" + $"パラメータ #{i + 1}: <b><code class='language-shell'>{pp.Name}</code></b>".TrimEnd() + "</p>");
                     w.WriteLine("<ul>");
                     if (pp.Description._IsFilled())
                     {
-                        w.WriteLine($"<li>Description: {pp.Description._EncodeHtml()}</li>");
+                        w.WriteLine($"<li>説明: {pp.Description._EncodeHtml()}</li>");
                     }
                     if (pp.IsPrimitiveType)
                     {
                         if (pp.IsEnumType == false)
                         {
-                            w.WriteLine($"<li>Input Data Type: <code class='language-shell'>Primitive Value - {pp.TypeName}</code></li>");
+                            w.WriteLine($"<li>入力データ型: <code class='language-shell'>Primitive Value - {pp.TypeName}</code></li>");
                         }
                         else
                         {
@@ -1790,34 +1790,34 @@ code[class*=""language-""], pre[class*=""language-""] {
                                 enumWriter.WriteLine($"    {enumItem.Key}: {Convert.ToUInt64(enumItem.Value)},");
                             }
                             enumWriter.WriteLine("}");
-                            w.WriteLine($"<li>Input Data Type: Enumeration Value - {pp.TypeName}<BR>");
+                            w.WriteLine($"<li>入力データ型: 列挙型 - {pp.TypeName}<BR>");
                             w.Write($"<pre><code class='language-json'>{enumWriter.ToString()._EncodeHtmlCodeBlock()}</code></pre>");
                             w.WriteLine($"</li>");
                         }
                     }
                     else
                     {
-                        w.WriteLine($"<li>Input Data Type: JSON Data - <code class='language-shell'>{pp.TypeName}</code></li>");
+                        w.WriteLine($"<li>入力データ型: JSON データ - <code class='language-shell'>{pp.TypeName}</code></li>");
                     }
 
                     if (pp.SampleValueOneLineStr._IsFilled())
                     {
                         if (pp.IsPrimitiveType)
                         {
-                            w.WriteLine($"<li>Input Data Example: <code>{pp.SampleValueOneLineStr._EncodeHtmlCodeBlock()}</code></li>");
+                            w.WriteLine($"<li>入力データのサンプル: <code>{pp.SampleValueOneLineStr._EncodeHtmlCodeBlock()}</code></li>");
                         }
                         else
                         {
-                            w.WriteLine($"<li>Input Data Example (JSON):<BR>");
+                            w.WriteLine($"<li>入力データのサンプル (JSON):<BR>");
                             w.Write($"<pre><code class='language-json'>{pp.SampleValueMultiLineStr._EncodeHtmlCodeBlock()}</code></pre>");
                             w.WriteLine($"</li>");
                         }
                         qsSampleOrDefaultValue = pp.SampleValueOneLineStr;
                     }
-                    w.WriteLine($"<li>Mandatory: {pp.Mandatory._ToBoolYesNoStr()}</li>");
+                    w.WriteLine($"<li>必須パラメータ: {pp.Mandatory._ToBoolYesNoStr()}</li>");
                     if (pp.Mandatory == false)
                     {
-                        w.WriteLine($"<li>Default Value: <code>{pp.DefaultValue._ObjectToJson(includeNull: true, compact: true)._EncodeHtml()}</code></li>");
+                        w.WriteLine($"<li>省略時のデフォルト値: <code>{pp.DefaultValue._ObjectToJson(includeNull: true, compact: true)._EncodeHtml()}</code></li>");
                         if (qsSampleOrDefaultValue == null)
                         {
                             qsSampleOrDefaultValue = pp.DefaultValue._ObjectToJson(includeNull: true, compact: true);
@@ -1858,24 +1858,24 @@ code[class*=""language-""], pre[class*=""language-""] {
 
             if (m.HasRetValue == false)
             {
-                w.WriteLine("<p>No RPC Result Value.</p>");
+                w.WriteLine("<p>この RPC には、応答データはありません。</p>");
                 w.WriteLine();
             }
             else
             {
-                w.WriteLine("<p><b>RPC Result Value:</b></p>");
+                w.WriteLine("<p><b>この RPC は、以下のような応答データを返却します:</b></p>");
                 if (m.IsRetValuePrimitiveType)
                 {
-                    w.WriteLine($"<p>Output Data Type: Primitive Value - {m.RetValueTypeName}</p>");
+                    w.WriteLine($"<p>応答データの型: プリミティブ型 - {m.RetValueTypeName}</p>");
                 }
                 else
                 {
-                    w.WriteLine($"<p>Output Data Type: JSON Data - {m.RetValueTypeName}</p>");
+                    w.WriteLine($"<p>応答データの型: JSON データ - {m.RetValueTypeName}</p>");
                 }
 
                 if (m.RetValueSampleValueJsonMultilineStr._IsFilled())
                 {
-                    w.WriteLine("<p>Sample Result Output Data:</p>");
+                    w.WriteLine("<p>応答データのサンプル:</p>");
 
                     w.Write($"<pre><code class='language-json'>{m.RetValueSampleValueJsonMultilineStr._EncodeHtmlCodeBlock()}</code></pre>");
                 }
@@ -1896,17 +1896,16 @@ code[class*=""language-""], pre[class*=""language-""] {
                 }
 
                 w.WriteLine("<p>　</p>");
-                w.WriteLine($"<h5 class='title is-6'>RPC Call Sample: HTTP GET with Query String Sample</h5>");
-                //w.WriteLine("--- RPC Call Sample: HTTP GET with Query String Sample ---");
+                w.WriteLine($"<h5 class='title is-6'>RPC 呼び出し方法のサンプル: HTTP GET (Query String 付き) の例</h5>");
 
                 StringWriter tmp = new StringWriter();
-                tmp.WriteLine($"# HTTP GET Target URL (You can test it with your web browser easily):");
+                tmp.WriteLine($"# HTTP GET ターゲット URL (Web ブラウザ上で簡単に試すことができます):");
                 tmp.WriteLine($"{urlDir}");
                 tmp.WriteLine();
-                tmp.WriteLine($"# wget command line sample on Linux bash (retcode = 0 when successful):");
+                tmp.WriteLine($"# wget コマンドライン サンプル - Linux bash 上を想定 (成功した場合は、応答コード = 0 が返ります):");
                 tmp.WriteLine($"wget --content-on-error --no-verbose -O - --no-check-certificate {urlDir._EscapeBashArg()}");
                 tmp.WriteLine();
-                tmp.WriteLine($"# curl command line sample on Linux bash (retcode = 0 when successful):");
+                tmp.WriteLine($"# curl コマンドライン サンプル - Linux bash 上を想定 (成功した場合は、応答コード = 0 が返ります):");
                 tmp.WriteLine($"curl --get --globoff --fail -k --raw --verbose {urlDir._EscapeBashArg()}");
                 tmp.WriteLine();
 
@@ -1919,13 +1918,13 @@ code[class*=""language-""], pre[class*=""language-""] {
                     Params = sampleRequestJsonData,
                 };
 
-                w.WriteLine($"<h5 class='title is-6'>RPC Call Sample: HTTP POST with JSON-RPC Sample:</h5>");
+                w.WriteLine($"<h5 class='title is-6'>RPC 呼び出し方法のサンプル: HTTP POST (JSON-RPC 規格準拠) の例:</h5>");
 
                 tmp = new StringWriter();
-                tmp.WriteLine($"# HTTP POST Target URL:");
+                tmp.WriteLine($"# HTTP POST ターゲット URL:");
                 tmp.WriteLine($"{rpcBaseUri}");
                 tmp.WriteLine();
-                tmp.WriteLine($"# curl JSON-RPC call command line sample on Linux bash:");
+                tmp.WriteLine($"# curl JSON-RPC 呼び出しコマンドライン サンプル - Linux bash 上の想定:");
                 tmp.WriteLine($"cat <<\\EOF | curl --request POST --globoff --fail -k --raw --verbose --data @- '{rpcBaseUri}'");
                 tmp.Write(reqSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true));
                 tmp.WriteLine("EOF");
@@ -1933,21 +1932,18 @@ code[class*=""language-""], pre[class*=""language-""] {
 
                 w.WriteLine($"<pre><code class='language-shell'>{tmp.ToString()._EncodeHtmlCodeBlock()}</code></pre>");
 
-                //w.WriteLine("# JSON-RPC call response sample (when successful):");
-                w.WriteLine($"<h5 class='title is-6'>JSON-RPC call response sample (when successful):</h5>");
+                w.WriteLine($"<h5 class='title is-6'>JSON-RPC の実行に成功した場合は、以下のような応答データが返ります:</h5>");
                 var okSample = new JsonRpcResponseForHelp_Ok
                 {
                     Version = "2.0",
                     Result = m.RetValueSampleValueObject,
                 };
-                //w.WriteLine($"--------------------");
-                //w.Write(okSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true));
+
                 w.Write($"<pre><code class='language-json'>{okSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true)._EncodeHtmlCodeBlock()}</code></pre>");
-                //w.WriteLine($"--------------------");
                 w.WriteLine();
 
-                w.WriteLine($"<h5 class='title is-6'>JSON-RPC call response sample (when error):</h5>");
-                //w.WriteLine("# JSON-RPC call response sample (when error):");
+                w.WriteLine($"<h5 class='title is-6'>JSON-RPC の実行中でエラーが発生した場合は、以下のようなエラーメッセージが返ります:</h5>");
+
                 var errorSample = new JsonRpcResponseForHelp_Error
                 {
                     Version = "2.0",
@@ -1959,9 +1955,6 @@ code[class*=""language-""], pre[class*=""language-""] {
                     },
                 };
                 w.Write($"<pre><code class='language-json'>{errorSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true)._EncodeHtmlCodeBlock()}</code></pre>");
-                //w.WriteLine($"--------------------");
-                //w.Write(errorSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true));
-                //w.WriteLine($"--------------------");
                 w.WriteLine();
             }
             else
@@ -1986,31 +1979,30 @@ code[class*=""language-""], pre[class*=""language-""] {
                     urlWithQsAuth += "&" + qsList.ToString(null, urlEncodeParam);
                 }
 
-                //w.WriteLine("--- RPC Call Sample: HTTP GET with Query String Sample ---");
                 w.WriteLine("<p>　</p>");
-                w.WriteLine($"<h5 class='title is-6'>RPC Call Sample: HTTP GET with Query String Sample</h5>");
+                w.WriteLine($"<h5 class='title is-6'>RPC 呼び出し方法のサンプル: HTTP GET (Query String 付き) の例</h5>");
 
                 StringWriter tmp = new StringWriter();
-                tmp.WriteLine($"# HTTP GET Target URL (You can test it with your web browser easily):");
-                tmp.WriteLine("# (with HTTP Basic Authentication)");
+                tmp.WriteLine($"# HTTP GET ターゲット URL (Web ブラウザ上で簡単に試すことができます):");
+                tmp.WriteLine("# (HTTP Basic 認証を用いたユーザー認証を行なう場合)");
                 tmp.WriteLine($"{urlWithBasicAuth}");
-                tmp.WriteLine("# (with HTTP Query String Authentication)");
+                tmp.WriteLine("# (HTTP Query String を用いた認証データ付加によるユーザー認証を行なう場合)");
                 tmp.WriteLine($"{urlWithQsAuth}");
                 tmp.WriteLine();
-                tmp.WriteLine($"# wget command line sample on Linux bash (retcode = 0 when successful):");
-                tmp.WriteLine("# (wget with HTTP Basic Authentication)");
+                tmp.WriteLine($"# wget コマンドライン サンプル - Linux bash 上を想定 (成功した場合は、応答コード = 0 が返ります):");
+                tmp.WriteLine("# (HTTP Basic 認証を用いたユーザー認証を行なう場合)");
                 tmp.WriteLine($"wget --content-on-error --no-verbose -O - --no-check-certificate {urlWithBasicAuth._EscapeBashArg()}");
-                tmp.WriteLine("# (wget with HTTP Query String Authentication)");
+                tmp.WriteLine("# (HTTP Query String を用いた認証データ付加によるユーザー認証を行なう場合)");
                 tmp.WriteLine($"wget --content-on-error --no-verbose -O - --no-check-certificate {urlWithQsAuth._EscapeBashArg()}");
-                tmp.WriteLine("# (wget with HTTP Header Authentication)");
+                tmp.WriteLine("# (HTTP ヘッダ認証データ付加によるユーザー認証を行なう場合)");
                 tmp.WriteLine($"wget --content-on-error --no-verbose -O - --no-check-certificate --header 'X-RPC-Auth-Username: {Consts.Strings.DefaultAdminUsername}' --header 'X-RPC-Auth-Password: {Consts.Strings.DefaultAdminPassword}' {urlSimple._EscapeBashArg()}");
                 tmp.WriteLine();
-                tmp.WriteLine($"# curl command line sample on Linux bash (retcode = 0 when successful):");
-                tmp.WriteLine("# (curl with HTTP Basic Authentication)");
+                tmp.WriteLine($"# curl コマンドライン サンプル - Linux bash 上を想定 (成功した場合は、応答コード = 0 が返ります):");
+                tmp.WriteLine("# (HTTP Basic 認証を用いたユーザー認証を行なう場合)");
                 tmp.WriteLine($"curl --get --globoff --fail -k --raw --verbose {urlWithBasicAuth._EscapeBashArg()}");
-                tmp.WriteLine("# (curl with HTTP Query String Authentication)");
+                tmp.WriteLine("# (HTTP Query String を用いた認証データ付加によるユーザー認証を行なう場合)");
                 tmp.WriteLine($"curl --get --globoff --fail -k --raw --verbose {urlWithQsAuth._EscapeBashArg()}");
-                tmp.WriteLine("# (curl with HTTP Header Authentication)");
+                tmp.WriteLine("# (HTTP ヘッダ認証データ付加によるユーザー認証を行なう場合)");
                 tmp.WriteLine($"curl --get --globoff --fail -k --raw --verbose --header 'X-RPC-Auth-Username: {Consts.Strings.DefaultAdminUsername}' --header 'X-RPC-Auth-Password: {Consts.Strings.DefaultAdminPassword}' {urlSimple._EscapeBashArg()}");
                 tmp.WriteLine();
 
@@ -2023,14 +2015,13 @@ code[class*=""language-""], pre[class*=""language-""] {
                     Params = sampleRequestJsonData,
                 };
 
-                //w.WriteLine("--- RPC Call Sample: HTTP POST with JSON-RPC Sample ---");
-                w.WriteLine($"<h5 class='title is-6'>RPC Call Sample: HTTP POST with JSON-RPC Sample:</h5>");
+                w.WriteLine($"<h5 class='title is-6'>RPC 呼び出し方法のサンプル: HTTP POST (JSON-RPC 規格準拠) の例:</h5>");
 
                 tmp = new StringWriter();
-                tmp.WriteLine($"# HTTP POST Target URL (You can test it with your web browser easily):");
+                tmp.WriteLine($"# HTTP POST ターゲット URL:");
                 tmp.WriteLine($"{urlWithBasicAuth}");
                 tmp.WriteLine();
-                tmp.WriteLine($"# curl JSON-RPC call command line sample on Linux bash:");
+                tmp.WriteLine($"#  curl コマンドライン サンプル - Linux bash 上を想定:");
                 tmp.WriteLine($"cat <<\\EOF | curl --request POST --globoff --fail -k --raw --verbose --data @- '{rpcBaseUri}'");
                 tmp.Write(reqSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true));
                 tmp.WriteLine("EOF");
@@ -2038,20 +2029,17 @@ code[class*=""language-""], pre[class*=""language-""] {
 
                 w.WriteLine($"<pre><code class='language-shell'>{tmp.ToString()._EncodeHtmlCodeBlock()}</code></pre>");
 
-                //w.WriteLine("# JSON-RPC call response sample (when successful):");
-                w.WriteLine($"<h5 class='title is-6'>JSON-RPC call response sample (when successful):</h5>");
+                w.WriteLine($"<h5 class='title is-6'>JSON-RPC の実行に成功した場合は、以下のような応答データが返ります:</h5>");
                 var okSample = new JsonRpcResponseForHelp_Ok
                 {
                     Version = "2.0",
                     Result = m.RetValueSampleValueObject,
                 };
-                //w.WriteLine($"--------------------");
-                //w.Write(okSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true));
+
                 w.Write($"<pre><code class='language-json'>{okSample._ObjectToJson(includeNull: true, compact: false)._NormalizeCrlf(ensureLastLineCrlf: true)._EncodeHtmlCodeBlock()}</code></pre>");
-                //w.WriteLine($"--------------------");
                 w.WriteLine();
 
-                w.WriteLine($"<h5 class='title is-6'>JSON-RPC call response sample (when error):</h5>");
+                w.WriteLine($"<h5 class='title is-6'>JSON-RPC の実行中でエラーが発生した場合は、以下のようなエラーメッセージが返ります:</h5>");
                 var errorSample = new JsonRpcResponseForHelp_Error
                 {
                     Version = "2.0",
@@ -2069,7 +2057,7 @@ code[class*=""language-""], pre[class*=""language-""] {
                 w.WriteLine();
             }
 
-            w.WriteLine($"<a href='#'><b><i class='fas fa-arrow-up'></i> Return to the API Index</b></a>");
+            w.WriteLine($"<a href='#'><b><i class='fas fa-arrow-up'></i> API 一覧に戻る</b></a>");
 
             w.WriteLine();
             w.WriteLine();
@@ -2188,7 +2176,7 @@ code[class*=""language-""], pre[class*=""language-""] {
 
             if (logBrowserOptions == null)
             {
-                logBrowserOptions = new LogBrowserOptions(PP.Combine(Env.AppRootDir, "Log"), $"Admin Log Browser");
+                logBrowserOptions = new LogBrowserOptions(PP.Combine(Env.AppRootDir, "Log"), $"ログブラウザ (管理者用)");
             }
 
             if (LogBrowser == null && this.HasAdminPages)
@@ -2209,7 +2197,7 @@ code[class*=""language-""], pre[class*=""language-""] {
                     {
                         if (EasyIpAcl.Evaluate(config.Service_AdminPageAcl, remoteIp, enableCache: true, permitLocalHost: true) != EasyIpAclAction.Permit)
                         {
-                            string err = $"Client IP address '{remoteIp.ToString()}' is not allowed to access to the administration page by the server ACL settings.";
+                            string err = $"このクライアント IP アドレス '{remoteIp.ToString()}' は、サーバー側の ACL 設定により、管理者向けページへのアクセスを許可されていません。";
                             await res._SendStringContentsAsync(err, statusCode: Consts.HttpStatusCodes.Forbidden);
                         }
                     }
@@ -2221,7 +2209,7 @@ code[class*=""language-""], pre[class*=""language-""] {
                     }
                     else
                     {
-                        await BasicAuthImpl.SendAuthenticateHeaderAsync(res, "Admin Log Browser", req._GetRequestCancellationToken());
+                        await BasicAuthImpl.SendAuthenticateHeaderAsync(res, "ログブラウザ (管理者用)", req._GetRequestCancellationToken());
                     }
                 });
             }

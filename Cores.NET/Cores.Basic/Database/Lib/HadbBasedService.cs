@@ -376,29 +376,29 @@ public class HadbFullTextSearchResult
 public interface IHadbBasedServiceRpcBase
 {
     [RpcRequireAuth]
-    [RpcMethodHelp("Get the current HADB system internal statistics.")]
+    [RpcMethodHelp("HADB システムの現在の内部統計情報を表示します。")]
     public Task<EasyJsonStrAttributes> ServiceAdmin_GetStatCurrent();
 
     [RpcRequireAuth]
-    [RpcMethodHelp("Get the HADB system internal statistics history.")]
+    [RpcMethodHelp("この HADB システムの過去の内部統計情報の履歴を表示します。")]
     public Task<IEnumerable<HadbStat>> ServiceAdmin_GetStatHistory(int maxCount = Consts.Numbers.HadbHistoryMaxCount);
 
     [RpcRequireAuth]
-    [RpcMethodHelp("Perform full text search from database objects.")]
+    [RpcMethodHelp("この HADB システムに存在するデータベースオブジェクトに対してフルテキスト検索を実施します。")]
     public Task<HadbFullTextSearchResult> ServiceAdmin_FullTextSearch(
-        [RpcParamHelp("Query text string", "hello AND world")]
+        [RpcParamHelp("検索文字列", "hello AND world")]
         string queryText = "",
-        [RpcParamHelp("Sort by field name", "Age")]
+        [RpcParamHelp("ソートする変数名", "Age")]
         string sortBy = "",
-        [RpcParamHelp("Word mode", false)]
+        [RpcParamHelp("単語単位で検索", false)]
         bool wordMode = false,
-        [RpcParamHelp("Field name mode", false)]
+        [RpcParamHelp("変数名を含めた検索モード", false)]
         bool fieldNameMode = false,
-        [RpcParamHelp("Type name", "User")]
+        [RpcParamHelp("対象型名", "User")]
         string typeName = "",
-        [RpcParamHelp("Namespace", "NS_TEST1")]
+        [RpcParamHelp("対象名前空間", "NS_TEST1")]
         string nameSpace = "",
-        [RpcParamHelp("Max result counts", 100)]
+        [RpcParamHelp("最大検索個数", 100)]
         int maxResults = 0);
 }
 
