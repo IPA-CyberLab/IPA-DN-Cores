@@ -2216,7 +2216,7 @@ SRV _ldap._tcp.abc 0 100 123 ldap_server.your_company.net
         if (memoryObj != null)
         {
             // 特に変更がないので、ステータスを Lazy 更新する。(Memory Object がメモリ上に存在する場合のみ)
-            retCurrentHost = retCurrentHostObj.FastUpdate(h =>
+            var r2 = retCurrentHostObj.FastUpdate(h =>
             {
                 h.AuthLogin_Count++;
                 h.AuthLogin_LastIpAddress = clientIp.ToString();
@@ -2229,8 +2229,12 @@ SRV _ldap._tcp.abc 0 100 123 ldap_server.your_company.net
             },
             true,
             new HadbFastUpdateOptions { QuotaDurationMsecs = config.DDns_HostFastUpdateQuota_DurationMsecs, QuotaMaxFastUpdateCountPerDuration = config.DDns_HostFastUpdateQuota_MaxFastUpdateCountPerDuration });
-        }
 
+            if (r2 != null)
+            {
+                retCurrentHost = r2;
+            }
+        }
         // 現在のオブジェクト情報を返却する。
         retCurrentHost._NullCheck(nameof(retCurrentHost));
         return new Host_Return(retCurrentHost, HostApiResult.NoChange, GetDomainNamesList().Select(x => retCurrentHost.HostLabel + "." + x).ToArray(), easyGetInfoUrl, easyUpdateUrl);

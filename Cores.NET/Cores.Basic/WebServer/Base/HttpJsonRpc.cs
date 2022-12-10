@@ -1170,7 +1170,7 @@ public class JsonRpcHttpServer : JsonRpcServer
             requireAuthStr = "<i class='fas fa-key'></i> ";
         }
 
-        w.WriteLine($"<p><b><a href='{this.ControlAbsoluteUrlPath}'><i class='fas fa-user'></i> コントロールパネル API 一覧</a></b> > <b><a href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-user'></i> {requireAuthStr} {mi.Name} API 呼び出し用 Web フォーム</a></b></p>");
+        w.WriteLine($"<p><b><a href='{this.ControlAbsoluteUrlPath}'><i class='fas fa-user'></i> API 呼び出し Web フォーム一覧</a></b> > <b><a href='{this.ControlAbsoluteUrlPath}{mi.Name}/'><i class='fas fa-user'></i> {requireAuthStr} {mi.Name} API 呼び出し用 Web フォーム</a></b></p>");
 
         int index = 0;
 
@@ -1625,7 +1625,7 @@ code[class*=""language-""], pre[class*=""language-""] {
                 requireAuthStr = "<i class='fas fa-key'></i> ";
             }
 
-            string titleStr = $"<a href='{this.ControlAbsoluteUrlPath}{m.Name}/'><b><i class='fas fa-user'></i> {requireAuthStr}{methodIndex}. {m.Name} API を Web フォームから呼び出す</b></a>{(m.Description._IsFilled() ? " <BR>" : "")} <b>{m.Description._EncodeHtml()}</b>".Trim();
+            string titleStr = $"<a href='{this.ControlAbsoluteUrlPath}{m.Name}/'><b><i class='fas fa-user'></i> {methodIndex}. {requireAuthStr}{m.Name} API を Web フォームから呼び出す</b></a>{(m.Description._IsFilled() ? " <BR>" : "")} <b>{m.Description._EncodeHtml()}</b>".Trim();
 
             //w.WriteLine();
             //w.WriteLine($"- {helpStr}");

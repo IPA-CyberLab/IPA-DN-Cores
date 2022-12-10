@@ -1991,7 +1991,7 @@ public static class BasicHelper
             {
                 if (paramName._IsEmpty() == false)
                 {
-                    exception = new NullReferenceException(paramName);
+                    exception = new NullReferenceException(paramName + " is null");
                 }
                 else
                 {
@@ -2014,7 +2014,7 @@ public static class BasicHelper
             {
                 if (paramName._IsEmpty() == false)
                 {
-                    exception = new NullReferenceException(paramName);
+                    exception = new NullReferenceException(paramName + " is empty");
                 }
                 else
                 {
