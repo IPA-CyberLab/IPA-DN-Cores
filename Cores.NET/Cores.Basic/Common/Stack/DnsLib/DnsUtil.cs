@@ -129,6 +129,7 @@ public static class DnsUtil
             case RecordType.Mx: return EasyDnsResponderRecordType.MX;
             case RecordType.Txt: return EasyDnsResponderRecordType.TXT;
             case RecordType.CAA: return EasyDnsResponderRecordType.CAA;
+            case RecordType.Srv: return EasyDnsResponderRecordType.SRV;
         }
 
         return EasyDnsResponderRecordType.None;
@@ -513,6 +514,7 @@ public enum EasyDnsResponderRecordType
     MX,
     TXT,
     CAA,
+    SRV,
 }
 
 [Flags]
@@ -617,6 +619,10 @@ public class EasyDnsResponderDynamicRecordCallbackResult
     public List<DomainName>? NsFqdnList { get; set; } // NS の場合
     public List<string>? TextList { get; set; } // TXT の場合
     public List<Tuple<byte, string, string>>? CaaList { get; set; } // CAA の場合
+    public List<ushort>? SrvPriorityList { get; set; } // SRV の場合
+    public List<ushort>? SrvWeightList { get; set; } // SRV の場合
+    public List<ushort>? SrvPortList { get; set; } // SRV の場合
+    public List<DomainName>? SrvTargetList { get; set; } // SRV の場合
 
     public EasyDnsResponderRecordSettings? Settings { get; set; } // TTL 等
 
@@ -811,6 +817,40 @@ public class EasyDnsResponder
         }
     }
 
+    public class Record_SRV : Record
+    {
+        public ushort Priority;
+        public ushort Weight;
+        public ushort Port;
+        public DomainName Target;
+
+        public Record_SRV(Zone parent, EasyDnsResponderRecord src) : base(parent, src)
+        {
+            string[] tokens = src.Contents._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ';', ',', '\t', ' ');
+
+            if (tokens.Length == 0) throw new CoresLibException("Contents is empty.");
+            if (tokens.Length < 4) throw new CoresLibException("SRV record contents must have priority, weight, port and target.");
+
+            this.Priority = (ushort)tokens[0]._ToUInt();
+            this.Weight = (ushort)tokens[1]._ToUInt();
+            this.Port = (ushort)tokens[2]._ToUInt();
+            this.Target = DomainName.Parse(tokens[3]._NonNullTrim());
+        }
+
+        public Record_SRV(Zone parent, EasyDnsResponderRecordSettings settings, string nameNormalized, ushort priority, ushort weight, ushort port, DomainName target) : base(parent, EasyDnsResponderRecordType.SRV, settings, nameNormalized)
+        {
+            this.Priority = priority;
+            this.Weight = weight;
+            this.Port = port;
+            this.Target = target;
+        }
+
+        protected override string ToStringForCompareImpl()
+        {
+            return $"{Priority} {Weight} {Port} {Target.ToString()}";
+        }
+    }
+
     public class Record_MX : Record
     {
         public DomainName MailServer;
@@ -907,6 +947,7 @@ public class EasyDnsResponder
                 case EasyDnsResponderRecordType.PTR:
                 case EasyDnsResponderRecordType.TXT:
                 case EasyDnsResponderRecordType.CAA:
+                case EasyDnsResponderRecordType.SRV:
                     this.CallbackId = src.Contents._NonNull();
 
                     if (this.CallbackId._IsEmpty()) throw new CoresLibException("Callback ID is empty.");
@@ -1001,6 +1042,9 @@ public class EasyDnsResponder
 
                 case EasyDnsResponderRecordType.CAA:
                     return new Record_CAA(parent, src);
+
+                case EasyDnsResponderRecordType.SRV:
+                    return new Record_SRV(parent, src);
             }
 
             throw new CoresLibException($"Unknown record type: {src.Type}");
@@ -1043,6 +1087,9 @@ public class EasyDnsResponder
 
                 case Record_CAA caa:
                     return new CAARecord(domainName, ttl, caa.Flags, caa.Tag, caa.Value);
+
+                case Record_SRV srv:
+                    return new SrvRecord(domainName, ttl, srv.Priority, srv.Weight, srv.Port, srv.Target);
             }
 
             return null;
@@ -1690,6 +1737,22 @@ public class EasyDnsResponder
             }
         }
 
+        if (expectedRecordType == EasyDnsResponderRecordType.SRV || expectedRecordType == EasyDnsResponderRecordType.Any)
+        {
+            if (callbackResult.SrvPortList != null && callbackResult.SrvPriorityList != null && callbackResult.SrvWeightList != null && callbackResult.SrvTargetList != null)
+            {
+                int count = callbackResult.SrvPortList.Count;
+                if (callbackResult.SrvPriorityList.Count == count && callbackResult.SrvWeightList.Count == count && callbackResult.SrvTargetList.Count == count)
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        listToAdd.Add(new Record_SRV(result.Zone, settings, result.RequestHostName,
+                            callbackResult.SrvPriorityList[i], callbackResult.SrvWeightList[i], callbackResult.SrvPortList[i], callbackResult.SrvTargetList[i]));
+                    }
+                }
+            }
+        }
+        
         if (expectedRecordType == EasyDnsResponderRecordType.NS || expectedRecordType == EasyDnsResponderRecordType.Any)
         {
             if (callbackResult.NsFqdnList != null)
