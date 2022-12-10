@@ -830,7 +830,7 @@ public class EasyDnsResponder
 
             if (tokens.Length == 0) throw new CoresLibException("Contents is empty.");
             if (tokens.Length < 4) throw new CoresLibException("SRV record contents must have priority, weight, port and target.");
-
+            
             this.Priority = (ushort)tokens[0]._ToUInt();
             this.Weight = (ushort)tokens[1]._ToUInt();
             this.Port = (ushort)tokens[2]._ToUInt();
@@ -1154,7 +1154,7 @@ public class EasyDnsResponder
                     if (record.Type != EasyDnsResponderRecordType.SOA)
                     {
                         string tmp1 = record.ToStringForCompare();
-                        if (this.RecordList.Where(x => x.ToStringForCompare() == tmp1).Any() == false)
+                        if (this.RecordList.Where(x => x.Type == record.Type && x.ToStringForCompare() == tmp1).Any() == false)
                         {
                             // 全く同じ内容のレコードが 2 つ追加されることは禁止する。最初の 1 つ目のみをリストに追加するのである。
                             this.RecordList.Add(record);

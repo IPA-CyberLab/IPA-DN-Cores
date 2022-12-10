@@ -84,9 +84,9 @@ public static partial class DevCoresConfig
 public static class MikakaDDnsServiceGlobal
 {
     // デフォルトの static 証明書
-    // SHA1: 69D3C5EBB86180C29412F3AC5AC76C1CE72D626B
-    // SHA256: 323EF7CBEF89EB0C4E2A9BE76E61A57529F2D53AA65D176A462A22AF4D8D715F
-    static readonly Singleton<PalX509Certificate> MikakaDDnsServerSampleStaticCert_Singleton = new Singleton<PalX509Certificate>(() => new PalX509Certificate(new FilePath(Res.Cores, "SampleDefaultCert/220722MikakaDDnsServerSampleStaticCert.pfx")));
+    // SHA1: 80E38CE13AE4FCB033439A6C17B0145D77AD4960
+    // SHA256: 35188460BC0767A6B738D118442EFEE5711CC5A8CB62387249E12D459D8E65A4
+    static readonly Singleton<PalX509Certificate> MikakaDDnsServerSampleStaticCert_Singleton = new Singleton<PalX509Certificate>(() => new PalX509Certificate(new FilePath(Res.Cores, "SampleDefaultCert/221125MikakaDDnsServerSampleStaticCert-20221125.pfx")));
     public static PalX509Certificate MikakaDDnsServerSampleStaticCert => MikakaDDnsServerSampleStaticCert_Singleton;
 
     public static void Init()
@@ -640,6 +640,8 @@ MX sample3 mail5.your_company.net 100
 MX sample3 mail6.your_company.net 200
 TXT sample3 v=spf1 ip4:130.158.0.0/16 ip4:133.51.0.0/16 ip6:2401:af80::/32 include:spf2.sample3.@ ?all
 TXT sample3 v=spf2 ip4:8.8.8.0/24 ip6:2401:5e40::/32 ?all
+
+SRV _ldap._tcp.abc 0 100 123 ldap_server.your_company.net
 
 
 ";
