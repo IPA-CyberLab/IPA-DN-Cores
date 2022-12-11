@@ -2369,6 +2369,9 @@ namespace IPA.Cores.Basic
         {
             bool b = false;
             str = str._NonNull();
+
+            str = ReplaceStr(str, "", "\n"); // Power Point
+
             StringReader sr = new StringReader(str);
             StringWriter sw = new StringWriter();
             while (true)
