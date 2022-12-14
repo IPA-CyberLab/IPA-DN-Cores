@@ -3862,11 +3862,45 @@ cccadmin
         s._Read(8)._GetHexString(" ")._Print();
     }
 
+    static void Test_221212_IpNetToPtr()
+    {
+        while (true)
+        {
+            try
+            {
+                string line = Con.ReadLine("NET>")!;
+
+                if (false)
+                {
+                    IPUtil.ParseIPAndSubnetMask(line, out IPAddress ip, out IPAddress mask);
+
+                    var str = IPUtil.IPAddressOrSubnetToPtrZoneOrFqdn(ip, IPUtil.SubnetMaskToInt(mask));
+
+                    str._Print();
+                }
+                else
+                {
+                    var ret = IPUtil.PtrZoneOrFqdnToIpAddressAndSubnet(line);
+
+                    ret._Print();
+                }
+
+                ""._Print();
+            }
+            catch (Exception ex)
+            {
+                ex.ToString()._Print();
+                ""._Print();
+            }
+        }
+    }
+
     public static void Test_Generic()
     {
         if (true)
         {
-            Test_MakeDummyCerts_221206();
+            Test_221212_IpNetToPtr();
+            //Test_MakeDummyCerts_221206();
             //Test_MakeStatic2LtsDnIpaNttNetCert();
             //Test_MakeTestWebAppDefaultStaticCerts_220614();
             //Test_MakeMikakaDDnsServerSampleStaticCerts_220614();

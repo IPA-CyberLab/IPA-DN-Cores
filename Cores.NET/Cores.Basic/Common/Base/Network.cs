@@ -1771,6 +1771,23 @@ namespace IPA.Cores.Basic
 
             return false;
         }
+
+        public static IPAddress IntToSubnetMask(AddressFamily family, int i)
+        {
+            if (family == AddressFamily.InterNetwork)
+            {
+                return IntToSubnetMask4(i);
+            }
+            else if (family == AddressFamily.InterNetworkV6)
+            {
+                return IntToSubnetMask6(i);
+            }
+            else
+            {
+                throw new CoresLibException("Invalid address family");
+            }
+        }
+
         public static IPAddress IntToSubnetMask4(int i)
         {
             uint ret = 0xffffffff;
@@ -1811,7 +1828,7 @@ namespace IPA.Cores.Basic
                 case 31: ret = 0xFFFFFFFE; break;
                 case 32: ret = 0xFFFFFFFF; break;
                 default:
-                    throw new ArgumentException("i is not IPv4 subnet numeric.");
+                    throw new ArgumentException($"{i} is not IPv4 subnet numeric.");
             }
 
             ret = Util.Endian(ret);
@@ -2462,6 +2479,21 @@ namespace IPA.Cores.Basic
 
             return dst;
         }
+        public static IPAddress GetPrefixAddress(IPAddress ip, int subnetLength)
+        {
+            if (ip.AddressFamily == AddressFamily.InterNetwork)
+            {
+                return GetPrefixAddress(ip, IPUtil.IntToSubnetMask4(subnetLength));
+            }
+            else if (ip.AddressFamily == AddressFamily.InterNetworkV6)
+            {
+                return GetPrefixAddress(ip, IPUtil.IntToSubnetMask6(subnetLength));
+            }
+            else
+            {
+                throw new CoresLibException($"{nameof(ip)} is not IPv4 or IPv6");
+            }
+        }
 
         // ホストアドレスの取得
         public static IPAddress GetHostAddress(IPAddress ip, IPAddress subnet)
@@ -2752,6 +2784,134 @@ namespace IPA.Cores.Basic
             if (ip.AddressFamily != AddressFamily.InterNetwork) throw new ArgumentException(nameof(ip) + " is not IPv4");
             byte[] ip4 = ip.GetAddressBytes();
             return $"{ip4[3]}.{ip4[2]}.{ip4[1]}.{ip4[0]}.in-addr.arpa";
+        }
+
+        // in-addr.arpa または ip6.arpa 形式の逆引き FQDN から IP サブネットを生成
+        public static (IPAddress, int) PtrZoneOrFqdnToIpAddressAndSubnet(string str)
+        {
+            const string ipv4End = "in-addr.arpa";
+            const string ipv6End = "ip6.arpa";
+
+            str = Str.NormalizeFqdn(str);
+
+            if (str.EndsWith(ipv4End, StringComparison.OrdinalIgnoreCase))
+            {
+                // IPv4
+                string tmp = str.Substring(0, str.Length - ipv4End.Length);
+
+                var tokens = tmp._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ".");
+
+                if (tokens.Length > 4)
+                {
+                    throw new CoresException($"Specified FQDN '{str}' doesn't represent IPv4 PTR address");
+                }
+
+                Array.Reverse(tokens);
+
+                Span<byte> data = new byte[4];
+
+                for (int i = 0; i < tokens.Length; i++)
+                {
+                    data[i] = byte.Parse(tokens[i]);
+                }
+
+                return (new IPAddress(data), tokens.Length * 8);
+            }
+            else if (str.EndsWith(ipv6End, StringComparison.OrdinalIgnoreCase))
+            {
+                // IPv6
+                string tmp = str.Substring(0, str.Length - ipv6End.Length);
+
+                var tokens = tmp._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ".");
+
+                if (tokens.Length > 32)
+                {
+                    throw new CoresException($"Specified FQDN '{str}' doesn't represent IPv6 PTR address");
+                }
+
+                Array.Reverse(tokens);
+
+                Span<byte> data = new byte[16];
+
+                for (int i = 0; i < tokens.Length; i++)
+                {
+                    string token = tokens[i];
+
+                    if (token.Length != 1)
+                    {
+                        throw new CoresException($"Specified FQDN '{str}' doesn't represent IPv6 PTR address");
+                    }
+
+                    char c = token[0];
+
+                    if ((i % 2) == 0)
+                    {
+                        data[i / 2] = (byte)((Str.Char4BitToByte(c) << 4) & 0xF0);
+                    }
+                    else
+                    {
+                        data[i / 2] |= (byte)(Str.Char4BitToByte(c));
+                    }
+                }
+
+                return (new IPAddress(data), tokens.Length * 4);
+            }
+            else
+            {
+                throw new CoresException($"Specified FQDN '{str}' is neither IPv4 or IPv6 PTR address");
+            }
+        }
+
+        // IP アドレスまたは IP サブネットから in-addr.arpa または ip6.arpa 形式の逆引き FQDN を生成
+        public static string IPAddressOrSubnetToPtrZoneOrFqdn(IPAddress ip, int subnetLength = -1)
+        {
+            if (ip.AddressFamily == AddressFamily.InterNetwork)
+            {
+                if (subnetLength < 0) subnetLength = 32;
+
+                var prefix = GetPrefixAddress(ip, subnetLength);
+                var d = prefix.GetAddressBytes();
+
+                switch (subnetLength)
+                {
+                    case 0: return "in-addr.arpa";
+                    case 8: return $"{d[0]}.in-addr.arpa";
+                    case 16: return $"{d[1]}.{d[0]}.in-addr.arpa";
+                    case 24: return $"{d[2]}.{d[1]}.{d[0]}.in-addr.arpa";
+                    case 32: return $"{d[3]}.{d[2]}.{d[1]}.{d[0]}.in-addr.arpa";
+                    default: throw new CoresException($"in-addr.arpa prefix length: '{subnetLength}' must be 0, 8, 16, 24 or 32");
+                }
+            }
+            else if (ip.AddressFamily == AddressFamily.InterNetworkV6)
+            {
+                if (subnetLength < 0) subnetLength = 128;
+                if (subnetLength > 128) throw new CoresException($"invalid IPv6 subnet length: {subnetLength}");
+                if ((subnetLength % 4) != 0) throw new CoresException($"in6.arpa prefix length: '{subnetLength}' must be a multiple of 4");
+
+                var prefix = GetPrefixAddress(ip, subnetLength);
+                var d = prefix.GetAddressBytes();
+
+                string dstr = d._GetHexString().ToLowerInvariant();
+
+                var dstrArray = dstr.ToCharArray();
+                Array.Reverse(dstrArray);
+
+                int bufLength = (subnetLength / 4) * 2;
+                Span<char> buf = new char[bufLength];
+                int pos = 0;
+
+                for (int i = ((128 - subnetLength) / 4); i < dstrArray.Length; i++)
+                {
+                    buf[pos++] = dstrArray[i];
+                    buf[pos++] = '.';
+                }
+
+                return buf.ToString() + "ip6.arpa";
+            }
+            else
+            {
+                throw new ArgumentException(nameof(ip) + " is not IPv4 or IPv6");
+            }
         }
     }
 

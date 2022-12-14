@@ -245,11 +245,11 @@ public static class BasicHelper
     [MethodImpl(Inline)]
     public static string _GetString(this Memory<byte> byteArray, bool untilNullByte = false) => Str.DecodeStringAutoDetect(byteArray.Span, out _, untilNullByte);
 
-    public static string _GetHexString(this byte[] byteArray, string padding = "") => Str.ByteToHex(byteArray, padding);
-    public static string _GetHexString(this Span<byte> byteArray, string padding = "") => Str.ByteToHex(byteArray, padding);
-    public static string _GetHexString(this ReadOnlySpan<byte> byteArray, string padding = "") => Str.ByteToHex(byteArray, padding);
-    public static string _GetHexString(this Memory<byte> byteArray, string padding = "") => Str.ByteToHex(byteArray.Span, padding);
-    public static string _GetHexString(this ReadOnlyMemory<byte> byteArray, string padding = "") => Str.ByteToHex(byteArray.Span, padding);
+    public static string _GetHexString(this byte[] byteArray, string? padding = null) => Str.ByteToHex(byteArray, padding);
+    public static string _GetHexString(this Span<byte> byteArray, string? padding = null) => Str.ByteToHex(byteArray, padding);
+    public static string _GetHexString(this ReadOnlySpan<byte> byteArray, string? padding = null) => Str.ByteToHex(byteArray, padding);
+    public static string _GetHexString(this Memory<byte> byteArray, string? padding = null) => Str.ByteToHex(byteArray.Span, padding);
+    public static string _GetHexString(this ReadOnlyMemory<byte> byteArray, string? padding = null) => Str.ByteToHex(byteArray.Span, padding);
     public static byte[] _GetHexBytes(this string? str) => Str.HexToByte(str);
 
     public static byte[] _GetHexOrString(this string? str, Encoding? encoding = null)
@@ -3230,7 +3230,7 @@ public static class BasicHelper
     public static PalX509Certificate AsPalX509Certificate(this X509Certificate cert) => new PalX509Certificate(cert);
     public static Certificate AsPkiCertificate(this X509Certificate cert) => new Certificate(new PalX509Certificate(cert));
 
-    public static bool _IsValidFqdn(this string fqdn) => Str.IsValidFqdn(fqdn);
+    public static bool _IsValidFqdn(this string fqdn, bool allowWildcard = false) => Str.IsValidFqdn(fqdn, allowWildcard);
 
     public static void _AddTuple<T1>(this IList<Tuple<T1>> list, T1 t1) => list.Add(new Tuple<T1>(t1));
     public static void _AddTuple<T1, T2>(this IList<Tuple<T1, T2>> list, T1 t1, T2 t2) => list.Add(new Tuple<T1, T2>(t1, t2));

@@ -15,6 +15,10 @@
       "commandName": "Project",
       "commandLineArgs": "/cmd:MikakaDDnsServer test"
     },
+    "TestDev /OpenIspDnsServer test": {
+      "commandName": "Project",
+      "commandLineArgs": "/cmd:OpenIspDnsServer test"
+    },
     "TestDev /MyIpServer test": {
       "commandName": "Project",
       "commandLineArgs": "/cmd:MyIpServer test"

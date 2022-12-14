@@ -735,6 +735,49 @@ partial class TestDevCommands
 
         var queue = new MicroBenchmarkQueue()
 
+        .Add(new MicroBenchmark($"Sample Loop (Do Nothing)", Benchmark_CountForVeryFast, count =>
+        {
+            Async(async () =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    Limbo.SInt32Volatile++;
+                }
+            });
+        }), enabled: true, priority: 999999)
+
+
+        .Add(new MicroBenchmark($"ByteToHex (New) - No Padding", Benchmark_CountForNormal, count =>
+        {
+            byte[] src = new byte[16];
+            for (int i = 0; i < src.Length; i++)
+            {
+                src[i] = (byte)Util.ComputeGoldenHash32(i + 1);
+            }
+            Async(async () =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    Str.ByteToHex(src);
+                }
+            });
+        }), enabled: true, priority: 999999)
+
+        .Add(new MicroBenchmark($"ByteToHex (New) - Padding", Benchmark_CountForNormal, count =>
+        {
+            byte[] src = new byte[16];
+            for (int i = 0; i < src.Length; i++)
+            {
+                src[i] = (byte)Util.ComputeGoldenHash32(i + 1);
+            }
+            Async(async () =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    Str.ByteToHex(src, " ");
+                }
+            });
+        }), enabled: true, priority: 999999)
 
         .Add(new MicroBenchmark($"throw Exception", Benchmark_CountForNormal, count =>
         {

@@ -1805,23 +1805,8 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static bool IsValidFqdn(string fqdn)
-        {
-            fqdn = fqdn._NonNull();
-
-            if (fqdn.EndsWith(".")) fqdn = fqdn.Substring(0, fqdn.Length - 1);
-
-            var tokens = fqdn._Split(StringSplitOptions.None, '.');
-
-            foreach (string token in tokens)
-            {
-                if (token._IsEmpty()) return false;
-
-                if (token.All(c => ('0' <= c && c <= '9') || ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '-' || c == '_') == false) return false;
-            }
-
-            return true;
-        }
+        public static bool IsValidFqdn(string fqdn, bool allowWildcard = false)
+            => Str.CheckFqdn(fqdn, allowWildcard);
 
         [return: NotNullIfNotNull("fqdn")]
         public static string? ReverseFqdnStr(string? fqdn)
@@ -6266,6 +6251,28 @@ namespace IPA.Cores.Basic
             }
         }
 
+        // 4bit 文字を byte 型に変換する
+        [MethodImpl(Inline)]
+        public static byte Char4BitToByte(char c)
+        {
+            if (c >= '0' && c <= '9')
+            {
+                return (byte)(c - '0');
+            }
+            else if (c >= 'A' && c <= 'F')
+            {
+                return (byte)(c - 'A' + 10);
+            }
+            else if (c >= 'a' && c <= 'f')
+            {
+                return (byte)(c - 'a' + 10);
+            }
+            else
+            {
+                throw new CoresException($"Character '{c}' is not hex");
+            }
+        }
+
         // 文字列を int 型に変換する
         public static int StrToInt(string? str)
         {
@@ -7528,37 +7535,45 @@ namespace IPA.Cores.Basic
         }
 
         // バイト列を 16 進数文字列に変換
-        public static string ByteToHex(ReadOnlySpan<byte> data)
+        public static string ByteToHex(ReadOnlySpan<byte> data, string? paddingStr = null)
         {
-            return ByteToHex(data, "");
-        }
-        public static string ByteToHex(ReadOnlySpan<byte> data, string paddingStr)
-        {
-            StringBuilder ret = new StringBuilder();
-
-            int i;
-            for (i = 0; i < data.Length; i++)
+            checked
             {
-                byte b = data[i];
+                int padStrLen = (paddingStr == null ? 0 : paddingStr.Length);
 
-                string s = b.ToString("X");
-                if (s.Length == 1)
+                string tmp = Convert.ToHexString(data);
+                if (padStrLen == 0) return tmp;
+
+                int destLength = data.Length * 2;
+
+                if (data.Length >= 2)
                 {
-                    s = "0" + s;
+                    destLength += padStrLen * (data.Length - 1);
                 }
 
-                ret.Append(s);
+                Span<char> buf = new char[destLength];
 
-                if (paddingStr != null)
+                int pos1 = 0;
+                int pos2 = 0;
+
+                for (int i = 0; i < data.Length; i++)
                 {
+                    // 2 文字追記
+                    buf[pos1++] = tmp[pos2++];
+                    buf[pos1++] = tmp[pos2++];
+
+                    // padding
                     if (i != (data.Length - 1))
                     {
-                        ret.Append(paddingStr);
+                        for (int j = 0; j < padStrLen; j++)
+                        {
+                            buf[pos1++] = paddingStr![j];
+                        }
                     }
                 }
-            }
 
-            return ret.ToString().Trim();
+                return buf.ToString();
+            }
         }
 
         // 16 進数文字列をバイト列に変換
@@ -8548,20 +8563,26 @@ namespace IPA.Cores.Basic
             return fqdn.Split(".", StringSplitOptions.RemoveEmptyEntries)._Combine(".");
         }
 
-        public static bool CheckFqdn(string fqdn)
+        public static bool CheckFqdn(string fqdn, bool allowWildcard = false)
         {
             try
             {
+                fqdn = fqdn._NonNull().ToLowerInvariant();
+                if (fqdn.EndsWith(".")) fqdn = fqdn.Substring(0, fqdn.Length - 1);
+
                 if (fqdn.Length > 255) return false;
-                string[] tokens = fqdn.Split(".", StringSplitOptions.RemoveEmptyEntries);
+                string[] tokens = fqdn.Split(".", StringSplitOptions.None);
+
                 if (tokens.Length <= 1) return false;
-                foreach (string token in tokens)
+
+                for (int i = 0; i < tokens.Length; i++)
                 {
-                    string token2 = token.ToLowerInvariant();
-                    if (token2.Length > 63) return false;
-                    foreach (char c in token2)
+                    string token = tokens[i];
+                    if (token.Length > 63) return false;
+                    foreach (char c in token)
                     {
-                        if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || (c == '-')) { }
+                        if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || (c == '-') || (c == '_')) { }
+                        else if (allowWildcard && c == '*' && i == 0) { }
                         else
                         {
                             return false;

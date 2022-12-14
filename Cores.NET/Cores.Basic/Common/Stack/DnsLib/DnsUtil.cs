@@ -134,6 +134,48 @@ public static class DnsUtil
 
         return EasyDnsResponderRecordType.None;
     }
+
+    // DNS ゾーン一覧から最長一致するゾーンを検索
+    public static T? SearchLongestMatchDnsZone<T>(StrDictionary<T> zoneList, string normalizedFqdn, out string hostLabelStr, out ReadOnlyMemory<string> hostLabels)
+    {
+        // a.b.c.d のような FQDN を検索要求された場合、
+        // 1. a.b.c.d
+        // 2. b.c.d
+        // 3. c.d
+        // 4. d
+        // の順で一致するゾーンがないかどうか検索する。
+        // つまり、複数の一致する可能性があるゾーンがある場合、一致する文字長が最も長いゾーンを選択するのである。
+        ReadOnlyMemory<string> labels = normalizedFqdn.Split(".").AsMemory();
+        int numLabels = labels.Length;
+
+        T? zone = default;
+
+        hostLabelStr = "";
+
+        hostLabels = default;
+
+        for (int i = numLabels; i >= 1; i--)
+        {
+            var zoneLabels = labels.Slice(numLabels - i, i);
+
+            string zoneLabelsStr = zoneLabels._Combine(".");
+
+            // 一致する Dict エントリがあるか？
+            if (zoneList.TryGetValue(zoneLabelsStr, out T? zoneTmp))
+            {
+                // あった
+                zone = zoneTmp;
+
+                hostLabels = labels.Slice(0, numLabels - i);
+
+                hostLabelStr = hostLabels._Combine(".");
+
+                break;
+            }
+        }
+
+        return zone;
+    }
 }
 
 [Flags]
@@ -536,7 +578,14 @@ public class EasyDnsResponderRecord
 
     public EasyDnsResponderRecordSettings? Settings { get; set; } = null;
 
-    public static EasyDnsResponderRecord FromString(string str, string parentDomainFqdn)
+    public static EasyDnsResponderRecordType StrToRecordType(string typeStr)
+    {
+        var type = EasyDnsResponderRecordType.None.ParseAsDefault(typeStr);
+
+        return type;
+    }
+
+    public static EasyDnsResponderRecord FromString(string str, string? parentDomainFqdn = null)
     {
         if (str._GetKeysListAndValue(2, out var keys, out string value) == false)
         {
@@ -544,7 +593,7 @@ public class EasyDnsResponderRecord
         }
 
         string typeStr = keys[0];
-        var type = EasyDnsResponderRecordType.None.ParseAsDefault(typeStr);
+        var type = StrToRecordType(typeStr);
         if (type == EasyDnsResponderRecordType.None || type == EasyDnsResponderRecordType.SOA)
         {
             throw new CoresLibException($"DNS Record String: Invalid Record Type. Str = '{str}'");
@@ -557,7 +606,17 @@ public class EasyDnsResponderRecord
             name = "";
         }
 
-        value = value._ReplaceStr("@", parentDomainFqdn);
+        if (parentDomainFqdn._IsFilled())
+        {
+            value = value._ReplaceStr("@", parentDomainFqdn);
+        }
+        else
+        {
+            if (value._InStr("@"))
+            {
+                throw new CoresLibException($"FQDN has an invalid character '@'");
+            }
+        }
 
         return new EasyDnsResponderRecord
         {
@@ -1419,7 +1478,7 @@ public class EasyDnsResponder
     public class DataSet
     {
         // 内部データの実体
-        public Dictionary<string, Zone> ZoneDict = new Dictionary<string, Zone>();
+        public StrDictionary<Zone> ZoneDict = new StrDictionary<Zone>();
         public EasyDnsResponderRecordSettings Settings;
 
         // Settings からコンパイルする
@@ -1439,41 +1498,7 @@ public class EasyDnsResponder
         // クエリ検索
         public SearchResult? Search(SearchRequest request)
         {
-            // a.b.c.d のような FQDN を検索要求された場合、
-            // 1. a.b.c.d
-            // 2. b.c.d
-            // 3. c.d
-            // 4. d
-            // の順で一致するゾーンがないかどうか検索する。
-            // つまり、複数の一致する可能性があるゾーンがある場合、一致する文字長が最も長いゾーンを選択するのである。
-
-            ReadOnlyMemory<string> labels = request.FqdnNormalized.Split(".").AsMemory();
-            int numLabels = labels.Length;
-
-            Zone? zone = null;
-            string hostLabelStr = "";
-
-            ReadOnlyMemory<string> hostLabels = default;
-
-            for (int i = numLabels; i >= 1; i--)
-            {
-                var zoneLabels = labels.Slice(numLabels - i, i);
-
-                string zoneLabelsStr = zoneLabels._Combine(".");
-
-                // 一致する Dict エントリがあるか？
-                if (this.ZoneDict.TryGetValue(zoneLabelsStr, out Zone? zoneTmp))
-                {
-                    // あった
-                    zone = zoneTmp;
-
-                    hostLabels = labels.Slice(0, numLabels - i);
-
-                    hostLabelStr = hostLabels._Combine(".");
-
-                    break;
-                }
-            }
+            Zone? zone = DnsUtil.SearchLongestMatchDnsZone(this.ZoneDict, request.FqdnNormalized, out string hostLabelStr, out ReadOnlyMemory<string> hostLabels);
 
             if (zone == null)
             {
