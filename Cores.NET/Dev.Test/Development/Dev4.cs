@@ -288,7 +288,7 @@ public class OpenIspDnsService : HadbBasedServiceBase<OpenIspDnsService.MemDb, O
     public class Config
     {
         public StrDictionary<ZoneDef> ZoneList = new StrDictionary<ZoneDef>();
-        //public FullRoute46<StandardRecord> ReverseFullRoute = new FullRoute46<StandardRecord>();
+        public FullRoute46<StandardRecord> ReverseRadixTrie = new FullRoute46<StandardRecord>();
         public List<StandardRecord> ReverseRecordsList = new List<StandardRecord>();
 
         public Config() { }
@@ -665,6 +665,14 @@ public class OpenIspDnsService : HadbBasedServiceBase<OpenIspDnsService.MemDb, O
                         err.WriteLine($"  Error: {ex.Message}");
                     }
                 }
+            }
+
+            // すべてのレコードのデータ登録が終わったら、まとめて、逆引きロンゲストマッチ用 Radix Trie を生成する。
+            foreach (var r in this.ReverseRecordsList.Where(x => x.Type.EqualsAny(StandardRecordType.ReverseCNameSingle, StandardRecordType.ReverseCNameSubnet, StandardRecordType.ReverseSingle, StandardRecordType.ReverseSubnet)))
+            {
+                // 上から順に優先して登録する。全く同一のサブネットについては最初の 1 つしか登録されないが、これは正常である。
+                // (PTR レコードで 2 つ以上の互いに異なる応答があるのはおかしい)
+                this.ReverseRadixTrie.Insert(r.IpNetwork, r.SubnetLength, r);
             }
         }
     }
