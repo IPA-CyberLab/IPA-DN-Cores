@@ -38,37 +38,16 @@
 #pragma warning disable CA2235 // Mark all non-serializable fields
 
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Collections.Generic;
-using System.Collections.Concurrent;
-using System.Collections.Immutable;
-using System.Diagnostics;
-using System.IO;
-using System.Text;
-using System.Runtime.InteropServices;
-using System.Diagnostics.CodeAnalysis;
-using System.Net;
-using System.Runtime.CompilerServices;
-
-using IPA.Cores.Basic;
 using IPA.Cores.Basic.DnsLib;
-using IPA.Cores.Basic.Internal;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
-using Microsoft.AspNetCore.Server.IIS.Core;
 //using Microsoft.EntityFrameworkCore.Query.Internal;
-using System.Net.Sockets;
-
-using Newtonsoft.Json;
-using System.Data;
-using System.Reflection;
-using System.Security.Authentication;
-using System.Net.Security;
-using System.Security.Cryptography.X509Certificates;
-using Newtonsoft.Json.Converters;
-using Newtonsoft.Json.Linq;
 
 namespace IPA.Cores.Basic;
 
@@ -224,6 +203,33 @@ public class OpenIspDnsService : HadbBasedServiceBase<OpenIspDnsService.MemDb, O
         }
     }
 
+    public class CustomRecord
+    {
+        public string Fqdn = "";
+        public string Data = "";
+    }
+
+    [Flags]
+    public enum StandardRecordType
+    {
+        ForwardSingle = 0,      // aaa.example.org -> 1.2.3.4
+        ForwardWildcard,        // *.aaa.example.org -> 1.2.3.4
+        ForwardSubnet,          // 1-*-*-*.aaa.example.org (データ上は *.aaa.example.org) -> 1.0.0.0/24 とかの特定のサブネット
+        ReverseSingle,          // 1.2.3.4 -> aaa.example.org
+        ReverseSubnet,          // 1.0.0.0/24 -> 1-*-*-*.aaa.example.org
+        ReverseCNameSingle,     // 1.2.3.4 -> CNAME 4.3.2.1.aaa.example.org
+        ReverseCNameSubnet,     // 1.0.0.0/24 -> CNAME 4.3.2.1.aaa.example.org
+    }
+
+    public class StandardRecord
+    {
+        public StandardRecordType Type;
+        public string Fqdn = "";
+        public IPAddress IpNetwork = IPAddress.Any;
+        public IPAddress IpSubnetMask = IPAddress.Any;
+        public int SubnetLength;
+    }
+
     public class ZoneDef
     {
         public ZoneDefType Type;
@@ -232,6 +238,9 @@ public class OpenIspDnsService : HadbBasedServiceBase<OpenIspDnsService.MemDb, O
         public IPAddress Reverse_IpNetwork = IPAddress.Any;
         public IPAddress Reverse_IpSubnetMask = IPAddress.Any;
         public int Reverse_SubnetLength;
+
+        public List<CustomRecord> CustomRecordList = new List<CustomRecord>();
+        public List<StandardRecord> StandardForwardRecordList = new List<StandardRecord>();
 
         public ZoneDef() { }
 
@@ -279,6 +288,8 @@ public class OpenIspDnsService : HadbBasedServiceBase<OpenIspDnsService.MemDb, O
     public class Config
     {
         public StrDictionary<ZoneDef> ZoneList = new StrDictionary<ZoneDef>();
+        //public FullRoute46<StandardRecord> ReverseFullRoute = new FullRoute46<StandardRecord>();
+        public List<StandardRecord> ReverseRecordsList = new List<StandardRecord>();
 
         public Config() { }
 
@@ -290,6 +301,15 @@ public class OpenIspDnsService : HadbBasedServiceBase<OpenIspDnsService.MemDb, O
 
             for (int j = 0; j < 2; j++) // 走査は 2 回行なう。1 回目は変数とゾーン名定義の読み込みである。2 回目はゾーンのレコード情報の読み込みである。
             {
+                //if (j == 1)
+                //{
+                //    // 1 回目の操作で ZoneList が形成されているので、2 回目の操作の最初に ZoneList から逆引きゾーンのフルルートを生成する
+                //    foreach (var zone in this.ZoneList.OrderBy(x => x.Key, StrCmpi).Select(x=>x.Value).Where(x=>x.Type == ZoneDefType.Reverse))
+                //    {
+                //        this.ReverseZoneFullRouteTable.Insert(zone.Reverse_IpNetwork, zone.Reverse_SubnetLength, zone);
+                //    }
+                //}
+
                 for (int i = 0; i < lines.Length; i++)
                 {
                     string lineSrc = lines[i];
@@ -377,41 +397,234 @@ public class OpenIspDnsService : HadbBasedServiceBase<OpenIspDnsService.MemDb, O
                                             }
 
                                             // パースの試行 (ここでは、単に文法チェックためにパースを試行するだけであり、結果は不要である)
-                                            EasyDnsResponderRecord.FromString(recordTypeStr + " " + fqdnAndData);
+                                            EasyDnsResponderRecord.TryParseFromString(recordTypeStr + " " + fqdnAndData);
 
                                             // FQDN 部分とデータ部分に分ける
                                             if (fqdnAndData._GetKeysListAndValue(1, out var tmp1, out string data) == false)
                                             {
-                                                throw new CoresLibException($"DNS Record String: Invalid Format. Str = '{fqdnAndData}'");
+                                                throw new CoresException($"DNS Record String: Invalid Format. Str = '{fqdnAndData}'");
                                             }
 
-                                            string fqdn = tmp1[0]._NormalizeFqdn();
-
-                                            if (fqdn._IsValidFqdn(recordType != EasyDnsResponderRecordType.NS) == false) // NS レコードではワイルドカードは使用できない
+                                            // FQDN 部の検査
+                                            if (recordType == EasyDnsResponderRecordType.PTR)
                                             {
-                                                throw new CoresLibException($"DNS Record String: Invalid FQDN: '{fqdn}'");
-                                            }
+                                                // PTR は特別処理を行なう (ゾーンが /24 の広さで、PTR のワイルドカード指定が /22 の広さ、というようなことが起こり得るので、ゾーンとは直接関連付けない)
+                                                // PTR の場合、FQDN 部は IP アドレスまたは IP サブネット、または in-addr.arpa または ip6.arpa 形式でなければならない
+                                                string ipOrSubnetStr = tmp1[0]._NonNullTrim();
+                                                string fqdn = tmp1[0]._NormalizeFqdn();
+                                                int subnetLength;
+                                                IPAddress ipOrSubnet;
 
-                                            // FQDN 部分を元に、DefineZone 済みのゾーンのいずれに一致するか検索する (最長一致)
-                                            var zone = DnsUtil.SearchLongestMatchDnsZone<ZoneDef>(this.ZoneList, fqdn, out _, out _);
+                                                if (fqdn == "in-addr.arpa" || fqdn.EndsWith(".in-addr.arpa") || fqdn == "ip6.addr" || fqdn.EndsWith(".ip6.addr"))
+                                                {
+                                                    var tmp = IPUtil.PtrZoneOrFqdnToIpAddressAndSubnet(fqdn);
+                                                    ipOrSubnet = tmp.Item1;
+                                                    subnetLength = tmp.Item2;
+                                                }
+                                                else
+                                                {
+                                                    IPUtil.ParseIPAndMask(ipOrSubnetStr, out ipOrSubnet, out IPAddress subnetMask);
+                                                    subnetLength = IPUtil.SubnetMaskToInt(subnetMask);
+                                                }
+
+                                                bool isHostAddress = IPUtil.IsSubnetLenHostAddress(ipOrSubnet.AddressFamily, subnetLength);
+
+                                                //if (isHostAddress)
+                                                //{
+                                                //    // 1.2.3.4 -> aaa.example.org のようなホストアドレスが指定される場合は、FQDN は Wildcard 不可である。
+                                                //    if (fqdn._IsValidFqdn(false) == false)
+                                                //    {
+                                                //        throw new CoresException("PTR record's target hostname must be a valid single host FQDN");
+                                                //    }
+                                                //}
+                                                //else
+                                                //{
+                                                //    // 1.0.0.0/24 -> *.aaa.example.org のようなホストアドレスが指定される場合は、FQDN は Wildcard 可である。
+                                                //    // ただし、Wildcard は *.aaa は可であるが、abc-***.aaa は不可であるから、厳密にチェックをする。
+                                                if (fqdn._IsValidFqdn(true, true) == false)
+                                                {
+                                                    throw new CoresException("PTR record's target hostname must be a valid single host FQDN or wildcard FQDN");
+                                                }
+                                                //}
+
+                                                StandardRecord r = new StandardRecord
+                                                {
+                                                    Type = isHostAddress ? StandardRecordType.ReverseSingle : StandardRecordType.ReverseSubnet,
+                                                    Fqdn = fqdn,
+                                                    IpNetwork = ipOrSubnet,
+                                                    IpSubnetMask = IPUtil.IntToSubnetMask(ipOrSubnet.AddressFamily, subnetLength),
+                                                    SubnetLength = subnetLength,
+                                                };
+
+                                                this.ReverseRecordsList.Add(r);
+                                            }
+                                            else
+                                            {
+                                                string fqdn = tmp1[0]._NormalizeFqdn();
+
+                                                if (fqdn._IsValidFqdn(recordType != EasyDnsResponderRecordType.NS) == false) // NS レコードではワイルドカードは使用できない
+                                                {
+                                                    throw new CoresException($"DNS Record String: Invalid FQDN: '{fqdn}'");
+                                                }
+
+                                                // FQDN 部分を元に、DefineZone 済みのゾーンのいずれに一致するか検索する (最長一致)
+                                                var zone = DnsUtil.SearchLongestMatchDnsZone<ZoneDef>(this.ZoneList, fqdn, out string hostLabel, out _);
+
+                                                if (zone == null)
+                                                {
+                                                    // 対応するゾーンがない
+                                                    throw new CoresException($"Specified DNS record doesn't match any DefineZone zones");
+                                                }
+
+                                                if (recordType == EasyDnsResponderRecordType.NS)
+                                                {
+                                                    // NS レコードの場合は、必ず、定義済み Zone レコードの FQDN よりも長くなければならない (サブドメインでなければならない)。
+                                                    // (つまり、定義済み Zone レコードの FQDN と完全一致してはならない。)
+                                                    if (zone.Fqdn._NormalizeFqdn() == fqdn._NormalizeFqdn())
+                                                    {
+                                                        throw new CoresException($"NS record's target FQDN must be a subdomain of the parent domain (meaning that it must not be exact match to the parent domain)");
+                                                    }
+                                                }
+
+                                                // ゾーンのカスタムレコードとして追加
+                                                zone.CustomRecordList.Add(new CustomRecord { Fqdn = fqdn, Data = data });
+                                            }
                                         }
                                         else
                                         {
                                             // 普通の正引きまたは逆引きレコード
-                                            string ipMask;
-                                            string fqdn;
+                                            // 1.2.3.0/24   *.aaa.example.org
+                                            // 1.2.3.4      abc.example.org とか
+                                            string ipMaskListStr;
+                                            string fqdnListStr;
 
                                             // str1 と str2 は入れ換え可能である。
                                             // 1 と 2 のいずれに IP アドレスが含まれているのか判別をする。
                                             if (IsIpSubnetStr(str1))
                                             {
-                                                ipMask = str1;
-                                                fqdn = str2;
+                                                ipMaskListStr = str1;
+                                                fqdnListStr = str2;
                                             }
                                             else
                                             {
-                                                ipMask = str2;
-                                                fqdn = str1;
+                                                fqdnListStr = str1;
+                                                ipMaskListStr = str2;
+                                            }
+
+                                            // 複数書いてあることもあるので、パースを行なう
+                                            string[] ipMaskList = ipMaskListStr._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, " ", "\t", "　", ",", ";");
+                                            string[] fqdnList = fqdnListStr._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, " ", "\t", "　", ",", ";");
+
+                                            foreach (var ipMask in ipMaskList)
+                                            {
+                                                foreach (var tmp2 in fqdnList)
+                                                {
+                                                    string tmp1 = tmp2;
+                                                    int mode = 0;
+                                                    IPUtil.ParseIPAndSubnetMask(ipMask, out IPAddress ipOrSubnet, out IPAddress mask);
+                                                    int subnetLength = IPUtil.SubnetMaskToInt(mask);
+                                                    bool isHostAddress = IPUtil.IsSubnetLenHostAddress(ipOrSubnet.AddressFamily, subnetLength);
+
+                                                    if (tmp1.StartsWith("+"))
+                                                    {
+                                                        // +aaa.example.org のような形式である
+                                                        // これは、1.2.3.4 -> CNAME 4.3.2.1.aaa.example.org のような特殊な CNAME 変換を意味する
+                                                        mode = 1;
+                                                        tmp1 = tmp1.Substring(1);
+                                                    }
+                                                    else if (tmp1.StartsWith("@"))
+                                                    {
+                                                        // @ns01.example.org のような形式である。
+                                                        // これは、1.2.3.0/24 -> NS ns01.example.org のような NS Delegate を意味する
+                                                        mode = 2;
+                                                        tmp1 = tmp1.Substring(1);
+                                                    }
+                                                    string fqdn = tmp1._NormalizeFqdn();
+                                                    if (fqdn._IsValidFqdn(mode == 0, true) == false)
+                                                    {
+                                                        // おかしな FQDN である
+                                                        throw new CoresException($"FQDN '{fqdn}' is not a valid single host or wildcard FQDN");
+                                                    }
+
+                                                    if (mode == 1)
+                                                    {
+                                                        // CNAME 特殊処理
+                                                        StandardRecord r = new StandardRecord
+                                                        {
+                                                            Type = isHostAddress ? StandardRecordType.ReverseCNameSingle : StandardRecordType.ReverseCNameSubnet,
+                                                            Fqdn = fqdn,
+                                                            IpNetwork = ipOrSubnet,
+                                                            IpSubnetMask = IPUtil.IntToSubnetMask(ipOrSubnet.AddressFamily, subnetLength),
+                                                            SubnetLength = subnetLength,
+                                                        };
+
+                                                        this.ReverseRecordsList.Add(r);
+                                                    }
+                                                    else if (mode == 2)
+                                                    {
+                                                        // NS 特殊処理
+                                                        // NS の場合、内部的に in-addr.arpa または ip6.arpa に変換する
+                                                        string reverseFqdn = IPUtil.IPAddressOrSubnetToPtrZoneOrFqdn(ipOrSubnet, subnetLength);
+
+                                                        // reverseFqdn を元に、DefineZone 済みのゾーンのいずれに一致するか検索する (最長一致)
+                                                        var zone = DnsUtil.SearchLongestMatchDnsZone<ZoneDef>(this.ZoneList, reverseFqdn, out string hostLabel, out _);
+
+                                                        if (zone == null)
+                                                        {
+                                                            // 対応するゾーンがない
+                                                            throw new CoresException($"Specified reverse DNS zone '{reverseFqdn}' doesn't match any DefineZone zones");
+                                                        }
+
+                                                        // NS レコードの場合は、必ず、定義済み Zone レコードの FQDN よりも長くなければならない (サブドメインでなければならない)。
+                                                        // (つまり、定義済み Zone レコードの FQDN と完全一致してはならない。)
+                                                        if (zone.Fqdn._NormalizeFqdn() == reverseFqdn._NormalizeFqdn())
+                                                        {
+                                                            throw new CoresException($"Reverse DNS zone '{reverseFqdn}' must be a subdomain of the parent domain '{zone.Fqdn}' (meaning that it must not be exact match to the parent domain)");
+                                                        }
+
+                                                        // ゾーンのカスタムレコードとして追加
+                                                        zone.CustomRecordList.Add(new CustomRecord { Fqdn = fqdn, Data = fqdn });
+                                                    }
+                                                    else
+                                                    {
+                                                        // 普通の正引き + 逆引き同時定義レコード
+
+                                                        // 最初に、正引きの処理をする。
+                                                        // ゾーン検索
+                                                        var zone = DnsUtil.SearchLongestMatchDnsZone<ZoneDef>(this.ZoneList, fqdn, out string hostLabel, out _);
+                                                        if (zone != null)
+                                                        {
+                                                            // 対応するゾーンがある場合のみ処理を行なう。対応するゾーンがない場合は、何もエラーを出さずに無視する。
+                                                            StandardRecord r = new StandardRecord
+                                                            {
+                                                                Type = isHostAddress ? StandardRecordType.ForwardSingle : StandardRecordType.ForwardSubnet,
+                                                                Fqdn = fqdn,
+                                                                IpNetwork = ipOrSubnet,
+                                                                IpSubnetMask = IPUtil.IntToSubnetMask(ipOrSubnet.AddressFamily, subnetLength),
+                                                                SubnetLength = subnetLength,
+                                                            };
+
+                                                            // ゾーンの通常レコードとして追加
+                                                            zone.StandardForwardRecordList.Add(r);
+                                                        }
+
+                                                        // 次に、逆引きの処理をする。
+                                                        // これは、ゾーンに無関係に登録をすればよい。
+                                                        if (true)
+                                                        {
+                                                            StandardRecord r = new StandardRecord
+                                                            {
+                                                                Type = isHostAddress ? StandardRecordType.ReverseSingle : StandardRecordType.ReverseSubnet,
+                                                                Fqdn = fqdn,
+                                                                IpNetwork = ipOrSubnet,
+                                                                IpSubnetMask = IPUtil.IntToSubnetMask(ipOrSubnet.AddressFamily, subnetLength),
+                                                                SubnetLength = subnetLength,
+                                                            };
+
+                                                            this.ReverseRecordsList.Add(r);
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
 

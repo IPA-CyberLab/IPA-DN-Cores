@@ -1836,6 +1836,30 @@ namespace IPA.Cores.Basic
             return UINTToIP(ret);
         }
 
+        // AddressFamily からホストを意味するサブネット長を取得する
+        public static int GetSubnetLenForAddressFamily(AddressFamily af)
+        {
+            switch (af)
+            {
+                case AddressFamily.InterNetwork:
+                    return 32;
+                case AddressFamily.InterNetworkV6:
+                    return 128;
+                default:
+                    throw new CoresException("Invalid AddressFamily");
+            }
+        }
+
+        // 指定されたサブネット長がホストアドレスを指定するものかどうか検索する
+        public static bool IsSubnetLenHostAddress(AddressFamily af, int len )
+        {
+            return (GetSubnetLenForAddressFamily(af) == len);
+        }
+        public static bool IsSubnetMaskHostAddress(AddressFamily af, IPAddress mask)
+        {
+            return IsSubnetLenHostAddress(af, IPUtil.SubnetMaskToInt(mask));
+        }
+
         // サブネットマスクを数値に変換する
         public static int SubnetMaskToInt(IPAddress ip)
         {

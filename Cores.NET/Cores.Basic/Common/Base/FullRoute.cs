@@ -42,6 +42,7 @@ using IPA.Cores.Basic;
 using IPA.Cores.Basic.Legacy;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Diagnostics.CodeAnalysis;
 
 #pragma warning disable 162
 
@@ -503,7 +504,7 @@ public class FullRouteEntry : IComparable<FullRouteEntry>, IEquatable<FullRouteE
         this.hash_code = (int)buf.RawReadInt();
     }
 
-    public FullRouteEntry(IPAddr addr, int subnetLen, string asPathStr)
+    public FullRouteEntry(IPAddr addr, int subnetLen, string asPathStr, object? tmpObject = null)
     {
         this.Address = addr;
         this.SubnetLength = subnetLen;
@@ -541,6 +542,8 @@ public class FullRouteEntry : IComparable<FullRouteEntry>, IEquatable<FullRouteE
         {
             throw new ApplicationException("addr_bytes.Length");
         }
+
+        this.TmpObject = tmpObject;
     }
 
     public ulong NumIP
@@ -2301,6 +2304,73 @@ public static class SubnetGenerator
         }
 
         return ret.ToArray();
+    }
+}
+
+public class FullRoute46<T>
+{
+    readonly FullRoute FullRoute4 = new FullRoute(AddressFamily.InterNetwork);
+    readonly FullRoute FullRoute6 = new FullRoute(AddressFamily.InterNetworkV6);
+
+    public void Insert(IPAddress network, int subnetLength, T tmpObject)
+    {
+        FullRoute table;
+
+        switch (network.AddressFamily)
+        {
+            case AddressFamily.InterNetwork:
+                table = this.FullRoute4;
+                break;
+
+            case AddressFamily.InterNetworkV6:
+                table = this.FullRoute6;
+                break;
+
+            default:
+                throw new CoresException("Invalid AddressFamily");
+        }
+
+        if (subnetLength < 0 || subnetLength > IPUtil.GetSubnetLenForAddressFamily(network.AddressFamily))
+        {
+            throw new CoresException($"Invalid subnetLength: {subnetLength}");
+        }
+
+        network = IPUtil.GetPrefixAddress(network, subnetLength);
+
+        table.Insert(new FullRouteEntry(IPAddr.FromAddress(network), subnetLength, "", tmpObject));
+    }
+
+    public T? Lookup(IPAddress target, [NotNullWhen(true)] out IPAddr? subnet, out int subnetLength)
+    {
+        FullRoute table;
+
+        switch (target.AddressFamily)
+        {
+            case AddressFamily.InterNetwork:
+                table = this.FullRoute4;
+                break;
+
+            case AddressFamily.InterNetworkV6:
+                table = this.FullRoute6;
+                break;
+
+            default:
+                throw new CoresException("Invalid AddressFamily");
+        }
+
+        var e = table.Lookup(IPAddr.FromAddress(target));
+
+        if (e == null)
+        {
+            subnet = null;
+            subnetLength = 0;
+            return default;
+        }
+
+        subnet = e.Address;
+        subnetLength = e.SubnetLength;
+
+        return (T)e.TmpObject!;
     }
 }
 

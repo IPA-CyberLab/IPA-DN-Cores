@@ -1805,8 +1805,8 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public static bool IsValidFqdn(string fqdn, bool allowWildcard = false)
-            => Str.CheckFqdn(fqdn, allowWildcard);
+        public static bool IsValidFqdn(string fqdn, bool allowWildcard = false, bool wildcardFirstTokenMustBeSimple = false)
+            => Str.CheckFqdn(fqdn, allowWildcard, wildcardFirstTokenMustBeSimple);
 
         [return: NotNullIfNotNull("fqdn")]
         public static string? ReverseFqdnStr(string? fqdn)
@@ -8563,7 +8563,7 @@ namespace IPA.Cores.Basic
             return fqdn.Split(".", StringSplitOptions.RemoveEmptyEntries)._Combine(".");
         }
 
-        public static bool CheckFqdn(string fqdn, bool allowWildcard = false)
+        public static bool CheckFqdn(string fqdn, bool allowWildcard = false, bool wildcardFirstTokenMustBeSimple = false)
         {
             try
             {
@@ -8584,6 +8584,14 @@ namespace IPA.Cores.Basic
                         if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || (c == '-') || (c == '_')) { }
                         else if (allowWildcard && c == '*' && i == 0) { }
                         else
+                        {
+                            return false;
+                        }
+                    }
+                    if (i == 0 && wildcardFirstTokenMustBeSimple && token.Any(x => x == '*'))
+                    {
+                        // wildcardFirstTokenMustBeSimple が true の場合は、1 トークン目は '*' でなければならない
+                        if (token != "*")
                         {
                             return false;
                         }

@@ -3230,7 +3230,7 @@ public static class BasicHelper
     public static PalX509Certificate AsPalX509Certificate(this X509Certificate cert) => new PalX509Certificate(cert);
     public static Certificate AsPkiCertificate(this X509Certificate cert) => new Certificate(new PalX509Certificate(cert));
 
-    public static bool _IsValidFqdn(this string fqdn, bool allowWildcard = false) => Str.IsValidFqdn(fqdn, allowWildcard);
+    public static bool _IsValidFqdn(this string fqdn, bool allowWildcard = false, bool wildcardFirstTokenMustBeSimple = false) => Str.IsValidFqdn(fqdn, allowWildcard, wildcardFirstTokenMustBeSimple);
 
     public static void _AddTuple<T1>(this IList<Tuple<T1>> list, T1 t1) => list.Add(new Tuple<T1>(t1));
     public static void _AddTuple<T1, T2>(this IList<Tuple<T1, T2>> list, T1 t1, T2 t2) => list.Add(new Tuple<T1, T2>(t1, t2));

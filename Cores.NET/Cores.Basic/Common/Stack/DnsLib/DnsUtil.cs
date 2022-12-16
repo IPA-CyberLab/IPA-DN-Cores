@@ -585,6 +585,18 @@ public class EasyDnsResponderRecord
         return type;
     }
 
+
+    static readonly EasyDnsResponder.Zone dummyZoneForTryParse = new EasyDnsResponder.Zone(new EasyDnsResponder.DataSet(new EasyDnsResponderSettings()), new EasyDnsResponderZone());
+
+    public static EasyDnsResponderRecord TryParseFromString(string str, string? parentDomainFqdn = null)
+    {
+        var r = FromString(str, parentDomainFqdn);
+
+        EasyDnsResponder.Record.CreateFrom(dummyZoneForTryParse, r);
+
+        return r;
+    }
+
     public static EasyDnsResponderRecord FromString(string str, string? parentDomainFqdn = null)
     {
         if (str._GetKeysListAndValue(2, out var keys, out string value) == false)
@@ -700,7 +712,8 @@ public class EasyDnsResponder
 
         public Record_A(Zone parent, EasyDnsResponderRecord src) : base(parent, src)
         {
-            string tmp = src.Contents._NonNullTrim();
+            string[] tokens = src.Contents._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ';', ',', ' ', '\t');
+            string? tmp = tokens.ElementAtOrDefault(0);
             if (tmp._IsEmpty()) throw new CoresLibException("Contents is empty.");
 
             this.IPv4Address = IPAddress.Parse(tmp);
@@ -729,7 +742,8 @@ public class EasyDnsResponder
 
         public Record_AAAA(Zone parent, EasyDnsResponderRecord src) : base(parent, src)
         {
-            string tmp = src.Contents._NonNullTrim();
+            string[] tokens = src.Contents._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ';', ',', ' ', '\t');
+            string? tmp = tokens.ElementAtOrDefault(0);
             if (tmp._IsEmpty()) throw new CoresLibException("Contents is empty.");
 
             this.IPv6Address = IPAddress.Parse(tmp);
@@ -764,7 +778,8 @@ public class EasyDnsResponder
                 throw new CoresLibException($"NS record doesn't allow wildcard names. Specified name: '{this.Name}'");
             }
 
-            string tmp = src.Contents._NonNullTrim();
+            string[] tokens = src.Contents._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ';', ',', ' ', '\t');
+            string? tmp = tokens.ElementAtOrDefault(0);
             if (tmp._IsEmpty()) throw new CoresLibException("Contents is empty.");
 
             this.ServerName = DomainName.Parse(tmp);
@@ -789,7 +804,8 @@ public class EasyDnsResponder
 
         public Record_CNAME(Zone parent, EasyDnsResponderRecord src) : base(parent, src)
         {
-            string tmp = src.Contents._NonNullTrim();
+            string[] tokens = src.Contents._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ';', ',', ' ', '\t');
+            string? tmp = tokens.ElementAtOrDefault(0);
             if (tmp._IsEmpty()) throw new CoresLibException("Contents is empty.");
 
             this.CName = DomainName.Parse(tmp);
@@ -857,12 +873,13 @@ public class EasyDnsResponder
 
         public Record_PTR(Zone parent, EasyDnsResponderRecord src) : base(parent, src)
         {
-            string tmp = src.Contents._NonNullTrim();
+            string[] tokens = src.Contents._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ';', ',', ' ', '\t');
+            string? tmp = tokens.ElementAtOrDefault(0);
             if (tmp._IsEmpty()) throw new CoresLibException("Contents is empty.");
 
             this.Ptr = DomainName.Parse(tmp);
 
-            if (this.Ptr.IsEmptyDomain()) throw new CoresLibException("CNAME field is empty.");
+            if (this.Ptr.IsEmptyDomain()) throw new CoresLibException("PTR field is empty.");
         }
 
         public Record_PTR(Zone parent, EasyDnsResponderRecordSettings settings, string nameNormalized, DomainName ptr) : base(parent, EasyDnsResponderRecordType.PTR, settings, nameNormalized)
