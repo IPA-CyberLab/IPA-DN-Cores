@@ -1357,6 +1357,80 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public static KeyValueList<string, string> ConfigFileBodyToKeyValueList(string body)
+        {
+            var lines = body._GetLines(true, true);
+
+            KeyValueList<string, string> configList = new KeyValueList<string, string>();
+
+            foreach (var line in lines)
+            {
+                string line2 = line.TrimStart();
+
+                if (line2._GetKeyAndValue(out string key, out string value))
+                {
+                    if (key._IsFilled())
+                    {
+                        configList.Add(key, value.Trim());
+                    }
+                }
+            }
+
+            return configList;
+        }
+
+        public static string KeyValueStrListToConfigFileBody(KeyValueList<string, string> config, StrDictionary<string>? commentsDict = null)
+        {
+            StringWriter w = new StringWriter();
+
+            int keyStandardLength = 50;
+
+            int keyStandardLength2 = config.Select(x => x.Key._NonNullTrim().Length).Max();
+
+            keyStandardLength = Math.Max(keyStandardLength, keyStandardLength2);
+
+            w.WriteLine("### Configuration Text");
+
+            string lastKey = "";
+
+            foreach (var kv in config)
+            {
+                int len1 = kv.Key.Length;
+                string padding = "";
+
+                if (len1 < keyStandardLength)
+                {
+                    padding = Str.MakeCharArray(' ', keyStandardLength - len1);
+                }
+
+                string line = $"{kv.Key}{padding} {kv.Value}";
+
+                if (lastKey._IsDiffi(kv.Key))
+                {
+                    lastKey = kv.Key;
+                    w.WriteLine();
+
+                    string? commentStr = commentsDict?._GetOrDefault(kv.Key, "") ?? null;
+                    if (commentStr._IsFilled())
+                    {
+                        foreach (string commentLine in commentStr._GetLines())
+                        {
+                            if (commentLine._IsFilled())
+                            {
+                                w.WriteLine("# " + commentLine.TrimEnd());
+                            }
+                        }
+                    }
+                }
+
+                w.WriteLine(line);
+            }
+
+            w.WriteLine();
+            w.WriteLine();
+
+            return w.ToString();
+        }
 
         // 指定されたエンコード一覧を順に試行し、最初に表現可能なエンコードを返す
         public static Encoding GetBestSuitableEncoding(string str, IEnumerable<Encoding?>? canditateList = null)

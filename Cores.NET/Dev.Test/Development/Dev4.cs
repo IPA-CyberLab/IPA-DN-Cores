@@ -93,7 +93,7 @@ public static class IpaDnsServiceGlobal
 
 public class IpaDnsServiceStartupParam : HadbBasedServiceStartupParam
 {
-    public IpaDnsServiceStartupParam(string hiveDataName = "IpaDnsService", string hadbSystemName = "MIKAKA_DDNS")
+    public IpaDnsServiceStartupParam(string hiveDataName = "IpaDnsService", string hadbSystemName = "IPA_DNS")
     {
         this.HiveDataName = hiveDataName;
         this.HadbSystemName = hadbSystemName;
@@ -104,7 +104,7 @@ public class IpaDnsServiceHook : HadbBasedServiceHookBase
 {
 }
 
-public class IpaDnsService : HadbBasedServiceBase<IpaDnsService.MemDb, IpaDnsService.DynConfig, IpaDnsService.HiveSettings, IpaDnsServiceHook>, IpaDnsService.IRpc
+public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, IpaDnsService.DynConfig, IpaDnsService.HiveSettings, IpaDnsServiceHook>, IpaDnsService.IRpc
 {
     [Flags]
     public enum ZoneDefType
@@ -712,11 +712,11 @@ public class IpaDnsService : HadbBasedServiceBase<IpaDnsService.MemDb, IpaDnsSer
 
     public class HiveSettings : HadbBasedServiceHiveSettingsBase
     {
-        public int DDns_UdpListenPort;
+        public int Dns_UdpListenPort;
 
         public override void NormalizeImpl()
         {
-            if (DDns_UdpListenPort <= 0) DDns_UdpListenPort = Consts.Ports.Dns;
+            if (Dns_UdpListenPort <= 0) Dns_UdpListenPort = Consts.Ports.Dns;
         }
     }
 
@@ -748,7 +748,7 @@ public class IpaDnsService : HadbBasedServiceBase<IpaDnsService.MemDb, IpaDnsSer
         this.DnsServer = new EasyDnsResponderBasedDnsServer(
             new EasyDnsResponderBasedDnsServerSettings
             {
-                UdpPort = this.SettingsFastSnapshot.DDns_UdpListenPort,
+                UdpPort = this.SettingsFastSnapshot.Dns_UdpListenPort,
             }
             );
 
@@ -812,8 +812,6 @@ public class IpaDnsService : HadbBasedServiceBase<IpaDnsService.MemDb, IpaDnsSer
 
         settings.SaveAccessLogForDebug = config.Dns_SaveDnsQueryAccessLogForDebug;
         settings.CopyQueryAdditionalRecordsToResponse = config.Dns_Protocol_CopyQueryAdditionalRecordsToResponse;
-
-        Dbg.Where();
 
         this.DnsServer.ApplySetting(settings);
 

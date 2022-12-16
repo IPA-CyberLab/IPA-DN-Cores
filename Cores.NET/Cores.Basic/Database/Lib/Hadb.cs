@@ -100,6 +100,198 @@ public static partial class CoresConfig
     }
 }
 
+public class HadbSimpleSettings : HadbSettingsBase
+{
+    public HadbSimpleSettings(string systemName, HadbOptionFlags optionFlags = HadbOptionFlags.None, FilePath? backupDataFile = null, FilePath? backupDynamicConfigFile = null, int lazyUpdateParallelQueueCount = Consts.Numbers.HadbDefaultLazyUpdateParallelQueueCount, int commandTimeoutSecs = 0, int debugMaxFetchItems = 0)
+        : base(systemName, optionFlags, backupDataFile, backupDynamicConfigFile, lazyUpdateParallelQueueCount, commandTimeoutSecs, debugMaxFetchItems)
+    {
+    }
+}
+
+public class HadbSimpleBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynamicConfig>
+    where TMem : HadbMemDataBase, new()
+    where TDynamicConfig : HadbDynamicConfig, new()
+{
+    string SimpleConfigFilePath;
+
+    protected HadbSimpleBase(HadbSettingsBase settings, TDynamicConfig initialDynamicConfig) : base(settings, initialDynamicConfig)
+    {
+        try
+        {
+            this.SimpleConfigFilePath = Path.Combine(Env.AppLocalDir, "Config", "HadbSimpleSettings", settings.SystemName + ".config");
+        }
+        catch
+        {
+            this._DisposeSafe();
+            throw;
+        }
+    }
+
+    public new HadbSimpleSettings Settings => (HadbSimpleSettings)base.Settings;
+
+    protected override async Task<KeyValueList<string, string>> LoadDynamicConfigFromDatabaseImplAsync(CancellationToken cancel = default)
+    {
+        return await Lfs.ReadKeyValueStrListFromConfigFileAsync(this.SimpleConfigFilePath, cancel: cancel);
+    }
+
+    protected override async Task AppendMissingDynamicConfigToDatabaseImplAsync(KeyValueList<string, string> missingValues, bool replaceAll, CancellationToken cancel = default)
+    {
+        KeyValueList<string, string>? tmp = null;
+
+        if (replaceAll == false)
+        {
+            tmp = await Lfs.ReadKeyValueStrListFromConfigFileAsync(this.SimpleConfigFilePath, cancel: cancel);
+        }
+
+        if (tmp == null)
+        {
+            tmp = new KeyValueList<string, string>();
+        }
+
+        foreach (var missing in missingValues)
+        {
+            if (tmp.Where(x => StrComparer.IgnoreCaseTrimComparer.Equals(x.Key, missing.Key)).Any() == false)
+            {
+                tmp.Add(missing.Key, missing.Value);
+            }
+        }
+
+        await Lfs.WriteKeyValueStrListToConfigFileAsync(this.SimpleConfigFilePath, tmp, this.DynamicConfigSampleObject.GetCommentsDictionary(), flags: FileFlags.AutoCreateDirectory, writeBom: true);
+    }
+
+    protected override Task<HadbTran> BeginDatabaseTransactionImplAsync(bool writeMode, bool isTransaction, HadbTranOptions options, CancellationToken cancel = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    protected override Task<List<HadbStatJson>> EnumStatImplAsync(HadbTran tran, DateTimeOffset dtStart, DateTimeOffset dtEnd, int maxCount, CancellationToken cancel = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    protected override bool IsDeadlockExceptionImpl(Exception ex)
+    {
+        return false;
+    }
+
+    protected override Task<List<HadbObject>> ReloadDataFromDatabaseImplAsync(bool fullReloadMode, DateTimeOffset partialReloadMinUpdateTime, Ref<DateTimeOffset>? lastStatTimestamp, CancellationToken cancel = default)
+    {
+        List<HadbObject> ret = new List<HadbObject>();
+
+        return ret._TR();
+    }
+
+    protected override Task RestoreDataFromHadbObjectListImplAsync(List<HadbObject> objectList, CancellationToken cancel = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    protected override Task WriteStatImplAsync(HadbTran tran, DateTimeOffset dt, string generator, string value, string ext1, string ext2, CancellationToken cancel = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    protected internal override Task AtomicAddDataListToDatabaseImplAsync(HadbTran tran, IEnumerable<HadbObject> dataList, CancellationToken cancel = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    protected internal override Task AtomicAddLogImplAsync(HadbTran tran, HadbLog log, string nameSpace, string ext1, string ext2, string ft1, string ft2, CancellationToken cancel = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    protected internal override Task<bool> AtomicAddOrUpdateQuickByKeyOnDatabaseImplAsync<T>(HadbTran tran, string key, string nameSpace, T userData, bool doNotOverwrite, CancellationToken cancel = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    protected internal override Task AtomicAddSnapImplAsync(HadbTran tran, HadbSnapshot snap, CancellationToken cancel = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    protected internal override Task<HadbObject> AtomicDeleteDataFromDatabaseImplAsync(HadbTran tran, string uid, string typeName, string nameSpace, int maxArchive, CancellationToken cancel = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    protected internal override Task<int> AtomicDeleteQuickByKeyOnDatabaseImplAsync<T>(HadbTran tran, string key, bool startWith, string nameSpace, CancellationToken cancel = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    protected internal override Task<bool> AtomicDeleteQuickByUidOnDatabaseImplAsync<T>(HadbTran tran, string uid, string nameSpace, CancellationToken cancel = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    protected internal override Task<IEnumerable<HadbObject>> AtomicGetArchivedDataFromDatabaseImplAsync(HadbTran tran, int maxItems, string uid, string typeName, string nameSpace, CancellationToken cancel = default, bool noCheckTypeIdAndNameSpace = false)
+    {
+        throw new NotImplementedException();
+    }
+
+    protected internal override Task<HadbObject?> AtomicGetDataFromDatabaseImplAsync(HadbTran tran, string uid, string typeName, string nameSpace, CancellationToken cancel = default, bool noCheckTypeIdAndNameSpace = false)
+    {
+        throw new NotImplementedException();
+    }
+
+    protected internal override Task<string> AtomicGetKvImplAsync(HadbTran tran, string key, CancellationToken cancel = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    protected internal override Task<StrDictionary<string>> AtomicGetKvListImplAsync(HadbTran tran, CancellationToken cancel = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    protected internal override Task<HadbQuick<T>?> AtomicGetQuickFromDatabaseImplAsync<T>(HadbTran tran, string uid, string nameSpace, CancellationToken cancel = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    protected internal override Task<HadbObject?> AtomicSearchDataByKeyFromDatabaseImplAsync(HadbTran tran, HadbKeys keys, string typeName, string nameSpace, bool and, CancellationToken cancel = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    protected internal override Task<IEnumerable<HadbObject>> AtomicSearchDataListByLabelsFromDatabaseImplAsync(HadbTran tran, HadbLabels labels, string typeName, string nameSpace, CancellationToken cancel = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    protected internal override Task<HadbLogQueryResponse> AtomicSearchLogImplAsync(HadbTran tran, string typeName, HadbLogQuery query, string nameSpace, CancellationToken cancel = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    protected internal override Task<IEnumerable<HadbQuick<T>>> AtomicSearchQuickByKeyOnDatabaseImplAsync<T>(HadbTran tran, string key, bool startWith, string nameSpace, CancellationToken cancel = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    protected internal override Task AtomicSetKvImplAsync(HadbTran tran, string key, string value, CancellationToken cancel = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    protected internal override Task<HadbObject> AtomicUpdateDataOnDatabaseImplAsync(HadbTran tran, HadbObject data, CancellationToken cancel = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    protected internal override Task AtomicUpdateQuickByUidOnDatabaseImplAsync<T>(HadbTran tran, string uid, string nameSpace, T userData, CancellationToken cancel = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    protected internal override Task<bool> LazyUpdateImplAsync(HadbTran tran, HadbObject data, CancellationToken cancel = default)
+    {
+        throw new NotImplementedException();
+    }
+}
+
 public class HadbSearchResultJsonObject
 {
     public string Uid = "";
@@ -251,7 +443,7 @@ public class HadbDynamicConfig : INormalizable
         this.NormalizeImpl();
     }
 
-    public StrDictionary<string> GetValuesAndComments()
+    public StrDictionary<string> GetCommentsDictionary()
     {
         StrDictionary<string> ret = new StrDictionary<string>();
 
@@ -4123,7 +4315,7 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
     {
         await ReloadDynamicConfigValuesAsync(cancel);
 
-        var commentsDict = DynamicConfigSampleObject.GetValuesAndComments();
+        var commentsDict = DynamicConfigSampleObject.GetCommentsDictionary();
 
         var config = await this.LoadDynamicConfigFromDatabaseImplAsync(cancel);
 
@@ -4401,6 +4593,8 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
         return stat;
     }
 
+    bool StatSaveNotSupported = false;
+
     public async Task ReloadCoreAsync(EnsureSpecial yes, bool fullReloadMode = true, DateTimeOffset partialReloadMinUpdateTime = default, CancellationToken cancel = default)
     {
         if (fullReloadMode == false)
@@ -4547,6 +4741,11 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                             saveStat = false;
                         }
 
+                        if (StatSaveNotSupported)
+                        {
+                            saveStat = false;
+                        }
+
                         if (saveStat)
                         {
                             // stat をデータベースに追記する
@@ -4560,6 +4759,10 @@ public abstract class HadbBase<TMem, TDynamicConfig> : AsyncService
                                 },
                                 cancel: cancel,
                                 ignoreQuota: true);
+                            }
+                            catch (NotImplementedException)
+                            {
+                                StatSaveNotSupported = true;
                             }
                             catch (Exception ex)
                             {

@@ -576,6 +576,34 @@ public abstract partial class FileSystem
     public HugeMemoryBuffer<byte> ReadHugeMemoryBufferFromFile(string path, long maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
         => ReadHugeMemoryBufferFromFileAsync(path, maxSize, flags, cancel)._GetResult();
 
+    public async Task<KeyValueList<string, string>> ReadKeyValueStrListFromConfigFileAsync(string path, Encoding? encoding = null, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
+    {
+        if (await Lfs.IsFileExistsAsync(path) == false)
+        {
+            return new KeyValueList<string, string>();
+        }
+
+        try
+        {
+            string body = await this.ReadStringFromFileAsync(path, encoding, flags: flags, cancel: cancel);
+
+            return Str.ConfigFileBodyToKeyValueList(body);
+        }
+        catch (Exception ex)
+        {
+            ex._Error();
+
+            return new KeyValueList<string, string>();
+        }
+    }
+
+    public async Task WriteKeyValueStrListToConfigFileAsync(string path, KeyValueList<string, string> list, StrDictionary<string>? commentsDict = null, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, Encoding? encoding = null, bool writeBom = false, bool overwriteAndTruncate = false, CancellationToken cancel = default)
+    {
+        string body = Str.KeyValueStrListToConfigFileBody(list, commentsDict);
+
+        await this.WriteStringToFileAsync(path, body, flags, doNotOverwrite, encoding, writeBom, cancel, overwriteAndTruncate);
+    }
+
     public async Task ReadCsvFromFileAsync<T>(string path, Func<List<T>, bool> proc, Encoding? encoding = null, long startPosition = 0, bool trimStr = false, FileFlags flags = FileFlags.None, int maxBytesPerLine = Consts.Numbers.DefaultMaxBytesPerLine, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, CancellationToken cancel = default)
          where T : notnull, new()
     {

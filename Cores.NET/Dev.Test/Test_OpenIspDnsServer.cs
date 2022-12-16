@@ -53,7 +53,7 @@ class IpaDnsServerDaemon : Daemon
     IpaDnsService? SvcInstance = null;
     EasyJsonRpcServer<IpaDnsService.IRpc>? RpcInstance = null;
 
-    public IpaDnsServerDaemon() : base(new DaemonOptions("IpaDnsServer", "Open ISP DNS Server Service", true))
+    public IpaDnsServerDaemon() : base(new DaemonOptions("IpaDnsServer", "IPA DNS Server Service", true))
     {
     }
 

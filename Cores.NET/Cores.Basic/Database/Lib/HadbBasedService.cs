@@ -443,11 +443,45 @@ public interface IHadbBasedServicePoint
     public HadbBasedServiceHiveSettingsBase SettingsFastSnapshotBase { get; }
 }
 
-public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, THook> : AsyncService, IHadbBasedServiceRpcBase, IHadbBasedServicePoint
+
+public abstract class HadbBasedSimpleServiceBase<TMemDb, TDynConfig, THiveSettings, THook> : HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, THook>
     where TMemDb : HadbBasedServiceMemDb, new()
     where TDynConfig : HadbBasedServiceDynConfig, new()
     where THiveSettings : HadbBasedServiceHiveSettingsBase, new()
     where THook : HadbBasedServiceHookBase
+{
+    protected HadbBasedSimpleServiceBase(HadbBasedServiceStartupParam startupParam, THook hook) : base(startupParam, hook)
+    {
+        try
+        {
+        }
+        catch
+        {
+            this._DisposeSafe();
+            throw;
+        }
+    }
+
+    public class HadbSimpleSys : HadbSimpleBase<TMemDb, TDynConfig>
+    {
+        public HadbSimpleSys(HadbSimpleSettings settings, TDynConfig dynamicConfig) : base(settings, dynamicConfig) { }
+    }
+
+    protected override HadbBase<TMemDb, TDynConfig> CreateHadb()
+    {
+        var s = this.SettingsFastSnapshot;
+
+        HadbSimpleSettings simpleSettings = new HadbSimpleSettings(s.HadbSystemName, optionFlags: s.HadbOptionFlags);
+
+        return new HadbSimpleSys(simpleSettings, CreateInitialDynamicConfigImpl());
+    }
+}
+
+public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, THook> : AsyncService, IHadbBasedServiceRpcBase, IHadbBasedServicePoint
+where TMemDb : HadbBasedServiceMemDb, new()
+where TDynConfig : HadbBasedServiceDynConfig, new()
+where THiveSettings : HadbBasedServiceHiveSettingsBase, new()
+where THook : HadbBasedServiceHookBase
 {
     public DateTimeOffset BootDateTime { get; } = DtOffsetNow; // サービス起動日時
     public HadbBase<TMemDb, TDynConfig> Hadb { get; }
@@ -473,7 +507,7 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
 
     public StrTableLanguageList LanguageList { get; private set; } = null!;
 
-    public HadbBasedServiceBase(HadbBasedServiceStartupParam startupParam, THook hook)
+    protected HadbBasedServiceBase(HadbBasedServiceStartupParam startupParam, THook hook)
     {
         try
         {
@@ -817,7 +851,14 @@ public abstract class HadbBasedServiceBase<TMemDb, TDynConfig, THiveSettings, TH
     {
         await this.Basic_Require_AdminBasicAuthAsync();
 
-        return this.Hadb.LatestStatData!;
+        var stat = this.Hadb.LatestStatData!;
+
+        stat._CloneDeep();
+
+        // リアルタイム統計 (システム状態) の更新
+        this.Hadb.UpdateSystemRelatimeStat(stat);
+
+        return stat;
     }
 
     public async Task<OkOrExeption> HealthCheck_GetCurrentHealthStatus(CancellationToken cancel = default)
