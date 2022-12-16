@@ -899,6 +899,7 @@ public static class BasicHelper
         return n;
     }
 
+    [return: NotNullIfNotNull("defaultValue")]
     public static TValue? _GetOrDefault<TKey, TValue>(this IDictionary<TKey, TValue> d, TKey key, TValue? defaultValue = default)
         where TKey : notnull
     {
@@ -908,6 +909,19 @@ public static class BasicHelper
         }
 
         TValue? n = defaultValue;
+        return n;
+    }
+
+    [return: NotNullIfNotNull("defaultValue")]
+    public static string _GetOrEmpty<TKey>(this IDictionary<TKey, string> d, TKey key)
+        where TKey : notnull
+    {
+        if (d.TryGetValue(key, out string? value))
+        {
+            return value._NonNull();
+        }
+
+        string n = "";
         return n;
     }
 

@@ -578,6 +578,8 @@ public class EasyDnsResponderRecord
 
     public EasyDnsResponderRecordSettings? Settings { get; set; } = null;
 
+    public object? Param = null;
+
     public static EasyDnsResponderRecordType StrToRecordType(string typeStr)
     {
         var type = EasyDnsResponderRecordType.None.ParseAsDefault(typeStr);
@@ -586,7 +588,7 @@ public class EasyDnsResponderRecord
     }
 
 
-    static readonly EasyDnsResponder.Zone dummyZoneForTryParse = new EasyDnsResponder.Zone(new EasyDnsResponder.DataSet(new EasyDnsResponderSettings()), new EasyDnsResponderZone());
+    static readonly EasyDnsResponder.Zone dummyZoneForTryParse = new EasyDnsResponder.Zone(new EasyDnsResponder.DataSet(new EasyDnsResponderSettings()), new EasyDnsResponderZone { DomainName = "_dummy_domain.example.org" } );
 
     public static EasyDnsResponderRecord TryParseFromString(string str, string? parentDomainFqdn = null)
     {
@@ -597,7 +599,7 @@ public class EasyDnsResponderRecord
         return r;
     }
 
-    public static EasyDnsResponderRecord FromString(string str, string? parentDomainFqdn = null)
+    public static EasyDnsResponderRecord FromString(string str, string? parentDomainFqdn = null, object? param = null)
     {
         if (str._GetKeysListAndValue(2, out var keys, out string value) == false)
         {
@@ -637,6 +639,7 @@ public class EasyDnsResponderRecord
             Type = type,
             Name = name,
             Settings = null,
+            Param = param,
         };
     }
 
@@ -1051,6 +1054,9 @@ public class EasyDnsResponder
         [JsonIgnore]
         public EasyDnsResponderRecord? SrcRecord;
 
+        [JsonIgnore]
+        public object? Param;
+
         protected abstract string ToStringForCompareImpl();
 
         readonly CachedProperty<string>? _StringForCompareCache;
@@ -1067,6 +1073,8 @@ public class EasyDnsResponder
         public Record(Zone parent, EasyDnsResponderRecord src)
         {
             this.ParentZone = parent;
+
+            this.Param = src.Param;
 
             this.Settings = (src.Settings ?? parent.Settings)._CloneDeep();
 

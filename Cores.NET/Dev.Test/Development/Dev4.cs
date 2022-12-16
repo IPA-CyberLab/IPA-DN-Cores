@@ -156,16 +156,16 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
         {
             var o = vars.VarsList;
 
-            string[] nsList = o["Ns"]._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.None, " ", "\t", "　", ",", ";");
+            string[] nsList = o._GetOrEmpty("Ns")._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.None, " ", "\t", "　", ",", ";");
 
             nsList._DoForEach(x => this.NameServersFqdnList.Add(x));
 
-            this.Responsible = o["Responsible"];
-            this.NegativeCacheTtl = o["NegativeCacheTtl"]._ToInt();
-            this.RefreshInterval = o["RefreshInterval"]._ToInt();
-            this.RetryInterval = o["RetryInterval"]._ToInt();
-            this.ExpireInterval = o["ExpireInterval"]._ToInt();
-            this.DefaultTtl = o["DefaultTtl"]._ToInt();
+            this.Responsible = o._GetOrEmpty("Responsible");
+            this.NegativeCacheTtl = o._GetOrEmpty("NegativeCacheTtl")._ToInt();
+            this.RefreshInterval = o._GetOrEmpty("RefreshInterval")._ToInt();
+            this.RetryInterval = o._GetOrEmpty("RetryInterval")._ToInt();
+            this.ExpireInterval = o._GetOrEmpty("ExpireInterval")._ToInt();
+            this.DefaultTtl = o._GetOrEmpty("DefaultTtl")._ToInt();
 
             this.Normalize();
         }
@@ -188,7 +188,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
             }
             this.NameServersFqdnList = o._OrderByValue(StrCmpi).Distinct().ToList();
 
-            if (this.NameServersFqdnList.Any())
+            if (this.NameServersFqdnList.Any() == false)
             {
                 this.NameServersFqdnList.Add(DevCoresConfig.IpaDnsServiceSettings.Default_Ns1);
                 this.NameServersFqdnList.Add(DevCoresConfig.IpaDnsServiceSettings.Default_Ns2);
@@ -199,7 +199,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
             if (this.RefreshInterval <= 0) this.RefreshInterval = DevCoresConfig.IpaDnsServiceSettings.Default_RefreshInterval;
             if (this.RetryInterval <= 0) this.RetryInterval = DevCoresConfig.IpaDnsServiceSettings.Default_RetryInterval;
             if (this.ExpireInterval <= 0) this.ExpireInterval = DevCoresConfig.IpaDnsServiceSettings.Default_ExpireInterval;
-            if (this.DefaultTtl <= 0) this.ExpireInterval = DevCoresConfig.IpaDnsServiceSettings.Default_DefaultTtl;
+            if (this.DefaultTtl <= 0) this.DefaultTtl = DevCoresConfig.IpaDnsServiceSettings.Default_DefaultTtl;
         }
     }
 
@@ -207,6 +207,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
     {
         public string Fqdn = "";
         public string Data = "";
+        public EasyDnsResponderRecordType Type = EasyDnsResponderRecordType.None;
     }
 
     [Flags]
@@ -246,11 +247,6 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
 
         public ZoneDef(string str, Vars vars)
         {
-            if (Str.CheckFqdn(Fqdn) == false)
-            {
-                throw new CoresException($"Zone string '{Fqdn}' is invalid");
-            }
-
             Fqdn = str._NormalizeFqdn();
 
             if (Fqdn._InStri("/"))
@@ -267,6 +263,11 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
             }
             else if (Fqdn.EndsWith("in-addr.arpa", StrCmpi) || Fqdn.EndsWith("ip6.arpa", StrCmpi))
             {
+                if (Str.CheckFqdn(Fqdn) == false)
+                {
+                    throw new CoresException($"Zone string '{Fqdn}' is invalid");
+                }
+
                 // 逆引きゾーン: in-addr.arpa または ip6.arpa 表記
                 var ipAndSubnet = IPUtil.PtrZoneOrFqdnToIpAddressAndSubnet(Fqdn);
 
@@ -277,11 +278,17 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
             }
             else
             {
+                if (Str.CheckFqdn(Fqdn) == false)
+                {
+                    throw new CoresException($"Zone string '{Fqdn}' is invalid");
+                }
+
                 // 正引きゾーン
                 this.Type = ZoneDefType.Forward;
             }
 
-            this.Options = new ZoneDefOptions(vars);
+            this.Options = new ZoneDefOptions(
+                vars);
         }
     }
 
@@ -487,7 +494,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                                 }
 
                                                 // ゾーンのカスタムレコードとして追加
-                                                zone.CustomRecordList.Add(new CustomRecord { Fqdn = fqdn, Data = data });
+                                                zone.CustomRecordList.Add(new CustomRecord { Fqdn = hostLabel, Data = data, Type = recordType });
                                             }
                                         }
                                         else
@@ -583,7 +590,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                                         }
 
                                                         // ゾーンのカスタムレコードとして追加
-                                                        zone.CustomRecordList.Add(new CustomRecord { Fqdn = fqdn, Data = fqdn });
+                                                        zone.CustomRecordList.Add(new CustomRecord { Fqdn = hostLabel, Data = fqdn, Type = EasyDnsResponderRecordType.NS });
                                                     }
                                                     else
                                                     {
@@ -662,7 +669,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                     catch (Exception ex)
                     {
                         err.WriteLine($"Line #{i + 1}: '{lineSrc}'");
-                        err.WriteLine($"  Error: {ex.Message}");
+                        err.WriteLine($"  Error: {ex.ToString()}");
                     }
                 }
             }
@@ -691,9 +698,17 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
         [SimpleComment("If DDns_Protocol_AcceptUdpProxyProtocolV2 is true you can specify the source IP address ACL to accept UDP Proxy Protocol (You can specify multiple items. e.g. 127.0.0.0/8,1.2.3.0/24)")]
         public string Dns_Protocol_ProxyProtocolAcceptSrcIpAcl = "";
 
+        public string Dns_ZoneDefFilePathOrUrl = "";
+
+
         protected override void NormalizeImpl()
         {
             Dns_Protocol_ProxyProtocolAcceptSrcIpAcl = EasyIpAcl.NormalizeRules(Dns_Protocol_ProxyProtocolAcceptSrcIpAcl, false, true);
+
+            if (Dns_ZoneDefFilePathOrUrl._IsEmpty())
+            {
+                Dns_ZoneDefFilePathOrUrl = Lfs.PathParser.Combine(Env.AppRootDir, "ZoneDef.config");
+            }
 
             base.NormalizeImpl();
         }
@@ -795,6 +810,21 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
         return new OkOrExeption();
     }
 
+    // Config 読み込み
+    async Task LoadConfigAsync(EasyDnsResponderSettings settings, CancellationToken cancel)
+    {
+        var config = this.Hadb.CurrentDynamicConfig;
+
+        // ファイル読み込み
+        string body = await Lfs.ReadStringFromFileAsync(config.Dns_ZoneDefFilePathOrUrl, cancel: cancel);
+
+        // ファイル内容のパース
+        StringWriter err = new StringWriter();
+        Config cfg = new Config(body, err);
+
+        err.ToString()._Print();
+    }
+
     // HADB の DynamicConfig を元に DDNS サーバーの設定を構築してリロードする
     async Task ReloadLoopTaskAsync(AsyncLoopManager manager, CancellationToken cancel)
     {
@@ -812,6 +842,8 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
 
         settings.SaveAccessLogForDebug = config.Dns_SaveDnsQueryAccessLogForDebug;
         settings.CopyQueryAdditionalRecordsToResponse = config.Dns_Protocol_CopyQueryAdditionalRecordsToResponse;
+
+        await LoadConfigAsync(settings, cancel);
 
         this.DnsServer.ApplySetting(settings);
 
