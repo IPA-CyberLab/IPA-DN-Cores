@@ -53,7 +53,7 @@ namespace IPA.Cores.Basic;
 
 public static partial class DevCoresConfig
 {
-    public static partial class OpenIspDnsServiceSettings
+    public static partial class IpaDnsServiceSettings
     {
         public static readonly Copenhagen<string> Default_Ns1 = "ns01.example.org";
         public static readonly Copenhagen<string> Default_Ns2 = "ns02.example.org";
@@ -66,17 +66,17 @@ public static partial class DevCoresConfig
     }
 }
 
-public static class OpenIspDnsServiceGlobal
+public static class IpaDnsServiceGlobal
 {
     // デフォルトの static 証明書
     // SHA1: 80E38CE13AE4FCB033439A6C17B0145D77AD4960
     // SHA256: 35188460BC0767A6B738D118442EFEE5711CC5A8CB62387249E12D459D8E65A4
-    static readonly Singleton<PalX509Certificate> OpenIspDnsServerSampleStaticCert_Singleton = new Singleton<PalX509Certificate>(() => new PalX509Certificate(new FilePath(Res.Cores, "SampleDefaultCert/221125MikakaDDnsServerSampleStaticCert-20221125.pfx")));
-    public static PalX509Certificate OpenIspDnsServerSampleStaticCert => OpenIspDnsServerSampleStaticCert_Singleton;
+    static readonly Singleton<PalX509Certificate> IpaDnsServerSampleStaticCert_Singleton = new Singleton<PalX509Certificate>(() => new PalX509Certificate(new FilePath(Res.Cores, "SampleDefaultCert/221125MikakaDDnsServerSampleStaticCert-20221125.pfx")));
+    public static PalX509Certificate IpaDnsServerSampleStaticCert => IpaDnsServerSampleStaticCert_Singleton;
 
     public static void Init()
     {
-        GlobalCertVault.SetDefaultCertificateGenerator(_ => OpenIspDnsServiceGlobal.OpenIspDnsServerSampleStaticCert);
+        GlobalCertVault.SetDefaultCertificateGenerator(_ => IpaDnsServiceGlobal.IpaDnsServerSampleStaticCert);
 
         GlobalCertVault.SetDefaultSettingsGenerator(() =>
         {
@@ -91,20 +91,20 @@ public static class OpenIspDnsServiceGlobal
     }
 }
 
-public class OpenIspDnsServiceStartupParam : HadbBasedServiceStartupParam
+public class IpaDnsServiceStartupParam : HadbBasedServiceStartupParam
 {
-    public OpenIspDnsServiceStartupParam(string hiveDataName = "OpenIspDnsService", string hadbSystemName = "MIKAKA_DDNS")
+    public IpaDnsServiceStartupParam(string hiveDataName = "IpaDnsService", string hadbSystemName = "MIKAKA_DDNS")
     {
         this.HiveDataName = hiveDataName;
         this.HadbSystemName = hadbSystemName;
     }
 }
 
-public class OpenIspDnsServiceHook : HadbBasedServiceHookBase
+public class IpaDnsServiceHook : HadbBasedServiceHookBase
 {
 }
 
-public class OpenIspDnsService : HadbBasedServiceBase<OpenIspDnsService.MemDb, OpenIspDnsService.DynConfig, OpenIspDnsService.HiveSettings, OpenIspDnsServiceHook>, OpenIspDnsService.IRpc
+public class IpaDnsService : HadbBasedServiceBase<IpaDnsService.MemDb, IpaDnsService.DynConfig, IpaDnsService.HiveSettings, IpaDnsServiceHook>, IpaDnsService.IRpc
 {
     [Flags]
     public enum ZoneDefType
@@ -190,16 +190,16 @@ public class OpenIspDnsService : HadbBasedServiceBase<OpenIspDnsService.MemDb, O
 
             if (this.NameServersFqdnList.Any())
             {
-                this.NameServersFqdnList.Add(DevCoresConfig.OpenIspDnsServiceSettings.Default_Ns1);
-                this.NameServersFqdnList.Add(DevCoresConfig.OpenIspDnsServiceSettings.Default_Ns2);
+                this.NameServersFqdnList.Add(DevCoresConfig.IpaDnsServiceSettings.Default_Ns1);
+                this.NameServersFqdnList.Add(DevCoresConfig.IpaDnsServiceSettings.Default_Ns2);
             }
 
-            if (this.Responsible._IsEmpty()) this.Responsible = DevCoresConfig.OpenIspDnsServiceSettings.Default_Responsible;
-            if (this.NegativeCacheTtl <= 0) this.NegativeCacheTtl = DevCoresConfig.OpenIspDnsServiceSettings.Default_NegativeCacheTtl;
-            if (this.RefreshInterval <= 0) this.RefreshInterval = DevCoresConfig.OpenIspDnsServiceSettings.Default_RefreshInterval;
-            if (this.RetryInterval <= 0) this.RetryInterval = DevCoresConfig.OpenIspDnsServiceSettings.Default_RetryInterval;
-            if (this.ExpireInterval <= 0) this.ExpireInterval = DevCoresConfig.OpenIspDnsServiceSettings.Default_ExpireInterval;
-            if (this.DefaultTtl <= 0) this.ExpireInterval = DevCoresConfig.OpenIspDnsServiceSettings.Default_DefaultTtl;
+            if (this.Responsible._IsEmpty()) this.Responsible = DevCoresConfig.IpaDnsServiceSettings.Default_Responsible;
+            if (this.NegativeCacheTtl <= 0) this.NegativeCacheTtl = DevCoresConfig.IpaDnsServiceSettings.Default_NegativeCacheTtl;
+            if (this.RefreshInterval <= 0) this.RefreshInterval = DevCoresConfig.IpaDnsServiceSettings.Default_RefreshInterval;
+            if (this.RetryInterval <= 0) this.RetryInterval = DevCoresConfig.IpaDnsServiceSettings.Default_RetryInterval;
+            if (this.ExpireInterval <= 0) this.ExpireInterval = DevCoresConfig.IpaDnsServiceSettings.Default_ExpireInterval;
+            if (this.DefaultTtl <= 0) this.ExpireInterval = DevCoresConfig.IpaDnsServiceSettings.Default_DefaultTtl;
         }
     }
 
@@ -731,7 +731,7 @@ public class OpenIspDnsService : HadbBasedServiceBase<OpenIspDnsService.MemDb, O
 
     AsyncLoopManager LoopManager = null!;
 
-    public OpenIspDnsService(OpenIspDnsServiceStartupParam startupParam, OpenIspDnsServiceHook hook) : base(startupParam, hook)
+    public IpaDnsService(IpaDnsServiceStartupParam startupParam, IpaDnsServiceHook hook) : base(startupParam, hook)
     {
         try
         {
@@ -812,6 +812,8 @@ public class OpenIspDnsService : HadbBasedServiceBase<OpenIspDnsService.MemDb, O
 
         settings.SaveAccessLogForDebug = config.Dns_SaveDnsQueryAccessLogForDebug;
         settings.CopyQueryAdditionalRecordsToResponse = config.Dns_Protocol_CopyQueryAdditionalRecordsToResponse;
+
+        Dbg.Where();
 
         this.DnsServer.ApplySetting(settings);
 

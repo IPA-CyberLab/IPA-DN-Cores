@@ -48,20 +48,20 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.TestDev;
 
-class OpenIspDnsServerDaemon : Daemon
+class IpaDnsServerDaemon : Daemon
 {
-    OpenIspDnsService? SvcInstance = null;
-    EasyJsonRpcServer<OpenIspDnsService.IRpc>? RpcInstance = null;
+    IpaDnsService? SvcInstance = null;
+    EasyJsonRpcServer<IpaDnsService.IRpc>? RpcInstance = null;
 
-    public OpenIspDnsServerDaemon() : base(new DaemonOptions("OpenIspDnsServer", "Open ISP DNS Server Service", true))
+    public IpaDnsServerDaemon() : base(new DaemonOptions("IpaDnsServer", "Open ISP DNS Server Service", true))
     {
     }
 
     protected override async Task StartImplAsync(DaemonStartupMode startupMode, object? param)
     {
-        Con.WriteLine("OpenIspDnsServerDaemon: Starting...");
+        Con.WriteLine("IpaDnsServerDaemon: Starting...");
 
-        OpenIspDnsServiceGlobal.Init();
+        IpaDnsServiceGlobal.Init();
 
         HttpServerOptions httpOpt = new HttpServerOptions
         {
@@ -74,11 +74,11 @@ class OpenIspDnsServerDaemon : Daemon
             UseKestrelWithIPACoreStack = false,
         };
 
-        OpenIspDnsServiceStartupParam startup = new OpenIspDnsServiceStartupParam
+        IpaDnsServiceStartupParam startup = new IpaDnsServiceStartupParam
         {
         };
 
-        this.SvcInstance = new OpenIspDnsService(startup, new OpenIspDnsServiceHook());
+        this.SvcInstance = new IpaDnsService(startup, new IpaDnsServiceHook());
 
         JsonRpcServerConfig rpcConfig = new JsonRpcServerConfig
         {
@@ -90,33 +90,33 @@ class OpenIspDnsServerDaemon : Daemon
             HadbBasedServicePoint = SvcInstance,
         };
 
-        this.RpcInstance = new EasyJsonRpcServer<OpenIspDnsService.IRpc>(httpOpt, rpcCfg: rpcConfig, targetObject: SvcInstance);
+        this.RpcInstance = new EasyJsonRpcServer<IpaDnsService.IRpc>(httpOpt, rpcCfg: rpcConfig, targetObject: SvcInstance);
 
         SvcInstance.Start();
 
         await Task.CompletedTask;
 
-        Con.WriteLine("OpenIspDnsServerDaemon: Started.");
+        Con.WriteLine("IpaDnsServerDaemon: Started.");
     }
 
     protected override async Task StopImplAsync(object? param)
     {
-        Con.WriteLine("OpenIspDnsServerDaemon: Stopping...");
+        Con.WriteLine("IpaDnsServerDaemon: Stopping...");
 
         await RpcInstance._DisposeSafeAsync();
 
         await SvcInstance._DisposeSafeAsync();
 
-        Con.WriteLine("OpenIspDnsServerDaemon: Stopped.");
+        Con.WriteLine("IpaDnsServerDaemon: Stopped.");
     }
 }
 
 partial class TestDevCommands
 {
     [ConsoleCommand(
-        "Start or stop the OpenIspDnsServerDaemon daemon",
-        "OpenIspDnsServerDaemon [command]",
-        "Start or stop the OpenIspDnsServerDaemon daemon",
+        "Start or stop the IpaDnsServerDaemon daemon",
+        "IpaDnsServerDaemon [command]",
+        "Start or stop the IpaDnsServerDaemon daemon",
         @"[command]:The control command.
 
 [UNIX / Windows common commands]
@@ -130,9 +130,9 @@ winstart     - Start the daemon as a Windows service.
 winstop      - Stop the running daemon as a Windows service.
 wininstall   - Install the daemon as a Windows service.
 winuninstall - Uninstall the daemon as a Windows service.")]
-    static int OpenIspDnsServerDaemon(ConsoleService c, string cmdName, string str)
+    static int IpaDnsServerDaemon(ConsoleService c, string cmdName, string str)
     {
-        return DaemonCmdLineTool.EntryPoint(c, cmdName, str, new OpenIspDnsServerDaemon(), new DaemonSettings());
+        return DaemonCmdLineTool.EntryPoint(c, cmdName, str, new IpaDnsServerDaemon(), new DaemonSettings());
     }
 
 }
