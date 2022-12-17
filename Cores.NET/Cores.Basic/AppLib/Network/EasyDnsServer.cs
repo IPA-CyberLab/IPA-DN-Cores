@@ -280,6 +280,17 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
             if (searchResponse.ResultFlags.Bit(EasyDnsResponder.SearchResultFlags.SubDomainIsDelegated))
             {
                 // 他サブドメインへの委譲
+                foreach (var ans in answersList)
+                {
+                    string name = "";
+                    if (searchResponse.RecordList[0].Name._IsFilled())
+                    {
+                        name = searchResponse.RecordList[0].Name + ".";
+                    }
+                    name += searchResponse.RecordList[0].ParentZone.DomainFqdn;
+
+                    ans.Name = DomainName.Parse(name);
+                }
                 q.AuthorityRecords = answersList;
                 q.IsAuthoritiveAnswer = false;
             }

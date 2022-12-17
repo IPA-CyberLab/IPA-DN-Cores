@@ -821,7 +821,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
     string LastConfigBody = " ";
 
     // Config 読み込み
-    async Task<bool> LoadZoneConfigAsync(EasyDnsResponderSettings dst, StringWriter err, bool forceReload, CancellationToken cancel)
+    async Task<Config?> LoadZoneConfigAsync(EasyDnsResponderSettings dst, StringWriter err, bool forceReload, CancellationToken cancel)
     {
         var config = this.Hadb.CurrentDynamicConfig;
 
@@ -831,7 +831,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
         if (body == LastConfigBody && forceReload == false)
         {
             // 前回ゾーンを構築した時からファイル内容に変化がなければ何もしない
-            return false;
+            return null;
         }
 
         Con.WriteLine($"Zone Def File is changed. Body size = {body._GetBytes_UTF8().Length._ToString3()} bytes. Reloading...");
@@ -857,32 +857,52 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                 Contents = $"{zoneDef.Options.NameServersFqdnList._ElementAtOrDefaultStr(0, "unknown.example.org")} {zoneDef.Options.Responsible._FilledOrDefault("unknown.example.org")} {Consts.Numbers.MagicNumber_u32} {zoneDef.Options.RefreshInterval} {zoneDef.Options.RetryInterval} {zoneDef.Options.ExpireInterval} {zoneDef.Options.NegativeCacheTtl}",
             });
 
-            // 通常の正引きレコードを定義
-            foreach (var recordDef in zoneDef.StandardForwardRecordList.Where(x => x.Type.EqualsAny(StandardRecordType.ForwardSingle, StandardRecordType.ForwardSubnet)))
+            // カスタムレコードを登録
+            foreach (var customDef in zoneDef.CustomRecordList)
             {
-                string label = Str.GetSubdomainLabelFromParentAndSubFqdn(zone.DomainName, recordDef.Fqdn);
+                zone.RecordList.Add(EasyDnsResponderRecord.FromString(customDef.Type.ToString() + " " + customDef.Label + " " + customDef.Data));
+            }
 
-                if (recordDef.Fqdn._InStr("*") == false)
+            if (zoneDef.Type == ZoneDefType.Forward)
+            {
+                // 正引きゾーンの場合は、通常の正引きレコードを定義
+                foreach (var recordDef in zoneDef.StandardForwardRecordList.Where(x => x.Type.EqualsAny(StandardRecordType.ForwardSingle, StandardRecordType.ForwardSubnet)))
                 {
-                    // 非ワイルドカード
-                    // 仮にサブネット型であっても、最初の 1 個目の IP アドレスを返せば良い
-                    zone.RecordList.Add(new EasyDnsResponderRecord
+                    string label = Str.GetSubdomainLabelFromParentAndSubFqdn(zone.DomainName, recordDef.Fqdn);
+
+                    if (recordDef.Fqdn._InStr("*") == false)
                     {
-                        Type = recordDef.IpNetwork.AddressFamily == AddressFamily.InterNetwork ? EasyDnsResponderRecordType.A : EasyDnsResponderRecordType.AAAA,
-                        Name = label,
-                        Contents = recordDef.IpNetwork._RemoveScopeId().ToString(),
-                    });
+                        // 非ワイルドカード
+                        // 仮にサブネット型であっても、最初の 1 個目の IP アドレスを返せば良い
+                        zone.RecordList.Add(new EasyDnsResponderRecord
+                        {
+                            Type = recordDef.IpNetwork.AddressFamily == AddressFamily.InterNetwork ? EasyDnsResponderRecordType.A : EasyDnsResponderRecordType.AAAA,
+                            Name = label,
+                            Contents = recordDef.IpNetwork._RemoveScopeId().ToString(),
+                        });
+                    }
+                    else
+                    {
+                        // ワイルドカード
+                        zone.RecordList.Add(new EasyDnsResponderRecord
+                        {
+                            Type = recordDef.IpNetwork.AddressFamily == AddressFamily.InterNetwork ? EasyDnsResponderRecordType.A : EasyDnsResponderRecordType.AAAA,
+                            Name = label,
+                            Contents = $"{recordDef.IpNetwork._RemoveScopeId().ToString()}/{recordDef.SubnetLength}",
+                        });
+                    }
                 }
-                else
+            }
+            else
+            {
+                // 逆引きゾーンの場合は、ワイルドカードのダイナミックレコードを定義 (実際の結果はコールバック関数で計算して応答する)
+                zone.RecordList.Add(new EasyDnsResponderRecord
                 {
-                    // ワイルドカード
-                    zone.RecordList.Add(new EasyDnsResponderRecord
-                    {
-                        Type = recordDef.IpNetwork.AddressFamily == AddressFamily.InterNetwork ? EasyDnsResponderRecordType.A : EasyDnsResponderRecordType.AAAA,
-                        Name = label,
-                        Contents = $"{recordDef.IpNetwork._RemoveScopeId().ToString()}/{recordDef.SubnetLength}",
-                    });
-                }
+                    Type = EasyDnsResponderRecordType.PTR,
+                    Name = "*",
+                    Contents = "_ptr",
+                    Attribute = EasyDnsResponderRecordAttribute.DynamicRecord,
+                });
             }
 
             dst.ZoneList.Add(zone);
@@ -894,7 +914,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
 
         Con.WriteLine($"Zone Def File load completed.");
 
-        return true;
+        return cfg;
     }
 
     string LastConfigJson = " ";
@@ -921,7 +941,9 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
         settings.SaveAccessLogForDebug = config.Dns_SaveDnsQueryAccessLogForDebug;
         settings.CopyQueryAdditionalRecordsToResponse = config.Dns_Protocol_CopyQueryAdditionalRecordsToResponse;
 
-        if (await LoadZoneConfigAsync(settings, err, LastConfigJson != configJson, cancel) == false)
+        Config? cfg = await LoadZoneConfigAsync(settings, err, LastConfigJson != configJson, cancel);
+
+        if (cfg == null)
         {
             // Dynamic Config にも Zone Config にも変化がないので、何もしない
             return;
@@ -939,29 +961,55 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
             currentDynOptions.DnsProxyProtocolAcceptSrcIpAcl = config.Dns_Protocol_ProxyProtocolAcceptSrcIpAcl;
 
             this.DnsServer.DnsServer.SetCurrentDynOptions(currentDynOptions);
+
+            this.DnsServer.DnsResponder.Callback = (req) =>
+            {
+                var config = this.Hadb.CurrentDynamicConfig;
+
+                var ret = new EasyDnsResponderDynamicRecordCallbackResult
+                {
+                    IPAddressList = new List<IPAddress>(),
+                    MxFqdnList = new List<DomainName>(),
+                    MxPreferenceList = new List<ushort>(),
+                    TextList = new List<string>(),
+                    CaaList = new List<Tuple<byte, string, string>>(),
+                    PtrFqdnList = new List<DomainName>(),
+                };
+
+                string targetLabel = req.RequestHostName;
+
+                if (req.CallbackId == "_ptr")
+                {
+                    try
+                    {
+                        // 逆引きの処理 (逆引きは、すべてダイナミックレコードを用いて、Longest Match の計算をその都度自前で行なう)
+                        var targetIpInfo = IPUtil.PtrZoneOrFqdnToIpAddressAndSubnet(req.RequestFqdn);
+                        if (IPUtil.IsSubnetLenHostAddress(targetIpInfo.Item1.AddressFamily, targetIpInfo.Item2))
+                        {
+                            var longest = cfg.ReverseRadixTrie.Lookup(targetIpInfo.Item1, out _, out _);
+                            if (longest != null)
+                            {
+                                string fqdn = longest.Fqdn;
+                                if (fqdn.StartsWith("*."))
+                                {
+                                    string baseFqdn = fqdn.Substring(2);
+                                    fqdn = IPUtil.GenerateWildCardDnsFqdn(targetIpInfo.Item1, baseFqdn);
+                                }
+                                ret.PtrFqdnList.Add(DomainName.Parse(fqdn));
+                            }
+                        }
+                    }
+                    catch { }
+                }
+
+                return ret;
+            };
+
         }
         catch (Exception ex)
         {
             err.WriteLine(ex.ToString());
         }
-
-        this.DnsServer.DnsResponder.Callback = (req) =>
-        {
-            var config = this.Hadb.CurrentDynamicConfig;
-
-            var ret = new EasyDnsResponderDynamicRecordCallbackResult
-            {
-                IPAddressList = new List<IPAddress>(),
-                MxFqdnList = new List<DomainName>(),
-                MxPreferenceList = new List<ushort>(),
-                TextList = new List<string>(),
-                CaaList = new List<Tuple<byte, string, string>>(),
-            };
-
-            string targetLabel = req.RequestHostName;
-
-            return ret;
-        };
 
         string errorStr = err.ToString();
 

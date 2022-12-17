@@ -1423,6 +1423,8 @@ public class EasyDnsResponder
         {
             List<Record>? answers = null;
 
+            bool isWildcardMatch = false;
+
             // まず完全一致するものがないか確かめる
             if (this.RecordDictByName.TryGetValue(hostLabelNormalized, out List<Record>? found))
             {
@@ -1469,6 +1471,7 @@ public class EasyDnsResponder
                         {
                             // 後方一致あり
                             answers = r.Value._CloneListFast();
+                            isWildcardMatch = true;
                             break;
                         }
                     }
@@ -1487,6 +1490,7 @@ public class EasyDnsResponder
                         {
                             // 一致あり
                             answers = r.Value._CloneListFast();
+                            isWildcardMatch = true;
                             break;
                         }
                     }
@@ -1501,68 +1505,66 @@ public class EasyDnsResponder
                     // any アスタリスクレコードがあればそれを返す
                     answers = this.WildcardAnyRecordList._CloneListFast();
 
-                    List<Record> newList = new List<Record>(answers.Count);
+                    isWildcardMatch = true;
+                }
+            }
 
-                    // サブネットを示す A/AAAA レコードである場合は、適切なフィルタを実施する
-                    for (int i = 0; i < answers.Count; i++)
+            if (answers != null && isWildcardMatch)
+            {
+                // この時点でワイルドカード一致による結果が整っている場合で、
+                // サブネットを示す A/AAAA レコードがある場合は、適切なフィルタを実施する
+                List<Record> newList = new List<Record>(answers.Count);
+
+                for (int i = 0; i < answers.Count; i++)
+                {
+                    var answer = answers[i];
+                    bool ok = true;
+                    if (answer is Record_A a && a.IsSubnet)
                     {
-                        var answer = answers[i];
-                        bool ok = true;
-                        if (answer is Record_A a && a.IsSubnet)
+                        ok = false;
+                        if (IPUtil.TryParseWildCardDnsFqdn(hostLabelNormalized, out IPAddress? embedIp)) // ホスト名部分に埋め込まれている IP アドレスをパースする
                         {
-                            ok = false;
-                            if (IPUtil.TryParseWildCardDnsLabel(hostLabelNormalized, out IPAddress? embedIp)) // ホスト名部分に埋め込まれている IP アドレスをパースする
+                            // このパースされた IP アドレスがサブネット範囲に属するかどうか検査する
+                            if (IPUtil.IsInSameNetwork(a.IPv4Address, embedIp, a.IPv4SubnetMask, true))
                             {
-                                // このパースされた IP アドレスがサブネット範囲に属するかどうか検査する
-                                if (IPUtil.IsInSameNetwork(a.IPv4Address, embedIp, a.IPv4SubnetMask, true))
-                                {
-                                    // 宜しい
-                                    ok = true;
+                                // 宜しい
+                                ok = true;
 
-                                    var new_a = a.Clone();
-                                    new_a.IPv4Address = embedIp;
-                                    new_a.IPv4SubnetMask = IPAddress.Broadcast;
-                                    new_a.IsSubnet = false;
-                                    answer = new_a;
-                                }
+                                var new_a = a.Clone();
+                                new_a.IPv4Address = embedIp;
+                                new_a.IPv4SubnetMask = IPAddress.Broadcast;
+                                new_a.IsSubnet = false;
+                                answer = new_a;
                             }
                         }
-                        else if (answer is Record_AAAA aaaa && aaaa.IsSubnet)
+                    }
+                    else if (answer is Record_AAAA aaaa && aaaa.IsSubnet)
+                    {
+                        ok = false;
+                        if (IPUtil.TryParseWildCardDnsFqdn(hostLabelNormalized, out IPAddress? embedIp)) // ホスト名部分に埋め込まれている IP アドレスをパースする
                         {
-                            ok = false;
-                            if (IPUtil.TryParseWildCardDnsLabel(hostLabelNormalized, out IPAddress? embedIp)) // ホスト名部分に埋め込まれている IP アドレスをパースする
+                            // このパースされた IP アドレスがサブネット範囲に属するかどうか検査する
+                            if (IPUtil.IsInSameNetwork(aaaa.IPv6Address, embedIp, aaaa.IPv6SubnetMask, true))
                             {
-                                // このパースされた IP アドレスがサブネット範囲に属するかどうか検査する
-                                if (IPUtil.IsInSameNetwork(aaaa.IPv6Address, embedIp, aaaa.IPv6SubnetMask, true))
-                                {
-                                    // 宜しい
-                                    ok = true;
+                                // 宜しい
+                                ok = true;
 
-                                    var new_aaaa = aaaa.Clone();
-                                    new_aaaa.IPv6Address = embedIp;
-                                    new_aaaa.IPv6SubnetMask = IPUtil.IPv6AllFilledAddressCache;
-                                    new_aaaa.IsSubnet = false;
-                                    answer = new_aaaa;
-                                }
+                                var new_aaaa = aaaa.Clone();
+                                new_aaaa.IPv6Address = embedIp;
+                                new_aaaa.IPv6SubnetMask = IPUtil.IPv6AllFilledAddressCache;
+                                new_aaaa.IsSubnet = false;
+                                answer = new_aaaa;
                             }
-                        }
-
-                        if (ok)
-                        {
-                            newList.Add(answer);
                         }
                     }
 
-                    if (newList.Any())
+                    if (ok)
                     {
-                        answers = newList;
-                    }
-                    else
-                    {
-                        // 上記のフィルタで 1 つも通り抜けなかった場合は、NXDOMAIN を返す
-                        answers = null;
+                        newList.Add(answer);
                     }
                 }
+
+                answers = newList;
             }
 
             // この状態でまだ一致するものがなければ、サブドメイン一覧に一致する場合は空リストを返し、
