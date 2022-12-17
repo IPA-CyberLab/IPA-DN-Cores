@@ -46,6 +46,7 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Linq;
 using System.Text;
+using System.Runtime.CompilerServices;
 
 #pragma warning disable CA1416 // プラットフォームの互換性の検証
 
@@ -898,6 +899,187 @@ namespace IPA.Cores.Basic
             else
             {
                 throw new CoresLibException("ip.AddressFamily: out of range");
+            }
+        }
+
+        // ワイルドカード DNS FQDN から IP アドレスのパースを試行
+        // prefix-1-2-3-4-suffix.example.org -> 1.2.3.4
+        // prefix-1111-2222-3333-4444-5555-6666-7777-8888-suffix.example.org -> 1111:2222:3333:4444:5555:6666:7777:8888
+        // prefix-1111-2222--7777-8888-suffix.example.org -> 1111:2222::7777:8888
+        public static bool TryParseWildCardDnsFqdn(string fqdnOrLabelNormalized, [NotNullWhen(true)] out IPAddress? ip)
+        {
+            ip = null;
+
+            try
+            {
+                string? label = fqdnOrLabelNormalized._Split(StringSplitOptions.None, ".").ElementAtOrDefault(0);
+                if (label._IsEmpty()) return false;
+
+                string[] tokens = fqdnOrLabelNormalized._Split(StringSplitOptions.None, "-");
+                if (tokens.Length < 3) return false;
+
+                // 最初のいくつかの文字列のみのトークンをスキップする
+                int first = -1;
+                for (int i = 0; i < tokens.Length; i++)
+                {
+                    if (IsIPv4OrIPv6Number(tokens[i]))
+                    {
+                        first = i;
+                        break;
+                    }
+                }
+                if (first == -1)
+                {
+                    // 全部のトークンが文字列
+                    return false;
+                }
+
+                int last = -1;
+                // 最後のいくつかの文字列のみのトークンをスキップする
+                for (int i = tokens.Length - 1; i >= first; i--)
+                {
+                    if (IsIPv4OrIPv6Number(tokens[i]))
+                    {
+                        last = i;
+                        break;
+                    }
+                }
+                if (last == -1)
+                {
+                    // 全部のトークンが文字列
+                    return false;
+                }
+
+                int num = last - first + 1;
+
+                // IPv4 か IPv6 の可能性を確定する
+                if (num >= 3)
+                {
+                    // まず IPv6 としてパースを試みる
+                    StringBuilder sb = new StringBuilder(39);
+                    bool hasEmptyToken = false;
+                    for (int i = first; i <= last; i++)
+                    {
+                        string token = tokens[i];
+                        if (IsIPv6Number(token) == false)
+                        {
+                            break;
+                        }
+                        if (token.Length == 0)
+                        {
+                            hasEmptyToken = true;
+                        }
+                        if (i > first)
+                        {
+                            sb.Append(":");
+                        }
+                        sb.Append(token);
+                    }
+                    if (hasEmptyToken || num >= 8)
+                    {
+                        string ipstr = sb.ToString();
+                        int i = ipstr.IndexOf("::");
+                        if (i != -1)
+                        {
+                            i = ipstr.IndexOf("::", i + 1);
+                            if (i != -1)
+                            {
+                                ipstr = ipstr.Substring(0, i);
+                            }
+                        }
+                        if (IPAddress.TryParse(ipstr, out IPAddress? ip2))
+                        {
+                            if (ip2.AddressFamily == AddressFamily.InterNetworkV6)
+                            {
+                                ip = ip2;
+                                return true;
+                            }
+                        }
+                    }
+                }
+
+                if (num >= 4)
+                {
+                    // 次に IPv4 としてパースを試みる
+                    StringBuilder sb = new StringBuilder(15);
+                    for (int i = first; i < (first + 4); i++)
+                    {
+                        if (IsIPv4Number(tokens[i]) == false)
+                        {
+                            return false;
+                        }
+                        if (i > first)
+                        {
+                            sb.Append(".");
+                        }
+                        sb.Append(tokens[i]);
+                    }
+                    string ipstr = sb.ToString();
+                    if (IPAddress.TryParse(ipstr, out IPAddress? ip2) == false)
+                    {
+                        return false;
+                    }
+                    if (ip2.AddressFamily != AddressFamily.InterNetwork)
+                    {
+                        return false;
+                    }
+                    ip = ip2;
+                    return true;
+                }
+
+                // IPv4 としても IPv6 としてもパースに失敗した
+                return false;
+            }
+            catch
+            {
+                return false;
+            }
+
+            [MethodImpl(Inline)]
+            bool IsNumberOrHex(string str)
+            {
+                foreach (char c in str)
+                {
+                    if (c >= '0' && c <= '9') { }
+                    else if (c >= 'a' && c <= 'f') { }
+                    else if (c >= 'A' && c <= 'F') { }
+                    else return false;
+                }
+                return true;
+            }
+
+            [MethodImpl(Inline)]
+            bool IsIPv4OrIPv6Number(string str)
+            {
+                return IsIPv4Number(str) || IsIPv6Number(str);
+            }
+
+
+            [MethodImpl(Inline)]
+            bool IsIPv6Number(string str)
+            {
+                if (IsNumberOrHex(str) == false) return false;
+                if (str.Length >= 5) return false;
+                return true;
+            }
+
+            [MethodImpl(Inline)]
+            bool IsIPv4Number(string str)
+            {
+                if (IsNumber(str) == false) return false;
+                if (int.TryParse(str, out int i) == false) return false;
+                return i >= 0 && i <= 255;
+            }
+
+            [MethodImpl(Inline)]
+            bool IsNumber(string str)
+            {
+                foreach (char c in str)
+                {
+                    if (c >= '0' && c <= '9') { }
+                    else return false;
+                }
+                return true;
             }
         }
 
@@ -2006,7 +2188,7 @@ namespace IPA.Cores.Basic
         }
 
         // すべてのビットが立っているアドレス
-        public static IPAddress AllFilledAddress
+        public static IPAddress IPv6AllFilledAddress
         {
             get
             {
@@ -2021,8 +2203,10 @@ namespace IPA.Cores.Basic
             }
         }
 
+        public static readonly IPAddress IPv6AllFilledAddressCache = IPv6AllFilledAddress;
+
         // ループバックアドレス
-        public static IPAddress LoopbackAddress
+        public static IPAddress IPv6LoopbackAddress
         {
             get
             {
@@ -2033,7 +2217,7 @@ namespace IPA.Cores.Basic
         }
 
         // 全ノードマルチキャストアドレス
-        public static IPAddress AllNodeMulticaseAddress
+        public static IPAddress IPv6AllNodeMulticaseAddress
         {
             get
             {
@@ -2046,7 +2230,7 @@ namespace IPA.Cores.Basic
         }
 
         // 全ルータマルチキャストアドレス
-        public static IPAddress AllRouterMulticastAddress
+        public static IPAddress IPv6AllRouterMulticastAddress
         {
             get
             {
@@ -2342,8 +2526,8 @@ namespace IPA.Cores.Basic
 
             if (data[0] == 0xff)
             {
-                IPAddress all_node = AllNodeMulticaseAddress;
-                IPAddress all_router = AllRouterMulticastAddress;
+                IPAddress all_node = IPv6AllNodeMulticaseAddress;
+                IPAddress all_router = IPv6AllRouterMulticastAddress;
 
                 ret |= IPAddressType.Multicast;
 
@@ -2387,7 +2571,7 @@ namespace IPA.Cores.Basic
                     {
                         ret |= IPAddressType.GlobalUnicast;
 
-                        if (CompareIPAddress(ip, LoopbackAddress))
+                        if (CompareIPAddress(ip, IPv6LoopbackAddress))
                         {
                             ret |= IPAddressType.Loopback;
                         }

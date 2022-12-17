@@ -8631,6 +8631,31 @@ namespace IPA.Cores.Basic
             return null!;
         }
 
+        // abc.def.example.org -> abc.def を抽出
+        public static string GetSubdomainLabelFromParentAndSubFqdnNormalized(string parentFqdnNormalized, string subFqdnNormalized)
+        {
+            if (parentFqdnNormalized == subFqdnNormalized)
+            {
+                return "";
+            }
+
+            if (subFqdnNormalized.EndsWith(subFqdnNormalized))
+            {
+                string tmp = subFqdnNormalized.Substring(0, subFqdnNormalized.Length - parentFqdnNormalized.Length);
+                if (tmp.EndsWith(".") == false)
+                {
+                    throw new Exception($"Subdomain string '{subFqdnNormalized}' is not a subdomain of the parent domain '{parentFqdnNormalized}'");
+                }
+                return tmp.Substring(0, tmp.Length - 1);
+            }
+
+            throw new Exception($"Subdomain string '{subFqdnNormalized}' is not a subdomain of the parent domain '{parentFqdnNormalized}'");
+        }
+        public static string GetSubdomainLabelFromParentAndSubFqdn(string parentFqdn, string subFqdn)
+        {
+            return GetSubdomainLabelFromParentAndSubFqdnNormalized(parentFqdn._NormalizeFqdn(), subFqdn._NormalizeFqdn());
+        }
+
         public static string NormalizeFqdn(string fqdn)
         {
             fqdn = fqdn._NonNullTrim().ToLowerInvariant();

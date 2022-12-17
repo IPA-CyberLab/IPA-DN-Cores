@@ -3870,7 +3870,18 @@ cccadmin
             {
                 string line = Con.ReadLine("NET>")!;
 
-                if (false)
+                if (true)
+                {
+                    if (IPUtil.TryParseWildCardDnsFqdn(line, out IPAddress? ip) == false)
+                    {
+                        Con.WriteLine("None");
+                    }
+                    else
+                    {
+                        Con.WriteLine(ip.ToString());
+                    }
+                }
+                else if (false)
                 {
                     IPUtil.ParseIPAndSubnetMask(line, out IPAddress ip, out IPAddress mask);
 

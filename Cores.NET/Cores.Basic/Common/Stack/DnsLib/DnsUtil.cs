@@ -712,6 +712,9 @@ public class EasyDnsResponder
     public class Record_A : Record
     {
         public IPAddress IPv4Address;
+        public IPAddress IPv4SubnetMask;
+        public int IPv4SubnetMaskLength;
+        public bool IsSubnet;
 
         public Record_A(Zone parent, EasyDnsResponderRecord src) : base(parent, src)
         {
@@ -719,7 +722,21 @@ public class EasyDnsResponder
             string? tmp = tokens.ElementAtOrDefault(0);
             if (tmp._IsEmpty()) throw new CoresLibException("Contents is empty.");
 
-            this.IPv4Address = IPAddress.Parse(tmp);
+            if (tmp._InStr("/") == false)
+            {
+                // 単体の IPv4 アドレス
+                this.IPv4Address = IPAddress.Parse(tmp);
+                this.IPv4SubnetMask = IPAddress.Broadcast;
+                this.IPv4SubnetMaskLength = 32;
+                this.IsSubnet = false;
+            }
+            else
+            {
+                // サブネットマスク付き IPv4 アドレス
+                IPUtil.ParseIPAndSubnetMask(tmp, out this.IPv4Address, out this.IPv4SubnetMask);
+                this.IPv4SubnetMaskLength = IPUtil.SubnetMaskToInt(this.IPv4SubnetMask);
+                this.IsSubnet = IPUtil.IsSubnetLenHostAddress(this.IPv4Address.AddressFamily, this.IPv4SubnetMaskLength);
+            }
 
             if (this.IPv4Address.AddressFamily != AddressFamily.InterNetwork)
                 throw new CoresLibException($"AddressFamily of '{tmp}' is not IPv4.");
@@ -728,6 +745,9 @@ public class EasyDnsResponder
         public Record_A(Zone parent, EasyDnsResponderRecordSettings settings, string nameNormalized, IPAddress ipv4address) : base(parent, EasyDnsResponderRecordType.A, settings, nameNormalized)
         {
             this.IPv4Address = ipv4address;
+            this.IPv4SubnetMask = IPAddress.Broadcast;
+            this.IPv4SubnetMaskLength = 32;
+            this.IsSubnet = false;
 
             if (this.IPv4Address.AddressFamily != AddressFamily.InterNetwork)
                 throw new CoresLibException($"AddressFamily of '{this.IPv4Address}' is not IPv4.");
@@ -742,6 +762,9 @@ public class EasyDnsResponder
     public class Record_AAAA : Record
     {
         public IPAddress IPv6Address;
+        public IPAddress IPv6SubnetMask;
+        public int IPv6SubnetMaskLength;
+        public bool IsSubnet;
 
         public Record_AAAA(Zone parent, EasyDnsResponderRecord src) : base(parent, src)
         {
@@ -749,16 +772,34 @@ public class EasyDnsResponder
             string? tmp = tokens.ElementAtOrDefault(0);
             if (tmp._IsEmpty()) throw new CoresLibException("Contents is empty.");
 
-            this.IPv6Address = IPAddress.Parse(tmp);
-            this.IPv6Address.ScopeId = 0;
+            if (tmp._InStr("/") == false)
+            {
+                // 単体の IPv6 アドレス
+                this.IPv6Address = IPAddress.Parse(tmp);
+                this.IPv6SubnetMask = IPUtil.IPv6AllFilledAddressCache;
+                this.IPv6SubnetMaskLength = 128;
+                this.IsSubnet = false;
+            }
+            else
+            {
+                // サブネットマスク付き IPv4 アドレス
+                IPUtil.ParseIPAndSubnetMask(tmp, out this.IPv6Address, out this.IPv6SubnetMask);
+                this.IPv6SubnetMaskLength = IPUtil.SubnetMaskToInt(this.IPv6SubnetMask);
+                this.IsSubnet = IPUtil.IsSubnetLenHostAddress(this.IPv6Address.AddressFamily, this.IPv6SubnetMaskLength);
+            }
 
             if (this.IPv6Address.AddressFamily != AddressFamily.InterNetworkV6)
                 throw new CoresLibException($"AddressFamily of '{tmp}' is not IPv6.");
+
+            this.IPv6Address.ScopeId = 0;
         }
 
         public Record_AAAA(Zone parent, EasyDnsResponderRecordSettings settings, string nameNormalized, IPAddress ipv6address) : base(parent, EasyDnsResponderRecordType.AAAA, settings, nameNormalized)
         {
             this.IPv6Address = ipv6address;
+            this.IPv6SubnetMask = IPUtil.IPv6AllFilledAddressCache;
+            this.IPv6SubnetMaskLength = 128;
+            this.IsSubnet = false;
 
             if (this.IPv6Address.AddressFamily != AddressFamily.InterNetworkV6)
                 throw new CoresLibException($"AddressFamily of '{this.IPv6Address}' is not IPv6.");

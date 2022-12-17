@@ -44,6 +44,7 @@ using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Net.Sockets;
 using IPA.Cores.Basic.DnsLib;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
@@ -205,7 +206,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
 
     public class CustomRecord
     {
-        public string Fqdn = "";
+        public string Label = "";
         public string Data = "";
         public EasyDnsResponderRecordType Type = EasyDnsResponderRecordType.None;
     }
@@ -214,7 +215,6 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
     public enum StandardRecordType
     {
         ForwardSingle = 0,      // aaa.example.org -> 1.2.3.4
-        ForwardWildcard,        // *.aaa.example.org -> 1.2.3.4
         ForwardSubnet,          // 1-*-*-*.aaa.example.org (データ上は *.aaa.example.org) -> 1.0.0.0/24 とかの特定のサブネット
         ReverseSingle,          // 1.2.3.4 -> aaa.example.org
         ReverseSubnet,          // 1.0.0.0/24 -> 1-*-*-*.aaa.example.org
@@ -494,7 +494,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                                 }
 
                                                 // ゾーンのカスタムレコードとして追加
-                                                zone.CustomRecordList.Add(new CustomRecord { Fqdn = hostLabel, Data = data, Type = recordType });
+                                                zone.CustomRecordList.Add(new CustomRecord { Label = hostLabel, Data = data, Type = recordType });
                                             }
                                         }
                                         else
@@ -590,12 +590,11 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                                         }
 
                                                         // ゾーンのカスタムレコードとして追加
-                                                        zone.CustomRecordList.Add(new CustomRecord { Fqdn = hostLabel, Data = fqdn, Type = EasyDnsResponderRecordType.NS });
+                                                        zone.CustomRecordList.Add(new CustomRecord { Label = hostLabel, Data = fqdn, Type = EasyDnsResponderRecordType.NS });
                                                     }
                                                     else
                                                     {
                                                         // 普通の正引き + 逆引き同時定義レコード
-
                                                         // 最初に、正引きの処理をする。
                                                         // ゾーン検索
                                                         var zone = DnsUtil.SearchLongestMatchDnsZone<ZoneDef>(this.ZoneList, fqdn, out string hostLabel, out _);
@@ -664,12 +663,20 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                     }
                                 }
                             }
+                            else
+                            {
+                                if (j == 0) throw new CoresException("Invalid syntax");
+                            }
+                        }
+                        else if (line._IsFilled())
+                        {
+                            if (j == 0) throw new CoresException("Invalid syntax");
                         }
                     }
                     catch (Exception ex)
                     {
                         err.WriteLine($"Line #{i + 1}: '{lineSrc}'");
-                        err.WriteLine($"  Error: {ex.ToString()}");
+                        err.WriteLine($"  Error: {ex.Message}");
                     }
                 }
             }
@@ -780,6 +787,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                 case HadbEventType.ReloadDataFull:
                 case HadbEventType.ReloadDataPartially:
                 case HadbEventType.DatabaseStateChangedToRecovery:
+                    this.LoopManager.Fire();
                     this.DnsServer.LastDatabaseHealtyTimeStamp = DateTime.Now;
                     break;
             }
@@ -810,27 +818,97 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
         return new OkOrExeption();
     }
 
+    string LastConfigBody = " ";
+
     // Config 読み込み
-    async Task LoadConfigAsync(EasyDnsResponderSettings settings, CancellationToken cancel)
+    async Task<bool> LoadConfigAsync(EasyDnsResponderSettings dst, StringWriter err, CancellationToken cancel)
     {
         var config = this.Hadb.CurrentDynamicConfig;
 
         // ファイル読み込み
         string body = await Lfs.ReadStringFromFileAsync(config.Dns_ZoneDefFilePathOrUrl, cancel: cancel);
 
-        // ファイル内容のパース
-        StringWriter err = new StringWriter();
+        if (body == LastConfigBody)
+        {
+            // 前回ゾーンを構築した時からファイル内容に変化がなければ何もしない
+            return false;
+        }
+
+        Con.WriteLine($"Zone Def File is changed. Body size = {body._GetBytes_UTF8().Length._ToString3()} bytes. Reloading...");
+
         Config cfg = new Config(body, err);
 
-        err.ToString()._Print();
+        // ゾーンの定義
+        foreach (var zoneDef in cfg.ZoneList.Values)
+        {
+            EasyDnsResponderZone zone = new EasyDnsResponderZone
+            {
+                DomainName = zoneDef.Fqdn,
+                DefaultSettings = new EasyDnsResponderRecordSettings
+                {
+                    TtlSecs = zoneDef.Options.DefaultTtl,
+                },
+            };
+
+            // SOA レコードを定義
+            zone.RecordList.Add(new EasyDnsResponderRecord
+            {
+                Type = EasyDnsResponderRecordType.SOA,
+                Contents = $"{zoneDef.Options.NameServersFqdnList._ElementAtOrDefaultStr(0, "unknown.example.org")} {zoneDef.Options.Responsible._FilledOrDefault("unknown.example.org")} {Consts.Numbers.MagicNumber_u32} {zoneDef.Options.RefreshInterval} {zoneDef.Options.RetryInterval} {zoneDef.Options.ExpireInterval} {zoneDef.Options.NegativeCacheTtl}",
+            });
+
+            // 通常の正引きレコードを定義
+            foreach (var recordDef in zoneDef.StandardForwardRecordList.Where(x => x.Type.EqualsAny(StandardRecordType.ForwardSingle, StandardRecordType.ForwardSubnet)))
+            {
+                string label = Str.GetSubdomainLabelFromParentAndSubFqdn(zone.DomainName, recordDef.Fqdn);
+
+                if (recordDef.Fqdn._InStr("*") == false)
+                {
+                    // 非ワイルドカード
+                    // 仮にサブネット型であっても、最初の 1 個目の IP アドレスを返せば良い
+                    zone.RecordList.Add(new EasyDnsResponderRecord
+                    {
+                        Type = recordDef.IpNetwork.AddressFamily == AddressFamily.InterNetwork ? EasyDnsResponderRecordType.A : EasyDnsResponderRecordType.AAAA,
+                        Name = label,
+                        Contents = recordDef.IpNetwork._RemoveScopeId().ToString(),
+                    });
+                }
+                else
+                {
+                    // ワイルドカード
+                    zone.RecordList.Add(new EasyDnsResponderRecord
+                    {
+                        Type = recordDef.IpNetwork.AddressFamily == AddressFamily.InterNetwork ? EasyDnsResponderRecordType.A : EasyDnsResponderRecordType.AAAA,
+                        Name = label,
+                        Contents = $"{recordDef.IpNetwork._RemoveScopeId().ToString()}/{recordDef.SubnetLength}",
+                    });
+                }
+            }
+
+            dst.ZoneList.Add(zone);
+        }
+
+        LastConfigBody = body;
+
+        string errorStr = err.ToString();
+
+        Con.WriteLine($"Zone Def File load completed.");
+
+        return true;
     }
+
+    string LastConfigJson = " ";
 
     // HADB の DynamicConfig を元に DDNS サーバーの設定を構築してリロードする
     async Task ReloadLoopTaskAsync(AsyncLoopManager manager, CancellationToken cancel)
     {
+        StringWriter err = new StringWriter();
+
         await Task.CompletedTask;
 
         var config = this.Hadb.CurrentDynamicConfig;
+
+        string configJson = config._ObjectToJson(compact: true);
 
         EasyDnsResponderSettings settings = new EasyDnsResponderSettings
         {
@@ -843,16 +921,32 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
         settings.SaveAccessLogForDebug = config.Dns_SaveDnsQueryAccessLogForDebug;
         settings.CopyQueryAdditionalRecordsToResponse = config.Dns_Protocol_CopyQueryAdditionalRecordsToResponse;
 
-        await LoadConfigAsync(settings, cancel);
+        if (await LoadConfigAsync(settings, err, cancel) == false)
+        {
+            if (LastConfigJson != configJson)
+            {
+                // Dynamic Config にも Zone Config にも変化がないので、何もしない
+                return;
+            }
+        }
 
-        this.DnsServer.ApplySetting(settings);
+        LastConfigJson = configJson;
 
-        var currentDynOptions = this.DnsServer.DnsServer.GetCurrentDynOptions();
+        try
+        {
+            this.DnsServer.ApplySetting(settings);
 
-        currentDynOptions.ParseUdpProxyProtocolV2 = config.Dns_Protocol_ParseUdpProxyProtocolV2;
-        currentDynOptions.DnsProxyProtocolAcceptSrcIpAcl = config.Dns_Protocol_ProxyProtocolAcceptSrcIpAcl;
+            var currentDynOptions = this.DnsServer.DnsServer.GetCurrentDynOptions();
 
-        this.DnsServer.DnsServer.SetCurrentDynOptions(currentDynOptions);
+            currentDynOptions.ParseUdpProxyProtocolV2 = config.Dns_Protocol_ParseUdpProxyProtocolV2;
+            currentDynOptions.DnsProxyProtocolAcceptSrcIpAcl = config.Dns_Protocol_ProxyProtocolAcceptSrcIpAcl;
+
+            this.DnsServer.DnsServer.SetCurrentDynOptions(currentDynOptions);
+        }
+        catch (Exception ex)
+        {
+            err.WriteLine(ex.ToString());
+        }
 
         this.DnsServer.DnsResponder.Callback = (req) =>
         {
@@ -872,9 +966,11 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
             return ret;
         };
 
-        //if (config.DDns_HealthCheck_IntervalSecs >= 1)
+        string errorStr = err.ToString();
+
+        if (errorStr._IsFilled())
         {
-            //manager.LoopIntervalMsecs = config.DDns_HealthCheck_IntervalSecs * 1000;
+            errorStr._Error();
         }
     }
 
