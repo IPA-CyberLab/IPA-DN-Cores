@@ -146,6 +146,75 @@ public class ExpandIncludesSettings
 // 色々なおまけユーティリティ
 public static partial class MiscUtil
 {
+    public static async Task ValidateIfMyLocalClockCorrectAsync(CancellationToken cancel = default)
+    {
+        var urlsList = @"
+https://www.google.com/
+http://www.google.co.jp/
+https://www.yahoo.com/
+http://www.yahoo.co.jp/
+https://www.yahoo.co.jp/
+http://www.youtube.com/
+https://www.msn.com/
+http://www.msn.co.jp/
+https://www.facebook.com/
+https://www.twitter.com/
+"._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, "\r", "\n", " ", "\t", "　", ",", ";").Distinct(StrCmpi);
+
+        List<DateTimeOffset> resultsList = new List<DateTimeOffset>();
+
+        DateTimeOffset now = DateTimeOffset.Now;
+
+        await TaskUtil.ForEachExAsync(urlsList, async (url, c) =>
+        {
+            try
+            {
+                var dt = await GetCurrentDateTimeFromWebSever(url, c);
+
+                if (dt._IsZeroDateTime() == false)
+                {
+                    lock (resultsList)
+                    {
+                        resultsList.Add(dt);
+                    }
+                }
+            }
+            catch { }
+        },
+        8,
+        flags: ForEachExAsyncFlags.None,
+        cancel: cancel);
+
+        var allowDiff = TimeSpan.FromSeconds(15);
+
+        if (resultsList.Count == 0)
+        {
+            throw new CoresException($"Check Local Clock: Failed to connect to any Internet servers.");
+        }
+
+        foreach (var item in resultsList)
+        {
+            var diff = now - item;
+
+            if (diff <= allowDiff)
+            {
+                // OK
+                return;
+            }
+        }
+        // Error
+        throw new CoresException($"Check Local Clock: Insane. Local = {now.ToLocalTime()._ToDtStr()}, Internet = {resultsList[0].ToLocalTime()._ToDtStr()}");
+    }
+
+    static async Task<DateTimeOffset> GetCurrentDateTimeFromWebSever(string url, CancellationToken cancel = default)
+    {
+        await using var web = new WebApi(new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true, AllowAutoRedirect = false, DoNotThrowHttpResultError = true, MaxRecvSize = 1_000_000, Timeout = 10 * 1000 }, doNotUseTcpStack: true));
+
+        var ret = await web.SimpleQueryAsync(WebMethods.HEAD, url, cancel);
+
+        return ret.Headers.Date ?? Util.ZeroDateTimeOffsetValue;
+    }
+
     // Web server health check
     public static async Task<OkOrExeption> HttpHealthCheckAsync(string url, int numTry = 3, int timeoutMsecs = 5 * 1000, CancellationToken cancel = default, WebApiOptions ?options = null)
     {
