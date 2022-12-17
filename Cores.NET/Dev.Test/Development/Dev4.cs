@@ -821,14 +821,14 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
     string LastConfigBody = " ";
 
     // Config 読み込み
-    async Task<bool> LoadConfigAsync(EasyDnsResponderSettings dst, StringWriter err, CancellationToken cancel)
+    async Task<bool> LoadZoneConfigAsync(EasyDnsResponderSettings dst, StringWriter err, bool forceReload, CancellationToken cancel)
     {
         var config = this.Hadb.CurrentDynamicConfig;
 
         // ファイル読み込み
         string body = await Lfs.ReadStringFromFileAsync(config.Dns_ZoneDefFilePathOrUrl, cancel: cancel);
 
-        if (body == LastConfigBody)
+        if (body == LastConfigBody && forceReload == false)
         {
             // 前回ゾーンを構築した時からファイル内容に変化がなければ何もしない
             return false;
@@ -921,13 +921,10 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
         settings.SaveAccessLogForDebug = config.Dns_SaveDnsQueryAccessLogForDebug;
         settings.CopyQueryAdditionalRecordsToResponse = config.Dns_Protocol_CopyQueryAdditionalRecordsToResponse;
 
-        if (await LoadConfigAsync(settings, err, cancel) == false)
+        if (await LoadZoneConfigAsync(settings, err, LastConfigJson != configJson, cancel) == false)
         {
-            if (LastConfigJson != configJson)
-            {
-                // Dynamic Config にも Zone Config にも変化がないので、何もしない
-                return;
-            }
+            // Dynamic Config にも Zone Config にも変化がないので、何もしない
+            return;
         }
 
         LastConfigJson = configJson;
@@ -972,6 +969,8 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
         {
             errorStr._Error();
         }
+
+        settings._ObjectToJson()._Print();
     }
 
     protected override DynConfig CreateInitialDynamicConfigImpl()

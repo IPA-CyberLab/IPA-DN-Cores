@@ -910,121 +910,194 @@ namespace IPA.Cores.Basic
         {
             ip = null;
 
+            string[] labels = fqdnOrLabelNormalized._Split(StringSplitOptions.None, ".");
+
+            foreach (var label in labels)
+            {
+                if (label._IsFilled())
+                {
+                    if (TryParseWildCardDnsLabel(label, out IPAddress? ip2))
+                    {
+                        ip = ip2;
+                        return true;
+                    }
+                }
+            }
+
+            if (labels.Length >= 4)
+            {
+                for (int i = 0; i < labels.Length - 3; i++)
+                {
+                    if (IsIPv4Token(labels[i]) || IsIPv4Token(labels[i + 1]) || IsIPv4Token(labels[i + 2]) || IsIPv4Token(labels[i + 3]))
+                    {
+                        string tmp = labels[i] + "-" + labels[i + 1] + "-" + labels[i + 2] + "-" + labels[i + 3];
+
+                        if (TryParseWildCardDnsLabel(tmp, out IPAddress? ip2))
+                        {
+                            ip = ip2;
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+        public static bool TryParseWildCardDnsLabel(string labelNormalized, [NotNullWhen(true)] out IPAddress? ip)
+        {
+            ip = null;
+
             try
             {
-                string? label = fqdnOrLabelNormalized._Split(StringSplitOptions.None, ".").ElementAtOrDefault(0);
+                string? label = labelNormalized._Split(StringSplitOptions.None, ".").ElementAtOrDefault(0);
                 if (label._IsEmpty()) return false;
 
-                string[] tokens = fqdnOrLabelNormalized._Split(StringSplitOptions.None, "-");
+                string[] tokens = label._Split(StringSplitOptions.None, "-");
                 if (tokens.Length < 3) return false;
 
                 // 最初のいくつかの文字列のみのトークンをスキップする
-                int first = -1;
-                for (int i = 0; i < tokens.Length; i++)
-                {
-                    if (IsIPv4OrIPv6Number(tokens[i]))
-                    {
-                        first = i;
-                        break;
-                    }
-                }
-                if (first == -1)
-                {
-                    // 全部のトークンが文字列
-                    return false;
-                }
 
-                int last = -1;
-                // 最後のいくつかの文字列のみのトークンをスキップする
-                for (int i = tokens.Length - 1; i >= first; i--)
                 {
-                    if (IsIPv4OrIPv6Number(tokens[i]))
+                    int first = -1;
+                    for (int i = 0; i < tokens.Length; i++)
                     {
-                        last = i;
-                        break;
-                    }
-                }
-                if (last == -1)
-                {
-                    // 全部のトークンが文字列
-                    return false;
-                }
-
-                int num = last - first + 1;
-
-                // IPv4 か IPv6 の可能性を確定する
-                if (num >= 3)
-                {
-                    // まず IPv6 としてパースを試みる
-                    StringBuilder sb = new StringBuilder(39);
-                    bool hasEmptyToken = false;
-                    for (int i = first; i <= last; i++)
-                    {
-                        string token = tokens[i];
-                        if (IsIPv6Number(token) == false)
+                        if (IsIPv6Token(tokens[i]))
                         {
+                            first = i;
                             break;
                         }
-                        if (token.Length == 0)
-                        {
-                            hasEmptyToken = true;
-                        }
-                        if (i > first)
-                        {
-                            sb.Append(":");
-                        }
-                        sb.Append(token);
                     }
-                    if (hasEmptyToken || num >= 8)
+                    if (first == -1)
                     {
-                        string ipstr = sb.ToString();
-                        int i = ipstr.IndexOf("::");
-                        if (i != -1)
+                        // 全部のトークンが文字列
+                        return false;
+                    }
+
+                    int last = -1;
+                    // 最後のいくつかの文字列のみのトークンをスキップする
+                    for (int i = tokens.Length - 1; i >= first; i--)
+                    {
+                        if (IsIPv6Token(tokens[i]))
                         {
-                            i = ipstr.IndexOf("::", i + 1);
+                            last = i;
+                            break;
+                        }
+                    }
+                    if (last == -1)
+                    {
+                        // 全部のトークンが文字列
+                        return false;
+                    }
+
+                    int num = last - first + 1;
+
+                    if (num >= 3)
+                    {
+                        // まず IPv6 としてパースを試みる
+                        StringBuilder sb = new StringBuilder(39);
+                        bool hasEmptyToken = false;
+                        for (int i = first; i <= last; i++)
+                        {
+                            string token = tokens[i];
+                            if (IsIPv6Token(token) == false)
+                            {
+                                break;
+                            }
+                            if (token.Length == 0)
+                            {
+                                hasEmptyToken = true;
+                            }
+                            if (i > first)
+                            {
+                                sb.Append(":");
+                            }
+                            sb.Append(token);
+                        }
+                        if (hasEmptyToken || num >= 8)
+                        {
+                            string ipstr = sb.ToString();
+                            int i = ipstr.IndexOf("::");
                             if (i != -1)
                             {
-                                ipstr = ipstr.Substring(0, i);
+                                i = ipstr.IndexOf("::", i + 1);
+                                if (i != -1)
+                                {
+                                    ipstr = ipstr.Substring(0, i);
+                                }
                             }
-                        }
-                        if (IPAddress.TryParse(ipstr, out IPAddress? ip2))
-                        {
-                            if (ip2.AddressFamily == AddressFamily.InterNetworkV6)
+                            if (IPAddress.TryParse(ipstr, out IPAddress? ip2))
                             {
-                                ip = ip2;
-                                return true;
+                                if (ip2.AddressFamily == AddressFamily.InterNetworkV6)
+                                {
+                                    ip = ip2;
+                                    return true;
+                                }
                             }
                         }
                     }
                 }
 
-                if (num >= 4)
                 {
                     // 次に IPv4 としてパースを試みる
-                    StringBuilder sb = new StringBuilder(15);
-                    for (int i = first; i < (first + 4); i++)
+                    int first = -1;
+                    for (int i = 0; i < tokens.Length; i++)
                     {
-                        if (IsIPv4Number(tokens[i]) == false)
+                        if (IsIPv4Token(tokens[i]))
+                        {
+                            first = i;
+                            break;
+                        }
+                    }
+                    if (first == -1)
+                    {
+                        // 全部のトークンが文字列
+                        return false;
+                    }
+
+                    int last = -1;
+                    // 最後のいくつかの文字列のみのトークンをスキップする
+                    for (int i = tokens.Length - 1; i >= first; i--)
+                    {
+                        if (IsIPv4Token(tokens[i]))
+                        {
+                            last = i;
+                            break;
+                        }
+                    }
+                    if (last == -1)
+                    {
+                        // 全部のトークンが文字列
+                        return false;
+                    }
+
+                    int num = last - first + 1;
+                    if (num >= 4)
+                    {
+                        StringBuilder sb = new StringBuilder(15);
+                        for (int i = first; i < (first + 4); i++)
+                        {
+                            if (IsIPv4Token(tokens[i]) == false)
+                            {
+                                return false;
+                            }
+                            if (i > first)
+                            {
+                                sb.Append(".");
+                            }
+                            sb.Append(tokens[i]);
+                        }
+                        string ipstr = sb.ToString();
+                        if (IPAddress.TryParse(ipstr, out IPAddress? ip2) == false)
                         {
                             return false;
                         }
-                        if (i > first)
+                        if (ip2.AddressFamily != AddressFamily.InterNetwork)
                         {
-                            sb.Append(".");
+                            return false;
                         }
-                        sb.Append(tokens[i]);
+                        ip = ip2;
+                        return true;
                     }
-                    string ipstr = sb.ToString();
-                    if (IPAddress.TryParse(ipstr, out IPAddress? ip2) == false)
-                    {
-                        return false;
-                    }
-                    if (ip2.AddressFamily != AddressFamily.InterNetwork)
-                    {
-                        return false;
-                    }
-                    ip = ip2;
-                    return true;
                 }
 
                 // IPv4 としても IPv6 としてもパースに失敗した
@@ -1034,53 +1107,52 @@ namespace IPA.Cores.Basic
             {
                 return false;
             }
+        }
 
-            [MethodImpl(Inline)]
-            bool IsNumberOrHex(string str)
+        [MethodImpl(Inline)]
+        public static bool IsNumberOrHexToken(string str)
+        {
+            foreach (char c in str)
             {
-                foreach (char c in str)
-                {
-                    if (c >= '0' && c <= '9') { }
-                    else if (c >= 'a' && c <= 'f') { }
-                    else if (c >= 'A' && c <= 'F') { }
-                    else return false;
-                }
-                return true;
+                if (c >= '0' && c <= '9') { }
+                else if (c >= 'a' && c <= 'f') { }
+                else if (c >= 'A' && c <= 'F') { }
+                else return false;
             }
+            return true;
+        }
 
-            [MethodImpl(Inline)]
-            bool IsIPv4OrIPv6Number(string str)
+        [MethodImpl(Inline)]
+        public static bool IsIPv4OrIPv6Token(string str)
+        {
+            return IsIPv4Token(str) || IsIPv6Token(str);
+        }
+
+        [MethodImpl(Inline)]
+        public static bool IsIPv6Token(string str)
+        {
+            if (IsNumberOrHexToken(str) == false) return false;
+            if (str.Length >= 5) return false;
+            return true;
+        }
+
+        [MethodImpl(Inline)]
+        public static bool IsIPv4Token(string str)
+        {
+            if (IsNumberToken(str) == false) return false;
+            if (int.TryParse(str, out int i) == false) return false;
+            return i >= 0 && i <= 255;
+        }
+
+        [MethodImpl(Inline)]
+        public static bool IsNumberToken(string str)
+        {
+            foreach (char c in str)
             {
-                return IsIPv4Number(str) || IsIPv6Number(str);
+                if (c >= '0' && c <= '9') { }
+                else return false;
             }
-
-
-            [MethodImpl(Inline)]
-            bool IsIPv6Number(string str)
-            {
-                if (IsNumberOrHex(str) == false) return false;
-                if (str.Length >= 5) return false;
-                return true;
-            }
-
-            [MethodImpl(Inline)]
-            bool IsIPv4Number(string str)
-            {
-                if (IsNumber(str) == false) return false;
-                if (int.TryParse(str, out int i) == false) return false;
-                return i >= 0 && i <= 255;
-            }
-
-            [MethodImpl(Inline)]
-            bool IsNumber(string str)
-            {
-                foreach (char c in str)
-                {
-                    if (c >= '0' && c <= '9') { }
-                    else return false;
-                }
-                return true;
-            }
+            return true;
         }
 
         // MAC アドレスのランダム生成
@@ -2819,6 +2891,9 @@ namespace IPA.Cores.Basic
         // 同一のネットワークかどうか調べる
         public static bool IsInSameNetwork(IPAddress ip1, IPAddress ip2, IPAddress subnet, bool ignoreScopeId = false)
         {
+            if (ip1.AddressFamily != subnet.AddressFamily) return false;
+            if (ip2.AddressFamily != subnet.AddressFamily) return false;
+
             IPAddress prefix1, prefix2;
 
             if (ignoreScopeId == false)

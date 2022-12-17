@@ -568,16 +568,19 @@ public enum EasyDnsResponderRecordAttribute
 
 public class EasyDnsResponderRecord
 {
+    [JsonConverter(typeof(StringEnumConverter))]
     public EasyDnsResponderRecordAttribute Attribute { get; set; } = EasyDnsResponderRecordAttribute.None;
 
     public string Name { get; set; } = ""; // アスタリスク文字を用いたワイルドカード指定可能。
 
+    [JsonConverter(typeof(StringEnumConverter))]
     public EasyDnsResponderRecordType Type { get; set; } = EasyDnsResponderRecordType.None;
 
     public string Contents { get; set; } = ""; // DynamicRecord の場合はコールバック ID (任意の文字列) を指定
 
     public EasyDnsResponderRecordSettings? Settings { get; set; } = null;
 
+    [JsonIgnore]
     public object? Param = null;
 
     public static EasyDnsResponderRecordType StrToRecordType(string typeStr)
@@ -735,7 +738,7 @@ public class EasyDnsResponder
                 // サブネットマスク付き IPv4 アドレス
                 IPUtil.ParseIPAndSubnetMask(tmp, out this.IPv4Address, out this.IPv4SubnetMask);
                 this.IPv4SubnetMaskLength = IPUtil.SubnetMaskToInt(this.IPv4SubnetMask);
-                this.IsSubnet = IPUtil.IsSubnetLenHostAddress(this.IPv4Address.AddressFamily, this.IPv4SubnetMaskLength);
+                this.IsSubnet = !IPUtil.IsSubnetLenHostAddress(this.IPv4Address.AddressFamily, this.IPv4SubnetMaskLength);
             }
 
             if (this.IPv4Address.AddressFamily != AddressFamily.InterNetwork)
@@ -751,6 +754,11 @@ public class EasyDnsResponder
 
             if (this.IPv4Address.AddressFamily != AddressFamily.InterNetwork)
                 throw new CoresLibException($"AddressFamily of '{this.IPv4Address}' is not IPv4.");
+        }
+
+        public Record_A Clone()
+        {
+            return (Record_A)this.MemberwiseClone();
         }
 
         protected override string ToStringForCompareImpl()
@@ -782,10 +790,10 @@ public class EasyDnsResponder
             }
             else
             {
-                // サブネットマスク付き IPv4 アドレス
+                // サブネットマスク付き IPv6 アドレス
                 IPUtil.ParseIPAndSubnetMask(tmp, out this.IPv6Address, out this.IPv6SubnetMask);
                 this.IPv6SubnetMaskLength = IPUtil.SubnetMaskToInt(this.IPv6SubnetMask);
-                this.IsSubnet = IPUtil.IsSubnetLenHostAddress(this.IPv6Address.AddressFamily, this.IPv6SubnetMaskLength);
+                this.IsSubnet = !IPUtil.IsSubnetLenHostAddress(this.IPv6Address.AddressFamily, this.IPv6SubnetMaskLength);
             }
 
             if (this.IPv6Address.AddressFamily != AddressFamily.InterNetworkV6)
@@ -803,6 +811,11 @@ public class EasyDnsResponder
 
             if (this.IPv6Address.AddressFamily != AddressFamily.InterNetworkV6)
                 throw new CoresLibException($"AddressFamily of '{this.IPv6Address}' is not IPv6.");
+        }
+
+        public Record_AAAA Clone()
+        {
+            return (Record_AAAA)this.MemberwiseClone();
         }
 
         protected override string ToStringForCompareImpl()
@@ -1487,6 +1500,68 @@ public class EasyDnsResponder
                     // これまででまだ一致するものが無ければ、
                     // any アスタリスクレコードがあればそれを返す
                     answers = this.WildcardAnyRecordList._CloneListFast();
+
+                    List<Record> newList = new List<Record>(answers.Count);
+
+                    // サブネットを示す A/AAAA レコードである場合は、適切なフィルタを実施する
+                    for (int i = 0; i < answers.Count; i++)
+                    {
+                        var answer = answers[i];
+                        bool ok = true;
+                        if (answer is Record_A a && a.IsSubnet)
+                        {
+                            ok = false;
+                            if (IPUtil.TryParseWildCardDnsLabel(hostLabelNormalized, out IPAddress? embedIp)) // ホスト名部分に埋め込まれている IP アドレスをパースする
+                            {
+                                // このパースされた IP アドレスがサブネット範囲に属するかどうか検査する
+                                if (IPUtil.IsInSameNetwork(a.IPv4Address, embedIp, a.IPv4SubnetMask, true))
+                                {
+                                    // 宜しい
+                                    ok = true;
+
+                                    var new_a = a.Clone();
+                                    new_a.IPv4Address = embedIp;
+                                    new_a.IPv4SubnetMask = IPAddress.Broadcast;
+                                    new_a.IsSubnet = false;
+                                    answer = new_a;
+                                }
+                            }
+                        }
+                        else if (answer is Record_AAAA aaaa && aaaa.IsSubnet)
+                        {
+                            ok = false;
+                            if (IPUtil.TryParseWildCardDnsLabel(hostLabelNormalized, out IPAddress? embedIp)) // ホスト名部分に埋め込まれている IP アドレスをパースする
+                            {
+                                // このパースされた IP アドレスがサブネット範囲に属するかどうか検査する
+                                if (IPUtil.IsInSameNetwork(aaaa.IPv6Address, embedIp, aaaa.IPv6SubnetMask, true))
+                                {
+                                    // 宜しい
+                                    ok = true;
+
+                                    var new_aaaa = aaaa.Clone();
+                                    new_aaaa.IPv6Address = embedIp;
+                                    new_aaaa.IPv6SubnetMask = IPUtil.IPv6AllFilledAddressCache;
+                                    new_aaaa.IsSubnet = false;
+                                    answer = new_aaaa;
+                                }
+                            }
+                        }
+
+                        if (ok)
+                        {
+                            newList.Add(answer);
+                        }
+                    }
+
+                    if (newList.Any())
+                    {
+                        answers = newList;
+                    }
+                    else
+                    {
+                        // 上記のフィルタで 1 つも通り抜けなかった場合は、NXDOMAIN を返す
+                        answers = null;
+                    }
                 }
             }
 

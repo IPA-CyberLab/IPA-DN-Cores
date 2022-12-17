@@ -3761,7 +3761,7 @@ cccadmin
 
         Async(async () =>
         {
-            await MiscUtil.ExpandIncludesAsync("#include https://open_se:xqwZ5MdqDHVbgcvv@git-cloudmirror-static.fed.open.ad.jp/d/fed_share_fed-open-se-netadmin/auth/Pinger/11_OPEN_v4v6.config!18E6D1233CC1983884FAAC1F3F9FE146B15751E3C9E4D53CF67622AC357A7517");
+            await MiscUtil.ExpandIncludesToStrAsync("#include https://open_se:xqwZ5MdqDHVbgcvv@git-cloudmirror-static.fed.open.ad.jp/d/fed_share_fed-open-se-netadmin/auth/Pinger/11_OPEN_v4v6.config!18E6D1233CC1983884FAAC1F3F9FE146B15751E3C9E4D53CF67622AC357A7517");
         });
 
         return;

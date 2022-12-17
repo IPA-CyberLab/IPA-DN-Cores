@@ -170,7 +170,13 @@ public static partial class MiscUtil
     }
 
     // ファイルの #include を展開する
-    public static async Task<string> ExpandIncludesAsync(string srcFileBody, FilePath? srcFilePathIfPhysicalFile = null, ExpandIncludesSettings? settings = null, CancellationToken cancel = default, string? newLineStr = null)
+    public static async Task<string> ExpandIncludesToStrAsync(string srcFileBody, FilePath? srcFilePathIfPhysicalFile = null, ExpandIncludesSettings? settings = null, CancellationToken cancel = default, string? newLineStr = null)
+    {
+        var tmp = await ExpandIncludesToListAsync(srcFileBody, srcFilePathIfPhysicalFile, settings, cancel);
+
+        return tmp._LinesToStr(newLineStr);
+    }
+    public static async Task<List<string>> ExpandIncludesToListAsync(string srcFileBody, FilePath? srcFilePathIfPhysicalFile = null, ExpandIncludesSettings? settings = null, CancellationToken cancel = default)
     {
         settings ??= new ExpandIncludesSettings
         {
@@ -186,7 +192,7 @@ public static partial class MiscUtil
 
         await ProcessAsync(destLines, srcFileBody, srcFilePathIfPhysicalFile, counter);
 
-        return destLines._LinesToStr(newLineStr);
+        return destLines;
 
         async Task ProcessAsync(List<string> destLines, string srcFileBody, FilePath? srcFilePathIfPhysicalFile, RefInt includeCount)
         {
@@ -266,7 +272,7 @@ public static partial class MiscUtil
         }
     }
 
-    public static async Task ExpandIncludesFileAsync(string srcFilePathOrUrl, string destFilePath, ExpandIncludesSettings? settings = null, CancellationToken cancel = default, string? newLineStr = null, bool writeBom = false)
+    public static async Task<List<string>> ReadIncludesFileLinesAsync(string srcFilePathOrUrl, ExpandIncludesSettings? settings = null, CancellationToken cancel = default)
     {
         string srcBody;
         FilePath? srcFilePathIfPhysicalFile;
@@ -284,9 +290,14 @@ public static partial class MiscUtil
             srcFilePathIfPhysicalFile = srcFilePathOrUrl;
         }
 
-        string dstBody = await MiscUtil.ExpandIncludesAsync(srcBody, srcFilePathIfPhysicalFile, settings, cancel, newLineStr);
+        return await MiscUtil.ExpandIncludesToListAsync(srcBody, srcFilePathIfPhysicalFile, settings, cancel);
+    }
 
-        byte[] data = dstBody._GetBytes_UTF8(writeBom);
+    public static async Task ExpandIncludesFileAsync(string srcFilePathOrUrl, string destFilePath, ExpandIncludesSettings? settings = null, CancellationToken cancel = default, string? newLineStr = null, bool writeBom = false)
+    {
+        var list = await ReadIncludesFileLinesAsync(srcFilePathOrUrl, settings, cancel);
+
+        byte[] data = list._LinesToStr(newLineStr)._GetBytes_UTF8(writeBom);
 
         await Lfs.WriteDataToFileAsync(destFilePath, data, FileFlags.WriteOnlyIfChanged, false, cancel, true);
     }
