@@ -301,7 +301,7 @@ public class HostsCache : AsyncServiceWithMainLoop
                     db.CommandTimeoutSecs = SqlTimeoutSecs;
 
                     var table = await db.EasySelectAsync<Hosts2Table>(@"
-SELECT                    HOST_ID, HOST_NAME, HOST_LAST_IPV4, HOST_LAST_IPV6, HOST_UPDATE_DATE, HOST_AZURE_IP
+SELECT     top 100               HOST_ID, HOST_NAME, HOST_LAST_IPV4, HOST_LAST_IPV6, HOST_UPDATE_DATE, HOST_AZURE_IP
 FROM                       HOSTS 
 where HOST_LOGIN_DATE >= @BEGIN_DATE or HOST_NUM_ACCESS != 0
 ",
@@ -379,7 +379,7 @@ cancel: cancel);
                     db.CommandTimeoutSecs = SqlTimeoutSecs;
 
                     var table = await db.EasySelectAsync<Hosts2Table>(@"
-SELECT HOST_AZURE_IP, HOST_ID, HOST_LAST_IPV4, HOST_LAST_IPV6, HOST_NAME, HOST_UPDATE_DATE FROM HOSTS WITH (NOLOCK) WHERE (HOST_UPDATE_DATE >= @DT)",
+SELECT top 100 HOST_AZURE_IP, HOST_ID, HOST_LAST_IPV4, HOST_LAST_IPV6, HOST_NAME, HOST_UPDATE_DATE FROM HOSTS WITH (NOLOCK) WHERE (HOST_UPDATE_DATE >= @DT)",
 new
 {
 DT = last_update - interval_clock_margin,
@@ -1052,11 +1052,69 @@ public class DDNSServer : AsyncService
             List<DnsRecordBase> answers = new List<DnsRecordBase>();
             int num_match = 0;
 
-            string queryDomainName = "";
 
-            foreach (DnsQuestion question in q.Questions)
+
+            DnsQuestion? question = q.Questions.ElementAtOrDefault(0);
+            if (question == null)
             {
+                return null;
+            }
+
+            string queryDomainName = question.Name.ToString();
+
+            do
+            {
+                var validDomainNames = ValidDomainNames;
+
                 q.ReturnCode = ReturnCode.NoError;
+
+                if (queryDomainName._InStri("_acme-challenge"))
+                {
+                    foreach (string dom in validDomainNames)
+                    {
+                        List<string> acme_challenge_list = new List<string>();
+                        acme_challenge_list.Add("_acme-challenge." + dom + ".");
+                        acme_challenge_list.Add("_acme-challenge.v4." + dom + ".");
+                        acme_challenge_list.Add("_acme-challenge.v6." + dom + ".");
+
+                        foreach (var test1 in acme_challenge_list)
+                        {
+                            if (queryDomainName.Equals(test1, StringComparison.OrdinalIgnoreCase) || queryDomainName.EndsWith("." + test1, StringComparison.OrdinalIgnoreCase))
+                            {
+                                var nsRecord = new NsRecord(DomainName.Parse(test1), (int)Ini["TtlFix"].IntValue, DomainName.Parse("secertsvr1.sehosts.com"));
+                                q.AuthorityRecords.Add(nsRecord);
+                                q.IsRecursionAllowed = false;
+                                return q;
+                            }
+                        }
+                    }
+                }
+
+
+                if (queryDomainName._InStri("_psl"))
+                {
+                    foreach (string dom in validDomainNames)
+                    {
+                        List<string> psl_list = new List<string>();
+                        psl_list.Add("_psl." + dom + ".");
+                        psl_list.Add("_psl.v4." + dom + ".");
+                        psl_list.Add("_psl.v6." + dom + ".");
+
+                        foreach (var test1 in psl_list)
+                        {
+                            if (queryDomainName.Equals(test1, StringComparison.OrdinalIgnoreCase) || queryDomainName.EndsWith("." + test1, StringComparison.OrdinalIgnoreCase))
+                            {
+                                var txtRecord = new TxtRecord(DomainName.Parse(queryDomainName), (int)Ini["TtlFix"].IntValue, "https://github.com/publicsuffix/list/pull/100");
+                                q.AnswerRecords.Add(txtRecord);
+                                q.IsAuthoritiveAnswer = true;
+                                q.IsRecursionAllowed = false;
+                                return q;
+                            }
+                        }
+                    }
+                }
+
+
                 string tmp;
 
                 //Con.WriteLine("{0}: Query - {2} '{1}'", Str.DateTimeToStrShort(DateTime.Now), question.Name, question.RecordType);
@@ -1065,9 +1123,9 @@ public class DDNSServer : AsyncService
                 {
                     bool b = false;
 
-                    foreach (string dom in ValidDomainNames)
+                    foreach (string dom in validDomainNames)
                     {
-                        string qname = question.Name.ToString();
+                        string qname = queryDomainName;
 
                         if (qname.EndsWith("."))
                         {
@@ -1126,7 +1184,6 @@ public class DDNSServer : AsyncService
                     }
                 }
 
-                queryDomainName = question.Name.ToString();
 
                 List<IPAddress>? ret = nameToIpAddresses(queryDomainName, question.RecordType, out tmp, out is_fix_record);
 
@@ -1199,6 +1256,7 @@ public class DDNSServer : AsyncService
                     }
                 }
             }
+            while (false);
 
             if (q.ReturnCode == ReturnCode.NoError)
             {
