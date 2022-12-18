@@ -301,7 +301,7 @@ public class HostsCache : AsyncServiceWithMainLoop
                     db.CommandTimeoutSecs = SqlTimeoutSecs;
 
                     var table = await db.EasySelectAsync<Hosts2Table>(@"
-SELECT     top 100               HOST_ID, HOST_NAME, HOST_LAST_IPV4, HOST_LAST_IPV6, HOST_UPDATE_DATE, HOST_AZURE_IP
+SELECT                HOST_ID, HOST_NAME, HOST_LAST_IPV4, HOST_LAST_IPV6, HOST_UPDATE_DATE, HOST_AZURE_IP
 FROM                       HOSTS 
 where HOST_LOGIN_DATE >= @BEGIN_DATE or HOST_NUM_ACCESS != 0
 ",
@@ -379,7 +379,7 @@ cancel: cancel);
                     db.CommandTimeoutSecs = SqlTimeoutSecs;
 
                     var table = await db.EasySelectAsync<Hosts2Table>(@"
-SELECT top 100 HOST_AZURE_IP, HOST_ID, HOST_LAST_IPV4, HOST_LAST_IPV6, HOST_NAME, HOST_UPDATE_DATE FROM HOSTS WITH (NOLOCK) WHERE (HOST_UPDATE_DATE >= @DT)",
+SELECT  HOST_AZURE_IP, HOST_ID, HOST_LAST_IPV4, HOST_LAST_IPV6, HOST_NAME, HOST_UPDATE_DATE FROM HOSTS WITH (NOLOCK) WHERE (HOST_UPDATE_DATE >= @DT)",
 new
 {
 DT = last_update - interval_clock_margin,
