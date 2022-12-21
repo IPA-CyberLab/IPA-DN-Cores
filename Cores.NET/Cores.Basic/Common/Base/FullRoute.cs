@@ -2312,7 +2312,7 @@ public class FullRoute46<T>
     readonly FullRoute FullRoute4 = new FullRoute(AddressFamily.InterNetwork);
     readonly FullRoute FullRoute6 = new FullRoute(AddressFamily.InterNetworkV6);
 
-    public void Insert(IPAddress network, int subnetLength, T tmpObject)
+    public void Insert(IPAddress network, int subnetLength, T data)
     {
         FullRoute table;
 
@@ -2337,7 +2337,7 @@ public class FullRoute46<T>
 
         network = IPUtil.GetPrefixAddress(network, subnetLength);
 
-        table.Insert(new FullRouteEntry(IPAddr.FromAddress(network), subnetLength, "", tmpObject));
+        table.Insert(new FullRouteEntry(IPAddr.FromAddress(network), subnetLength, "", data));
     }
 
     public T? Lookup(IPAddress target, [NotNullWhen(true)] out IPAddr? subnet, out int subnetLength)
@@ -2378,6 +2378,7 @@ public class FullRoute
 {
     public readonly AddressFamily AddressFamily;
     public Dictionary<FullRouteEntry, int> BulkList = new Dictionary<FullRouteEntry, int>();
+    public FullRouteEntry? DefaultEntry = null;
     public RadixTrie? Trie = null;
     readonly bool is_readonly = false;
     public readonly int AddressSize = 0;
@@ -2518,6 +2519,12 @@ public class FullRoute
             return;
         }
 
+        if (e.SubnetLength == 0)
+        {
+            // サブネット長 0 はすべてを包含するため特別である
+            this.DefaultEntry = e;
+        }
+
         this.Trie = null;
     }
 
@@ -2537,7 +2544,10 @@ public class FullRoute
 
         foreach (FullRouteEntry e in this.BulkList.Keys)
         {
-            tmp.Add(e);
+            if (e.SubnetLength >= 1)
+            {
+                tmp.Add(e);
+            }
         }
 
         tmp.Sort(FullRouteEntry.CompareBySubnetLength);
@@ -2565,12 +2575,20 @@ public class FullRoute
         RadixNode? n = this.Trie!.Lookup(key);
         if (n == null)
         {
+            if (this.DefaultEntry != null)
+            {
+                return this.DefaultEntry;
+            }
             return null;
         }
 
         n = n.TraverseParentNonNull();
         if (n == null)
         {
+            if (this.DefaultEntry != null)
+            {
+                return this.DefaultEntry;
+            }
             return null;
         }
 

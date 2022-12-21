@@ -52,6 +52,7 @@ using System.Text;
 using System.Collections;
 
 using IPA.Cores.Basic.DnsLib;
+using System.Net;
 
 #pragma warning disable CS0162
 #pragma warning disable CS0219
@@ -733,6 +734,27 @@ partial class TestDevCommands
             CreateRequestedFqdn = "abc123.pppoe.example.org",
         };
 
+        FullRoute46<string> fullRouteTest = new FullRoute46<string>();
+
+        SeedBasedRandomGenerator seedRand = new SeedBasedRandomGenerator("Hello");
+        for (int i = 0; i < 10000; i++)
+        {
+            var addr = IPAddress.Parse($"{seedRand.GetSInt31() % 256}.{seedRand.GetSInt31() % 256}.{seedRand.GetSInt31() % 256}.0");
+            int subnet = seedRand.GetSInt31() % 24 + 8;
+            fullRouteTest.Insert(addr, subnet, "test");
+        }
+
+        fullRouteTest.Insert(IPAddress.Parse("0.0.0.0"), 0, "test");
+
+        fullRouteTest.Lookup(IPAddress.Parse("12.34.56.78"), out _, out _);
+
+        IPAddress[] ipList = new IPAddress[256];
+
+        for (int i = 0; i < 256; i++)
+        {
+            ipList[i] = IPAddress.Parse($"{seedRand.GetSInt31() % 256}.{seedRand.GetSInt31() % 256}.{seedRand.GetSInt31() % 256}.{seedRand.GetSInt31() % 256}");
+        }
+
         var queue = new MicroBenchmarkQueue()
 
         .Add(new MicroBenchmark($"Sample Loop (Do Nothing)", Benchmark_CountForVeryFast, count =>
@@ -742,6 +764,22 @@ partial class TestDevCommands
                 for (int c = 0; c < count; c++)
                 {
                     Limbo.SInt32Volatile++;
+                }
+            });
+        }), enabled: true, priority: 999999)
+
+
+        .Add(new MicroBenchmark($"Radix Trie", Benchmark_CountForNormal, count =>
+        {
+            Async(async () =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    var ip = ipList[c % 256];
+                    if (fullRouteTest.Lookup(ip, out _, out _) == null)
+                    {
+                        throw new CoresException();
+                    }
                 }
             });
         }), enabled: true, priority: 999999)

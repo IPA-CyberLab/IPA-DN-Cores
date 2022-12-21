@@ -222,3 +222,386 @@
 2022/12/12 19:33:07.702 +09:00 AsyncCallMethodFromSyncMethod: 12.87 ns, 77,683,635 / sec
 2022/12/12 19:33:08.250 +09:00 Lock for readonly object: 12.28 ns, 81,424,077 / sec
 2022/12/12 19:33:08.785 +09:00 Lock for get property object: 12.46 ns, 80,244,067 / sec
+2022/12/18 19:33:43.582 +09:00 ----- Start new benchmark -----
+2022/12/18 19:33:43.582 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:33:43.582 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:33:43.582 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:33:43.582 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:33:43.582 +09:00 Host: PC34
+2022/12/18 19:33:44.879 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 19:33:45.415 +09:00 Radix Trie: 213.42 ns, 4,685,499 / sec
+2022/12/18 19:33:45.953 +09:00 ByteToHex (New) - No Padding: 30.94 ns, 32,321,007 / sec
+2022/12/18 19:33:46.480 +09:00 ByteToHex (New) - Padding: 128.94 ns, 7,755,595 / sec
+2022/12/18 19:33:47.090 +09:00 throw Exception: 8,433.31 ns, 118,577 / sec
+2022/12/18 19:33:56.467 +09:00 ----- Start new benchmark -----
+2022/12/18 19:33:56.467 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:33:56.467 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:33:56.467 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:33:56.467 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:33:56.467 +09:00 Host: PC34
+2022/12/18 19:33:57.731 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 19:33:58.272 +09:00 Radix Trie: 202.86 ns, 4,929,509 / sec
+2022/12/18 19:33:58.808 +09:00 ByteToHex (New) - No Padding: 27.31 ns, 36,610,705 / sec
+2022/12/18 19:34:29.592 +09:00 ----- Start new benchmark -----
+2022/12/18 19:34:29.592 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:34:29.592 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:34:29.592 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:34:29.592 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:34:29.592 +09:00 Host: PC34
+2022/12/18 19:34:51.208 +09:00 ----- Start new benchmark -----
+2022/12/18 19:34:51.208 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:34:51.208 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:34:51.208 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:34:51.208 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:34:51.208 +09:00 Host: PC34
+2022/12/18 19:34:52.570 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 19:34:53.162 +09:00 Radix Trie: 896.12 ns, 1,115,924 / sec
+2022/12/18 19:34:53.745 +09:00 ByteToHex (New) - No Padding: 29.03 ns, 34,445,438 / sec
+2022/12/18 19:35:03.072 +09:00 ----- Start new benchmark -----
+2022/12/18 19:35:03.072 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:35:03.072 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:35:03.072 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:35:03.072 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:35:03.072 +09:00 Host: PC34
+2022/12/18 19:35:04.429 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 19:35:05.029 +09:00 Radix Trie: 834.04 ns, 1,198,983 / sec
+2022/12/18 19:35:05.612 +09:00 ByteToHex (New) - No Padding: 27.80 ns, 35,969,916 / sec
+2022/12/18 19:35:06.203 +09:00 ByteToHex (New) - Padding: 128.06 ns, 7,808,863 / sec
+2022/12/18 19:35:06.831 +09:00 throw Exception: 7,706.60 ns, 129,758 / sec
+2022/12/18 19:36:27.564 +09:00 ----- Start new benchmark -----
+2022/12/18 19:36:27.564 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:36:27.564 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:36:27.564 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:36:27.564 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:36:27.564 +09:00 Host: PC34
+2022/12/18 19:36:28.936 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 19:36:29.466 +09:00 Radix Trie: 505.86 ns, 1,976,821 / sec
+2022/12/18 19:36:30.012 +09:00 ByteToHex (New) - No Padding: 27.69 ns, 36,114,286 / sec
+2022/12/18 19:36:33.607 +09:00 ----- Start new benchmark -----
+2022/12/18 19:36:33.607 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:36:33.607 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:36:33.607 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:36:33.607 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:36:33.607 +09:00 Host: PC34
+2022/12/18 19:36:34.985 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 19:36:35.524 +09:00 Radix Trie: 489.03 ns, 2,044,845 / sec
+2022/12/18 19:36:36.058 +09:00 ByteToHex (New) - No Padding: 28.28 ns, 35,365,165 / sec
+2022/12/18 19:37:08.930 +09:00 ----- Start new benchmark -----
+2022/12/18 19:37:08.930 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:37:08.930 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:37:08.930 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:37:08.930 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:37:08.930 +09:00 Host: PC34
+2022/12/18 19:37:10.305 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 19:37:10.850 +09:00 Radix Trie: 646.34 ns, 1,547,182 / sec
+2022/12/18 19:37:11.391 +09:00 ByteToHex (New) - No Padding: 30.71 ns, 32,563,853 / sec
+2022/12/18 19:37:11.931 +09:00 ByteToHex (New) - Padding: 122.31 ns, 8,175,820 / sec
+2022/12/18 19:37:12.530 +09:00 throw Exception: 8,015.70 ns, 124,755 / sec
+2022/12/18 19:37:47.821 +09:00 ----- Start new benchmark -----
+2022/12/18 19:37:47.821 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:37:47.821 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:37:47.821 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:37:47.821 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:37:47.821 +09:00 Host: PC34
+2022/12/18 19:37:49.266 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 19:39:24.682 +09:00 ----- Start new benchmark -----
+2022/12/18 19:39:24.682 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:39:24.682 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:39:24.682 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:39:24.682 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:39:24.682 +09:00 Host: PC34
+2022/12/18 19:39:26.100 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 19:40:50.471 +09:00 ----- Start new benchmark -----
+2022/12/18 19:40:50.471 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:40:50.471 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:40:50.471 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:40:50.471 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:40:50.471 +09:00 Host: PC34
+2022/12/18 19:40:51.911 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 19:43:37.422 +09:00 ----- Start new benchmark -----
+2022/12/18 19:43:37.422 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:43:37.422 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:43:37.422 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:43:37.422 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:43:37.422 +09:00 Host: PC34
+2022/12/18 19:46:07.556 +09:00 ----- Start new benchmark -----
+2022/12/18 19:46:07.556 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:46:07.556 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:46:07.556 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:46:07.556 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:46:07.556 +09:00 Host: PC34
+2022/12/18 19:46:09.002 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 19:46:09.589 +09:00 Radix Trie: 717.25 ns, 1,394,208 / sec
+2022/12/18 19:46:10.186 +09:00 ByteToHex (New) - No Padding: 28.36 ns, 35,256,611 / sec
+2022/12/18 19:46:50.204 +09:00 ----- Start new benchmark -----
+2022/12/18 19:46:50.204 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:46:50.204 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:46:50.204 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:46:50.204 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:46:50.204 +09:00 Host: PC34
+2022/12/18 19:47:03.152 +09:00 ----- Start new benchmark -----
+2022/12/18 19:47:03.152 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:47:03.152 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:47:03.152 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:47:03.152 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:47:03.152 +09:00 Host: PC34
+2022/12/18 19:47:04.813 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 19:47:30.162 +09:00 ----- Start new benchmark -----
+2022/12/18 19:47:30.162 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:47:30.162 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:47:30.162 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:47:30.162 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:47:30.162 +09:00 Host: PC34
+2022/12/18 19:47:35.901 +09:00 Sample Loop (Do Nothing): 1.03 ns, 969,550,538 / sec
+2022/12/18 19:47:37.236 +09:00 Radix Trie: 7,050.81 ns, 141,827 / sec
+2022/12/18 19:47:38.672 +09:00 ByteToHex (New) - No Padding: 117.90 ns, 8,482,067 / sec
+2022/12/18 19:47:39.880 +09:00 ByteToHex (New) - Padding: 119.49 ns, 8,368,736 / sec
+2022/12/18 19:47:41.354 +09:00 throw Exception: 8,143.12 ns, 122,803 / sec
+2022/12/18 19:47:42.510 +09:00 StartAsyncTaskAsync Normal (TaskResult): 895.18 ns, 1,117,094 / sec
+2022/12/18 19:47:43.665 +09:00 StartAsyncTaskAsync Normal (async): 984.40 ns, 1,015,845 / sec
+2022/12/18 19:47:44.825 +09:00 StartAsyncTaskAsync with Task Param: 37,166.17 ns, 26,906 / sec
+2022/12/18 19:49:57.959 +09:00 ----- Start new benchmark -----
+2022/12/18 19:49:57.959 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:49:57.959 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:49:57.959 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:49:57.959 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:49:57.959 +09:00 Host: PC34
+2022/12/18 19:50:03.582 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 19:50:09.214 +09:00 ----- Start new benchmark -----
+2022/12/18 19:50:09.214 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:50:09.214 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:50:09.214 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:50:09.214 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:50:09.214 +09:00 Host: PC34
+2022/12/18 19:50:10.530 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 19:50:11.070 +09:00 Radix Trie: 430.61 ns, 2,322,273 / sec
+2022/12/18 19:50:11.623 +09:00 ByteToHex (New) - No Padding: 27.73 ns, 36,056,304 / sec
+2022/12/18 19:50:17.612 +09:00 ----- Start new benchmark -----
+2022/12/18 19:50:17.612 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:50:17.612 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:50:17.612 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:50:17.612 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:50:17.612 +09:00 Host: PC34
+2022/12/18 19:50:18.943 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 19:50:19.489 +09:00 Radix Trie: 449.54 ns, 2,224,493 / sec
+2022/12/18 19:50:20.016 +09:00 ByteToHex (New) - No Padding: 29.25 ns, 34,186,555 / sec
+2022/12/18 19:51:17.236 +09:00 ----- Start new benchmark -----
+2022/12/18 19:51:17.236 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:51:17.236 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:51:17.236 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:51:17.236 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:51:17.236 +09:00 Host: PC34
+2022/12/18 19:51:18.322 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 19:51:18.863 +09:00 Radix Trie: 454.49 ns, 2,200,245 / sec
+2022/12/18 19:51:19.395 +09:00 ByteToHex (New) - No Padding: 27.56 ns, 36,287,237 / sec
+2022/12/18 19:51:44.987 +09:00 ----- Start new benchmark -----
+2022/12/18 19:51:44.987 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:51:44.987 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:51:44.987 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:51:44.987 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:51:44.987 +09:00 Host: PC34
+2022/12/18 19:51:46.315 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 19:52:17.594 +09:00 ----- Start new benchmark -----
+2022/12/18 19:52:17.594 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:52:17.594 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:52:17.594 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:52:17.594 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:52:17.594 +09:00 Host: PC34
+2022/12/18 19:52:18.936 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 19:55:33.061 +09:00 ----- Start new benchmark -----
+2022/12/18 19:55:33.061 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:55:33.061 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:55:33.061 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:55:33.061 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:55:33.061 +09:00 Host: PC34
+2022/12/18 19:55:34.389 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 19:55:34.927 +09:00 Radix Trie: 442.08 ns, 2,262,034 / sec
+2022/12/18 19:55:35.475 +09:00 ByteToHex (New) - No Padding: 27.86 ns, 35,893,480 / sec
+2022/12/18 19:55:39.363 +09:00 ----- Start new benchmark -----
+2022/12/18 19:55:39.363 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:55:39.363 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:55:39.363 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:55:39.363 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:55:39.363 +09:00 Host: PC34
+2022/12/18 19:55:40.697 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 19:55:41.238 +09:00 Radix Trie: 448.88 ns, 2,227,762 / sec
+2022/12/18 19:55:41.770 +09:00 ByteToHex (New) - No Padding: 28.14 ns, 35,536,281 / sec
+2022/12/18 19:55:42.307 +09:00 ByteToHex (New) - Padding: 110.68 ns, 9,034,848 / sec
+2022/12/18 19:55:42.907 +09:00 throw Exception: 8,042.14 ns, 124,345 / sec
+2022/12/18 19:55:51.971 +09:00 ----- Start new benchmark -----
+2022/12/18 19:55:51.971 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:55:51.971 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:55:51.971 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:55:51.971 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:55:51.971 +09:00 Host: PC34
+2022/12/18 19:55:59.018 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 19:56:00.624 +09:00 Radix Trie: 1,038.35 ns, 963,069 / sec
+2022/12/18 19:56:02.194 +09:00 ByteToHex (New) - No Padding: 40.79 ns, 24,515,266 / sec
+2022/12/18 19:56:03.790 +09:00 ByteToHex (New) - Padding: 126.39 ns, 7,912,301 / sec
+2022/12/18 19:56:05.405 +09:00 throw Exception: 7,741.69 ns, 129,170 / sec
+2022/12/18 19:56:06.981 +09:00 StartAsyncTaskAsync Normal (TaskResult): 931.21 ns, 1,073,871 / sec
+2022/12/18 19:56:08.600 +09:00 StartAsyncTaskAsync Normal (async): 1,046.40 ns, 955,654 / sec
+2022/12/18 19:56:10.237 +09:00 StartAsyncTaskAsync with Task Param: 1,629.89 ns, 613,539 / sec
+2022/12/18 19:56:12.065 +09:00 DeflateStream compress 1MB Optimal: 22,915,513.92 ns, 43 / sec
+2022/12/18 19:56:13.770 +09:00 DeflateStream compress 1MB Fastest: 16,636,478.92 ns, 60 / sec
+2022/12/18 19:56:15.485 +09:00 DeflateStream compress 1MB SmallestSize: 16,592,003.93 ns, 60 / sec
+2022/12/18 19:56:17.246 +09:00 DeflateStream decompress 1MB Optimal: 2,979,574.31 ns, 335 / sec
+2022/12/18 19:56:18.985 +09:00 DeflateStream decompress 1MB Fastest: 3,026,616.61 ns, 330 / sec
+2022/12/18 19:56:55.391 +09:00 ----- Start new benchmark -----
+2022/12/18 19:56:55.391 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:56:55.391 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:56:55.391 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:56:55.391 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:56:55.391 +09:00 Host: PC34
+2022/12/18 19:56:59.349 +09:00 Sample Loop (Do Nothing): 0.03 ns, 37,801,466,696 / sec
+2022/12/18 19:57:00.316 +09:00 Radix Trie: 180.67 ns, 5,534,821 / sec
+2022/12/18 19:57:05.932 +09:00 ----- Start new benchmark -----
+2022/12/18 19:57:05.932 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:57:05.932 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:57:05.932 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:57:05.932 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:57:05.932 +09:00 Host: PC34
+2022/12/18 19:57:12.735 +09:00 Sample Loop (Do Nothing): 2.52 ns, 397,057,210 / sec
+2022/12/18 19:57:14.180 +09:00 Radix Trie: 7,487.21 ns, 133,561 / sec
+2022/12/18 19:57:15.665 +09:00 ByteToHex (New) - No Padding: 172.10 ns, 5,810,741 / sec
+2022/12/18 19:57:17.171 +09:00 ByteToHex (New) - Padding: 508.60 ns, 1,966,163 / sec
+2022/12/18 19:57:18.727 +09:00 throw Exception: 24,582.55 ns, 40,679 / sec
+2022/12/18 19:57:20.172 +09:00 StartAsyncTaskAsync Normal (TaskResult): 3,663.28 ns, 272,979 / sec
+2022/12/18 19:57:21.526 +09:00 StartAsyncTaskAsync Normal (async): 1,024.61 ns, 975,983 / sec
+2022/12/18 19:57:23.366 +09:00 StartAsyncTaskAsync with Task Param: 1,608.34 ns, 621,757 / sec
+2022/12/18 19:57:35.041 +09:00 ----- Start new benchmark -----
+2022/12/18 19:57:35.041 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:57:35.041 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:57:35.041 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:57:35.041 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:57:35.041 +09:00 Host: PC34
+2022/12/18 19:57:36.351 +09:00 Sample Loop (Do Nothing): 0.03 ns, 34,039,656,199 / sec
+2022/12/18 19:57:36.891 +09:00 Radix Trie: 438.97 ns, 2,278,054 / sec
+2022/12/18 19:57:37.425 +09:00 ByteToHex (New) - No Padding: 27.42 ns, 36,466,417 / sec
+2022/12/18 19:57:37.970 +09:00 ByteToHex (New) - Padding: 123.90 ns, 8,071,344 / sec
+2022/12/18 19:57:38.527 +09:00 throw Exception: 9,120.69 ns, 109,640 / sec
+2022/12/18 19:57:39.058 +09:00 StartAsyncTaskAsync Normal (TaskResult): 844.50 ns, 1,184,128 / sec
+2022/12/18 19:57:39.597 +09:00 StartAsyncTaskAsync Normal (async): 929.51 ns, 1,075,831 / sec
+2022/12/18 19:57:40.140 +09:00 StartAsyncTaskAsync with Task Param: 1,545.75 ns, 646,936 / sec
+2022/12/18 19:57:40.879 +09:00 DeflateStream compress 1MB Optimal: 22,836,973.93 ns, 43 / sec
+2022/12/18 19:57:46.991 +09:00 ----- Start new benchmark -----
+2022/12/18 19:57:46.991 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:57:46.991 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:57:46.991 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:57:46.991 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:57:46.991 +09:00 Host: PC34
+2022/12/18 19:57:48.279 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 19:57:48.795 +09:00 Radix Trie: 320.72 ns, 3,118,009 / sec
+2022/12/18 19:57:49.320 +09:00 ByteToHex (New) - No Padding: 27.49 ns, 36,379,357 / sec
+2022/12/18 19:57:53.740 +09:00 ----- Start new benchmark -----
+2022/12/18 19:57:53.740 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:57:53.740 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:57:53.740 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:57:53.740 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:57:53.740 +09:00 Host: PC34
+2022/12/18 19:57:55.022 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 19:57:55.558 +09:00 Radix Trie: 253.60 ns, 3,943,292 / sec
+2022/12/18 19:57:56.082 +09:00 ByteToHex (New) - No Padding: 27.50 ns, 36,366,222 / sec
+2022/12/18 19:58:00.813 +09:00 ----- Start new benchmark -----
+2022/12/18 19:58:00.813 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:58:00.813 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:58:00.813 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:58:00.813 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:58:00.813 +09:00 Host: PC34
+2022/12/18 19:58:02.083 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 19:58:02.607 +09:00 Radix Trie: 198.92 ns, 5,027,175 / sec
+2022/12/18 19:58:03.130 +09:00 ByteToHex (New) - No Padding: 27.75 ns, 36,034,151 / sec
+2022/12/18 19:58:07.550 +09:00 ----- Start new benchmark -----
+2022/12/18 19:58:07.550 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:58:07.550 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:58:07.550 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:58:07.550 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:58:07.550 +09:00 Host: PC34
+2022/12/18 19:58:08.822 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 19:58:09.362 +09:00 Radix Trie: 171.97 ns, 5,814,806 / sec
+2022/12/18 19:58:09.901 +09:00 ByteToHex (New) - No Padding: 27.27 ns, 36,671,009 / sec
+2022/12/18 19:58:24.784 +09:00 ----- Start new benchmark -----
+2022/12/18 19:58:24.784 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:58:24.784 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:58:24.784 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:58:24.784 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:58:24.784 +09:00 Host: PC34
+2022/12/18 19:58:26.049 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 19:58:26.582 +09:00 Radix Trie: 1.34 ns, 745,585,670 / sec
+2022/12/18 19:58:27.106 +09:00 ByteToHex (New) - No Padding: 29.16 ns, 34,295,393 / sec
+2022/12/18 19:58:43.898 +09:00 ----- Start new benchmark -----
+2022/12/18 19:58:43.898 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:58:43.898 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:58:43.898 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:58:43.898 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:58:43.898 +09:00 Host: PC34
+2022/12/18 19:58:45.163 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 19:58:45.706 +09:00 Radix Trie: 171.30 ns, 5,837,543 / sec
+2022/12/18 19:58:46.228 +09:00 ByteToHex (New) - No Padding: 29.83 ns, 33,527,983 / sec
+2022/12/18 19:59:30.190 +09:00 ----- Start new benchmark -----
+2022/12/18 19:59:30.190 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:59:30.190 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:59:30.190 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:59:30.190 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:59:30.190 +09:00 Host: PC34
+2022/12/18 19:59:31.460 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 19:59:53.899 +09:00 ----- Start new benchmark -----
+2022/12/18 19:59:53.899 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 19:59:53.899 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 19:59:53.899 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 19:59:53.899 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 19:59:53.899 +09:00 Host: PC34
+2022/12/18 19:59:55.161 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 19:59:55.704 +09:00 Radix Trie: 157.38 ns, 6,353,909 / sec
+2022/12/18 19:59:56.241 +09:00 ByteToHex (New) - No Padding: 27.64 ns, 36,184,372 / sec
+2022/12/18 19:59:56.753 +09:00 ByteToHex (New) - Padding: 104.05 ns, 9,610,423 / sec
+2022/12/18 19:59:57.354 +09:00 throw Exception: 8,117.02 ns, 123,197 / sec
+2022/12/18 19:59:57.894 +09:00 StartAsyncTaskAsync Normal (TaskResult): 791.91 ns, 1,262,764 / sec
+2022/12/18 19:59:58.432 +09:00 StartAsyncTaskAsync Normal (async): 913.35 ns, 1,094,870 / sec
+2022/12/18 20:00:20.860 +09:00 ----- Start new benchmark -----
+2022/12/18 20:00:20.860 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 20:00:20.860 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 20:00:20.860 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 20:00:20.860 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 20:00:20.860 +09:00 Host: PC34
+2022/12/18 20:00:22.132 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 20:00:22.667 +09:00 Radix Trie: 28.72 ns, 34,821,437 / sec
+2022/12/18 20:00:23.206 +09:00 ByteToHex (New) - No Padding: 27.76 ns, 36,024,148 / sec
+2022/12/18 20:00:23.731 +09:00 ByteToHex (New) - Padding: 108.40 ns, 9,225,038 / sec
+2022/12/18 20:00:24.338 +09:00 throw Exception: 8,392.46 ns, 119,154 / sec
+2022/12/18 20:00:32.852 +09:00 ----- Start new benchmark -----
+2022/12/18 20:00:32.852 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 20:00:32.852 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 20:00:32.852 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 20:00:32.852 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 20:00:32.852 +09:00 Host: PC34
+2022/12/18 20:00:33.892 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 20:00:34.419 +09:00 Radix Trie: 161.13 ns, 6,206,008 / sec
+2022/12/18 20:00:34.943 +09:00 ByteToHex (New) - No Padding: 27.37 ns, 36,539,520 / sec
+2022/12/18 20:00:45.487 +09:00 ----- Start new benchmark -----
+2022/12/18 20:00:45.487 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 20:00:45.487 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 20:00:45.487 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 20:00:45.487 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 20:00:45.487 +09:00 Host: PC34
+2022/12/18 20:00:46.754 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 20:00:47.284 +09:00 Radix Trie: 181.00 ns, 5,524,744 / sec
+2022/12/18 20:00:47.809 +09:00 ByteToHex (New) - No Padding: 28.00 ns, 35,719,688 / sec
+2022/12/18 20:02:31.264 +09:00 ----- Start new benchmark -----
+2022/12/18 20:02:31.264 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 20:02:31.264 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 20:02:31.264 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 20:02:31.264 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 20:02:31.264 +09:00 Host: PC34
+2022/12/18 20:02:32.584 +09:00 Sample Loop (Do Nothing): 0.03 ns, 39,631,820,388 / sec
+2022/12/18 20:02:55.544 +09:00 ----- Start new benchmark -----
+2022/12/18 20:02:55.544 +09:00 Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb
+2022/12/18 20:02:55.544 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/18 20:02:55.544 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/18 20:02:55.544 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/18 20:02:55.544 +09:00 Host: PC34
+2022/12/18 20:02:56.850 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/18 20:02:57.398 +09:00 Radix Trie: 438.07 ns, 2,282,748 / sec
+2022/12/18 20:02:57.934 +09:00 ByteToHex (New) - No Padding: 27.58 ns, 36,252,818 / sec
+2022/12/18 20:02:58.477 +09:00 ByteToHex (New) - Padding: 105.59 ns, 9,470,822 / sec
+2022/12/18 20:02:59.078 +09:00 throw Exception: 8,042.35 ns, 124,341 / sec

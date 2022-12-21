@@ -222,3 +222,387 @@
 {"TimeStamp":"2022-12-12T19:33:07.7027667+09:00","Data":{"TestName":"AsyncCallMethodFromSyncMethod","Ret":12.872723981247779,"PerSecond":77683635},"Tag":"result"}
 {"TimeStamp":"2022-12-12T19:33:08.2509086+09:00","Data":{"TestName":"Lock for readonly object","Ret":12.281379583333333,"PerSecond":81424077},"Tag":"result"}
 {"TimeStamp":"2022-12-12T19:33:08.7858696+09:00","Data":{"TestName":"Lock for get property object","Ret":12.461980454545454,"PerSecond":80244067},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:33:43.5820124+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:33:43.5820262+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:33:43.5820278+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:33:43.5820298+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:33:43.582039+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:33:43.5820408+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:33:44.8796436+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:33:45.4155699+09:00","Data":{"TestName":"Radix Trie","Ret":213.42441000056692,"PerSecond":4685499},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:33:45.9538974+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":30.93962960239837,"PerSecond":32321007},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:33:46.4799999+09:00","Data":{"TestName":"ByteToHex (New) - Padding","Ret":128.93915742068634,"PerSecond":7755595},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:33:47.0909639+09:00","Data":{"TestName":"throw Exception","Ret":8433.305003469448,"PerSecond":118577},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:33:56.4670435+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:33:56.467057+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:33:56.4670593+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:33:56.4670604+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:33:56.4670687+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:33:56.4670704+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:33:57.7313349+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:33:58.2721189+09:00","Data":{"TestName":"Radix Trie","Ret":202.8599381969785,"PerSecond":4929509},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:33:58.8088034+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":27.314414967026796,"PerSecond":36610705},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:34:29.5926673+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:34:29.5926837+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:34:29.5926855+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:34:29.5926866+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:34:29.5926965+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:34:29.5926984+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:34:51.2084049+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:34:51.2084192+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:34:51.2084216+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:34:51.2084228+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:34:51.2084313+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:34:51.2084336+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:34:52.5700458+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:34:53.1623274+09:00","Data":{"TestName":"Radix Trie","Ret":896.117999617477,"PerSecond":1115924},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:34:53.7459932+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":29.031420178422536,"PerSecond":34445438},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:35:03.0725714+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:35:03.0725847+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:35:03.0725862+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:35:03.0725872+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:35:03.0725956+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:35:03.0725974+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:35:04.4290286+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:35:05.0297789+09:00","Data":{"TestName":"Radix Trie","Ret":834.0397517700126,"PerSecond":1198983},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:35:05.6127818+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":27.801010145057536,"PerSecond":35969916},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:35:06.2032637+09:00","Data":{"TestName":"ByteToHex (New) - Padding","Ret":128.05960079969663,"PerSecond":7808863},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:35:06.8311966+09:00","Data":{"TestName":"throw Exception","Ret":7706.595809204306,"PerSecond":129758},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:36:27.5641401+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:36:27.5641542+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:36:27.5641556+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:36:27.5641567+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:36:27.5641663+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:36:27.5641681+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:36:28.9366819+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:36:29.4667722+09:00","Data":{"TestName":"Radix Trie","Ret":505.86264668846377,"PerSecond":1976821},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:36:30.012599+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":27.68987276224189,"PerSecond":36114286},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:36:33.6075382+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:36:33.6075522+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:36:33.6075537+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:36:33.6075556+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:36:33.6075651+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:36:33.6075669+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:36:34.9851962+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:36:35.5245584+09:00","Data":{"TestName":"Radix Trie","Ret":489.03451706640277,"PerSecond":2044845},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:36:36.0588354+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":28.276412226271677,"PerSecond":35365165},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:37:08.9300198+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:37:08.9300341+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:37:08.9300356+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:37:08.9300366+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:37:08.9300454+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:37:08.9300475+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:37:10.3056774+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:37:10.8502204+09:00","Data":{"TestName":"Radix Trie","Ret":646.3363049503366,"PerSecond":1547182},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:37:11.3918828+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":30.708896155389734,"PerSecond":32563853},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:37:11.9317036+09:00","Data":{"TestName":"ByteToHex (New) - Padding","Ret":122.31188076837972,"PerSecond":8175820},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:37:12.5303284+09:00","Data":{"TestName":"throw Exception","Ret":8015.701892354342,"PerSecond":124755},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:37:47.8212821+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:37:47.8212956+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:37:47.8212978+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:37:47.8212989+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:37:47.8213086+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:37:47.8213104+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:37:49.2661364+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:39:24.6827091+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:39:24.6827228+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:39:24.6827242+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:39:24.6827254+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:39:24.6827346+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:39:24.6827363+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:39:26.1001844+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:40:50.4716267+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:40:50.4716428+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:40:50.4716445+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:40:50.4716457+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:40:50.4716583+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:40:50.4716604+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:40:51.9116842+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:43:37.4224588+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:43:37.4224724+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:43:37.4224738+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:43:37.4224756+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:43:37.4224846+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:43:37.4224864+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:46:07.5568266+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:46:07.5568429+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:46:07.5568445+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:46:07.5568466+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:46:07.5568591+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:46:07.5568608+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:46:09.0020575+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:46:09.5891648+09:00","Data":{"TestName":"Radix Trie","Ret":717.2529007826585,"PerSecond":1394208},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:46:10.1859967+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":28.363474310462323,"PerSecond":35256611},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:46:50.2042912+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:46:50.2043047+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:46:50.204307+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:46:50.2043082+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:46:50.2043165+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:46:50.2043184+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:47:03.1526218+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:47:03.1526359+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:47:03.1526373+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:47:03.1526398+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:47:03.1526485+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:47:03.1526503+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:47:04.8130625+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:47:30.1625567+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:47:30.1625703+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:47:30.1625718+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:47:30.1625741+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:47:30.1625828+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:47:30.1625845+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:47:35.901407+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":1.03140575,"PerSecond":969550538},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:47:37.2365837+09:00","Data":{"TestName":"Radix Trie","Ret":7050.807542517748,"PerSecond":141827},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:47:38.6722908+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":117.89578771974756,"PerSecond":8482067},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:47:39.8808783+09:00","Data":{"TestName":"ByteToHex (New) - Padding","Ret":119.49235708657925,"PerSecond":8368736},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:47:41.3547556+09:00","Data":{"TestName":"throw Exception","Ret":8143.118603665324,"PerSecond":122803},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:47:42.5104841+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (TaskResult)","Ret":895.1798114396319,"PerSecond":1117094},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:47:43.6651713+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (async)","Ret":984.4016696373131,"PerSecond":1015845},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:47:44.8256045+09:00","Data":{"TestName":"StartAsyncTaskAsync with Task Param","Ret":37166.173273059,"PerSecond":26906},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:49:57.9590354+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:49:57.959049+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:49:57.9590505+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:49:57.9590516+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:49:57.9590605+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:49:57.9590623+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:50:03.5827609+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:50:09.2144799+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:50:09.2144938+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:50:09.2144952+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:50:09.2144962+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:50:09.2145051+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:50:09.2145069+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:50:10.5305646+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:50:11.0701117+09:00","Data":{"TestName":"Radix Trie","Ret":430.6125082539161,"PerSecond":2322273},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:50:11.6235569+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":27.734401030748895,"PerSecond":36056304},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:50:17.6129268+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:50:17.6129406+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:50:17.6129422+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:50:17.6129444+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:50:17.6129527+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:50:17.6129545+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:50:18.9435279+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:50:19.4893907+09:00","Data":{"TestName":"Radix Trie","Ret":449.54049464678684,"PerSecond":2224493},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:50:20.0168083+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":29.25126534039957,"PerSecond":34186555},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:51:17.2365893+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:51:17.2366033+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:51:17.2366048+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:51:17.2366058+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:51:17.2366142+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:51:17.2366162+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:51:18.32256+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:51:18.8635069+09:00","Data":{"TestName":"Radix Trie","Ret":454.4948196795939,"PerSecond":2200245},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:51:19.3959249+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":27.557898167031034,"PerSecond":36287237},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:51:44.9876523+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:51:44.987667+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:51:44.9876685+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:51:44.9876695+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:51:44.9876783+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:51:44.9876804+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:51:46.3159142+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:52:17.594333+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:52:17.5943465+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:52:17.5943488+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:52:17.5943499+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:52:17.5943588+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:52:17.5943605+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:52:18.9363099+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:55:33.0611353+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:55:33.0611539+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:55:33.0611562+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:55:33.061158+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:55:33.0611757+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:55:33.0611787+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:55:34.3895274+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:55:34.9275484+09:00","Data":{"TestName":"Radix Trie","Ret":442.0798734819528,"PerSecond":2262034},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:55:35.4755858+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":27.86021254211161,"PerSecond":35893480},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:55:39.3637635+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:55:39.3637806+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:55:39.3637829+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:55:39.3637848+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:55:39.3637984+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:55:39.3638018+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:55:40.6972902+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:55:41.2382023+09:00","Data":{"TestName":"Radix Trie","Ret":448.88095854535436,"PerSecond":2227762},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:55:41.7701834+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":28.14025419658895,"PerSecond":35536281},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:55:42.3074098+09:00","Data":{"TestName":"ByteToHex (New) - Padding","Ret":110.68254526776961,"PerSecond":9034848},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:55:42.9070277+09:00","Data":{"TestName":"throw Exception","Ret":8042.140342323652,"PerSecond":124345},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:55:51.9710712+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:55:51.9710868+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:55:51.9710883+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:55:51.9710894+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:55:51.9710977+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:55:51.9710997+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:55:59.0180331+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:56:00.6243689+09:00","Data":{"TestName":"Radix Trie","Ret":1038.3464654326986,"PerSecond":963069},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:56:02.1943346+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":40.79090819100901,"PerSecond":24515266},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:56:03.7901537+09:00","Data":{"TestName":"ByteToHex (New) - Padding","Ret":126.38547492833172,"PerSecond":7912301},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:56:05.4050144+09:00","Data":{"TestName":"throw Exception","Ret":7741.687787646529,"PerSecond":129170},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:56:06.9818967+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (TaskResult)","Ret":931.2098861857387,"PerSecond":1073871},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:56:08.6009541+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (async)","Ret":1046.4033551965492,"PerSecond":955654},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:56:10.2374088+09:00","Data":{"TestName":"StartAsyncTaskAsync with Task Param","Ret":1629.8865925742234,"PerSecond":613539},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:56:12.0655001+09:00","Data":{"TestName":"DeflateStream compress 1MB Optimal","Ret":22915513.919048265,"PerSecond":43},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:56:13.7702153+09:00","Data":{"TestName":"DeflateStream compress 1MB Fastest","Ret":16636478.918070229,"PerSecond":60},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:56:15.4853335+09:00","Data":{"TestName":"DeflateStream compress 1MB SmallestSize","Ret":16592003.925132656,"PerSecond":60},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:56:17.2462052+09:00","Data":{"TestName":"DeflateStream decompress 1MB Optimal","Ret":2979574.30687703,"PerSecond":335},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:56:18.985318+09:00","Data":{"TestName":"DeflateStream decompress 1MB Fastest","Ret":3026616.6095233764,"PerSecond":330},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:56:20.7642782+09:00","Data":{"TestName":"DeflateStream decompress 1MB SmallestSize","Ret":3018949.6915486497,"PerSecond":331},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:56:55.3918795+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:56:55.3918934+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:56:55.3918958+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:56:55.391897+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:56:55.3919055+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:56:55.3919074+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:56:59.349293+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0264540000000002,"PerSecond":37801466696},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:57:00.3167024+09:00","Data":{"TestName":"Radix Trie","Ret":180.6743040515542,"PerSecond":5534821},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:57:05.9325485+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:57:05.9325621+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:57:05.9325651+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:57:05.9325663+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:57:05.932575+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:57:05.9325769+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:57:12.7350883+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":2.51852875,"PerSecond":397057210},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:57:14.1807018+09:00","Data":{"TestName":"Radix Trie","Ret":7487.211934672562,"PerSecond":133561},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:57:15.6659152+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":172.09507656976146,"PerSecond":5810741},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:57:17.1710762+09:00","Data":{"TestName":"ByteToHex (New) - Padding","Ret":508.60475342070015,"PerSecond":1966163},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:57:18.7273736+09:00","Data":{"TestName":"throw Exception","Ret":24582.545391783697,"PerSecond":40679},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:57:20.1725122+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (TaskResult)","Ret":3663.2805778766447,"PerSecond":272979},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:57:21.5269889+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (async)","Ret":1024.60708679902,"PerSecond":975983},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:57:23.1533517+09:00","Data":{"TestName":"StartAsyncTaskAsync with Task Param","Ret":1608.344106763303,"PerSecond":621757},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:57:35.0411688+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:57:35.0411847+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:57:35.0411875+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:57:35.0411886+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:57:35.0411986+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:57:35.041201+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:57:36.3513142+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.029377500000000056,"PerSecond":34039656199},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:57:36.8910152+09:00","Data":{"TestName":"Radix Trie","Ret":438.97105906613643,"PerSecond":2278054},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:57:37.4259505+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":27.422490803050692,"PerSecond":36466417},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:57:37.970115+09:00","Data":{"TestName":"ByteToHex (New) - Padding","Ret":123.8950953075584,"PerSecond":8071344},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:57:38.5272527+09:00","Data":{"TestName":"throw Exception","Ret":9120.690620013582,"PerSecond":109640},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:57:39.0582017+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (TaskResult)","Ret":844.5026174201471,"PerSecond":1184128},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:57:39.5978129+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (async)","Ret":929.513766001626,"PerSecond":1075831},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:57:40.1407203+09:00","Data":{"TestName":"StartAsyncTaskAsync with Task Param","Ret":1545.7462884666952,"PerSecond":646936},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:57:40.8791724+09:00","Data":{"TestName":"DeflateStream compress 1MB Optimal","Ret":22836973.925186813,"PerSecond":43},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:57:46.9916394+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:57:46.9916547+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:57:46.9916563+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:57:46.9916574+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:57:46.9916659+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:57:46.9916681+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:57:48.2798299+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:57:48.7953332+09:00","Data":{"TestName":"Radix Trie","Ret":320.7173972370727,"PerSecond":3118009},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:57:49.3204505+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":27.48811583629493,"PerSecond":36379357},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:57:53.7403033+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:57:53.740317+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:57:53.7403198+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:57:53.740321+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:57:53.7403297+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:57:53.7403315+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:57:55.0225366+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:57:55.5585151+09:00","Data":{"TestName":"Radix Trie","Ret":253.59517024435561,"PerSecond":3943292},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:57:56.0821665+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":27.49804438775722,"PerSecond":36366222},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:58:00.8130341+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:58:00.8130478+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:58:00.8130493+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:58:00.8130504+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:58:00.8130593+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:58:00.8130611+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:58:02.0832117+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:58:02.6070525+09:00","Data":{"TestName":"Radix Trie","Ret":198.9188475220599,"PerSecond":5027175},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:58:03.1305523+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":27.751451578965927,"PerSecond":36034151},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:58:07.5504889+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:58:07.550504+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:58:07.5505056+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:58:07.5505067+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:58:07.5505152+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:58:07.5505174+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:58:08.8228945+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:58:09.3623516+09:00","Data":{"TestName":"Radix Trie","Ret":171.97478263750978,"PerSecond":5814806},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:58:09.9010674+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":27.2694974772151,"PerSecond":36671009},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:58:24.7848836+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:58:24.7849007+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:58:24.7849025+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:58:24.7849036+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:58:24.7849127+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:58:24.7849149+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:58:26.0497923+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:58:26.58255+09:00","Data":{"TestName":"Radix Trie","Ret":1.341227494264492,"PerSecond":745585670},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:58:27.1059962+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":29.158435038569163,"PerSecond":34295393},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:58:43.8980464+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:58:43.8980599+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:58:43.8980614+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:58:43.8980632+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:58:43.8980713+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:58:43.8980732+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:58:45.1636899+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:58:45.7062059+09:00","Data":{"TestName":"Radix Trie","Ret":171.304926906824,"PerSecond":5837543},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:58:46.2285642+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":29.82583186862623,"PerSecond":33527983},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:59:30.1902453+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:59:30.1902593+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:59:30.1902607+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:59:30.1902618+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:59:30.1902701+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:59:30.1902721+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:59:31.4601903+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:59:53.8997952+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:59:53.8998094+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:59:53.8998108+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:59:53.8998131+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:59:53.8998221+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:59:53.8998236+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T19:59:55.1619661+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:59:55.7049469+09:00","Data":{"TestName":"Radix Trie","Ret":157.38341891097875,"PerSecond":6353909},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:59:56.2418049+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":27.636240227623787,"PerSecond":36184372},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:59:56.7531182+09:00","Data":{"TestName":"ByteToHex (New) - Padding","Ret":104.05368452487421,"PerSecond":9610423},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:59:57.3549463+09:00","Data":{"TestName":"throw Exception","Ret":8117.017791673733,"PerSecond":123197},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:59:57.8949033+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (TaskResult)","Ret":791.9131496250188,"PerSecond":1262764},"Tag":"result"}
+{"TimeStamp":"2022-12-18T19:59:58.4325665+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (async)","Ret":913.3497549864817,"PerSecond":1094870},"Tag":"result"}
+{"TimeStamp":"2022-12-18T20:00:20.8604767+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T20:00:20.8604903+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T20:00:20.8604919+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T20:00:20.8604938+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T20:00:20.8605023+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T20:00:20.8605041+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T20:00:22.1324136+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T20:00:22.6670391+09:00","Data":{"TestName":"Radix Trie","Ret":28.71794096532353,"PerSecond":34821437},"Tag":"result"}
+{"TimeStamp":"2022-12-18T20:00:23.2065469+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":27.759156895679283,"PerSecond":36024148},"Tag":"result"}
+{"TimeStamp":"2022-12-18T20:00:23.731968+09:00","Data":{"TestName":"ByteToHex (New) - Padding","Ret":108.40062591356403,"PerSecond":9225038},"Tag":"result"}
+{"TimeStamp":"2022-12-18T20:00:24.3387731+09:00","Data":{"TestName":"throw Exception","Ret":8392.463810704736,"PerSecond":119154},"Tag":"result"}
+{"TimeStamp":"2022-12-18T20:00:32.8522475+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T20:00:32.8522627+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T20:00:32.8522641+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T20:00:32.8522651+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T20:00:32.8522734+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T20:00:32.8522755+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T20:00:33.8927289+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T20:00:34.4191708+09:00","Data":{"TestName":"Radix Trie","Ret":161.13416974946622,"PerSecond":6206008},"Tag":"result"}
+{"TimeStamp":"2022-12-18T20:00:34.9439443+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":27.36762809438582,"PerSecond":36539520},"Tag":"result"}
+{"TimeStamp":"2022-12-18T20:00:45.4872585+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T20:00:45.4872719+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T20:00:45.487275+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T20:00:45.4872761+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T20:00:45.4872846+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T20:00:45.4872864+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T20:00:46.7546221+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T20:00:47.2849318+09:00","Data":{"TestName":"Radix Trie","Ret":181.00384762930057,"PerSecond":5524744},"Tag":"result"}
+{"TimeStamp":"2022-12-18T20:00:47.8091173+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":27.995764812121767,"PerSecond":35719688},"Tag":"result"}
+{"TimeStamp":"2022-12-18T20:02:31.2640143+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T20:02:31.2640279+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T20:02:31.2640307+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T20:02:31.2640319+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T20:02:31.2640408+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T20:02:31.2640428+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T20:02:32.5846547+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.025232249999999956,"PerSecond":39631820388},"Tag":"result"}
+{"TimeStamp":"2022-12-18T20:02:55.5443583+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-18T20:02:55.5443722+09:00","Data":"Commit: 6bdbf270d8252ca605b47381908f1b4b492874eb","Tag":"text"}
+{"TimeStamp":"2022-12-18T20:02:55.5443744+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-18T20:02:55.5443763+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-18T20:02:55.5443844+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-18T20:02:55.5443864+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-18T20:02:56.8505388+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-18T20:02:57.3981526+09:00","Data":{"TestName":"Radix Trie","Ret":438.0683567726043,"PerSecond":2282748},"Tag":"result"}
+{"TimeStamp":"2022-12-18T20:02:57.9346957+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":27.584061928559795,"PerSecond":36252818},"Tag":"result"}
+{"TimeStamp":"2022-12-18T20:02:58.4770885+09:00","Data":{"TestName":"ByteToHex (New) - Padding","Ret":105.58744719197293,"PerSecond":9470822},"Tag":"result"}
+{"TimeStamp":"2022-12-18T20:02:59.0780008+09:00","Data":{"TestName":"throw Exception","Ret":8042.345980238872,"PerSecond":124341},"Tag":"result"}
