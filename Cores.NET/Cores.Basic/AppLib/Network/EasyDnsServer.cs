@@ -279,18 +279,48 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
 
             if (searchResponse.ResultFlags.Bit(EasyDnsResponder.SearchResultFlags.SubDomainIsDelegated))
             {
+                string targetSubDomainFqdn = "";
+                if (searchResponse.RecordList[0].Name._IsFilled())
+                {
+                    targetSubDomainFqdn = searchResponse.RecordList[0].Name + ".";
+                }
+                targetSubDomainFqdn += searchResponse.RecordList[0].ParentZone.DomainFqdn;
+
+                var targetSubDomainFqdnParsed = DomainName.Parse(targetSubDomainFqdn);
+
                 // 他サブドメインへの委譲
                 foreach (var ans in answersList)
                 {
-                    string name = "";
-                    if (searchResponse.RecordList[0].Name._IsFilled())
-                    {
-                        name = searchResponse.RecordList[0].Name + ".";
-                    }
-                    name += searchResponse.RecordList[0].ParentZone.DomainFqdn;
-
-                    ans.Name = DomainName.Parse(name);
+                    ans.Name = targetSubDomainFqdnParsed;
                 }
+
+                // Glue レコードの追記
+                HashSet<string> glueRecordDistinctHash = new HashSet<string>();
+                foreach (var rec in searchResponse.RecordList)
+                {
+                    if (rec is EasyDnsResponder.Record_NS ns)
+                    {
+                        foreach (var glue in ns.GlueRecordList)
+                        {
+                            string test = glue.Name + "." + glue.ParentZone.DomainFqdn + " = " + glue.ToStringForCompare();
+
+                            if (glueRecordDistinctHash.Contains(test) == false)
+                            {
+                                glueRecordDistinctHash.Add(test);
+
+                                var r = glue.ToDnsLibRecordBase(DomainName.Parse(glue.Name + "." + glue.ParentZone.DomainFqdn), this.LastDatabaseHealtyTimeStamp);
+
+                                q.AdditionalRecords.Add(r);
+                            }
+                        }
+                    }
+                }
+
+                if (q.AdditionalRecords.Count >= 1)
+                {
+                    q.AdditionalRecords = q.AdditionalRecords._Shuffle().ToList();
+                }
+
                 q.AuthorityRecords = answersList;
                 q.IsAuthoritiveAnswer = false;
             }

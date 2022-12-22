@@ -591,7 +591,7 @@ public class EasyDnsResponderRecord
     }
 
 
-    static readonly EasyDnsResponder.Zone dummyZoneForTryParse = new EasyDnsResponder.Zone(new EasyDnsResponder.DataSet(new EasyDnsResponderSettings()), new EasyDnsResponderZone { DomainName = "_dummy_domain.example.org" } );
+    static readonly EasyDnsResponder.Zone dummyZoneForTryParse = new EasyDnsResponder.Zone(new EasyDnsResponder.DataSet(new EasyDnsResponderSettings()), new EasyDnsResponderZone { DomainName = "_dummy_domain.example.org" });
 
     public static EasyDnsResponderRecord TryParseFromString(string str, string? parentDomainFqdn = null)
     {
@@ -827,6 +827,7 @@ public class EasyDnsResponder
     public class Record_NS : Record
     {
         public DomainName ServerName;
+        public List<Record> GlueRecordList = new List<Record>();
 
         public Record_NS(Zone parent, EasyDnsResponderRecord src) : base(parent, src)
         {
@@ -835,11 +836,52 @@ public class EasyDnsResponder
                 throw new CoresLibException($"NS record doesn't allow wildcard names. Specified name: '{this.Name}'");
             }
 
-            string[] tokens = src.Contents._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ';', ',', ' ', '\t');
-            string? tmp = tokens.ElementAtOrDefault(0);
-            if (tmp._IsEmpty()) throw new CoresLibException("Contents is empty.");
+            string[] tokens = src.Contents._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ';', ',', ' ', '\t', ';', ',', '=');
+            string? nameServerName = tokens.ElementAtOrDefault(0);
+            if (nameServerName._IsEmpty()) throw new CoresLibException("Contents is empty.");
 
-            this.ServerName = DomainName.Parse(tmp);
+            // ns1.example.org=1.2.3.4,5.6.7.8,2001::cafe のような書式で Glue レコードも記載されている場合がある。
+            // この場合は、当該記載をパースする。
+
+            List<IPAddress> glueIpList = new List<IPAddress>();
+            if (tokens.Length >= 2)
+            {
+                for (int i = 1; i < tokens.Length; i++)
+                {
+                    string s = tokens[i];
+
+                    if (s._IsFilled())
+                    {
+                        if (IPAddress.TryParse(s, out IPAddress? ip))
+                        {
+                            if (ip._IsIPv4OrIPv6AddressFaimly())
+                            {
+                                ip = ip._RemoveScopeId();
+                                if (glueIpList.Contains(ip, IpComparer.Comparer) == false)
+                                {
+                                    glueIpList.Add(ip);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            this.ServerName = DomainName.Parse(nameServerName);
+
+            var rootVirtualZone = new Zone(isVirtualRootZone: EnsureSpecial.Yes, this.ParentZone);
+
+            foreach (var glueIp in glueIpList)
+            {
+                if (glueIp.AddressFamily == AddressFamily.InterNetwork)
+                {
+                    this.GlueRecordList.Add(new Record_A(rootVirtualZone, src.Settings ?? rootVirtualZone.Settings, this.ServerName.ToNormalizedFqdnFast(), glueIp));
+                }
+                else
+                {
+                    this.GlueRecordList.Add(new Record_AAAA(rootVirtualZone, src.Settings ?? rootVirtualZone.Settings, this.ServerName.ToNormalizedFqdnFast(), glueIp));
+                }
+            }
 
             if (this.ServerName.IsEmptyDomain()) throw new CoresLibException("NS server field is empty.");
         }
@@ -963,7 +1005,7 @@ public class EasyDnsResponder
 
             if (tokens.Length == 0) throw new CoresLibException("Contents is empty.");
             if (tokens.Length < 4) throw new CoresLibException("SRV record contents must have priority, weight, port and target.");
-            
+
             this.Priority = (ushort)tokens[0]._ToUInt();
             this.Weight = (ushort)tokens[1]._ToUInt();
             this.Port = (ushort)tokens[2]._ToUInt();
@@ -1122,6 +1164,11 @@ public class EasyDnsResponder
             this.Type = type;
             this.Settings = settings;
             this.Name = nameNormalized;
+
+            this._StringForCompareCache = new CachedProperty<string>(getter: () =>
+            {
+                return $"{Name} {Type} {this.ToStringForCompareImpl()}";
+            });
         }
 
         public Record(Zone parent, EasyDnsResponderRecord src)
@@ -1265,6 +1312,21 @@ public class EasyDnsResponder
         public bool Has_WildcardInStrRecordList = false;
         public bool Has_WildcardNSDelegationRecordList = false;
 
+        public bool IsVirtualRootZone = false;
+
+        // Glue レコード等の内部的生成に便宜上必要となるルートゾーン (.) の定義
+        public Zone(EnsureSpecial isVirtualRootZone, Zone templateZone)
+            : this(templateZone.ParentDataSet,
+                  new EasyDnsResponderZone
+                  {
+                      DefaultSettings = templateZone.Settings,
+                      DomainName = ".",
+                  })
+        {
+            this.IsVirtualRootZone = true;
+        }
+
+        // ゾーンの定義
         public Zone(DataSet parent, EasyDnsResponderZone src)
         {
             this.ParentDataSet = parent;
@@ -1272,11 +1334,6 @@ public class EasyDnsResponder
             this.Settings = (src.DefaultSettings ?? parent.Settings)._CloneDeep();
 
             this.DomainFqdn = src.DomainName._NormalizeFqdn();
-
-            if (this.DomainFqdn._IsEmpty())
-            {
-                throw new CoresLibException("Invalid FQDN in Zone");
-            }
 
             this.DomainName = new DomainName(this.DomainFqdn._Split(StringSplitOptions.None, '.').AsMemory());
 
@@ -1327,7 +1384,7 @@ public class EasyDnsResponder
                     {
                         Type = EasyDnsResponderRecordType.SOA,
                         Attribute = EasyDnsResponderRecordAttribute.None,
-                        Contents = this.DomainFqdn,
+                        Contents = this.DomainFqdn._FilledOrDefault("."),
                     });
             }
 
@@ -1920,7 +1977,7 @@ public class EasyDnsResponder
                 }
             }
         }
-        
+
         if (expectedRecordType == EasyDnsResponderRecordType.NS || expectedRecordType == EasyDnsResponderRecordType.Any)
         {
             if (callbackResult.NsFqdnList != null)

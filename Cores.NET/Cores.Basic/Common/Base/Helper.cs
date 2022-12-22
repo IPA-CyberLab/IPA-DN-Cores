@@ -3627,7 +3627,35 @@ public static class BasicHelper
 
     public static string _StrIfTTrue(this bool b, string str) => b ? str._NonNull() : "";
     public static string _HtmlCheckedIfTrue(this bool b) => b._StrIfTTrue("checked");
+
+    public static bool _IsIPv4OrIPv6AddressFaimly(this AddressFamily af)
+    {
+        if (af == AddressFamily.InterNetwork || af == AddressFamily.InterNetworkV6)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    public static bool _IsIPv4OrIPv6AddressFaimly(this IPAddress ip)
+        => _IsIPv4OrIPv6AddressFaimly(ip.AddressFamily);
+
+    public static void _CheckIsIPv4OrIPv6AddressFamily(this AddressFamily af, Exception?ex = null)
+    {
+        if (_IsIPv4OrIPv6AddressFaimly(af) == false)
+        {
+            if (ex == null) ex = new CoresException($"IP address's Address Family is unsupported: {af.ToString()}");
+            throw ex;
+        }
+
+        return;
+    }
+
+    public static void _CheckIsIPv4OrIPv6AddressFamily(this IPAddress ip, Exception? ex = null)
+        => _CheckIsIPv4OrIPv6AddressFamily(ip.AddressFamily, ex);
 }
+
 
 
 

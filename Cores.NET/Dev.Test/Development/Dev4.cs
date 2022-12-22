@@ -900,7 +900,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                 {
                     Type = EasyDnsResponderRecordType.PTR,
                     Name = "*",
-                    Contents = "_ptr",
+                    Contents = "_this_is_ptr_record_refer_ReverseRecordsList",
                     Attribute = EasyDnsResponderRecordAttribute.DynamicRecord,
                 });
             }
@@ -978,7 +978,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
 
                 string targetLabel = req.RequestHostName;
 
-                if (req.CallbackId == "_ptr")
+                if (req.CallbackId == "_this_is_ptr_record_refer_ReverseRecordsList")
                 {
                     try
                     {
