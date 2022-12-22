@@ -225,6 +225,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
     public class StandardRecord
     {
         public StandardRecordType Type;
+        public bool ReverseCName_HyphenMode;
         public string Fqdn = "";
         public IPAddress IpNetwork = IPAddress.Any;
         public IPAddress IpSubnetMask = IPAddress.Any;
@@ -341,12 +342,18 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                         if (key._IsSamei("!Set"))
                                         {
                                             // 変数の設定
-                                            vars.Set(key, value);
+                                            if (value._GetKeyAndValue(out string varKey, out string varValue, " \t"))
+                                            {
+                                                vars.Set(varKey, varValue);
+                                            }
                                         }
                                         else if (key._IsSamei("!Unset"))
                                         {
                                             // 変数の削除
-                                            vars.Unset(key);
+                                            if (value._GetKeyAndValue(out string varKey, out string varValue, " \t"))
+                                            {
+                                                vars.Unset(varKey);
+                                            }
                                         }
                                         else if (key._IsSamei("!DefineZone"))
                                         {
@@ -539,11 +546,18 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                                         mode = 1;
                                                         tmp1 = tmp1.Substring(1);
                                                     }
+                                                    else if (tmp1.StartsWith("-"))
+                                                    {
+                                                        // -aaa.example.org のような形式である
+                                                        // これは、1.2.3.4 -> CNAME 1-2-3-4.aaa.example.org のような特殊な CNAME 変換を意味する
+                                                        mode = 2;
+                                                        tmp1 = tmp1.Substring(1);
+                                                    }
                                                     else if (tmp1.StartsWith("@"))
                                                     {
                                                         // @ns01.example.org のような形式である。
                                                         // これは、1.2.3.0/24 -> NS ns01.example.org のような NS Delegate を意味する
-                                                        mode = 2;
+                                                        mode = 3;
                                                         tmp1 = tmp1.Substring(1);
                                                     }
                                                     string fqdn = tmp1._NormalizeFqdn();
@@ -553,12 +567,13 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                                         throw new CoresException($"FQDN '{fqdn}' is not a valid single host or wildcard FQDN");
                                                     }
 
-                                                    if (mode == 1)
+                                                    if (mode == 1 || mode == 2)
                                                     {
                                                         // CNAME 特殊処理
                                                         StandardRecord r = new StandardRecord
                                                         {
                                                             Type = isHostAddress ? StandardRecordType.ReverseCNameSingle : StandardRecordType.ReverseCNameSubnet,
+                                                            ReverseCName_HyphenMode = (mode == 2),
                                                             Fqdn = fqdn,
                                                             IpNetwork = ipOrSubnet,
                                                             IpSubnetMask = IPUtil.IntToSubnetMask(ipOrSubnet.AddressFamily, subnetLength),
@@ -567,7 +582,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
 
                                                         this.ReverseRecordsList.Add(r);
                                                     }
-                                                    else if (mode == 2)
+                                                    else if (mode == 3)
                                                     {
                                                         // NS 特殊処理
                                                         // NS の場合、内部的に in-addr.arpa または ip6.arpa に変換する
@@ -860,7 +875,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
             // カスタムレコードを登録
             foreach (var customDef in zoneDef.CustomRecordList)
             {
-                zone.RecordList.Add(EasyDnsResponderRecord.FromString(customDef.Type.ToString() + " " + customDef.Label + " " + customDef.Data));
+                zone.RecordList.Add(EasyDnsResponderRecord.FromString(customDef.Type.ToString() + " " + customDef.Label._FilledOrDefault("@") + " " + customDef.Data));
             }
 
             if (zoneDef.Type == ZoneDefType.Forward)
@@ -974,6 +989,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                     TextList = new List<string>(),
                     CaaList = new List<Tuple<byte, string, string>>(),
                     PtrFqdnList = new List<DomainName>(),
+                    CNameFqdnList = new List<DomainName>(),
                 };
 
                 string targetLabel = req.RequestHostName;
@@ -990,12 +1006,34 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                             if (longest != null)
                             {
                                 string fqdn = longest.Fqdn;
-                                if (fqdn.StartsWith("*."))
+                                if (longest.Type == StandardRecordType.ReverseSingle || longest.Type == StandardRecordType.ReverseSubnet)
                                 {
-                                    string baseFqdn = fqdn.Substring(2);
-                                    fqdn = IPUtil.GenerateWildCardDnsFqdn(targetIpInfo.Item1, baseFqdn);
+                                    if (fqdn.StartsWith("*."))
+                                    {
+                                        string baseFqdn = fqdn.Substring(2);
+                                        fqdn = IPUtil.GenerateWildCardDnsFqdn(targetIpInfo.Item1, baseFqdn);
+                                    }
+                                    ret.PtrFqdnList.Add(DomainName.Parse(fqdn));
                                 }
-                                ret.PtrFqdnList.Add(DomainName.Parse(fqdn));
+                                else if (longest.Type == StandardRecordType.ReverseCNameSingle || longest.Type == StandardRecordType.ReverseCNameSubnet)
+                                {
+                                    if (fqdn.StartsWith("*.") == false)
+                                    {
+                                        string label;
+                                        if (longest.ReverseCName_HyphenMode == false)
+                                        {
+                                            // 1.2.3.4 -> 4.3.2.1.target.domain
+                                            string ipAddressLabelPart = IPUtil.IPAddressOrSubnetToPtrZoneOrFqdn(targetIpInfo.Item1, withSuffix: false);
+                                            label = ipAddressLabelPart + "." + fqdn;
+                                        }
+                                        else
+                                        {
+                                            // 1.2.3.4 -> 1-2-3-4.target.domain
+                                            label = IPUtil.GenerateWildCardDnsFqdn(targetIpInfo.Item1, fqdn);
+                                        }
+                                        ret.CNameFqdnList.Add(DomainName.Parse(label));
+                                    }
+                                }
                             }
                         }
                     }

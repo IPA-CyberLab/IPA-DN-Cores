@@ -92,16 +92,19 @@ public static class DnsUtil
         return message.Encode(false);
     }
 
-    public static readonly DateTime DnsDtStartDay = new DateTime(2021, 1, 1);
+    public static readonly DateTimeOffset DnsDtStartDay = (new DateTime(2021, 1, 1)).AddHours(-9)._AsDateTimeOffset(false, false);
 
-    public static uint GenerateSoaSerialNumberFromDateTime(DateTime dt)
+    public static uint GenerateSoaSerialNumberFromDateTime(DateTimeOffset dt)
     {
-        int days = (int)(dt.Date - DnsDtStartDay.Date).TotalDays;
+        var diff = (dt - DnsDtStartDay);
+        int days = (int)diff.TotalDays;
 
         days = Math.Max(days, 1);
         days = (days % 32000) + 10000;
 
-        string str = days.ToString("D5") + dt.ToString("HHmmss").Substring(0, 5);
+        string hhmmss = diff.Hours.ToString("D2") + diff.Minutes.ToString("D2") + diff.Seconds.ToString("D2");
+
+        string str = days.ToString("D5") + hhmmss.Substring(0, 5);
 
         return str._ToUInt();
     }
@@ -1235,7 +1238,7 @@ public class EasyDnsResponder
             throw new CoresLibException($"Unknown record type: {src.Type}");
         }
 
-        public DnsRecordBase? ToDnsLibRecordBase(DomainName domainName, DateTime timeStampForSoa)
+        public DnsRecordBase? ToDnsLibRecordBase(DomainName domainName, DateTimeOffset timeStampForSoa)
         {
             int ttl = this.Settings.TtlSecs;
 
@@ -1280,7 +1283,7 @@ public class EasyDnsResponder
             return null;
         }
 
-        public DnsRecordBase? ToDnsLibRecordBase(DnsQuestion q, DateTime timeStampForSoa)
+        public DnsRecordBase? ToDnsLibRecordBase(DnsQuestion q, DateTimeOffset timeStampForSoa)
             => ToDnsLibRecordBase(q.Name, timeStampForSoa);
     }
 
@@ -1934,17 +1937,6 @@ public class EasyDnsResponder
             }
         }
 
-        if (expectedRecordType == EasyDnsResponderRecordType.CNAME || expectedRecordType == EasyDnsResponderRecordType.Any)
-        {
-            if (callbackResult.CNameFqdnList != null)
-            {
-                foreach (var domain in callbackResult.CNameFqdnList)
-                {
-                    listToAdd.Add(new Record_CNAME(result.Zone, settings, result.RequestHostName, domain));
-                }
-            }
-        }
-
         if (expectedRecordType == EasyDnsResponderRecordType.MX || expectedRecordType == EasyDnsResponderRecordType.Any)
         {
             if (callbackResult.MxFqdnList != null)
@@ -2018,6 +2010,18 @@ public class EasyDnsResponder
                 foreach (var caa in callbackResult.CaaList)
                 {
                     listToAdd.Add(new Record_CAA(result.Zone, settings, result.RequestHostName, caa.Item1, caa.Item2, caa.Item3));
+                }
+            }
+        }
+
+        //if (expectedRecordType == EasyDnsResponderRecordType.CNAME || expectedRecordType == EasyDnsResponderRecordType.Any)
+        // CNAME はすべての場合に応答する
+        {
+            if (callbackResult.CNameFqdnList != null)
+            {
+                foreach (var domain in callbackResult.CNameFqdnList)
+                {
+                    listToAdd.Add(new Record_CNAME(result.Zone, settings, result.RequestHostName, domain));
                 }
             }
         }

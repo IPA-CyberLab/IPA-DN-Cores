@@ -125,10 +125,10 @@ public class HostsCache : AsyncServiceWithMainLoop
 
     public string DbConnectionString { get; }
 
-    public readonly Ref<DateTime> LastDbReadTime = new Ref<DateTime>(DnsUtil.DnsDtStartDay);
-    public readonly Ref<DateTime> LastDbWriteTime = new Ref<DateTime>(DnsUtil.DnsDtStartDay);
+    public readonly Ref<DateTimeOffset> LastDbReadTime = new Ref<DateTimeOffset>(DnsUtil.DnsDtStartDay);
+    public readonly Ref<DateTimeOffset> LastDbWriteTime = new Ref<DateTimeOffset>(DnsUtil.DnsDtStartDay);
 
-    public DateTime LastHealthyTime => new DateTime(Math.Min(LastDbReadTime.Value.Ticks, LastDbWriteTime.Value.Ticks));
+    public DateTimeOffset LastHealthyTime => new DateTime(Math.Min(LastDbReadTime.Value.Ticks, LastDbWriteTime.Value.Ticks));
 
     public HostsCache(string dbConnectionString)
     {
@@ -353,7 +353,7 @@ cancel: cancel);
 
                     full_ok = true;
 
-                    this.LastDbReadTime.Set(DateTime.Now);
+                    this.LastDbReadTime.Set(DateTimeOffset.Now);
 
                     this.IsEmpty = false;
                 }
@@ -459,7 +459,7 @@ FROM                       BAN");
                         last_update = max_update_dt;
                     }
 
-                    this.LastDbReadTime.Set(DateTime.Now);
+                    this.LastDbReadTime.Set(DateTimeOffset.Now);
                 }
                 catch (Exception ex)
                 {
@@ -530,7 +530,7 @@ NAME = a.Name,
                             num_v4, num_azure));
                     }
 
-                    this.LastDbWriteTime.Set(DateTime.Now);
+                    this.LastDbWriteTime.Set(DateTimeOffset.Now);
                 }
                 catch (Exception ex)
                 {

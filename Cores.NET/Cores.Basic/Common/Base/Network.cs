@@ -3146,7 +3146,7 @@ namespace IPA.Cores.Basic
         }
 
         // IP アドレスまたは IP サブネットから in-addr.arpa または ip6.arpa 形式の逆引き FQDN を生成
-        public static string IPAddressOrSubnetToPtrZoneOrFqdn(IPAddress ip, int subnetLength = -1)
+        public static string IPAddressOrSubnetToPtrZoneOrFqdn(IPAddress ip, int subnetLength = -1, bool withSuffix = true)
         {
             if (ip.AddressFamily == AddressFamily.InterNetwork)
             {
@@ -3155,15 +3155,31 @@ namespace IPA.Cores.Basic
                 var prefix = GetPrefixAddress(ip, subnetLength);
                 var d = prefix.GetAddressBytes();
 
+                string tmp;
+
                 switch (subnetLength)
                 {
-                    case 0: return "in-addr.arpa";
-                    case 8: return $"{d[0]}.in-addr.arpa";
-                    case 16: return $"{d[1]}.{d[0]}.in-addr.arpa";
-                    case 24: return $"{d[2]}.{d[1]}.{d[0]}.in-addr.arpa";
-                    case 32: return $"{d[3]}.{d[2]}.{d[1]}.{d[0]}.in-addr.arpa";
+                    case 0: tmp = ""; break;
+                    case 8: tmp = $"{d[0]}"; break;
+                    case 16: tmp = $"{d[1]}.{d[0]}"; break;
+                    case 24: tmp = $"{d[2]}.{d[1]}.{d[0]}"; break;
+                    case 32: tmp = $"{d[3]}.{d[2]}.{d[1]}.{d[0]}"; break;
                     default: throw new CoresException($"in-addr.arpa prefix length: '{subnetLength}' must be 0, 8, 16, 24 or 32");
                 }
+
+                if (withSuffix)
+                {
+                    if (tmp.Length >= 1)
+                    {
+                        tmp += ".in-addr.arpa";
+                    }
+                    else
+                    {
+                        tmp += "in-addr.arpa";
+                    }
+                }
+
+                return tmp;
             }
             else if (ip.AddressFamily == AddressFamily.InterNetworkV6)
             {
@@ -3179,17 +3195,35 @@ namespace IPA.Cores.Basic
                 var dstrArray = dstr.ToCharArray();
                 Array.Reverse(dstrArray);
 
-                int bufLength = (subnetLength / 4) * 2;
+                int bufLength = (subnetLength / 4) * 2 - 1;
+                if (bufLength < 0) bufLength = 0;
                 Span<char> buf = new char[bufLength];
                 int pos = 0;
 
                 for (int i = ((128 - subnetLength) / 4); i < dstrArray.Length; i++)
                 {
+                    if (pos >= 1)
+                    {
+                        buf[pos++] = '.';
+                    }
                     buf[pos++] = dstrArray[i];
-                    buf[pos++] = '.';
                 }
 
-                return buf.ToString() + "ip6.arpa";
+                string tmp = buf.ToString();
+
+                if (withSuffix)
+                {
+                    if (tmp.Length >= 1)
+                    {
+                        tmp += ".ip6.arpa";
+                    }
+                    else
+                    {
+                        tmp += "ip6.arpa";
+                    }
+                }
+
+                return tmp;
             }
             else
             {

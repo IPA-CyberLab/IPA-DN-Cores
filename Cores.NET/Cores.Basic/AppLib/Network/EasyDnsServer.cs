@@ -70,7 +70,7 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
 {
     public EasyDnsServer DnsServer { get; }
     public EasyDnsResponder DnsResponder { get; }
-    public DateTime LastDatabaseHealtyTimeStamp { get; set; }
+    public DateTimeOffset LastDatabaseHealtyTimeStamp { get; set; }
 
     public bool SaveAccessLogForDebug { get; private set; }
     public bool CopyQueryAdditionalRecordsToResponse { get; set; } = false;
