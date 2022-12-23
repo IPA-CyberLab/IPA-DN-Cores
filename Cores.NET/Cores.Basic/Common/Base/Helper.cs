@@ -621,20 +621,20 @@ public static class BasicHelper
     public static string[] _UniqueToken(this IEnumerable<string> t) => Str.UniqueToken(t);
     public static List<string> _ToStrList(this IEnumerable<string> t, bool removeEmpty = false, bool distinct = false, bool distinctCaseSensitive = false)
         => Str.StrArrayToList(t, removeEmpty, distinct, distinctCaseSensitive);
-    public static string _Combine(this IEnumerable<string?> t, string? sepstr = "", bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...") => Str.CombineStringArray(t, sepstr, removeEmpty, maxItems, ommitStr);
-    public static string _Combine(this IEnumerable<string?> t, char sepChar, bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...") => Str.CombineStringArray(t, sepChar.ToString(), removeEmpty, maxItems, ommitStr);
+    public static string _Combine(this IEnumerable<string?> t, string? sepstr = "", bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...", int estimatedLength = 0) => Str.CombineStringArray(t, sepstr, removeEmpty, maxItems, ommitStr, estimatedLength);
+    public static string _Combine(this IEnumerable<string?> t, char sepChar, bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...", int estimatedLength = 0) => Str.CombineStringArray(t, sepChar.ToString(), removeEmpty, maxItems, ommitStr, estimatedLength);
 
-    public static string _Combine(this Span<string> t, string? sepstr = "", bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...") => Str.CombineStringSpan(t, sepstr, removeEmpty, maxItems, ommitStr);
-    public static string _Combine(this Span<string> t, char sepChar, bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...") => Str.CombineStringSpan(t, sepChar.ToString(), removeEmpty, maxItems, ommitStr);
+    public static string _Combine(this Span<string> t, string? sepstr = "", bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...", int estimatedLength = 0) => Str.CombineStringSpan(t, sepstr, removeEmpty, maxItems, ommitStr, estimatedLength);
+    public static string _Combine(this Span<string> t, char sepChar, bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...", int estimatedLength = 0) => Str.CombineStringSpan(t, sepChar.ToString(), removeEmpty, maxItems, ommitStr, estimatedLength);
 
-    public static string _Combine(this ReadOnlySpan<string> t, string? sepstr = "", bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...") => Str.CombineStringSpan(t, sepstr, removeEmpty, maxItems, ommitStr);
-    public static string _Combine(this ReadOnlySpan<string> t, char sepChar, bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...") => Str.CombineStringSpan(t, sepChar.ToString(), removeEmpty, maxItems, ommitStr);
+    public static string _Combine(this ReadOnlySpan<string> t, string? sepstr = "", bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...", int estimatedLength = 0) => Str.CombineStringSpan(t, sepstr, removeEmpty, maxItems, ommitStr, estimatedLength);
+    public static string _Combine(this ReadOnlySpan<string> t, char sepChar, bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...", int estimatedLength = 0) => Str.CombineStringSpan(t, sepChar.ToString(), removeEmpty, maxItems, ommitStr, estimatedLength);
 
-    public static string _Combine(this Memory<string> t, string? sepstr = "", bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...") => Str.CombineStringSpan(t.Span, sepstr, removeEmpty, maxItems, ommitStr);
-    public static string _Combine(this Memory<string> t, char sepChar, bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...") => Str.CombineStringSpan(t.Span, sepChar.ToString(), removeEmpty, maxItems, ommitStr);
+    public static string _Combine(this Memory<string> t, string? sepstr = "", bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...", int estimatedLength = 0) => Str.CombineStringSpan(t.Span, sepstr, removeEmpty, maxItems, ommitStr, estimatedLength);
+    public static string _Combine(this Memory<string> t, char sepChar, bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...", int estimatedLength = 0) => Str.CombineStringSpan(t.Span, sepChar.ToString(), removeEmpty, maxItems, ommitStr, estimatedLength);
 
-    public static string _Combine(this ReadOnlyMemory<string> t, string? sepstr = "", bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...") => Str.CombineStringSpan(t.Span, sepstr, removeEmpty, maxItems, ommitStr);
-    public static string _Combine(this ReadOnlyMemory<string> t, char sepChar, bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...") => Str.CombineStringSpan(t.Span, sepChar.ToString(), removeEmpty, maxItems, ommitStr);
+    public static string _Combine(this ReadOnlyMemory<string> t, string? sepstr = "", bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...", int estimatedLength = 0) => Str.CombineStringSpan(t.Span, sepstr, removeEmpty, maxItems, ommitStr, estimatedLength);
+    public static string _Combine(this ReadOnlyMemory<string> t, char sepChar, bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...", int estimatedLength = 0) => Str.CombineStringSpan(t.Span, sepChar.ToString(), removeEmpty, maxItems, ommitStr, estimatedLength);
 
     public static string _MakeAsciiOneLinePrintableStr(this string? src, char alternativeChar = ' ') => Str.MakeAsciiOneLinePrintableStr(src, alternativeChar);
 

@@ -230,6 +230,8 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
         public IPAddress IpNetwork = IPAddress.Any;
         public IPAddress IpSubnetMask = IPAddress.Any;
         public int SubnetLength;
+        public string Wildcard_First_Before = "";
+        public string Wildcard_First_After = "";
     }
 
     public class ZoneDef
@@ -429,9 +431,9 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                                 int subnetLength;
                                                 IPAddress ipOrSubnet;
 
-                                                if (fqdn == "in-addr.arpa" || fqdn.EndsWith(".in-addr.arpa") || fqdn == "ip6.addr" || fqdn.EndsWith(".ip6.addr"))
+                                                if (ipOrSubnetStr == "in-addr.arpa" || ipOrSubnetStr.EndsWith(".in-addr.arpa") || ipOrSubnetStr == "ip6.addr" || ipOrSubnetStr.EndsWith(".ip6.addr"))
                                                 {
-                                                    var tmp = IPUtil.PtrZoneOrFqdnToIpAddressAndSubnet(fqdn);
+                                                    var tmp = IPUtil.PtrZoneOrFqdnToIpAddressAndSubnet(ipOrSubnetStr);
                                                     ipOrSubnet = tmp.Item1;
                                                     subnetLength = tmp.Item2;
                                                 }
@@ -443,31 +445,40 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
 
                                                 bool isHostAddress = IPUtil.IsSubnetLenHostAddress(ipOrSubnet.AddressFamily, subnetLength);
 
-                                                //if (isHostAddress)
-                                                //{
-                                                //    // 1.2.3.4 -> aaa.example.org のようなホストアドレスが指定される場合は、FQDN は Wildcard 不可である。
-                                                //    if (fqdn._IsValidFqdn(false) == false)
-                                                //    {
-                                                //        throw new CoresException("PTR record's target hostname must be a valid single host FQDN");
-                                                //    }
-                                                //}
-                                                //else
-                                                //{
-                                                //    // 1.0.0.0/24 -> *.aaa.example.org のようなホストアドレスが指定される場合は、FQDN は Wildcard 可である。
-                                                //    // ただし、Wildcard は *.aaa は可であるが、abc-***.aaa は不可であるから、厳密にチェックをする。
-                                                if (fqdn._IsValidFqdn(true, true) == false)
+                                                // 1.0.0.0/24 -> aaa*bbb.aaa.example.org のようなホストアドレスが指定される場合は、FQDN は Wildcard 可である。
+                                                if (fqdn._IsValidFqdn(true, false) == false)
                                                 {
                                                     throw new CoresException("PTR record's target hostname must be a valid single host FQDN or wildcard FQDN");
                                                 }
-                                                //}
+
+                                                (string beforeOfFirst, string afterOfFirst, string suffix) wildcardInfo = ("", "", "");
+
+                                                if (fqdn._InStr("*"))
+                                                {
+                                                    // ワイルドカード FQDN の場合、aa*bb のようなものも許容する。
+                                                    if (Str.TryParseFirstWildcardFqdnSandwitched(fqdn, out wildcardInfo) == false)
+                                                    {
+                                                        // おかしな FQDN である
+                                                        throw new CoresException($"FQDN '{fqdn}''s wildcard form style must be like '*', 'abc*' or '*abc'");
+                                                    }
+                                                }
+
+                                                string fqdn2 = fqdn;
+                                                if (fqdn._InStr("*"))
+                                                {
+                                                    // abc*def.example.org -> StandardRecord 上は、*.example.org が指定されたとみなして登録する。
+                                                    fqdn2 = "*" + wildcardInfo.suffix;
+                                                }
 
                                                 StandardRecord r = new StandardRecord
                                                 {
                                                     Type = isHostAddress ? StandardRecordType.ReverseSingle : StandardRecordType.ReverseSubnet,
-                                                    Fqdn = fqdn,
+                                                    Fqdn = fqdn2,
                                                     IpNetwork = ipOrSubnet,
                                                     IpSubnetMask = IPUtil.IntToSubnetMask(ipOrSubnet.AddressFamily, subnetLength),
                                                     SubnetLength = subnetLength,
+                                                    Wildcard_First_Before = wildcardInfo.beforeOfFirst,
+                                                    Wildcard_First_After = wildcardInfo.afterOfFirst,
                                                 };
 
                                                 this.ReverseRecordsList.Add(r);
@@ -561,7 +572,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                                         tmp1 = tmp1.Substring(1);
                                                     }
                                                     string fqdn = tmp1._NormalizeFqdn();
-                                                    if (fqdn._IsValidFqdn(mode == 0, true) == false)
+                                                    if (fqdn._IsValidFqdn(mode == 0, false) == false)
                                                     {
                                                         // おかしな FQDN である
                                                         throw new CoresException($"FQDN '{fqdn}' is not a valid single host or wildcard FQDN");
@@ -609,6 +620,25 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                                     }
                                                     else
                                                     {
+                                                        (string beforeOfFirst, string afterOfFirst, string suffix) wildcardInfo = ("", "", "");
+
+                                                        if (fqdn._InStr("*"))
+                                                        {
+                                                            // ワイルドカード FQDN の場合、aa*bb のようなものも許容する。
+                                                            if (Str.TryParseFirstWildcardFqdnSandwitched(fqdn, out wildcardInfo) == false)
+                                                            {
+                                                                // おかしな FQDN である
+                                                                throw new CoresException($"FQDN '{fqdn}''s wildcard form style must be like '*', 'abc*' or '*abc'");
+                                                            }
+                                                        }
+
+                                                        string fqdn2 = fqdn;
+                                                        if (fqdn._InStr("*"))
+                                                        {
+                                                            // abc*def.example.org -> StandardRecord 上は、*.example.org が指定されたとみなして登録する。
+                                                            fqdn2 = "*" + wildcardInfo.suffix;
+                                                        }
+
                                                         // 普通の正引き + 逆引き同時定義レコード
                                                         // 最初に、正引きの処理をする。
                                                         // ゾーン検索
@@ -619,10 +649,12 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                                             StandardRecord r = new StandardRecord
                                                             {
                                                                 Type = isHostAddress ? StandardRecordType.ForwardSingle : StandardRecordType.ForwardSubnet,
-                                                                Fqdn = fqdn,
+                                                                Fqdn = fqdn2,
                                                                 IpNetwork = ipOrSubnet,
                                                                 IpSubnetMask = IPUtil.IntToSubnetMask(ipOrSubnet.AddressFamily, subnetLength),
                                                                 SubnetLength = subnetLength,
+                                                                Wildcard_First_Before = wildcardInfo.beforeOfFirst,
+                                                                Wildcard_First_After = wildcardInfo.afterOfFirst,
                                                             };
 
                                                             // ゾーンの通常レコードとして追加
@@ -636,10 +668,12 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                                             StandardRecord r = new StandardRecord
                                                             {
                                                                 Type = isHostAddress ? StandardRecordType.ReverseSingle : StandardRecordType.ReverseSubnet,
-                                                                Fqdn = fqdn,
+                                                                Fqdn = fqdn2,
                                                                 IpNetwork = ipOrSubnet,
                                                                 IpSubnetMask = IPUtil.IntToSubnetMask(ipOrSubnet.AddressFamily, subnetLength),
                                                                 SubnetLength = subnetLength,
+                                                                Wildcard_First_Before = wildcardInfo.beforeOfFirst,
+                                                                Wildcard_First_After = wildcardInfo.afterOfFirst,
                                                             };
 
                                                             this.ReverseRecordsList.Add(r);
@@ -1011,7 +1045,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                     if (fqdn.StartsWith("*."))
                                     {
                                         string baseFqdn = fqdn.Substring(2);
-                                        fqdn = IPUtil.GenerateWildCardDnsFqdn(targetIpInfo.Item1, baseFqdn);
+                                        fqdn = IPUtil.GenerateWildCardDnsFqdn(targetIpInfo.Item1, baseFqdn, longest.Wildcard_First_Before, longest.Wildcard_First_After);
                                     }
                                     ret.PtrFqdnList.Add(DomainName.Parse(fqdn));
                                 }

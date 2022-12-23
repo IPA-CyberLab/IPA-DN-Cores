@@ -1886,7 +1886,7 @@ namespace IPA.Cores.Basic
         public static string? ReverseFqdnStr(string? fqdn)
         {
             if (fqdn == null) return null;
-            return fqdn._Split(StringSplitOptions.None, '.').Reverse()._Combine(".");
+            return fqdn._Split(StringSplitOptions.None, '.').Reverse()._Combine(".", estimatedLength: fqdn.Length);
         }
 
         public static Memory<byte> CHexArrayToBinary(string body)
@@ -5678,11 +5678,19 @@ namespace IPA.Cores.Basic
             return CombineStringArray(tmp.ToArray(), sepstr);
         }
 
-        public static string CombineStringArray(IEnumerable<string?> strList, string? sepstr = "", bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...")
-        {
-            sepstr = sepstr._NonNull();
 
-            StringBuilder b = new StringBuilder();
+        public static string CombineStringArray(IEnumerable<string?> strList, string? sepstr = "", bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...", int estimatedLength = 0)
+        {
+            StringBuilder b;
+
+            if (estimatedLength > 0)
+            {
+                b = new StringBuilder(estimatedLength);
+            }
+            else
+            {
+                b = new StringBuilder();
+            }
 
             int num = 0;
 
@@ -5692,13 +5700,19 @@ namespace IPA.Cores.Basic
                 {
                     if (num >= maxItems)
                     {
-                        b.Append(ommitStr._NonNull());
+                        if (ommitStr._IsNotZeroLen())
+                        {
+                            b.Append(ommitStr._NonNull());
+                        }
                         break;
                     }
 
                     if (num >= 1)
                     {
-                        b.Append(sepstr);
+                        if (sepstr._IsNotZeroLen())
+                        {
+                            b.Append(sepstr);
+                        }
                     }
 
                     if (s != null) b.Append(s);
@@ -5710,11 +5724,18 @@ namespace IPA.Cores.Basic
             return b.ToString();
         }
 
-        public static string CombineStringSpan(ReadOnlySpan<string> strList, string? sepstr = "", bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...")
+        public static string CombineStringSpan(ReadOnlySpan<string> strList, string? sepstr = "", bool removeEmpty = false, int maxItems = int.MaxValue, string? ommitStr = "...", int estimatedLength = 0)
         {
-            sepstr = sepstr._NonNull();
+            StringBuilder b;
 
-            StringBuilder b = new StringBuilder();
+            if (estimatedLength > 0)
+            {
+                b = new StringBuilder(estimatedLength);
+            }
+            else
+            {
+                b = new StringBuilder();
+            }
 
             int num = 0;
 
@@ -5724,13 +5745,19 @@ namespace IPA.Cores.Basic
                 {
                     if (num >= maxItems)
                     {
-                        b.Append(ommitStr._NonNull());
+                        if (ommitStr._IsNotZeroLen())
+                        {
+                            b.Append(ommitStr._NonNull());
+                        }
                         break;
                     }
 
                     if (num >= 1)
                     {
-                        b.Append(sepstr);
+                        if (sepstr._IsNotZeroLen())
+                        {
+                            b.Append(sepstr);
+                        }
                     }
 
                     if (s != null) b.Append(s);
@@ -8656,10 +8683,54 @@ namespace IPA.Cores.Basic
             return GetSubdomainLabelFromParentAndSubFqdnNormalized(parentFqdn._NormalizeFqdn(), subFqdn._NormalizeFqdn());
         }
 
+
+        public static bool TryParseFirstWildcardFqdnSandwitched(string fqdn, out (string beforeOfFirst, string afterOfFirst, string suffix) ret)
+        {
+            ret = new("", "", "");
+
+            string[] tokens = fqdn._NonNullTrim().ToLowerInvariant().Split(".", StringSplitOptions.RemoveEmptyEntries);
+
+            if (tokens.Length <= 0) return false;
+
+            string firstToken = tokens[0];
+
+            // 単一の "*" を見つける
+            int i = firstToken.IndexOf("*");
+            if (i == -1)
+            {
+                return false;
+            }
+
+            int j = firstToken.IndexOf("*", i + 1);
+            if (j != -1)
+            {
+                return false;
+            }
+
+            string beforeOfFirst = firstToken.Substring(0, i);
+            string afterOfFirst = firstToken.Substring(i + 1);
+
+            StringBuilder sb = new StringBuilder(fqdn.Length);
+            if (tokens.Length >= 2)
+            {
+                for (int k = 1; k < tokens.Length; k++)
+                {
+                    sb.Append(".");
+                    sb.Append(tokens[k]);
+                }
+            }
+
+            string suffix = sb.ToString();
+
+            ret = new(beforeOfFirst, afterOfFirst, suffix);
+
+            return true;
+        }
+
         public static string NormalizeFqdn(string fqdn)
         {
             fqdn = fqdn._NonNullTrim().ToLowerInvariant();
-            return fqdn.Split(".", StringSplitOptions.RemoveEmptyEntries)._Combine(".");
+            return fqdn.Split(".", StringSplitOptions.RemoveEmptyEntries)._Combine(".", estimatedLength: fqdn.Length);
         }
 
         public static bool CheckFqdn(string fqdn, bool allowWildcard = false, bool wildcardFirstTokenMustBeSimple = false)

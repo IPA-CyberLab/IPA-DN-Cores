@@ -1025,7 +1025,15 @@ public class DomainName : IEquatable<DomainName>, IComparable<DomainName>
         if (_toNormalizedFqdnFast != null)
             return _toNormalizedFqdnFast;
 
-        return (_toNormalizedFqdnFast = _labels.Span._Combine(".", true).ToLowerInvariant());
+        var span = _labels.Span;
+        int lenEstimated = 0;
+        foreach (var token in span)
+        {
+            lenEstimated += token.Length;
+            lenEstimated += 1;
+        }
+
+        return (_toNormalizedFqdnFast = _labels.Span._Combine(".", true, estimatedLength: lenEstimated).ToLowerInvariant());
     }
 
     private int? _hashCode;

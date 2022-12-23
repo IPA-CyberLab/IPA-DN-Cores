@@ -161,7 +161,7 @@ public static class DnsUtil
         {
             var zoneLabels = labels.Slice(numLabels - i, i);
 
-            string zoneLabelsStr = zoneLabels._Combine(".");
+            string zoneLabelsStr = zoneLabels._Combine(".", estimatedLength: normalizedFqdn.Length);
 
             // 一致する Dict エントリがあるか？
             if (zoneList.TryGetValue(zoneLabelsStr, out T? zoneTmp))
@@ -171,7 +171,7 @@ public static class DnsUtil
 
                 hostLabels = labels.Slice(0, numLabels - i);
 
-                hostLabelStr = hostLabels._Combine(".");
+                hostLabelStr = hostLabels._Combine(".", estimatedLength: normalizedFqdn.Length);
 
                 break;
             }
@@ -1432,7 +1432,7 @@ public class EasyDnsResponder
                         int numLabels = labels.Length;
                         for (int i = 0; i < numLabels; i++)
                         {
-                            this.SubDomainList.Add(labels.Slice(i)._Combine("."));
+                            this.SubDomainList.Add(labels.Slice(i)._Combine(".", estimatedLength: r.Name.Length));
                         }
                     }
                 }
@@ -1501,7 +1501,7 @@ public class EasyDnsResponder
                     // a.b.c、b.c、c の順で検索し、最初に発見されたものを NS 委譲されているサブドメインとして扱う。
                     for (int i = 0; i < hostLabelSpan.Length; i++)
                     {
-                        if (this.NSDelegationRecordList.TryGetValue(hostLabelSpan.Slice(i)._Combine("."), out List<Record>? found2))
+                        if (this.NSDelegationRecordList.TryGetValue(hostLabelSpan.Slice(i)._Combine(".", estimatedLength: hostLabelNormalized.Length), out List<Record>? found2))
                         {
                             // 権限委譲ドメイン情報が見つかった
                             SearchResult ret2 = new SearchResult
@@ -1640,7 +1640,7 @@ public class EasyDnsResponder
                 {
                     for (int i = 0; i < hostLabelSpan.Length; i++)
                     {
-                        if (this.SubDomainList.Contains(hostLabelSpan.Slice(i)._Combine(".")))
+                        if (this.SubDomainList.Contains(hostLabelSpan.Slice(i)._Combine(".", estimatedLength: hostLabelNormalized.Length)))
                         {
                             // いずれかの階層でサブドメインリストが見つかった
                             answers = new List<Record>();

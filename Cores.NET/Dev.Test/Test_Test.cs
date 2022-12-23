@@ -3872,6 +3872,17 @@ cccadmin
 
                 if (true)
                 {
+                    if (Str.TryParseFirstWildcardFqdnSandwitched(line, out var ret) == false)
+                    {
+                        Con.WriteLine("err");
+                    }
+                    else
+                    {
+                        ret._PrintAsJson();
+                    }
+                }
+                else if (true)
+                {
                     if (IPUtil.TryParseWildCardDnsFqdn(line, out IPAddress? ip) == false)
                     {
                         Con.WriteLine("None");
@@ -3910,17 +3921,7 @@ cccadmin
     {
         if (true)
         {
-            DomainName x = new DomainName(new string[] { "*", "example", "org" });
-            DnsQuestion q = new DnsQuestion(x, RecordType.A, RecordClass.INet);
-            DomainName x2 = new DomainName(new string[] { "*", "test", "org2" });
-            DnsQuestion q2 = new DnsQuestion(x2, RecordType.A, RecordClass.INet);
-            DnsMessage m = new DnsMessage
-            {
-            };
-            m.Questions.Add(q);
-            m.Questions.Add(q2);
-            var data = m.BuildPacket().ToArray();
-            //Test_221212_IpNetToPtr();
+            Test_221212_IpNetToPtr();
             //Test_MakeDummyCerts_221206();
             //Test_MakeStatic2LtsDnIpaNttNetCert();
             //Test_MakeTestWebAppDefaultStaticCerts_220614();
