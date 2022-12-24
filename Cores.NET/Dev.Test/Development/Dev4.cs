@@ -378,6 +378,11 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                         string str2;
                                         string paramsStr = "";
 
+                                        if (line._InStri("202.222.15.8/29"))
+                                        {
+                                            DoNothing();
+                                        }
+
                                         // value 部の ! で続くパラメータ制御文字列を除く
                                         int startParamsIndex = value._Search("!");
                                         if (startParamsIndex == -1)
@@ -412,9 +417,6 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                                 throw new CoresException($"Specified manual DNS record type '{recordType}' cannot be specified here");
                                             }
 
-                                            // パースの試行 (ここでは、単に文法チェックためにパースを試行するだけであり、結果は不要である)
-                                            EasyDnsResponderRecord.TryParseFromString(recordTypeStr + " " + fqdnAndData);
-
                                             // FQDN 部分とデータ部分に分ける
                                             if (fqdnAndData._GetKeysListAndValue(1, out var tmp1, out string data) == false)
                                             {
@@ -427,7 +429,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                                 // PTR は特別処理を行なう (ゾーンが /24 の広さで、PTR のワイルドカード指定が /22 の広さ、というようなことが起こり得るので、ゾーンとは直接関連付けない)
                                                 // PTR の場合、FQDN 部は IP アドレスまたは IP サブネット、または in-addr.arpa または ip6.arpa 形式でなければならない
                                                 string ipOrSubnetStr = tmp1[0]._NonNullTrim();
-                                                string fqdn = tmp1[0]._NormalizeFqdn();
+                                                string fqdn = data._NormalizeFqdn();
                                                 int subnetLength;
                                                 IPAddress ipOrSubnet;
 
@@ -485,6 +487,9 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                             }
                                             else
                                             {
+                                                // パースの試行 (ここでは、単に文法チェックためにパースを試行するだけであり、結果は不要である)
+                                                EasyDnsResponderRecord.TryParseFromString(recordTypeStr + " " + fqdnAndData);
+
                                                 string fqdn = tmp1[0]._NormalizeFqdn();
 
                                                 if (fqdn._IsValidFqdn(recordType != EasyDnsResponderRecordType.NS) == false) // NS レコードではワイルドカードは使用できない
