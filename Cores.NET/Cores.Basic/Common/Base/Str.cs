@@ -8727,6 +8727,40 @@ namespace IPA.Cores.Basic
             return true;
         }
 
+        public static bool IsSubdomainOf(string subDomain, string parentDomain)
+        {
+            return IsSubdomainOf(EnsureSpecial.Yes, subDomain._NormalizeFqdn(), parentDomain._NormalizeFqdn());
+        }
+
+        public static bool IsSubdomainOf(EnsureSpecial normalized, string normalizedSubDomain, string normalizedParentDomain)
+        {
+            if (normalizedParentDomain._IsEmpty() || normalizedParentDomain == ".")
+            {
+                return true;
+            }
+            if (normalizedSubDomain.EndsWith("." + normalizedParentDomain, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        public static bool IsEqualToOrSubdomainOf(string subDomain, string parentDomain)
+        {
+            return IsEqualToOrSubdomainOf(EnsureSpecial.Yes, subDomain._NormalizeFqdn(), parentDomain._NormalizeFqdn());
+        }
+
+        public static bool IsEqualToOrSubdomainOf(EnsureSpecial normalized, string normalizedSubDomain, string normalizedParentDomain)
+        {
+            if (normalizedSubDomain._IsSamei(normalizedParentDomain))
+            {
+                return true;
+            }
+
+            return IsSubdomainOf(EnsureSpecial.Yes, normalizedSubDomain, normalizedParentDomain);
+        }
+
         public static string NormalizeFqdn(string fqdn)
         {
             fqdn = fqdn._NonNullTrim().ToLowerInvariant();

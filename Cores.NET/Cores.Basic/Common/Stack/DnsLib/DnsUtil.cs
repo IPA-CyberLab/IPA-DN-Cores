@@ -596,16 +596,16 @@ public class EasyDnsResponderRecord
 
     static readonly EasyDnsResponder.Zone dummyZoneForTryParse = new EasyDnsResponder.Zone(new EasyDnsResponder.DataSet(new EasyDnsResponderSettings()), new EasyDnsResponderZone { DomainName = "_dummy_domain.example.org" });
 
-    public static EasyDnsResponderRecord TryParseFromString(string str, string? parentDomainFqdn = null)
+    public static EasyDnsResponderRecord TryParseFromString(string str, string? parentDomainFqdn = null, EasyDnsResponderRecordSettings? settings = null)
     {
-        var r = FromString(str, parentDomainFqdn);
+        var r = FromString(str, parentDomainFqdn, settings: settings);
 
         EasyDnsResponder.Record.CreateFrom(dummyZoneForTryParse, r);
 
         return r;
     }
 
-    public static EasyDnsResponderRecord FromString(string str, string? parentDomainFqdn = null, object? param = null)
+    public static EasyDnsResponderRecord FromString(string str, string? parentDomainFqdn = null, object? param = null, EasyDnsResponderRecordSettings? settings = null)
     {
         if (str._GetKeysListAndValue(2, out var keys, out string value) == false)
         {
@@ -644,7 +644,7 @@ public class EasyDnsResponderRecord
             Contents = value,
             Type = type,
             Name = name,
-            Settings = null,
+            Settings = settings,
             Param = param,
         };
     }

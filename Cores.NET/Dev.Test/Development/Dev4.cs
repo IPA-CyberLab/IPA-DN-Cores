@@ -209,6 +209,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
         public string Label = "";
         public string Data = "";
         public EasyDnsResponderRecordType Type = EasyDnsResponderRecordType.None;
+        public EasyDnsResponderRecordSettings? Settings;
     }
 
     [Flags]
@@ -232,6 +233,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
         public int SubnetLength;
         public string Wildcard_First_Before = "";
         public string Wildcard_First_After = "";
+        public EasyDnsResponderRecordSettings? Settings;
     }
 
     public class ZoneDef
@@ -248,7 +250,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
 
         public ZoneDef() { }
 
-        public ZoneDef(string str, Vars vars)
+        public ZoneDef(string str, Vars vars, bool reverseNoConvertToPtrFqdn = false)
         {
             Fqdn = str._NormalizeFqdn();
 
@@ -262,7 +264,11 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                 this.Reverse_IpNetwork = net;
                 this.Reverse_IpSubnetMask = subnet;
                 this.Reverse_SubnetLength = subnetLen;
-                this.Fqdn = IPUtil.IPAddressOrSubnetToPtrZoneOrFqdn(net, subnetLen);
+
+                if (reverseNoConvertToPtrFqdn == false)
+                {
+                    this.Fqdn = IPUtil.IPAddressOrSubnetToPtrZoneOrFqdn(net, subnetLen);
+                }
             }
             else if (Fqdn.EndsWith("in-addr.arpa", StrCmpi) || Fqdn.EndsWith("ip6.arpa", StrCmpi))
             {
@@ -290,8 +296,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                 this.Type = ZoneDefType.Forward;
             }
 
-            this.Options = new ZoneDefOptions(
-                vars);
+            this.Options = new ZoneDefOptions(vars);
         }
     }
 
@@ -308,6 +313,8 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
             var lines = body._GetLines(false, false, null, false, false);
 
             Vars vars = new Vars();
+
+            List<ZoneDef>? currentLimitZonesList = null;
 
             for (int j = 0; j < 2; j++) // 走査は 2 回行なう。1 回目は変数とゾーン名定義の読み込みである。2 回目はゾーンのレコード情報の読み込みである。
             {
@@ -334,7 +341,12 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                             key = key.Trim();
                             value = value.Trim();
 
-                            if (key._IsFilled() && value._IsFilled())
+                            if (key._IsSamei("!Unlimit"))
+                            {
+                                // 制限の解除
+                                currentLimitZonesList = null;
+                            }
+                            else if (key._IsFilled() && value._IsFilled())
                             {
                                 if (j == 0)
                                 {
@@ -367,6 +379,28 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                                 this.ZoneList.Add(zone.Fqdn, zone);
                                             }
                                         }
+                                        else if (key._IsSamei("!Limit"))
+                                        {
+                                            // 制限の定義
+                                            List<ZoneDef> tmp = new List<ZoneDef>();
+                                            try
+                                            {
+                                                var limitsTokenList = value._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, " ", "\t", "　", ",", ";");
+                                                foreach (var limit in limitsTokenList)
+                                                {
+                                                    // パース
+                                                    var limitDef = new ZoneDef(limit, new Vars(), true);
+                                                    tmp.Add(limitDef);
+                                                }
+                                            }
+                                            catch
+                                            {
+                                                // パースで例外が発生したら、安全のために空リストを設定したとみなす
+                                                currentLimitZonesList = new List<ZoneDef>();
+                                                throw;
+                                            }
+                                            currentLimitZonesList = tmp;
+                                        }
                                     }
                                 }
                                 else
@@ -377,11 +411,6 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                         string str1 = key;
                                         string str2;
                                         string paramsStr = "";
-
-                                        if (line._InStri("202.222.15.8/29"))
-                                        {
-                                            DoNothing();
-                                        }
 
                                         // value 部の ! で続くパラメータ制御文字列を除く
                                         int startParamsIndex = value._Search("!");
@@ -398,6 +427,16 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                         }
 
                                         QueryStringList paramsList = new QueryStringList(paramsStr, splitChar: ',', trimKeyAndValue: true);
+
+                                        EasyDnsResponderRecordSettings? settings = null;
+                                        string ttlStr = paramsList._GetFirstValueOrDefault("ttl");
+                                        if (ttlStr._IsFilled())
+                                        {
+                                            settings = new EasyDnsResponderRecordSettings
+                                            {
+                                                TtlSecs = ttlStr._ToInt(),
+                                            };
+                                        }
 
                                         if (str1._InStr(":") == false && str1._InStr(".") == false && str1._InStr("/") == false)
                                         {
@@ -481,9 +520,13 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                                     SubnetLength = subnetLength,
                                                     Wildcard_First_Before = wildcardInfo.beforeOfFirst,
                                                     Wildcard_First_After = wildcardInfo.afterOfFirst,
+                                                    Settings = settings,
                                                 };
 
-                                                this.ReverseRecordsList.Add(r);
+                                                if (IsReverseFqdnAllowedByLimitList(r.IpNetwork, r.IpSubnetMask))
+                                                {
+                                                    this.ReverseRecordsList.Add(r);
+                                                }
                                             }
                                             else
                                             {
@@ -516,8 +559,11 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                                     }
                                                 }
 
-                                                // ゾーンのカスタムレコードとして追加
-                                                zone.CustomRecordList.Add(new CustomRecord { Label = hostLabel, Data = data, Type = recordType });
+                                                if (IsForwardFqdnAllowedByLimitList(fqdn))
+                                                {
+                                                    // ゾーンのカスタムレコードとして追加
+                                                    zone.CustomRecordList.Add(new CustomRecord { Label = hostLabel, Data = data, Type = recordType, Settings = settings, });
+                                                }
                                             }
                                         }
                                         else
@@ -594,9 +640,13 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                                             IpNetwork = ipOrSubnet,
                                                             IpSubnetMask = IPUtil.IntToSubnetMask(ipOrSubnet.AddressFamily, subnetLength),
                                                             SubnetLength = subnetLength,
+                                                            Settings = settings,
                                                         };
 
-                                                        this.ReverseRecordsList.Add(r);
+                                                        if (IsReverseFqdnAllowedByLimitList(r.IpNetwork, r.IpSubnetMask))
+                                                        {
+                                                            this.ReverseRecordsList.Add(r);
+                                                        }
                                                     }
                                                     else if (mode == 3)
                                                     {
@@ -620,8 +670,11 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                                             throw new CoresException($"Reverse DNS zone '{reverseFqdn}' must be a subdomain of the parent domain '{zone.Fqdn}' (meaning that it must not be exact match to the parent domain)");
                                                         }
 
-                                                        // ゾーンのカスタムレコードとして追加
-                                                        zone.CustomRecordList.Add(new CustomRecord { Label = hostLabel, Data = fqdn, Type = EasyDnsResponderRecordType.NS });
+                                                        if (IsReverseFqdnAllowedByLimitList(ipOrSubnet, IPUtil.IntToSubnetMask(ipOrSubnet.AddressFamily, subnetLength)))
+                                                        {
+                                                            // ゾーンのカスタムレコードとして追加
+                                                            zone.CustomRecordList.Add(new CustomRecord { Label = hostLabel, Data = fqdn, Type = EasyDnsResponderRecordType.NS, Settings = settings, });
+                                                        }
                                                     }
                                                     else
                                                     {
@@ -660,10 +713,14 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                                                 SubnetLength = subnetLength,
                                                                 Wildcard_First_Before = wildcardInfo.beforeOfFirst,
                                                                 Wildcard_First_After = wildcardInfo.afterOfFirst,
+                                                                Settings = settings,
                                                             };
 
                                                             // ゾーンの通常レコードとして追加
-                                                            zone.StandardForwardRecordList.Add(r);
+                                                            if (IsForwardFqdnAllowedByLimitList(r.Fqdn))
+                                                            {
+                                                                zone.StandardForwardRecordList.Add(r);
+                                                            }
                                                         }
 
                                                         // 次に、逆引きの処理をする。
@@ -679,40 +736,17 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                                                 SubnetLength = subnetLength,
                                                                 Wildcard_First_Before = wildcardInfo.beforeOfFirst,
                                                                 Wildcard_First_After = wildcardInfo.afterOfFirst,
+                                                                Settings = settings,
                                                             };
 
-                                                            this.ReverseRecordsList.Add(r);
+                                                            if (IsReverseFqdnAllowedByLimitList(r.IpNetwork, r.IpSubnetMask))
+                                                            {
+                                                                this.ReverseRecordsList.Add(r);
+                                                            }
                                                         }
                                                     }
                                                 }
                                             }
-                                        }
-
-                                        // "IP/サブネットマスク" 形式の表記かどうか検索するユーティリティ関数
-                                        bool IsIpSubnetStr(string str)
-                                        {
-                                            str = str._NonNull();
-                                            int i = str._Search("/");
-                                            if (i == -1)
-                                            {
-                                                if (IPAddress.TryParse(str, out _))
-                                                {
-                                                    return true;
-                                                }
-                                            }
-                                            else
-                                            {
-                                                string ip = str.Substring(0, i).Trim();
-                                                string mask = str.Substring(i + 1).Trim();
-                                                if (IPAddress.TryParse(ip, out _))
-                                                {
-                                                    if (int.TryParse(mask, out _) || IPAddress.TryParse(mask, out _))
-                                                    {
-                                                        return true;
-                                                    }
-                                                }
-                                            }
-                                            return false;
                                         }
                                     }
                                 }
@@ -741,6 +775,60 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                 // 上から順に優先して登録する。全く同一のサブネットについては最初の 1 つしか登録されないが、これは正常である。
                 // (PTR レコードで 2 つ以上の互いに異なる応答があるのはおかしい)
                 this.ReverseRadixTrie.Insert(r.IpNetwork, r.SubnetLength, r);
+            }
+
+            // ユーティリティ関数: 指定した正引きレコードが Limit の範囲内かどうか検査
+            bool IsForwardFqdnAllowedByLimitList(string normalizedFqdn)
+            {
+                if (currentLimitZonesList == null) return true;
+
+                return currentLimitZonesList.Where(x => x.Type == ZoneDefType.Forward).Any(x => Str.IsEqualToOrSubdomainOf(EnsureSpecial.Yes, normalizedFqdn, x.Fqdn));
+            }
+
+            // ユーティリティ関数: 指定した逆引きレコードが Limit の範囲内かどうか検査
+            bool IsReverseFqdnAllowedByLimitList(IPAddress network, IPAddress subnetMask)
+            {
+                if (currentLimitZonesList == null) return true;
+
+                var ipStart = IPUtil.GetPrefixAddress(network, subnetMask);
+                var ipEnd = IPUtil.GetBroadcastAddress(network, subnetMask);
+                foreach (var def in currentLimitZonesList.Where(x => x.Type == ZoneDefType.Reverse))
+                {
+                    if (IPUtil.IsInSameNetwork(ipStart, def.Reverse_IpNetwork, def.Reverse_IpSubnetMask, true) &&
+                        IPUtil.IsInSameNetwork(ipEnd, def.Reverse_IpNetwork, def.Reverse_IpSubnetMask, true))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            // ユーティリティ関数: "IP/サブネットマスク" 形式の表記かどうか検索する
+            bool IsIpSubnetStr(string str)
+            {
+                str = str._NonNull();
+                int i = str._Search("/");
+                if (i == -1)
+                {
+                    if (IPAddress.TryParse(str, out _))
+                    {
+                        return true;
+                    }
+                }
+                else
+                {
+                    string ip = str.Substring(0, i).Trim();
+                    string mask = str.Substring(i + 1).Trim();
+                    if (IPAddress.TryParse(ip, out _))
+                    {
+                        if (int.TryParse(mask, out _) || IPAddress.TryParse(mask, out _))
+                        {
+                            return true;
+                        }
+                    }
+                }
+                return false;
             }
         }
     }
@@ -914,7 +1002,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
             // カスタムレコードを登録
             foreach (var customDef in zoneDef.CustomRecordList)
             {
-                zone.RecordList.Add(EasyDnsResponderRecord.FromString(customDef.Type.ToString() + " " + customDef.Label._FilledOrDefault("@") + " " + customDef.Data));
+                zone.RecordList.Add(EasyDnsResponderRecord.FromString(customDef.Type.ToString() + " " + customDef.Label._FilledOrDefault("@") + " " + customDef.Data, settings: customDef.Settings));
             }
 
             if (zoneDef.Type == ZoneDefType.Forward)
@@ -933,6 +1021,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                             Type = recordDef.IpNetwork.AddressFamily == AddressFamily.InterNetwork ? EasyDnsResponderRecordType.A : EasyDnsResponderRecordType.AAAA,
                             Name = label,
                             Contents = recordDef.IpNetwork._RemoveScopeId().ToString(),
+                            Settings = recordDef.Settings,
                         });
                     }
                     else
@@ -943,6 +1032,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                             Type = recordDef.IpNetwork.AddressFamily == AddressFamily.InterNetwork ? EasyDnsResponderRecordType.A : EasyDnsResponderRecordType.AAAA,
                             Name = label,
                             Contents = $"{recordDef.IpNetwork._RemoveScopeId().ToString()}/{recordDef.SubnetLength}",
+                            Settings = recordDef.Settings,
                         });
                     }
                 }
@@ -1053,6 +1143,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                         fqdn = IPUtil.GenerateWildCardDnsFqdn(targetIpInfo.Item1, baseFqdn, longest.Wildcard_First_Before, longest.Wildcard_First_After);
                                     }
                                     ret.PtrFqdnList.Add(DomainName.Parse(fqdn));
+                                    ret.Settings = longest.Settings;
                                 }
                                 else if (longest.Type == StandardRecordType.ReverseCNameSingle || longest.Type == StandardRecordType.ReverseCNameSubnet)
                                 {
@@ -1071,6 +1162,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                             label = IPUtil.GenerateWildCardDnsFqdn(targetIpInfo.Item1, fqdn);
                                         }
                                         ret.CNameFqdnList.Add(DomainName.Parse(label));
+                                        ret.Settings = longest.Settings;
                                     }
                                 }
                             }
