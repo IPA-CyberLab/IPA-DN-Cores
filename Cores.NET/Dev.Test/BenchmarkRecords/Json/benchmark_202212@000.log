@@ -606,3 +606,18 @@
 {"TimeStamp":"2022-12-18T20:02:57.9346957+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":27.584061928559795,"PerSecond":36252818},"Tag":"result"}
 {"TimeStamp":"2022-12-18T20:02:58.4770885+09:00","Data":{"TestName":"ByteToHex (New) - Padding","Ret":105.58744719197293,"PerSecond":9470822},"Tag":"result"}
 {"TimeStamp":"2022-12-18T20:02:59.0780008+09:00","Data":{"TestName":"throw Exception","Ret":8042.345980238872,"PerSecond":124341},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:46:51.7778393+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-26T17:46:51.7778533+09:00","Data":"Commit: 12a8dfbe2489bc32bbcad477417a861fc4e64b0d","Tag":"text"}
+{"TimeStamp":"2022-12-26T17:46:51.7778548+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-26T17:46:51.7778559+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-26T17:46:51.7778661+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-26T17:46:51.7778679+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-26T17:46:53.1173047+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:46:53.7003945+09:00","Data":{"TestName":"Wildcard Match","Ret":7401.389135575175,"PerSecond":135109},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:46:54.2454328+09:00","Data":{"TestName":"Radix Trie","Ret":455.7559290022171,"PerSecond":2194156},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:46:54.7798419+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":28.20258062426766,"PerSecond":35457748},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:46:55.3204297+09:00","Data":{"TestName":"ByteToHex (New) - Padding","Ret":109.60355170936025,"PerSecond":9123791},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:46:55.921538+09:00","Data":{"TestName":"throw Exception","Ret":8067.708148541,"PerSecond":123950},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:46:56.4538532+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (TaskResult)","Ret":832.190281620869,"PerSecond":1201648},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:46:56.993328+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (async)","Ret":909.0413682307674,"PerSecond":1100059},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:46:57.5362772+09:00","Data":{"TestName":"StartAsyncTaskAsync with Task Param","Ret":1433.7242690058547,"PerSecond":697484},"Tag":"result"}

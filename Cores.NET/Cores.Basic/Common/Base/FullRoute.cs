@@ -2312,7 +2312,9 @@ public class FullRoute46<T>
     readonly FullRoute FullRoute4 = new FullRoute(AddressFamily.InterNetwork);
     readonly FullRoute FullRoute6 = new FullRoute(AddressFamily.InterNetworkV6);
 
-    public void Insert(IPAddress network, int subnetLength, T data)
+    public int Count => FullRoute4.Count + FullRoute6.Count;
+
+    public bool Insert(IPAddress network, int subnetLength, T data)
     {
         FullRoute table;
 
@@ -2337,7 +2339,9 @@ public class FullRoute46<T>
 
         network = IPUtil.GetPrefixAddress(network, subnetLength);
 
-        table.Insert(new FullRouteEntry(IPAddr.FromAddress(network), subnetLength, "", data));
+        bool ret = table.Insert(new FullRouteEntry(IPAddr.FromAddress(network), subnetLength, "", data));
+
+        return ret;
     }
 
     public T? Lookup(IPAddress target, [NotNullWhen(true)] out IPAddr? subnet, out int subnetLength)
@@ -2382,6 +2386,8 @@ public class FullRoute
     public RadixTrie? Trie = null;
     readonly bool is_readonly = false;
     public readonly int AddressSize = 0;
+
+    public int Count => this.BulkList.Count;
 
     public FullRoute(AddressFamily addressFamily)
     {
@@ -2503,7 +2509,7 @@ public class FullRoute
         DumpNode(buf, this.Trie!.Root);
     }
 
-    public void Insert(FullRouteEntry e)
+    public bool Insert(FullRouteEntry e)
     {
         if (is_readonly)
         {
@@ -2516,7 +2522,7 @@ public class FullRoute
         }
         else
         {
-            return;
+            return false;
         }
 
         if (e.SubnetLength == 0)
@@ -2526,6 +2532,8 @@ public class FullRoute
         }
 
         this.Trie = null;
+
+        return true;
     }
 
     public void UpdateTrie()

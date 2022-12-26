@@ -75,6 +75,9 @@ public static partial class CoresConfig
         public static Copenhagen<int> Default_NegativeCacheTtlSecs = 10;
 
         public static Copenhagen<ushort> Default_MxPreference = 100;
+
+        public static Copenhagen<int> Default_ForwarderTimeoutMsecs = 10000;
+        public static Copenhagen<int> Default_ForwarderMaxSessions = 10000;
     }
 }
 
@@ -430,10 +433,7 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
                     delayedUdpPacketsArray = DelayedReplyUdpPacketsList.ToArray();
                     DelayedReplyUdpPacketsList.Clear();
                 }
-                //if (delayedUdpPacketsArray.Length >= 1)
-                //{
-                //delayedUdpPacketsArray.Length._Print();
-                //}
+
                 await udpSock.SendDatagramsListAsync(delayedUdpPacketsArray, cancel: cancel);
             }
             catch (Exception ex)
@@ -655,6 +655,15 @@ public class EasyDnsResponderRecord
     }
 }
 
+public class EasyDnsResponderForwarder
+{
+    public string Selector { get; set; } = "";        // ドメイン名、ワイルドカード付き FQDN、またはサブネット表記
+
+    public string TargetServers { get; set; } = "";     // ターゲットの DNS サーバー一覧
+
+    public int TimeoutMsecs { get; set; } = CoresConfig.EasyDnsResponderSettings.Default_ForwarderTimeoutMsecs;
+}
+
 public class EasyDnsResponderZone
 {
     public string DomainName { get; set; } = "";
@@ -670,9 +679,13 @@ public class EasyDnsResponderSettings
 
     public EasyDnsResponderRecordSettings? DefaultSettings { get; set; } = null;
 
+    public List<EasyDnsResponderForwarder> ForwarderList { get; set; } = new List<EasyDnsResponderForwarder>();
+
     public bool SaveAccessLogForDebug { get; set; } = false;
 
     public bool CopyQueryAdditionalRecordsToResponse { get; set; } = false;
+
+    public int ForwarderMaxSessions { get; set; } = CoresConfig.EasyDnsResponderSettings.Default_ForwarderMaxSessions;
 }
 
 // ダイナミックレコードのコールバック関数に渡されるリクエストデータ
@@ -1287,6 +1300,83 @@ public class EasyDnsResponder
             => ToDnsLibRecordBase(q.Name, timeStampForSoa);
     }
 
+    // フォワーダの種類
+    [Flags]
+    public enum ForwarderType
+    {
+        DomainName = 0,
+        WildcardFqdn,
+        Subnet,
+    }
+
+    // 内部フォワーダデータ
+    public class Forwarder
+    {
+        public DataSet ParentDataSet;
+        public ForwarderType Type;
+        public string DomainFqdn = "";
+        public string WildcardFqdn = "";
+        public IPAddress Subnet_IpNetwork = IPAddress.Any;
+        public IPAddress Subnet_SubnetMask = IPAddress.Broadcast;
+        public int Subnet_SubnetLength = 32;
+        public int TimeoutMsecs;
+        public List<IPEndPoint> TargetServersList = new List<IPEndPoint>();
+
+        public Forwarder(DataSet parent, EasyDnsResponderForwarder src)
+        {
+            this.ParentDataSet = parent;
+
+            string selector = src.Selector;
+
+            if (selector._InStri("/"))
+            {
+                // IP アドレス / サブネットマスク形式
+                this.Type = ForwarderType.Subnet;
+                IPUtil.ParseIPAndSubnetMask(selector, out Subnet_IpNetwork, out Subnet_SubnetMask);
+                this.Subnet_SubnetLength = IPUtil.SubnetMaskToInt(Subnet_SubnetMask);
+            }
+            else if (selector._InStri("*") || selector._InStri("?"))
+            {
+                // ワイルドカード形式
+                this.Type = ForwarderType.WildcardFqdn;
+                this.WildcardFqdn = selector.ToLowerInvariant().Trim();
+            }
+            else
+            {
+                // ドメイン名形式
+                this.Type = ForwarderType.DomainName;
+                this.DomainFqdn = selector._NormalizeFqdn();
+
+                if (this.DomainFqdn._IsEmpty() || this.DomainFqdn._IsValidFqdn() == false)
+                {
+                    throw new CoresException($"Domain name '{src.Selector}' is an invalid FQDN.");
+                }
+            }
+
+            this.TimeoutMsecs = src.TimeoutMsecs;
+            if (this.TimeoutMsecs <= 0) this.TimeoutMsecs = CoresConfig.EasyDnsResponderSettings.Default_ForwarderTimeoutMsecs;
+
+            string[] targetToken = src.TargetServers._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, " ", "\t", ";", ",", "/");
+
+            HashSet<string> distinctCheck = new HashSet<string>(StrCmpi);
+
+            foreach (var target in targetToken)
+            {
+                if (IPUtil.TryParseHostPort(target, out string host, out int port, Consts.Ports.Dns))
+                {
+                    IPEndPoint ep = new IPEndPoint(IPUtil.StrToIP(host)!, port);
+
+                    string test = ep.ToString();
+
+                    if (distinctCheck.Add(test))
+                    {
+                        this.TargetServersList.Add(ep);
+                    }
+                }
+            }
+        }
+    }
+
     // 内部ゾーンデータ
     public class Zone
     {
@@ -1684,6 +1774,13 @@ public class EasyDnsResponder
         public StrDictionary<Zone> ZoneDict = new StrDictionary<Zone>();
         public EasyDnsResponderRecordSettings Settings;
 
+        public StrDictionary<Forwarder> DomainForwarderDict = new StrDictionary<Forwarder>();
+        public FullRoute46<Forwarder> SubnetForwarderFullRoute = new FullRoute46<Forwarder>();
+        public List<Forwarder> WildcardForwarderList = new List<Forwarder>();
+        public bool Has_DomainForwarderDict = false;
+        public bool Has_SubnetForwarderFullRoute = false;
+        public bool Has_WildcardForwarderList = false;
+
         // Settings からコンパイルする
         public DataSet(EasyDnsResponderSettings src)
         {
@@ -1695,6 +1792,33 @@ public class EasyDnsResponder
                 var zone = new Zone(this, srcZone);
 
                 this.ZoneDict.Add(zone.DomainFqdn, zone);
+            }
+
+            // フォワーダ情報のコンパイル
+            foreach (var srcForwarder in src.ForwarderList)
+            {
+                var forwarder = new Forwarder(this, srcForwarder);
+
+                switch (forwarder.Type)
+                {
+                    case ForwarderType.DomainName:
+                        // ドメイン名に基づくフォワーダ
+                        this.DomainForwarderDict.Add(forwarder.DomainFqdn, forwarder);
+                        this.Has_DomainForwarderDict = true;
+                        break;
+
+                    case ForwarderType.Subnet:
+                        // サブネットに基づくフォワーダ
+                        this.SubnetForwarderFullRoute.Insert(forwarder.Subnet_IpNetwork, forwarder.Subnet_SubnetLength, forwarder);
+                        this.Has_SubnetForwarderFullRoute = true;
+                        break;
+
+                    case ForwarderType.WildcardFqdn:
+                        // ワイルドカード文字列に基づくフォワーダ
+                        this.WildcardForwarderList.Add(forwarder);
+                        this.Has_WildcardForwarderList = true;
+                        break;
+                }
             }
         }
 

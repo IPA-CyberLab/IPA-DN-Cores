@@ -202,7 +202,8 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
     // CPU 時間の節約のため、届いたクエリメッセージ構造体をそのまま応答メッセージ構造体として書き換えて応答する
     DnsMessage? QueryToResponse(DnsMessage? q, DnsUdpPacket? requestPacket = null)
     {
-        if (q == null || q.IsQuery == false) return null;
+        if (q == null) return null;
+        if (q.IsQuery == false) return null;
 
         q.IsQuery = false;
         q.ReturnCode = ReturnCode.NoError;

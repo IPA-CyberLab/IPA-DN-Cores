@@ -231,8 +231,8 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
         public IPAddress IpNetwork = IPAddress.Any;
         public IPAddress IpSubnetMask = IPAddress.Any;
         public int SubnetLength;
-        public string Wildcard_First_Before = "";
-        public string Wildcard_First_After = "";
+        public string FirstTokenWildcardBefore = "";
+        public string FirstTokenWildcardAfter = "";
         public EasyDnsResponderRecordSettings? Settings;
     }
 
@@ -241,9 +241,9 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
         public ZoneDefType Type;
         public ZoneDefOptions Options = new ZoneDefOptions();
         public string Fqdn = "";
-        public IPAddress Reverse_IpNetwork = IPAddress.Any;
-        public IPAddress Reverse_IpSubnetMask = IPAddress.Any;
-        public int Reverse_SubnetLength;
+        public IPAddress ReverseIpNetwork = IPAddress.Any;
+        public IPAddress ReverseIpSubnetMask = IPAddress.Any;
+        public int ReverseSubnetLength;
 
         public List<CustomRecord> CustomRecordList = new List<CustomRecord>();
         public List<StandardRecord> StandardForwardRecordList = new List<StandardRecord>();
@@ -261,9 +261,9 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                 int subnetLen = IPUtil.SubnetMaskToInt(subnet);
                 this.Type = ZoneDefType.Reverse;
 
-                this.Reverse_IpNetwork = net;
-                this.Reverse_IpSubnetMask = subnet;
-                this.Reverse_SubnetLength = subnetLen;
+                this.ReverseIpNetwork = net;
+                this.ReverseIpSubnetMask = subnet;
+                this.ReverseSubnetLength = subnetLen;
 
                 if (reverseNoConvertToPtrFqdn == false)
                 {
@@ -281,9 +281,9 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                 var ipAndSubnet = IPUtil.PtrZoneOrFqdnToIpAddressAndSubnet(Fqdn);
 
                 this.Type = ZoneDefType.Reverse;
-                this.Reverse_IpNetwork = ipAndSubnet.Item1;
-                this.Reverse_SubnetLength = ipAndSubnet.Item2;
-                this.Reverse_IpSubnetMask = IPUtil.IntToSubnetMask(ipAndSubnet.Item1.AddressFamily, ipAndSubnet.Item2);
+                this.ReverseIpNetwork = ipAndSubnet.Item1;
+                this.ReverseSubnetLength = ipAndSubnet.Item2;
+                this.ReverseIpSubnetMask = IPUtil.IntToSubnetMask(ipAndSubnet.Item1.AddressFamily, ipAndSubnet.Item2);
             }
             else
             {
@@ -316,17 +316,8 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
 
             List<ZoneDef>? currentLimitZonesList = null;
 
-            for (int j = 0; j < 2; j++) // 走査は 2 回行なう。1 回目は変数とゾーン名定義の読み込みである。2 回目はゾーンのレコード情報の読み込みである。
+            for (int j = 0; j < 2; j++) // 走査は、2 回行なう。1 回目は、変数とゾーン名定義の読み込みである。2 回目は、ゾーンのレコード情報の読み込みである。
             {
-                //if (j == 1)
-                //{
-                //    // 1 回目の操作で ZoneList が形成されているので、2 回目の操作の最初に ZoneList から逆引きゾーンのフルルートを生成する
-                //    foreach (var zone in this.ZoneList.OrderBy(x => x.Key, StrCmpi).Select(x=>x.Value).Where(x=>x.Type == ZoneDefType.Reverse))
-                //    {
-                //        this.ReverseZoneFullRouteTable.Insert(zone.Reverse_IpNetwork, zone.Reverse_SubnetLength, zone);
-                //    }
-                //}
-
                 for (int i = 0; i < lines.Length; i++)
                 {
                     string lineSrc = lines[i];
@@ -518,8 +509,8 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                                     IpNetwork = ipOrSubnet,
                                                     IpSubnetMask = IPUtil.IntToSubnetMask(ipOrSubnet.AddressFamily, subnetLength),
                                                     SubnetLength = subnetLength,
-                                                    Wildcard_First_Before = wildcardInfo.beforeOfFirst,
-                                                    Wildcard_First_After = wildcardInfo.afterOfFirst,
+                                                    FirstTokenWildcardBefore = wildcardInfo.beforeOfFirst,
+                                                    FirstTokenWildcardAfter = wildcardInfo.afterOfFirst,
                                                     Settings = settings,
                                                 };
 
@@ -576,7 +567,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
 
                                             // str1 と str2 は入れ換え可能である。
                                             // 1 と 2 のいずれに IP アドレスが含まれているのか判別をする。
-                                            if (IsIpSubnetStr(str1))
+                                            if (Str.IsIpSubnetStr(str1))
                                             {
                                                 ipMaskListStr = str1;
                                                 fqdnListStr = str2;
@@ -711,8 +702,8 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                                                 IpNetwork = ipOrSubnet,
                                                                 IpSubnetMask = IPUtil.IntToSubnetMask(ipOrSubnet.AddressFamily, subnetLength),
                                                                 SubnetLength = subnetLength,
-                                                                Wildcard_First_Before = wildcardInfo.beforeOfFirst,
-                                                                Wildcard_First_After = wildcardInfo.afterOfFirst,
+                                                                FirstTokenWildcardBefore = wildcardInfo.beforeOfFirst,
+                                                                FirstTokenWildcardAfter = wildcardInfo.afterOfFirst,
                                                                 Settings = settings,
                                                             };
 
@@ -734,8 +725,8 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                                                 IpNetwork = ipOrSubnet,
                                                                 IpSubnetMask = IPUtil.IntToSubnetMask(ipOrSubnet.AddressFamily, subnetLength),
                                                                 SubnetLength = subnetLength,
-                                                                Wildcard_First_Before = wildcardInfo.beforeOfFirst,
-                                                                Wildcard_First_After = wildcardInfo.afterOfFirst,
+                                                                FirstTokenWildcardBefore = wildcardInfo.beforeOfFirst,
+                                                                FirstTokenWildcardAfter = wildcardInfo.afterOfFirst,
                                                                 Settings = settings,
                                                             };
 
@@ -794,40 +785,13 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                 var ipEnd = IPUtil.GetBroadcastAddress(network, subnetMask);
                 foreach (var def in currentLimitZonesList.Where(x => x.Type == ZoneDefType.Reverse))
                 {
-                    if (IPUtil.IsInSameNetwork(ipStart, def.Reverse_IpNetwork, def.Reverse_IpSubnetMask, true) &&
-                        IPUtil.IsInSameNetwork(ipEnd, def.Reverse_IpNetwork, def.Reverse_IpSubnetMask, true))
+                    if (IPUtil.IsInSameNetwork(ipStart, def.ReverseIpNetwork, def.ReverseIpSubnetMask, true) &&
+                        IPUtil.IsInSameNetwork(ipEnd, def.ReverseIpNetwork, def.ReverseIpSubnetMask, true))
                     {
                         return true;
                     }
                 }
 
-                return false;
-            }
-
-            // ユーティリティ関数: "IP/サブネットマスク" 形式の表記かどうか検索する
-            bool IsIpSubnetStr(string str)
-            {
-                str = str._NonNull();
-                int i = str._Search("/");
-                if (i == -1)
-                {
-                    if (IPAddress.TryParse(str, out _))
-                    {
-                        return true;
-                    }
-                }
-                else
-                {
-                    string ip = str.Substring(0, i).Trim();
-                    string mask = str.Substring(i + 1).Trim();
-                    if (IPAddress.TryParse(ip, out _))
-                    {
-                        if (int.TryParse(mask, out _) || IPAddress.TryParse(mask, out _))
-                        {
-                            return true;
-                        }
-                    }
-                }
                 return false;
             }
         }
@@ -1140,7 +1104,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                     if (fqdn.StartsWith("*."))
                                     {
                                         string baseFqdn = fqdn.Substring(2);
-                                        fqdn = IPUtil.GenerateWildCardDnsFqdn(targetIpInfo.Item1, baseFqdn, longest.Wildcard_First_Before, longest.Wildcard_First_After);
+                                        fqdn = IPUtil.GenerateWildCardDnsFqdn(targetIpInfo.Item1, baseFqdn, longest.FirstTokenWildcardBefore, longest.FirstTokenWildcardAfter);
                                     }
                                     ret.PtrFqdnList.Add(DomainName.Parse(fqdn));
                                     ret.Settings = longest.Settings;

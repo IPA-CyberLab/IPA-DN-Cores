@@ -768,6 +768,17 @@ partial class TestDevCommands
             });
         }), enabled: true, priority: 999999)
 
+        .Add(new MicroBenchmark($"Wildcard Match", Benchmark_CountForNormal, count =>
+        {
+            Async(async () =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    Str.WildcardMatch("abc-12345-6789.example.org", "abc-12345-*.example.org");
+                }
+            });
+        }), enabled: true, priority: 999999)
+
 
         .Add(new MicroBenchmark($"Radix Trie", Benchmark_CountForNormal, count =>
         {

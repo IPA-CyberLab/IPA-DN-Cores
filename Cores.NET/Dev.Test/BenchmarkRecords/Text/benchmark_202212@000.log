@@ -605,3 +605,18 @@
 2022/12/18 20:02:57.934 +09:00 ByteToHex (New) - No Padding: 27.58 ns, 36,252,818 / sec
 2022/12/18 20:02:58.477 +09:00 ByteToHex (New) - Padding: 105.59 ns, 9,470,822 / sec
 2022/12/18 20:02:59.078 +09:00 throw Exception: 8,042.35 ns, 124,341 / sec
+2022/12/26 17:46:51.777 +09:00 ----- Start new benchmark -----
+2022/12/26 17:46:51.777 +09:00 Commit: 12a8dfbe2489bc32bbcad477417a861fc4e64b0d
+2022/12/26 17:46:51.777 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/26 17:46:51.777 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/26 17:46:51.777 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/26 17:46:51.777 +09:00 Host: PC34
+2022/12/26 17:46:53.117 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/26 17:46:53.700 +09:00 Wildcard Match: 7,401.39 ns, 135,109 / sec
+2022/12/26 17:46:54.245 +09:00 Radix Trie: 455.76 ns, 2,194,156 / sec
+2022/12/26 17:46:54.779 +09:00 ByteToHex (New) - No Padding: 28.20 ns, 35,457,748 / sec
+2022/12/26 17:46:55.320 +09:00 ByteToHex (New) - Padding: 109.60 ns, 9,123,791 / sec
+2022/12/26 17:46:55.921 +09:00 throw Exception: 8,067.71 ns, 123,950 / sec
+2022/12/26 17:46:56.453 +09:00 StartAsyncTaskAsync Normal (TaskResult): 832.19 ns, 1,201,648 / sec
+2022/12/26 17:46:56.993 +09:00 StartAsyncTaskAsync Normal (async): 909.04 ns, 1,100,059 / sec
+2022/12/26 17:46:57.536 +09:00 StartAsyncTaskAsync with Task Param: 1,433.72 ns, 697,484 / sec

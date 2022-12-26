@@ -1432,6 +1432,33 @@ namespace IPA.Cores.Basic
             return w.ToString();
         }
 
+        // ユーティリティ関数: "IP/サブネットマスク" 形式の表記かどうか検索する
+        public static bool IsIpSubnetStr(string str)
+        {
+            str = str._NonNull();
+            int i = str._Search("/");
+            if (i == -1)
+            {
+                if (IPAddress.TryParse(str, out _))
+                {
+                    return true;
+                }
+            }
+            else
+            {
+                string ip = str.Substring(0, i).Trim();
+                string mask = str.Substring(i + 1).Trim();
+                if (IPAddress.TryParse(ip, out _))
+                {
+                    if (int.TryParse(mask, out _) || IPAddress.TryParse(mask, out _))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
         // 指定されたエンコード一覧を順に試行し、最初に表現可能なエンコードを返す
         public static Encoding GetBestSuitableEncoding(string str, IEnumerable<Encoding?>? canditateList = null)
         {
