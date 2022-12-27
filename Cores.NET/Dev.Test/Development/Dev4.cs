@@ -1070,7 +1070,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
 
             this.DnsServer.DnsServer.SetCurrentDynOptions(currentDynOptions);
 
-            this.DnsServer.DnsResponder.Callback = (req) =>
+            this.DnsServer.DnsResponder.DynamicRecordCallback = (req) =>
             {
                 var config = this.Hadb.CurrentDynamicConfig;
 

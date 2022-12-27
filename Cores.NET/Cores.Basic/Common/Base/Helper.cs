@@ -2873,9 +2873,32 @@ public static class BasicHelper
     public static Task<TResult> _TaskResult<TResult>(this TResult result) => Task.FromResult(result);
     public static Task<TResult> _TR<TResult>(this TResult result) => Task.FromResult(result);
 
-    public static IOrderedEnumerable<TSource> _Shuffle<TSource>(this IEnumerable<TSource> source)
+
+    public static unsafe IEnumerable<T> _Shuffle<T>(this IEnumerable<T> sequence)
     {
-        return source.OrderBy(x => Util.RandSInt63());
+        // Tool idea from https://stackoverflow.com/questions/375351/most-efficient-way-to-randomly-sort-shuffle-a-list-of-integers-in-c-sharp but more faster
+        T[] retArray = sequence.ToArray();
+
+        Span<byte> randArray = new byte[retArray.Length * 4];
+
+        Secure.Rand(randArray);
+
+        fixed (byte* ptr = randArray)
+        {
+            for (int i = 0; i < retArray.Length - 1; i += 1)
+            {
+                uint ui = ((uint *)ptr)[i] & 0x7FFFFFFF;
+                int swapIndex = (int)ui % (retArray.Length - i) + i;
+                if (swapIndex != i)
+                {
+                    T temp = retArray[i];
+                    retArray[i] = retArray[swapIndex];
+                    retArray[swapIndex] = temp;
+                }
+            }
+        }
+
+        return retArray;
     }
 
     public static IEnumerable<string> _OnlyFilled(this IEnumerable<string> source)
@@ -2979,9 +3002,9 @@ public static class BasicHelper
         return ret;
     }
 
-    public static bool _WildcardMatch(this string targetStr, string wildcard, bool ignoreCase = false) => Str.WildcardMatch(targetStr, wildcard, ignoreCase);
+    public static bool _WildcardMatch(this string targetStr, string wildcard, bool ignoreCase = false, bool doNotUseCache = false) => Str.WildcardMatch(targetStr, wildcard, ignoreCase, doNotUseCache);
 
-    public static bool _MultipleWildcardMatch(this string targetStr, string multipleWildcard, string excludeMultipleWildcardList = "", bool ignoreCase = false) => Str.MultipleWildcardMatch(targetStr, multipleWildcard, excludeMultipleWildcardList, ignoreCase);
+    public static bool _MultipleWildcardMatch(this string targetStr, string multipleWildcard, string excludeMultipleWildcardList = "", bool ignoreCase = false, bool doNotUseCache = false) => Str.MultipleWildcardMatch(targetStr, multipleWildcard, excludeMultipleWildcardList, ignoreCase, doNotUseCache);
 
     static bool NoFixProcessObjectHandleLeak = false;
 

@@ -3070,14 +3070,17 @@ namespace IPA.Cores.Basic
         }
 
         // in-addr.arpa または ip6.arpa 形式の逆引き FQDN から IP サブネットを生成
-        public static (IPAddress, int) PtrZoneOrFqdnToIpAddressAndSubnet(string str)
+        public static (IPAddress, int) PtrZoneOrFqdnToIpAddressAndSubnet(string str, bool alreadyNormalized = false)
         {
             const string ipv4End = "in-addr.arpa";
             const string ipv6End = "ip6.arpa";
 
-            str = Str.NormalizeFqdn(str);
+            if (alreadyNormalized == false)
+            {
+                str = Str.NormalizeFqdn(str);
+            }
 
-            if (str.EndsWith(ipv4End, StringComparison.OrdinalIgnoreCase))
+            if (str.EndsWith(ipv4End, StringComparison.Ordinal))
             {
                 // IPv4
                 string tmp = str.Substring(0, str.Length - ipv4End.Length);
@@ -3100,7 +3103,7 @@ namespace IPA.Cores.Basic
 
                 return (new IPAddress(data), tokens.Length * 8);
             }
-            else if (str.EndsWith(ipv6End, StringComparison.OrdinalIgnoreCase))
+            else if (str.EndsWith(ipv6End, StringComparison.Ordinal))
             {
                 // IPv6
                 string tmp = str.Substring(0, str.Length - ipv6End.Length);

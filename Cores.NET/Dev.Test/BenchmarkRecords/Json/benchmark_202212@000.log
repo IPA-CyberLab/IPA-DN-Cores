@@ -621,3 +621,473 @@
 {"TimeStamp":"2022-12-26T17:46:56.4538532+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (TaskResult)","Ret":832.190281620869,"PerSecond":1201648},"Tag":"result"}
 {"TimeStamp":"2022-12-26T17:46:56.993328+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (async)","Ret":909.0413682307674,"PerSecond":1100059},"Tag":"result"}
 {"TimeStamp":"2022-12-26T17:46:57.5362772+09:00","Data":{"TestName":"StartAsyncTaskAsync with Task Param","Ret":1433.7242690058547,"PerSecond":697484},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:56:32.3452253+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-26T17:56:32.34524+09:00","Data":"Commit: a751e397cd170fa015493c0717548aaa7eb5be49","Tag":"text"}
+{"TimeStamp":"2022-12-26T17:56:32.3452416+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-26T17:56:32.3452428+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-26T17:56:32.3452532+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-26T17:56:32.3452549+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-26T17:56:33.6772622+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.11532750000000003,"PerSecond":8670958791},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:56:34.2175602+09:00","Data":{"TestName":"Wildcard Match","Ret":406.91039795078393,"PerSecond":2457543},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:56:34.7498464+09:00","Data":{"TestName":"Radix Trie","Ret":522.8766623370552,"PerSecond":1912496},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:56:35.2847577+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":43.548906919473026,"PerSecond":22962688},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:56:35.8189221+09:00","Data":{"TestName":"ByteToHex (New) - Padding","Ret":148.9083922686404,"PerSecond":6715538},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:56:52.4468613+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-26T17:56:52.4468771+09:00","Data":"Commit: a751e397cd170fa015493c0717548aaa7eb5be49","Tag":"text"}
+{"TimeStamp":"2022-12-26T17:56:52.4468788+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-26T17:56:52.4468806+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-26T17:56:52.4468898+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-26T17:56:52.4468918+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-26T17:56:53.7980007+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:56:54.3718878+09:00","Data":{"TestName":"Wildcard Match","Ret":7160.161012613253,"PerSecond":139661},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:56:54.914142+09:00","Data":{"TestName":"Radix Trie","Ret":427.86412611674905,"PerSecond":2337190},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:00.6540015+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-26T17:57:00.6540166+09:00","Data":"Commit: a751e397cd170fa015493c0717548aaa7eb5be49","Tag":"text"}
+{"TimeStamp":"2022-12-26T17:57:00.6540181+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-26T17:57:00.6540193+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-26T17:57:00.6540294+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-26T17:57:00.6540316+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-26T17:57:02.0098503+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:02.5331485+09:00","Data":{"TestName":"Wildcard Match","Ret":329.135015710403,"PerSecond":3038266},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:03.0771799+09:00","Data":{"TestName":"Radix Trie","Ret":432.046926284104,"PerSecond":2314563},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:03.6078398+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":29.264574587631564,"PerSecond":34171007},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:04.1452967+09:00","Data":{"TestName":"ByteToHex (New) - Padding","Ret":104.87140955088503,"PerSecond":9535487},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:04.6987802+09:00","Data":{"TestName":"throw Exception","Ret":9189.29593731846,"PerSecond":108822},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:05.230427+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (TaskResult)","Ret":826.4314469794787,"PerSecond":1210021},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:05.7651014+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (async)","Ret":1018.1544643980775,"PerSecond":982169},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:06.2974203+09:00","Data":{"TestName":"StartAsyncTaskAsync with Task Param","Ret":1469.5679640096448,"PerSecond":680472},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:08.9674224+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-26T17:57:08.9674364+09:00","Data":"Commit: a751e397cd170fa015493c0717548aaa7eb5be49","Tag":"text"}
+{"TimeStamp":"2022-12-26T17:57:08.9674388+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-26T17:57:08.96744+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-26T17:57:08.9674486+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-26T17:57:08.9674504+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-26T17:57:10.2840557+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:10.8277989+09:00","Data":{"TestName":"Wildcard Match","Ret":313.07614454945343,"PerSecond":3194111},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:11.3592848+09:00","Data":{"TestName":"Radix Trie","Ret":426.3907925539222,"PerSecond":2345266},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:11.8964995+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":34.43194696120677,"PerSecond":29042795},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:12.4310783+09:00","Data":{"TestName":"ByteToHex (New) - Padding","Ret":102.87697684256932,"PerSecond":9720347},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:13.0293369+09:00","Data":{"TestName":"throw Exception","Ret":8009.239334940443,"PerSecond":124855},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:13.5632851+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (TaskResult)","Ret":839.6533206852913,"PerSecond":1190967},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:14.1030313+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (async)","Ret":926.8266686281713,"PerSecond":1078950},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:14.6336522+09:00","Data":{"TestName":"StartAsyncTaskAsync with Task Param","Ret":1422.93803732554,"PerSecond":702771},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:15.3786154+09:00","Data":{"TestName":"DeflateStream compress 1MB Optimal","Ret":23282098.92424186,"PerSecond":42},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:15.9989278+09:00","Data":{"TestName":"DeflateStream compress 1MB Fastest","Ret":17211203.92419357,"PerSecond":58},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:16.622769+09:00","Data":{"TestName":"DeflateStream compress 1MB SmallestSize","Ret":16696033.925506722,"PerSecond":59},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:17.1660472+09:00","Data":{"TestName":"DeflateStream decompress 1MB Optimal","Ret":851328.9137224059,"PerSecond":1174},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:17.7398227+09:00","Data":{"TestName":"DeflateStream decompress 1MB Fastest","Ret":1211316.6519783847,"PerSecond":825},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:18.3067095+09:00","Data":{"TestName":"DeflateStream decompress 1MB SmallestSize","Ret":1181516.8395013334,"PerSecond":846},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:18.8493978+09:00","Data":{"TestName":"ImmutableDictionary Search 10000","Ret":153.8973924942275,"PerSecond":6497835},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:19.4303974+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":13.632453478260869,"PerSecond":73354367},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:20.0279172+09:00","Data":{"TestName":"Async call with no async func #2: Task.CompletedTask after","Ret":14.476574583333333,"PerSecond":69077114},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:20.6265881+09:00","Data":{"TestName":"Async call with no async func #3: Task.CompletedTask before","Ret":14.369515434782608,"PerSecond":69591769},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:21.1904204+09:00","Data":{"TestName":"Async call with no async func #4: Task.CompletedTask many times","Ret":27.66805956521739,"PerSecond":36142758},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:22.1187014+09:00","Data":{"TestName":"Async call with no async func #5: Task.CompletedTask many times ValueTask","Ret":63.49477,"PerSecond":15749328},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:22.9964178+09:00","Data":{"TestName":"FastTick64.Now","Ret":0.9239644999999999,"PerSecond":1082292663},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:23.7344064+09:00","Data":{"TestName":"CloneDeep_BinaryFormatter","Ret":4622481.84047533,"PerSecond":216},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:24.270287+09:00","Data":{"TestName":"CloneDeep_DeepCloner","Ret":154238.65376317917,"PerSecond":6483},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:24.7963643+09:00","Data":{"TestName":"CloneDeep_DeepCloner_cloneDeepSampleObj2","Ret":155.78458661409877,"PerSecond":6419120},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:25.3321061+09:00","Data":{"TestName":"DnsTools_Build","Ret":316.25082083164295,"PerSecond":3162047},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:25.8661176+09:00","Data":{"TestName":"DnsTools_Parse","Ret":210.85825442273895,"PerSecond":4742522},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:26.5557167+09:00","Data":{"TestName":"EvaluateAclNormal","Ret":41123.56199189825,"PerSecond":24316},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:27.0961083+09:00","Data":{"TestName":"EvaluateAclCached1","Ret":616.6850445357999,"PerSecond":1621573},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:27.6304679+09:00","Data":{"TestName":"EvaluateAclCached2","Ret":89.5937870756226,"PerSecond":11161488},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:28.1743636+09:00","Data":{"TestName":"SimpleAsyncService2","Ret":1213.5906789440812,"PerSecond":824001},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:28.7435059+09:00","Data":{"TestName":"SimpleAsynService","Ret":4684.986157360717,"PerSecond":213447},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:29.2750549+09:00","Data":{"TestName":"WpcPacket","Ret":2887.4042862224564,"PerSecond":346331},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:29.8230364+09:00","Data":{"TestName":"WpcPacket2","Ret":6722.894123454671,"PerSecond":148745},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:30.3976065+09:00","Data":{"TestName":"AsyncEvent","Ret":3448.067548277329,"PerSecond":290017},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:30.9341581+09:00","Data":{"TestName":"SyncEvent","Ret":8797.00310177513,"PerSecond":113675},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:31.4637014+09:00","Data":{"TestName":"IsSpanAllZero","Ret":151.1966078449473,"PerSecond":6613904},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:32.0017384+09:00","Data":{"TestName":"CalcCrc32ForZipEncryption","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:32.5386851+09:00","Data":{"TestName":"Sync()","Ret":0.3583557654094869,"PerSecond":2790522984},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:33.071748+09:00","Data":{"TestName":"RateLimiter","Ret":78.38247475092793,"PerSecond":12757953},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:33.6054963+09:00","Data":{"TestName":"ignore case compare string 1","Ret":12.356929517917054,"PerSecond":80926252},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:34.1418263+09:00","Data":{"TestName":"ignore case compare string 2","Ret":11.191752301434882,"PerSecond":89351512},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:34.6712743+09:00","Data":{"TestName":"isemptystr #2","Ret":3.1125936911415613,"PerSecond":321275469},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:35.2068691+09:00","Data":{"TestName":"isemptystr #1","Ret":3.2501208496763954,"PerSecond":307680866},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:35.743541+09:00","Data":{"TestName":"string CmpTrim new","Ret":34.19064625879753,"PerSecond":29247765},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:36.2781502+09:00","Data":{"TestName":"string SameTrim new","Ret":32.87451736623478,"PerSecond":30418697},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:36.8167614+09:00","Data":{"TestName":"string SameTrim old","Ret":33.72795158656546,"PerSecond":29648998},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:37.3566063+09:00","Data":{"TestName":"string test","Ret":2.966700834518397,"PerSecond":337074769},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:37.8933912+09:00","Data":{"TestName":"StringWriter","Ret":949.5464091903602,"PerSecond":1053134},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:38.4323482+09:00","Data":{"TestName":"StringBuilder","Ret":942.6720468618139,"PerSecond":1060814},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:38.970373+09:00","Data":{"TestName":"Generic Test","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:39.4983489+09:00","Data":{"TestName":"IpChecksum","Ret":4.013357120348588,"PerSecond":249167958},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:40.0352843+09:00","Data":{"TestName":"CalcIPv4Checksum","Ret":2.1177687684773723,"PerSecond":472195083},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:40.5744281+09:00","Data":{"TestName":"BuildPacket #1 - Memory","Ret":34.021129248793564,"PerSecond":29393498},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:41.1099051+09:00","Data":{"TestName":"ParsePacket #7 - 190531_vlan_pppoe_l2tp_udp","Ret":234.68100436653688,"PerSecond":4261103},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:41.6429542+09:00","Data":{"TestName":"ParsePacket #6 - 190531_vlan_pppoe_l2tp_tcp","Ret":261.6937635606265,"PerSecond":3821260},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:42.1779305+09:00","Data":{"TestName":"ParsePacket #5 - 190531_vlan_pppoe_tcp","Ret":143.7580915889015,"PerSecond":6956130},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:42.7139271+09:00","Data":{"TestName":"ParsePacket #4 - 190527_vlan_simple_udp","Ret":82.58489842710593,"PerSecond":12108751},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:43.2460176+09:00","Data":{"TestName":"ParsePacket #3 - 190527_vlan_simple_tcp","Ret":78.5149615586135,"PerSecond":12736426},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:43.7785864+09:00","Data":{"TestName":"ParsePacket #2 - 190527_novlan_simple_udp","Ret":69.29586892370388,"PerSecond":14430874},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:44.318021+09:00","Data":{"TestName":"ParsePacket #1 - 190527_novlan_simple_tcp","Ret":64.29344420715891,"PerSecond":15553685},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:45.0603671+09:00","Data":{"TestName":"Span memory copy 1600 bytes","Ret":21.376973749999998,"PerSecond":46779306},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:45.6427778+09:00","Data":{"TestName":"Span memory copy 400 bytes","Ret":5.008196608695652,"PerSecond":199672672},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:46.2140148+09:00","Data":{"TestName":"_IsZeroFastStruct","Ret":1.7228529166666666,"PerSecond":580432601},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:47.1392741+09:00","Data":{"TestName":"sizeof(T)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:48.064819+09:00","Data":{"TestName":"Util.SizeOfStruct(T)","Ret":0.02600199999999986,"PerSecond":38458580109},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:48.6844853+09:00","Data":{"TestName":"File Write Small - Cores Object - Async","Ret":8254.30090906217,"PerSecond":121148},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:49.2412088+09:00","Data":{"TestName":"File Write Small - .NET Native - Sync","Ret":5650.462657769136,"PerSecond":176976},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:49.781918+09:00","Data":{"TestName":"SingletonFastArraySlim Get","Ret":0.9982992028985505,"PerSecond":1001703694},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:50.3359026+09:00","Data":{"TestName":"SingletonFastArray Get","Ret":1.5558963333333333,"PerSecond":642716342},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:50.8946114+09:00","Data":{"TestName":"SingletonSlim Get","Ret":3.358064202898551,"PerSecond":297790613},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:51.5502342+09:00","Data":{"TestName":"Singleton2 Get","Ret":17.3615125,"PerSecond":57598668},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:52.0801732+09:00","Data":{"TestName":"Singleton1 Get","Ret":0.25766515151515157,"PerSecond":3881006003},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:52.6580842+09:00","Data":{"TestName":"New MemoryBuffer","Ret":6.4569660869565215,"PerSecond":154871496},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:53.1892106+09:00","Data":{"TestName":"MemoryBuffer Pin Lock / Unlock","Ret":76.61581973010124,"PerSecond":13052134},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:53.9804303+09:00","Data":{"TestName":"BitAny","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:54.9295766+09:00","Data":{"TestName":"Convert Enum to Long","Ret":0.05843975000000001,"PerSecond":17111640621},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:55.472175+09:00","Data":{"TestName":"IsZero - NonSparse","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:56.0094846+09:00","Data":{"TestName":"IsZero - All Zero Sparse","Ret":0.9716194228530723,"PerSecond":1029209561},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:56.5480369+09:00","Data":{"TestName":"GetSparseChunks - NonSparse","Ret":54664.56880564565,"PerSecond":18293},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:57.0851289+09:00","Data":{"TestName":"GetSparseChunks - Sparse","Ret":842514.8710925452,"PerSecond":1186},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:57.6264514+09:00","Data":{"TestName":"GetSparseChunks - All Zero Sparse","Ret":56133.42321813499,"PerSecond":17814},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:58.1612285+09:00","Data":{"TestName":"Util.Rand()","Ret":173.8118290653868,"PerSecond":5753348},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:58.701057+09:00","Data":{"TestName":"Secure.Rand()","Ret":168.18123666356283,"PerSecond":5945966},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:57:59.2390754+09:00","Data":{"TestName":"ParseEnum","Ret":43.762214959849516,"PerSecond":22850762},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:58:00.2754585+09:00","Data":{"TestName":"GetSparseChunks","Ret":7576643.878065228,"PerSecond":131},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:58:00.8217483+09:00","Data":{"TestName":"Memory Copy by Array.CopyTo (Util.CopyByte) 10,000,000 bytes","Ret":343118.51177078794,"PerSecond":2914},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:58:01.3646004+09:00","Data":{"TestName":"Memory Copy by Buffer.BlockCopy 10,000,000 bytes","Ret":332249.0849607187,"PerSecond":3009},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:58:01.9375824+09:00","Data":{"TestName":"Memory Copy by Span.CopyTo 10,000,000 bytes","Ret":321498.2121602714,"PerSecond":3110},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:58:02.5643013+09:00","Data":{"TestName":"Memory Copy by Span.ToArray 10,000,000 bytes","Ret":3469124.8892268986,"PerSecond":288},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:58:03.2713167+09:00","Data":{"TestName":"Memory Copy by Span loop 10,000,000 bytes","Ret":4369974.884219526,"PerSecond":228},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:58:03.8919236+09:00","Data":{"TestName":"Memory Fill by Array loop #1 10,000,000 bytes","Ret":3478701.8862091303,"PerSecond":287},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:58:04.5121035+09:00","Data":{"TestName":"Memory Fill by Array loop #2 10,000,000 bytes","Ret":3438076.838477244,"PerSecond":290},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:58:05.1556482+09:00","Data":{"TestName":"Memory Fill by Span Loop 10,000,000 bytes","Ret":3729971.8829469485,"PerSecond":268},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:58:05.7705581+09:00","Data":{"TestName":"Memory Fill by unsafe pointer loop 10,000,000 bytes","Ret":3391974.8866065093,"PerSecond":294},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:58:06.311905+09:00","Data":{"TestName":"Memory Fill by Span.Fill 10,000,000 bytes","Ret":190870.33829067348,"PerSecond":5239},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:58:06.8606758+09:00","Data":{"TestName":"Memory Fill by Array.Fill 10,000,000 bytes","Ret":196746.80932358853,"PerSecond":5082},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:58:07.3969843+09:00","Data":{"TestName":"CallAsyncWithAwait","Ret":26.942040661400718,"PerSecond":37116713},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:58:07.9333383+09:00","Data":{"TestName":"CallAsyncWithNonAwait","Ret":13.124964563064754,"PerSecond":76190681},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:58:08.4736895+09:00","Data":{"TestName":"Rand[16]","Ret":83.87138900196604,"PerSecond":11923017},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:58:09.0065147+09:00","Data":{"TestName":"Guid.NewGuid().ToString()","Ret":154.3018724102971,"PerSecond":6480802},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:58:09.5422344+09:00","Data":{"TestName":"Read the String_ReadOnly value","Ret":0.4618538636363636,"PerSecond":2165187040},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:58:10.0800285+09:00","Data":{"TestName":"Read the String_GetOnly value","Ret":0.5131553260869566,"PerSecond":1948727703},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:58:10.6378281+09:00","Data":{"TestName":"Read the String_Copenhagen_ReadOnly value","Ret":0.28024906178489717,"PerSecond":3568254586},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:58:11.1944673+09:00","Data":{"TestName":"Read the String_Copenhagen_GetOnly value","Ret":0.5790429166666666,"PerSecond":1726987708},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:58:12.1146108+09:00","Data":{"TestName":"Read the Int_ReadOnly value","Ret":0.006236750000000013,"PerSecond":160339920631},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:58:13.0296894+09:00","Data":{"TestName":"Read the Int_GetOnly value","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:58:13.5712646+09:00","Data":{"TestName":"Read the Int_Copenhagen_ReadOnly value","Ret":0.6658002795031055,"PerSecond":1501951907},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:58:14.1125727+09:00","Data":{"TestName":"Read the Int_Copenhagen_GetOnly value","Ret":0.5245010597826087,"PerSecond":1906573840},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:58:14.6574492+09:00","Data":{"TestName":"AsyncCallMethodFromAsyncMethod","Ret":13.530162974815402,"PerSecond":73908939},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:58:15.1941974+09:00","Data":{"TestName":"AsyncCallMethodFromSyncMethod","Ret":11.992623247284605,"PerSecond":83384592},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:58:15.7526409+09:00","Data":{"TestName":"Lock for readonly object","Ret":12.291393260869565,"PerSecond":81357741},"Tag":"result"}
+{"TimeStamp":"2022-12-26T17:58:16.3125239+09:00","Data":{"TestName":"Lock for get property object","Ret":12.684516666666667,"PerSecond":78836271},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:33:34.2252598+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:33:34.2252796+09:00","Data":"Commit: a751e397cd170fa015493c0717548aaa7eb5be49","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:33:34.2252829+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:33:34.2252848+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:33:34.2252979+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:33:34.2253014+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:33:35.5710024+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:33:36.1286627+09:00","Data":{"TestName":"Shuffle 65536","Ret":14038428.871328674,"PerSecond":71},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:33:36.6692845+09:00","Data":{"TestName":"Wildcard Match","Ret":348.5791183488081,"PerSecond":2868789},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:33:37.2044755+09:00","Data":{"TestName":"Radix Trie","Ret":435.4794344358115,"PerSecond":2296319},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:33:37.7419078+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":29.841297582112915,"PerSecond":33510607},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:33:38.28077+09:00","Data":{"TestName":"ByteToHex (New) - Padding","Ret":106.04190643202507,"PerSecond":9430234},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:33:38.8928643+09:00","Data":{"TestName":"throw Exception","Ret":8299.211235401926,"PerSecond":120493},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:33:39.4341732+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (TaskResult)","Ret":836.8209715405101,"PerSecond":1194998},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:33:39.9629203+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (async)","Ret":948.0093422031027,"PerSecond":1054841},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:33:40.4971489+09:00","Data":{"TestName":"StartAsyncTaskAsync with Task Param","Ret":1432.9389016443702,"PerSecond":697866},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:33:41.2284402+09:00","Data":{"TestName":"DeflateStream compress 1MB Optimal","Ret":22568873.87483877,"PerSecond":44},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:33:41.8453243+09:00","Data":{"TestName":"DeflateStream compress 1MB Fastest","Ret":17190333.926498085,"PerSecond":58},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:33:42.4935171+09:00","Data":{"TestName":"DeflateStream compress 1MB SmallestSize","Ret":18157783.948708944,"PerSecond":55},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:33:43.0363766+09:00","Data":{"TestName":"DeflateStream decompress 1MB Optimal","Ret":1293222.9576771471,"PerSecond":773},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:33:43.5838452+09:00","Data":{"TestName":"DeflateStream decompress 1MB Fastest","Ret":1281319.95618059,"PerSecond":780},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:33:44.1373918+09:00","Data":{"TestName":"DeflateStream decompress 1MB SmallestSize","Ret":1187901.1611628372,"PerSecond":841},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:33:44.6761912+09:00","Data":{"TestName":"ImmutableDictionary Search 10000","Ret":168.49823430189514,"PerSecond":5934780},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:33:45.2778493+09:00","Data":{"TestName":"Async call with no async func #1: Nothing","Ret":14.494989347826088,"PerSecond":68989357},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:33:45.8965421+09:00","Data":{"TestName":"Async call with no async func #2: Task.CompletedTask after","Ret":15.793199130434783,"PerSecond":63318393},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:33:46.5070265+09:00","Data":{"TestName":"Async call with no async func #3: Task.CompletedTask before","Ret":15.608357608695652,"PerSecond":64068239},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:33:47.0773527+09:00","Data":{"TestName":"Async call with no async func #4: Task.CompletedTask many times","Ret":28.318984347826085,"PerSecond":35312000},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:33:48.0635465+09:00","Data":{"TestName":"Async call with no async func #5: Task.CompletedTask many times ValueTask","Ret":68.94923791666666,"PerSecond":14503423},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:33:48.9056912+09:00","Data":{"TestName":"FastTick64.Now","Ret":0.73088375,"PerSecond":1368206640},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:33:49.6249863+09:00","Data":{"TestName":"CloneDeep_BinaryFormatter","Ret":4396007.827797765,"PerSecond":227},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:33:50.174986+09:00","Data":{"TestName":"CloneDeep_DeepCloner","Ret":180380.08252715177,"PerSecond":5543},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:33:57.9411871+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:33:57.9412014+09:00","Data":"Commit: a751e397cd170fa015493c0717548aaa7eb5be49","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:33:57.9412036+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:33:57.9412048+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:33:57.9412134+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:33:57.9412153+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:33:59.2672476+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:33:59.8249595+09:00","Data":{"TestName":"Shuffle 65536","Ret":14266118.929818975,"PerSecond":70},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:34:00.3582721+09:00","Data":{"TestName":"Wildcard Match","Ret":333.9930311092428,"PerSecond":2994074},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:34:00.8967675+09:00","Data":{"TestName":"Radix Trie","Ret":454.8369470479424,"PerSecond":2198590},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:34:01.4298088+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":29.210208896643035,"PerSecond":34234606},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:34:01.9720228+09:00","Data":{"TestName":"ByteToHex (New) - Padding","Ret":114.90056589719282,"PerSecond":8703177},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:34:02.5624599+09:00","Data":{"TestName":"throw Exception","Ret":7877.18358366473,"PerSecond":126948},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:34:03.1034455+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (TaskResult)","Ret":870.2692160156861,"PerSecond":1149069},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:34:03.6338852+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (async)","Ret":908.362135170249,"PerSecond":1100882},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:34:08.2735279+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:34:08.2735415+09:00","Data":"Commit: a751e397cd170fa015493c0717548aaa7eb5be49","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:34:08.2735436+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:34:08.2735448+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:34:08.2735555+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:34:08.2735574+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:34:09.5940026+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:34:10.1576729+09:00","Data":{"TestName":"Shuffle 65536","Ret":14040203.927361326,"PerSecond":71},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:34:10.692233+09:00","Data":{"TestName":"Wildcard Match","Ret":330.02563385324765,"PerSecond":3030067},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:34:11.2255239+09:00","Data":{"TestName":"Radix Trie","Ret":457.00105204605876,"PerSecond":2188178},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:34:11.764307+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":28.521749821885084,"PerSecond":35060962},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:34:12.2949262+09:00","Data":{"TestName":"ByteToHex (New) - Padding","Ret":114.25945231972516,"PerSecond":8752011},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:34:12.8822773+09:00","Data":{"TestName":"throw Exception","Ret":7773.714902267653,"PerSecond":128638},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:34:13.4086663+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (TaskResult)","Ret":794.5599192507158,"PerSecond":1258558},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:34:13.9435768+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (async)","Ret":983.4014321501537,"PerSecond":1016878},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:34:14.4751408+09:00","Data":{"TestName":"StartAsyncTaskAsync with Task Param","Ret":1700.8629841378063,"PerSecond":587936},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:34:15.0156387+09:00","Data":{"TestName":"DeflateStream compress 1MB Optimal","Ret":25934178.953531295,"PerSecond":38},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:34:15.6978997+09:00","Data":{"TestName":"DeflateStream compress 1MB Fastest","Ret":19309998.95426222,"PerSecond":51},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:34:16.3413041+09:00","Data":{"TestName":"DeflateStream compress 1MB SmallestSize","Ret":18072293.942584883,"PerSecond":55},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:34:16.8840449+09:00","Data":{"TestName":"DeflateStream decompress 1MB Optimal","Ret":1165638.9277443998,"PerSecond":857},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:34:17.4218216+09:00","Data":{"TestName":"DeflateStream decompress 1MB Fastest","Ret":1181573.9244274183,"PerSecond":846},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:34:17.9621019+09:00","Data":{"TestName":"DeflateStream decompress 1MB SmallestSize","Ret":1140009.7987318258,"PerSecond":877},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:34:18.5009334+09:00","Data":{"TestName":"ImmutableDictionary Search 10000","Ret":165.7293912737393,"PerSecond":6033932},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:34:29.1591352+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:34:29.1591485+09:00","Data":"Commit: a751e397cd170fa015493c0717548aaa7eb5be49","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:34:29.1591506+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:34:29.1591518+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:34:29.1591603+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:34:29.1591621+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:34:30.4989073+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:34:32.3952949+09:00","Data":{"TestName":"Shuffle 65536","Ret":161489248.9200259,"PerSecond":6},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:34:32.9312695+09:00","Data":{"TestName":"Wildcard Match","Ret":364.8367328619471,"PerSecond":2740952},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:34:33.4768054+09:00","Data":{"TestName":"Radix Trie","Ret":517.6016658437251,"PerSecond":1931987},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:41:07.5711481+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:41:07.5711618+09:00","Data":"Commit: a751e397cd170fa015493c0717548aaa7eb5be49","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:41:07.5711642+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:41:07.5711653+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:41:07.5711751+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:41:07.5711769+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:41:08.8890831+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:41:11.032349+09:00","Data":{"TestName":"Shuffle 65536","Ret":185419088.88690355,"PerSecond":5},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:41:11.5659916+09:00","Data":{"TestName":"Wildcard Match","Ret":329.64007448852453,"PerSecond":3033611},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:41:12.0995785+09:00","Data":{"TestName":"Radix Trie","Ret":449.36820055987886,"PerSecond":2225346},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:41:12.639304+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":28.016802999013972,"PerSecond":35692866},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:41:13.1808632+09:00","Data":{"TestName":"ByteToHex (New) - Padding","Ret":115.42259689389472,"PerSecond":8663814},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:41:19.7220833+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:41:19.7220972+09:00","Data":"Commit: a751e397cd170fa015493c0717548aaa7eb5be49","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:41:19.7220994+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:41:19.7221006+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:41:19.7221097+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:41:19.7221114+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:41:21.0500179+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:41:21.6200749+09:00","Data":{"TestName":"Shuffle 65536","Ret":14282323.920298416,"PerSecond":70},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:41:22.1571215+09:00","Data":{"TestName":"Wildcard Match","Ret":327.43695123830486,"PerSecond":3054023},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:41:34.8829082+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:41:34.8829216+09:00","Data":"Commit: a751e397cd170fa015493c0717548aaa7eb5be49","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:41:34.8829231+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:41:34.882925+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:41:34.8829335+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:41:34.8829353+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:41:36.1947576+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:41:36.7462861+09:00","Data":{"TestName":"Shuffle 65536","Ret":13298423.879008317,"PerSecond":75},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:41:37.2853893+09:00","Data":{"TestName":"Wildcard Match","Ret":372.8546623149069,"PerSecond":2682010},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:41:37.8134342+09:00","Data":{"TestName":"Radix Trie","Ret":433.98407171232105,"PerSecond":2304232},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:41:38.3511257+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":31.079364868630876,"PerSecond":32175689},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:41:46.3063776+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:41:46.3063938+09:00","Data":"Commit: a751e397cd170fa015493c0717548aaa7eb5be49","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:41:46.3063956+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:41:46.3063974+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:41:46.3064063+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:41:46.3064081+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-26T21:41:47.3879366+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:41:47.9498411+09:00","Data":{"TestName":"Shuffle 65536","Ret":14017998.919091005,"PerSecond":71},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:41:48.4767631+09:00","Data":{"TestName":"Wildcard Match","Ret":342.47654232451464,"PerSecond":2919908},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:41:49.0129078+09:00","Data":{"TestName":"Radix Trie","Ret":504.91048644930174,"PerSecond":1980549},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:41:49.5484351+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":28.270576172740725,"PerSecond":35372466},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:41:50.0816652+09:00","Data":{"TestName":"ByteToHex (New) - Padding","Ret":103.69363742617556,"PerSecond":9643793},"Tag":"result"}
+{"TimeStamp":"2022-12-26T21:41:50.6759821+09:00","Data":{"TestName":"throw Exception","Ret":7945.602949354951,"PerSecond":125855},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:23:48.5178682+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:23:48.5178849+09:00","Data":"Commit: a751e397cd170fa015493c0717548aaa7eb5be49","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:23:48.5178876+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:23:48.5178888+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:23:48.5178994+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:23:48.5179014+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:23:49.837828+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:23:50.3807285+09:00","Data":{"TestName":"Shuffle 65536","Ret":13379543.873489492,"PerSecond":74},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:23:50.9311889+09:00","Data":{"TestName":"Wildcard Match","Ret":315.72293918292075,"PerSecond":3167334},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:23:51.4685359+09:00","Data":{"TestName":"Radix Trie","Ret":442.54610946780514,"PerSecond":2259651},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:23:51.998475+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":33.131886087256085,"PerSecond":30182404},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:23:52.5320729+09:00","Data":{"TestName":"ByteToHex (New) - Padding","Ret":107.86367306821592,"PerSecond":9270961},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:23:53.1328859+09:00","Data":{"TestName":"throw Exception","Ret":8207.872072898032,"PerSecond":121834},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:23:55.7278672+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (TaskResult)","Ret":782.3656018633949,"PerSecond":1278174},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:23:56.2725622+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (async)","Ret":925.4476360484385,"PerSecond":1080558},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:23:56.8118485+09:00","Data":{"TestName":"StartAsyncTaskAsync with Task Param","Ret":1372.4071309765545,"PerSecond":728646},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:28:58.8687163+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:28:58.8687331+09:00","Data":"Commit: a751e397cd170fa015493c0717548aaa7eb5be49","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:28:58.8687348+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:28:58.8687363+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:28:58.8687491+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:28:58.868751+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:29:00.2186003+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.08157175000000016,"PerSecond":12259146089},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:31:04.8339882+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:31:04.8340027+09:00","Data":"Commit: a751e397cd170fa015493c0717548aaa7eb5be49","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:31:04.8340043+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:31:04.8340055+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:31:04.8340142+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:31:04.8340163+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:31:05.9220568+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:31:06.4740113+09:00","Data":{"TestName":"Shuffle 65536","Ret":756562.4478586417,"PerSecond":1321},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:31:07.0122642+09:00","Data":{"TestName":"Wildcard Match","Ret":343.5611009140142,"PerSecond":2910690},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:31:07.5469628+09:00","Data":{"TestName":"Radix Trie","Ret":464.91666319583004,"PerSecond":2150923},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:31:08.0859924+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":27.933408469082643,"PerSecond":35799426},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:31:08.6216601+09:00","Data":{"TestName":"ByteToHex (New) - Padding","Ret":104.5839952609359,"PerSecond":9561692},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:31:10.20271+09:00","Data":{"TestName":"throw Exception","Ret":8310.397339897108,"PerSecond":120331},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:31:10.7372234+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (TaskResult)","Ret":794.0532946059877,"PerSecond":1259361},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:31:11.2742518+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (async)","Ret":903.4788642969995,"PerSecond":1106832},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:31:11.8135031+09:00","Data":{"TestName":"StartAsyncTaskAsync with Task Param","Ret":1411.086784525013,"PerSecond":708673},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:31:12.5614589+09:00","Data":{"TestName":"DeflateStream compress 1MB Optimal","Ret":23373888.918479793,"PerSecond":42},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:31:13.1891259+09:00","Data":{"TestName":"DeflateStream compress 1MB Fastest","Ret":16776863.920308132,"PerSecond":59},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:31:13.812829+09:00","Data":{"TestName":"DeflateStream compress 1MB SmallestSize","Ret":17088978.876894508,"PerSecond":58},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:31:51.343464+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:31:51.3434783+09:00","Data":"Commit: a751e397cd170fa015493c0717548aaa7eb5be49","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:31:51.3434798+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:31:51.3434817+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:31:51.3434912+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:31:51.343493+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:31:52.6696905+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:31:53.2222805+09:00","Data":{"TestName":"Shuffle 65536","Ret":696356.7107735942,"PerSecond":1436},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:31:53.76094+09:00","Data":{"TestName":"Wildcard Match","Ret":332.105910816721,"PerSecond":3011087},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:31:54.3006858+09:00","Data":{"TestName":"Radix Trie","Ret":439.5878866384337,"PerSecond":2274857},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:31:54.8365782+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":29.571694962782367,"PerSecond":33816120},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:33:10.6309718+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:33:10.6309878+09:00","Data":"Commit: a751e397cd170fa015493c0717548aaa7eb5be49","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:33:10.6309894+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:33:10.6309914+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:33:10.6310004+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:33:10.6310021+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:33:11.7192509+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:33:12.2784104+09:00","Data":{"TestName":"Shuffle 65536","Ret":5565442.918851851,"PerSecond":179},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:33:12.8156731+09:00","Data":{"TestName":"Wildcard Match","Ret":328.95393149370426,"PerSecond":3039939},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:33:13.3684227+09:00","Data":{"TestName":"Radix Trie","Ret":438.12073796079306,"PerSecond":2282475},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:33:13.8989373+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":28.161418829955803,"PerSecond":35509574},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:33:14.439764+09:00","Data":{"TestName":"ByteToHex (New) - Padding","Ret":104.99786312949185,"PerSecond":9524003},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:33:15.0465952+09:00","Data":{"TestName":"throw Exception","Ret":8151.418342118907,"PerSecond":122678},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:33:15.5874508+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (TaskResult)","Ret":809.6218587442685,"PerSecond":1235144},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:33:16.1290361+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (async)","Ret":902.6494843948614,"PerSecond":1107849},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:33:16.6639513+09:00","Data":{"TestName":"StartAsyncTaskAsync with Task Param","Ret":1417.9689317940085,"PerSecond":705234},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:33:17.3989012+09:00","Data":{"TestName":"DeflateStream compress 1MB Optimal","Ret":22979713.91977857,"PerSecond":43},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:33:18.0116983+09:00","Data":{"TestName":"DeflateStream compress 1MB Fastest","Ret":16361933.923297226,"PerSecond":61},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:33:18.6274413+09:00","Data":{"TestName":"DeflateStream compress 1MB SmallestSize","Ret":16614048.884801922,"PerSecond":60},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:33:19.1803632+09:00","Data":{"TestName":"DeflateStream decompress 1MB Optimal","Ret":1077426.1235839466,"PerSecond":928},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:33:19.7160213+09:00","Data":{"TestName":"DeflateStream decompress 1MB Fastest","Ret":1161532.7852690197,"PerSecond":860},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:33:20.25909+09:00","Data":{"TestName":"DeflateStream decompress 1MB SmallestSize","Ret":1127060.1715397316,"PerSecond":887},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:33:20.8042381+09:00","Data":{"TestName":"ImmutableDictionary Search 10000","Ret":153.19808472165562,"PerSecond":6527496},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:33:35.0453009+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:33:35.0453154+09:00","Data":"Commit: a751e397cd170fa015493c0717548aaa7eb5be49","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:33:35.0453178+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:33:35.045319+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:33:35.0453288+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:33:35.0453308+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:33:36.3915546+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:33:36.9460926+09:00","Data":{"TestName":"Shuffle 65536","Ret":650634.9655030724,"PerSecond":1536},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:33:37.4794618+09:00","Data":{"TestName":"Wildcard Match","Ret":354.1173349489128,"PerSecond":2823922},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:34:16.7662816+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:34:16.7662957+09:00","Data":"Commit: a751e397cd170fa015493c0717548aaa7eb5be49","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:34:16.7662971+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:34:16.7662982+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:34:16.7663071+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:34:16.7663092+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:34:17.854016+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:34:18.4054093+09:00","Data":{"TestName":"Shuffle 65536","Ret":8865142.252611902,"PerSecond":112},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:34:18.9456718+09:00","Data":{"TestName":"Wildcard Match","Ret":353.89091821784405,"PerSecond":2825729},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:34:40.8360642+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:34:40.836078+09:00","Data":"Commit: a751e397cd170fa015493c0717548aaa7eb5be49","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:34:40.8360804+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:34:40.8360815+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:34:40.83609+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:34:40.8360918+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:34:41.9206142+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:34:42.4764741+09:00","Data":{"TestName":"Shuffle 65536","Ret":9318282.252039585,"PerSecond":107},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:34:43.0156383+09:00","Data":{"TestName":"Wildcard Match","Ret":353.53812284969365,"PerSecond":2828549},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:35:15.235174+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:35:15.2351886+09:00","Data":"Commit: a751e397cd170fa015493c0717548aaa7eb5be49","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:35:15.2351901+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:35:15.2351913+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:35:15.2352004+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:35:15.2352025+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:35:16.3227314+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:35:16.8671191+09:00","Data":{"TestName":"Shuffle 65536","Ret":692177.3256668056,"PerSecond":1444},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:35:17.397683+09:00","Data":{"TestName":"Wildcard Match","Ret":335.76839390288524,"PerSecond":2978243},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:37:17.0203395+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:37:17.0203541+09:00","Data":"Commit: a751e397cd170fa015493c0717548aaa7eb5be49","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:37:17.0203556+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:37:17.0203567+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:37:17.0203659+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:37:17.020368+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:37:18.3329397+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:37:18.8758548+09:00","Data":{"TestName":"Shuffle 65536","Ret":662608.156672921,"PerSecond":1509},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:39:49.760539+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:39:49.7605528+09:00","Data":"Commit: a751e397cd170fa015493c0717548aaa7eb5be49","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:39:49.7605543+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:39:49.760556+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:39:49.7605654+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:39:49.7605671+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:39:51.0931812+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:39:51.6353481+09:00","Data":{"TestName":"Shuffle 65536","Ret":482032.7559766497,"PerSecond":2074},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:39:52.1833682+09:00","Data":{"TestName":"Wildcard Match","Ret":342.2138670390418,"PerSecond":2922149},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:39:52.7221209+09:00","Data":{"TestName":"Radix Trie","Ret":445.69770625342903,"PerSecond":2243673},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:39:53.2501429+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":28.977536088322587,"PerSecond":34509490},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:39:53.791123+09:00","Data":{"TestName":"ByteToHex (New) - Padding","Ret":106.28668282524968,"PerSecond":9408516},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:39:54.4002626+09:00","Data":{"TestName":"throw Exception","Ret":8183.2055801872675,"PerSecond":122201},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:40:16.2676469+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:40:16.2676606+09:00","Data":"Commit: a751e397cd170fa015493c0717548aaa7eb5be49","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:40:16.2676626+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:40:16.2676637+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:40:16.2676722+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:40:16.267674+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:40:17.5837193+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:40:18.1306311+09:00","Data":{"TestName":"Shuffle 65536","Ret":592729.092094739,"PerSecond":1687},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:40:18.6725859+09:00","Data":{"TestName":"Wildcard Match","Ret":341.166809773419,"PerSecond":2931117},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:40:19.1983197+09:00","Data":{"TestName":"Radix Trie","Ret":442.46434438042684,"PerSecond":2260069},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:40:19.737448+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":28.21106836267093,"PerSecond":35447080},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:45:47.2426621+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:45:47.242676+09:00","Data":"Commit: a751e397cd170fa015493c0717548aaa7eb5be49","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:45:47.2426782+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:45:47.2426794+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:45:47.242688+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:45:47.2426898+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:45:48.3304004+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:45:48.8657781+09:00","Data":{"TestName":"Shuffle 65536","Ret":603833.6913692896,"PerSecond":1656},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:45:49.399896+09:00","Data":{"TestName":"Wildcard Match","Ret":359.2717269605494,"PerSecond":2783408},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:45:49.9373167+09:00","Data":{"TestName":"Radix Trie","Ret":465.3305417694302,"PerSecond":2149010},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:45:50.4718501+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":29.014634841726036,"PerSecond":34465365},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:45:51.0093031+09:00","Data":{"TestName":"ByteToHex (New) - Padding","Ret":106.52417972117553,"PerSecond":9387540},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:45:52.2131014+09:00","Data":{"TestName":"throw Exception","Ret":8047.390735887535,"PerSecond":124263},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:45:56.8505084+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:45:56.8505243+09:00","Data":"Commit: a751e397cd170fa015493c0717548aaa7eb5be49","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:45:56.850526+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:45:56.8505272+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:45:56.8505357+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:45:56.8505381+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:45:58.1647819+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:45:58.717202+09:00","Data":{"TestName":"Shuffle 65536","Ret":576458.922578556,"PerSecond":1734},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:45:59.2466886+09:00","Data":{"TestName":"Wildcard Match","Ret":334.983772455306,"PerSecond":2985219},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:48:23.6909841+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:48:23.6909985+09:00","Data":"Commit: a751e397cd170fa015493c0717548aaa7eb5be49","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:48:23.6910011+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:48:23.6910023+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:48:23.691013+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:48:23.6910148+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:48:24.7773094+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:48:25.3076451+09:00","Data":{"TestName":"Shuffle 65536","Ret":519370.75404901383,"PerSecond":1925},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:48:25.8383813+09:00","Data":{"TestName":"Wildcard Match","Ret":335.9994718383083,"PerSecond":2976195},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:48:26.373669+09:00","Data":{"TestName":"Radix Trie","Ret":460.5124267560889,"PerSecond":2171494},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:48:26.9041076+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":28.410964343215017,"PerSecond":35197678},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:48:27.459263+09:00","Data":{"TestName":"ByteToHex (New) - Padding","Ret":104.755954749609,"PerSecond":9545996},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:48:28.0528288+09:00","Data":{"TestName":"throw Exception","Ret":7905.809354233889,"PerSecond":126489},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:48:28.5943646+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (TaskResult)","Ret":807.7465744875605,"PerSecond":1238012},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:48:29.8395231+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (async)","Ret":914.115227282811,"PerSecond":1093953},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:48:34.411668+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:48:34.4116817+09:00","Data":"Commit: a751e397cd170fa015493c0717548aaa7eb5be49","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:48:34.4116831+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:48:34.4116843+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:48:34.4116939+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:48:34.4116973+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-27T09:48:35.7337391+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:48:36.2769496+09:00","Data":{"TestName":"Shuffle 65536","Ret":483455.4006850132,"PerSecond":2068},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:48:36.8023936+09:00","Data":{"TestName":"Wildcard Match","Ret":333.1035825279718,"PerSecond":3002069},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:48:37.3301923+09:00","Data":{"TestName":"Radix Trie","Ret":450.9610031665054,"PerSecond":2217486},"Tag":"result"}
+{"TimeStamp":"2022-12-27T09:48:37.86765+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":27.733139025675946,"PerSecond":36057944},"Tag":"result"}

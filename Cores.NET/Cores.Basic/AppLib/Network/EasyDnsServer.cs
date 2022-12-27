@@ -255,6 +255,13 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
                 return q;
             }
 
+            if (searchResponse.RaiseCustomError != ReturnCode.NoError)
+            {
+                // カスタムエラー
+                q.ReturnCode = searchResponse.RaiseCustomError;
+                return q;
+            }
+
             if (searchResponse.ResultFlags.Bit(EasyDnsResponder.SearchResultFlags.NotFound) || searchResponse.RecordList == null)
             {
                 // レコード不存在

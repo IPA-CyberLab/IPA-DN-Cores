@@ -768,6 +768,24 @@ partial class TestDevCommands
             });
         }), enabled: true, priority: 999999)
 
+        .Add(new MicroBenchmark($"Shuffle 65536", Benchmark_CountForVerySlow, count =>
+        {
+            Async(async () =>
+            {
+                for (int c = 0; c < count; c++)
+                {
+                    List<ushort> tmp = new List<ushort>();
+                    for (int i = 0; i < 65536; i++)
+                    {
+                        ushort us = (ushort)i;
+                        tmp.Add(us);
+                    }
+                    tmp = tmp._Shuffle().ToList();
+
+                }
+            });
+        }), enabled: true, priority: 999999)
+
         .Add(new MicroBenchmark($"Wildcard Match", Benchmark_CountForNormal, count =>
         {
             Async(async () =>

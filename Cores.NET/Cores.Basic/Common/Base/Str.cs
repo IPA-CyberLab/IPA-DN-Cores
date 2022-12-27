@@ -53,6 +53,14 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic
 {
+    public static partial class CoresConfig
+    {
+        public static partial class String
+        {
+            public static readonly Copenhagen<int> CachedWildcardObjectsExpires = 10 * 1000; // ワイルドカードオブジェクトキャッシュ有効期限
+        }
+    }
+
     [Flags]
     public enum FullTextSearchFlags : long
     {
@@ -2035,7 +2043,7 @@ namespace IPA.Cores.Basic
         }
 
         // 複数のワイルドカードパターンにある文字列が一致するかどうか検査
-        public static bool MultipleWildcardMatch(string targetStr, string multipleWildcardList, string excludeMultipleWildcardList, bool ignoreCase = false)
+        public static bool MultipleWildcardMatch(string targetStr, string multipleWildcardList, string excludeMultipleWildcardList, bool ignoreCase = false, bool doNotUseCache = false)
         {
             targetStr = targetStr._NonNull();
             multipleWildcardList = multipleWildcardList._NonNull();
@@ -2049,7 +2057,7 @@ namespace IPA.Cores.Basic
 
             foreach (string exclude in excludeList)
             {
-                if (WildcardMatch(targetStr, exclude, ignoreCase))
+                if (WildcardMatch(targetStr, exclude, ignoreCase, doNotUseCache))
                 {
                     return false;
                 }
@@ -2057,7 +2065,7 @@ namespace IPA.Cores.Basic
 
             foreach (string wildcard in wildcardList)
             {
-                if (WildcardMatch(targetStr, wildcard, ignoreCase))
+                if (WildcardMatch(targetStr, wildcard, ignoreCase, doNotUseCache))
                 {
                     return true;
                 }
@@ -2065,11 +2073,13 @@ namespace IPA.Cores.Basic
 
             return false;
         }
-        public static bool MultipleWildcardMatch(string targetStr, string multipleWildcard, bool ignoreCase = false)
-            => MultipleWildcardMatch(targetStr, multipleWildcard, "", ignoreCase);
+        public static bool MultipleWildcardMatch(string targetStr, string multipleWildcard, bool ignoreCase = false, bool doNotUseCache = false)
+            => MultipleWildcardMatch(targetStr, multipleWildcard, "", ignoreCase, doNotUseCache);
+
+        static FastCache<string, Regex> WildcardObjectCache = new FastCache<string, Regex>(CoresConfig.String.CachedWildcardObjectsExpires, 0, CacheType.UpdateExpiresWhenAccess);
 
         // ワイルドカード一致検査
-        public static bool WildcardMatch(string targetStr, string wildcard, bool ignoreCase = false)
+        public static bool WildcardMatch(string targetStr, string wildcard, bool ignoreCase = false, bool doNotUseCache = false)
         {
             if (wildcard._IsEmpty()) return false;
 
@@ -2081,11 +2091,27 @@ namespace IPA.Cores.Basic
 
             try
             {
-                string pattern = WildcardToRegex(wildcard);
-
-                if (new Regex(pattern).IsMatch(targetStr))
+                if (doNotUseCache)
                 {
-                    return true;
+                    string pattern = WildcardToRegex(wildcard);
+
+                    if (new Regex(pattern).IsMatch(targetStr))
+                    {
+                        return true;
+                    }
+                }
+                else
+                {
+                    Regex? r = WildcardObjectCache.GetOrCreate(wildcard, wc =>
+                    {
+                        string pattern = WildcardToRegex(wc);
+                        return new Regex(pattern);
+                    });
+
+                    if (r != null)
+                    {
+                        return r.IsMatch(targetStr);
+                    }
                 }
 
                 return false;
@@ -8765,7 +8791,7 @@ namespace IPA.Cores.Basic
             {
                 return true;
             }
-            if (normalizedSubDomain.EndsWith("." + normalizedParentDomain, StringComparison.OrdinalIgnoreCase))
+            if (normalizedSubDomain.EndsWith("." + normalizedParentDomain, StringComparison.Ordinal))
             {
                 return true;
             }

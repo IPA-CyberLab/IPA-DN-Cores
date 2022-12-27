@@ -1323,7 +1323,7 @@ SRV _ldap._tcp.abc 0 100 123 ldap_server.your_company.net
                 .OrderByDescending(x => x.Length).ToArray();
         }
 
-        this.DnsServer.DnsResponder.Callback = (req) =>
+        this.DnsServer.DnsResponder.DynamicRecordCallback = (req) =>
         {
             var config = this.Hadb.CurrentDynamicConfig;
 

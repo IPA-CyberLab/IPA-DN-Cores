@@ -1753,7 +1753,7 @@ public class DnsHostNameScanner : AsyncService
     {
         if (Started.IsFirstCall() == false) throw new CoresException("Already started.");
 
-        var ipList = targetIpAddressList.Select(x => x._ToIPAddress(noExceptionAndReturnNull: true)).Where(x => x != null).Distinct().OrderBy(x => x, IpComparer.Comparer);
+        IEnumerable<IPAddress?> ipList = targetIpAddressList.Select(x => x._ToIPAddress(noExceptionAndReturnNull: true)).Where(x => x != null).Distinct().OrderBy(x => x, IpComparer.Comparer);
 
         if (this.Settings.Shuffle) ipList = ipList._Shuffle();
 

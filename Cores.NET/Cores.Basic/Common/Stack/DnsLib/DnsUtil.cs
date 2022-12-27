@@ -661,6 +661,8 @@ public class EasyDnsResponderForwarder
 
     public string TargetServers { get; set; } = "";     // ターゲットの DNS サーバー一覧
 
+    public string CallbackId { get; set; } = "";
+
     public int TimeoutMsecs { get; set; } = CoresConfig.EasyDnsResponderSettings.Default_ForwarderTimeoutMsecs;
 }
 
@@ -722,10 +724,79 @@ public class EasyDnsResponderDynamicRecordCallbackResult
     public bool NotFound { get; set; } // 発見されず
 }
 
+// フォワーダのコールバック関数に渡されるリクエストデータ
+public class EasyDnsResponderForwarderCallbackRequest
+{
+    public string RequestFqdn { init; get; } = null!;
+    public string CallbackId { init; get; } = null!;
+    public DnsUdpPacket? OriginalRequestPacket { init; get; } = null;
+    public EasyDnsResponderForwarder ForwarderDef { init; get; } = null!;
+    public EasyDnsResponder.Forwarder ForwarderInternal { init; get; } = null!;
+}
+
+// フォワーダのコールバック関数から返却されるべきデータ
+public class EasyDnsResponderForwarderCallbackResult
+{
+    public bool SkipForwarder { get; set; } = false;
+    public ReturnCode ErrorCode { get; set; } = ReturnCode.NoError;
+    public DnsMessageBase? ModifiedDnsMessage { get; set; } = null;
+}
+
 public class EasyDnsResponder
 {
+    FwdTranslateEntry[] FwdTranslateTable = new FwdTranslateEntry[65536];
+    ushort[] FwdTranslateIdSeed = new ushort[65536];
+    int FwdTranslateIdSeedPos = 0;
+
+    public EasyDnsResponder()
+    {
+    }
+
+    void FwdRandomizeTranslateIdSeedCritical()
+    {
+        List<ushort> tmp = new List<ushort>();
+        for (int i = 0; i < 65536; i++)
+        {
+            ushort us = (ushort)i;
+            tmp.Add(us);
+        }
+        tmp = tmp._Shuffle().ToList();
+
+        tmp.CopyTo(FwdTranslateIdSeed);
+    }
+
+    int FwdGetNextTranslateIdCritical()
+    {
+        for (int i = 0; i < 65536 * 2; i++)
+        {
+            ushort candidate = FwdGetNextTranslateIdCandidateCritical();
+
+            if (FwdTranslateTable[candidate] == null)
+            {
+                return candidate;
+            }
+        }
+        return -1;
+    }
+
+    ushort FwdGetNextTranslateIdCandidateCritical()
+    {
+        ushort ret = 0;
+        ret = FwdTranslateIdSeed[FwdTranslateIdSeedPos];
+        FwdTranslateIdSeedPos++;
+        if (FwdTranslateIdSeedPos >= 65536)
+        {
+            FwdRandomizeTranslateIdSeedCritical();
+            FwdTranslateIdSeedPos = 0;
+        }
+        return ret;
+    }
+
     // ダイナミックレコードのコールバック関数
-    public Func<EasyDnsResponderDynamicRecordCallbackRequest, EasyDnsResponderDynamicRecordCallbackResult?>? Callback { get; set; }
+    public Func<EasyDnsResponderDynamicRecordCallbackRequest, EasyDnsResponderDynamicRecordCallbackResult?>? DynamicRecordCallback { get; set; }
+
+    // フォワーダのコールバック関数
+    public Func<EasyDnsResponderForwarderCallbackRequest, EasyDnsResponderForwarderCallbackResult>? ForwarderCallback { get; set; }
 
     // 内部データセット
     public class Record_A : Record
@@ -1320,7 +1391,9 @@ public class EasyDnsResponder
         public IPAddress Subnet_SubnetMask = IPAddress.Broadcast;
         public int Subnet_SubnetLength = 32;
         public int TimeoutMsecs;
+        public string CallbackId = "";
         public List<IPEndPoint> TargetServersList = new List<IPEndPoint>();
+        public EasyDnsResponderForwarder Src;
 
         public Forwarder(DataSet parent, EasyDnsResponderForwarder src)
         {
@@ -1374,6 +1447,9 @@ public class EasyDnsResponder
                     }
                 }
             }
+
+            this.CallbackId = src.CallbackId._NonNull();
+            this.Src = src._CloneDeep();
         }
     }
 
@@ -1774,12 +1850,12 @@ public class EasyDnsResponder
         public StrDictionary<Zone> ZoneDict = new StrDictionary<Zone>();
         public EasyDnsResponderRecordSettings Settings;
 
-        public StrDictionary<Forwarder> DomainForwarderDict = new StrDictionary<Forwarder>();
-        public FullRoute46<Forwarder> SubnetForwarderFullRoute = new FullRoute46<Forwarder>();
-        public List<Forwarder> WildcardForwarderList = new List<Forwarder>();
-        public bool Has_DomainForwarderDict = false;
-        public bool Has_SubnetForwarderFullRoute = false;
-        public bool Has_WildcardForwarderList = false;
+        public StrDictionary<Forwarder> Forwarder_DomainBasedDict = new StrDictionary<Forwarder>();
+        public FullRoute46<Forwarder> Forwarder_SubnetBasedRadixTrie = new FullRoute46<Forwarder>();
+        public List<Forwarder> Forwarder_WildcardBasedList = new List<Forwarder>();
+        public bool HasForwarder_DomainBased = false;
+        public bool HasForwarder_SubnetBased = false;
+        public bool HasForwarder_WildcardBased = false;
 
         // Settings からコンパイルする
         public DataSet(EasyDnsResponderSettings src)
@@ -1803,23 +1879,26 @@ public class EasyDnsResponder
                 {
                     case ForwarderType.DomainName:
                         // ドメイン名に基づくフォワーダ
-                        this.DomainForwarderDict.Add(forwarder.DomainFqdn, forwarder);
-                        this.Has_DomainForwarderDict = true;
+                        this.Forwarder_DomainBasedDict.Add(forwarder.DomainFqdn, forwarder);
+                        this.HasForwarder_DomainBased = true;
                         break;
 
                     case ForwarderType.Subnet:
                         // サブネットに基づくフォワーダ
-                        this.SubnetForwarderFullRoute.Insert(forwarder.Subnet_IpNetwork, forwarder.Subnet_SubnetLength, forwarder);
-                        this.Has_SubnetForwarderFullRoute = true;
+                        this.Forwarder_SubnetBasedRadixTrie.Insert(forwarder.Subnet_IpNetwork, forwarder.Subnet_SubnetLength, forwarder);
+                        this.HasForwarder_SubnetBased = true;
                         break;
 
                     case ForwarderType.WildcardFqdn:
                         // ワイルドカード文字列に基づくフォワーダ
-                        this.WildcardForwarderList.Add(forwarder);
-                        this.Has_WildcardForwarderList = true;
+                        this.Forwarder_WildcardBasedList.Add(forwarder);
+                        this.HasForwarder_WildcardBased = true;
                         break;
                 }
             }
+
+            // ワイルドカード文字列に基づくフォワーダは文字列長が長い順にソートする
+            this.Forwarder_WildcardBasedList._DoSortBy(x => x.OrderByDescending(y => y.WildcardFqdn.Length).ThenByDescending(y => y.WildcardFqdn));
         }
 
         // クエリ検索
@@ -1866,6 +1945,15 @@ public class EasyDnsResponder
         public Record_SOA SOARecord { get; set; } = null!;
         [JsonConverter(typeof(StringEnumConverter))]
         public SearchResultFlags ResultFlags { get; set; } = SearchResultFlags.NormalAnswer;
+        public ReturnCode RaiseCustomError { get; set; } = ReturnCode.NoError;
+    }
+
+    // フォワーダ変換テーブル
+    public class FwdTranslateEntry
+    {
+        public IPEndPoint ForwarderEndPoint = null!;
+        public IPEndPoint TargetEndPoint = null!;
+        public long ExpiresTick;
     }
 
     DataSet? CurrentDataSet = null;
@@ -1882,8 +1970,105 @@ public class EasyDnsResponder
         var dataSet = this.CurrentDataSet;
         if (dataSet == null)
         {
-            throw new CoresException("Current DNS Server Data Set is not loaded.");
+            throw new CoresException("Current DNS Server Data Set is not loaded");
         }
+
+        // 最初に一致するフォワーダがあるかどうか調べる。
+        // フォワーダは最優先で使用される。
+        if (dataSet.HasForwarder_DomainBased || dataSet.HasForwarder_SubnetBased || dataSet.HasForwarder_WildcardBased)
+        {
+            Forwarder? forwarder = null;
+
+            // ワイルドカードベース -> サブネットベース -> ドメイン名ベースの順に走査する。
+
+            // ワイルドカードベース
+            if (dataSet.HasForwarder_WildcardBased)
+            {
+                foreach (var w in dataSet.Forwarder_WildcardBasedList)
+                {
+                    if (Str.WildcardMatch(request.FqdnNormalized, w.WildcardFqdn))
+                    {
+                        forwarder = w;
+                        break;
+                    }
+                }
+            }
+
+            // サブネットベース
+            if (forwarder == null)
+            {
+                if (dataSet.HasForwarder_SubnetBased)
+                {
+                    if (Str.IsEqualToOrSubdomainOf(EnsureSpecial.Yes, request.FqdnNormalized, "in-addr.arpa") ||
+                        Str.IsEqualToOrSubdomainOf(EnsureSpecial.Yes, request.FqdnNormalized, "ip6.arpa"))
+                    {
+                        var tmp = IPUtil.PtrZoneOrFqdnToIpAddressAndSubnet(request.FqdnNormalized, true);
+                        if (IPUtil.IsSubnetLenHostAddress(tmp.Item1.AddressFamily, tmp.Item2))
+                        {
+                            forwarder = dataSet.Forwarder_SubnetBasedRadixTrie.Lookup(tmp.Item1, out _, out _);
+                        }
+                    }
+                }
+            }
+
+            // ドメイン名ベース
+            if (forwarder == null)
+            {
+                if (dataSet.HasForwarder_DomainBased)
+                {
+                    forwarder = DnsUtil.SearchLongestMatchDnsZone<Forwarder>(dataSet.Forwarder_DomainBasedDict, request.FqdnNormalized, out _, out _);
+                }
+            }
+
+            if (forwarder != null)
+            {
+                // 使用すべきフォワーダが見つかった。コールバックを呼ぶ。
+                var callback = this.ForwarderCallback;
+
+                EasyDnsResponderForwarderCallbackRequest fwdReq = new EasyDnsResponderForwarderCallbackRequest
+                {
+                    CallbackId = forwarder.CallbackId,
+                    ForwarderInternal = forwarder,
+                    ForwarderDef = forwarder.Src,
+                    OriginalRequestPacket = request.RequestPacket,
+                    RequestFqdn = request.FqdnNormalized,
+                };
+
+                EasyDnsResponderForwarderCallbackResult fwdResult;
+
+                if (callback != null)
+                {
+                    fwdResult = callback(fwdReq);
+                }
+                else
+                {
+                    fwdResult = new EasyDnsResponderForwarderCallbackResult { };
+                }
+
+                if (fwdResult.SkipForwarder)
+                {
+                    // Skip
+                }
+                else if (fwdResult.ErrorCode != ReturnCode.NoError)
+                {
+                    // エラー
+                    SearchResult ret2 = new SearchResult
+                    {
+                        RaiseCustomError = fwdResult.ErrorCode,
+                    };
+                    return ret2;
+                }
+                else
+                {
+                    // フォワーダ処理の実施
+                    foreach (var destEndPoint in forwarder.TargetServersList)
+                    {
+                    }
+                }
+            }
+        }
+
+        // -- 以下は、フォワーダで処理がなされなかった場合のメイン処理の継続 --
 
         // 純粋な Zone の検索処理を実施する。クエリにおける要求レコードタイプは見ない。
         SearchResult? ret = dataSet.Search(request);
@@ -2013,9 +2198,9 @@ public class EasyDnsResponder
 
         EasyDnsResponderDynamicRecordCallbackResult? callbackResult = null;
 
-        if (this.Callback == null) throw new CoresLibException("Callback delegate is not set.");
+        if (this.DynamicRecordCallback == null) throw new CoresLibException("Callback delegate is not set.");
 
-        callbackResult = this.Callback(req);
+        callbackResult = this.DynamicRecordCallback(req);
 
         if (callbackResult == null)
         {
@@ -2213,7 +2398,7 @@ public static class EasyDnsTest
 
         r.ApplySetting(st);
 
-        r.Callback = (req) =>
+        r.DynamicRecordCallback = (req) =>
         {
             switch (req.CallbackId)
             {
