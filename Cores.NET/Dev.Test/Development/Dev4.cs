@@ -1059,7 +1059,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
 
         LastConfigJson = configJson;
 
-        settings.ForwarderList.Add(new EasyDnsResponderForwarder { Selector = "sec.softether.co.jp", TargetServers = await LocalNet.ResolveHostAndPortListStrToIpAndPortListStrAsync("google-public-dns-v6.test.sehosts.com 8.8.8.8", 53, cancel: cancel), });
+        settings.ForwarderList.Add(new EasyDnsResponderForwarder { Selector = "sec.softether.co.jp", TargetServers = await LocalNet.ResolveHostAndPortListStrToIpAndPortListStrAsync("google-public-dns-v6.test.sehosts.com 8.8.8.7 8.8.8.1 8.8.8.9", 53, cancel: cancel), });
 
         try
         {

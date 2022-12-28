@@ -759,7 +759,7 @@ public class EasyDnsResponder
     {
         public class Entry
         {
-            public IPEndPoint TargetForwarderEndPoint = null!;
+            public HashSet<IPEndPoint> TargetForwarderEndPointHashSet = null!;
             public long ExpiresTick;
             public ushort NewTransactionId;
             public DnsUdpPacket OriginalRequestPacket = null!;
@@ -791,7 +791,7 @@ public class EasyDnsResponder
 
                 if (e != null)
                 {
-                    if (IpEndPointComparer.ComparerIgnoreScopeId.Equals(e.TargetForwarderEndPoint, targetForwarderEndPoint))
+                    if (e.TargetForwarderEndPointHashSet.Contains(targetForwarderEndPoint))
                     {
                         if (now < e.ExpiresTick)
                         {
@@ -804,11 +804,11 @@ public class EasyDnsResponder
             return ret;
         }
 
-        public Entry? TryCreateNew(IPEndPoint targetForwarderEndPoint, long expiresTick, DnsUdpPacket originalRequestPacket, Func<Entry, DnsUdpPacket, DnsUdpPacket> generateResponsePacketCallback)
+        public Entry? TryCreateNew(HashSet<IPEndPoint> targetForwarderEndPointHashSet, long expiresTick, DnsUdpPacket originalRequestPacket, Func<Entry, DnsUdpPacket, DnsUdpPacket> generateResponsePacketCallback)
         {
             Entry e = new Entry
             {
-                TargetForwarderEndPoint = targetForwarderEndPoint,
+                TargetForwarderEndPointHashSet = targetForwarderEndPointHashSet,
                 ExpiresTick = expiresTick,
                 GenerateResponsePacketCallback = generateResponsePacketCallback,
                 OriginalRequestPacket = originalRequestPacket,
@@ -2209,14 +2209,22 @@ public class EasyDnsResponder
                     SearchResult ret3 = new SearchResult { };
                     ret3.AlternativeSendPackets = new List<DnsUdpPacket>();
 
+                    HashSet<IPEndPoint> targetEndPointHashSet = new HashSet<IPEndPoint>(IpEndPointComparer.ComparerIgnoreScopeId);
+
                     foreach (var targetEndPoint in forwarder.TargetServersList)
                     {
-                        var e = this.FwdTranslateTable.TryCreateNew(targetEndPoint, expires, request.RequestPacket, (e, src) =>
-                        {
-                            var reqPacket = request.RequestPacket;
-                            return new DnsUdpPacket(reqPacket.RemoteEndPoint, reqPacket.LocalEndPoint, src.Message);
-                        });
-                        if (e != null)
+                        targetEndPointHashSet.Add(targetEndPoint);
+                    }
+
+                    var e = this.FwdTranslateTable.TryCreateNew(targetEndPointHashSet, expires, request.RequestPacket, (e, src) =>
+                    {
+                        var reqPacket = request.RequestPacket;
+                        return new DnsUdpPacket(reqPacket.RemoteEndPoint, reqPacket.LocalEndPoint, src.Message);
+                    });
+
+                    if (e != null)
+                    {
+                        foreach (var targetEndPoint in targetEndPointHashSet)
                         {
                             ok = true;
 
