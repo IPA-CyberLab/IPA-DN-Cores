@@ -3872,7 +3872,14 @@ cccadmin
 
                 if (true)
                 {
-                    Str.WildcardMatch("abc12345", line)._Print();
+                    if (IPUtil.TryParseHostPort(line, out string host, out int port, 80) == false)
+                    {
+                        "NG"._Print();
+                    }
+                    else
+                    {
+                        $"host = {host}   port = {port}"._Print();
+                    }
                 }
                 else if (true)
                 {
@@ -3912,17 +3919,6 @@ cccadmin
 
     public static void Test_Generic()
     {
-        while (true)
-        {
-            int num = 10;
-            List<int> list = new List<int>();
-            for (int i = 0; i < num; i++)
-            {
-                list.Add(i);
-            }
-            list._Shuffle().Select(x => x.ToString("D"))._Combine(" ")._Print();
-        }
-
         if (true)
         {
             Test_221212_IpNetToPtr();

@@ -3513,6 +3513,7 @@ public static class BasicHelper
     public static bool _CheckUseOnlyChars(this string src, Exception? exceptionToThrow = null, string charList = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-", StringComparison comparison = StringComparison.Ordinal)
         => Str.CheckUseOnlyChars(src, exceptionToThrow, charList, comparison);
 
+    [MethodImpl(Inline)]
     [return: NotNullIfNotNull("ip")]
     public static IPAddress? _RemoveScopeId(this IPAddress? ip)
     {
@@ -3524,6 +3525,21 @@ public static class BasicHelper
         else
         {
             return ip;
+        }
+    }
+
+    [MethodImpl(Inline)]
+    [return: NotNullIfNotNull("ep")]
+    public static IPEndPoint? _RemoveScopeId(this IPEndPoint? ep)
+    {
+        if (ep == null) return null;
+        if (ep.Address.AddressFamily == AddressFamily.InterNetworkV6 && ep.Address.ScopeId != 0)
+        {
+            return new IPEndPoint(ep.Address._RemoveScopeId(), ep.Port);
+        }
+        else
+        {
+            return ep;
         }
     }
 

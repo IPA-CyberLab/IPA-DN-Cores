@@ -371,6 +371,25 @@ public abstract class TcpIpSystemHostInfo
     public abstract bool IsIPv4Supported { get; protected set; }
     public abstract bool IsIPv6Supported { get; protected set; }
     public abstract IReadOnlyList<IPAddress> IPAddressList { get; protected set; }
+
+    public bool IsLocalIpAddress(IPAddress ip)
+    {
+        var type = ip._GetIPAddressType();
+        if (type.Bit(IPAddressType.Loopback))
+        {
+            return true;
+        }
+
+        foreach (var a in this.IPAddressList)
+        {
+            if (IpComparer.ComparerWithIgnoreScopeId.Equals(a, ip))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
 
 public class TcpIpSystemParam : NetworkSystemParam
@@ -706,12 +725,49 @@ public abstract partial class TcpIpSystem : NetworkSystemBase, ITcpConnectableSy
 
     public async Task<DnsResponse> QueryDnsAsync(DnsQueryParamBase param, CancellationToken cancel = default)
     {
-        await using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
+        try
         {
-            using (EnterCriticalCounter())
+            await using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
             {
-                return await QueryDnsImplAsync(param, opCancel);
+                using (EnterCriticalCounter())
+                {
+                    return await QueryDnsImplAsync(param, opCancel);
+                }
             }
+        }
+        catch
+        {
+            // OS によって "localhost" の解決がなぜかできなかった場合は、自力で解決を行なう
+            if (param is DnsGetIpQueryParam ipQuery)
+            {
+                string hostname = ipQuery.Hostname;
+
+                if (hostname._IsSamei("localhost") || hostname._IsSamei("localhost.localdomain"))
+                {
+                    if (ipQuery.Options.Bit(DnsQueryOptions.IPv6Only))
+                    {
+                        return new DnsResponse(param, IPAddress.IPv6Loopback._SingleList());
+                    }
+                    else if (ipQuery.Options.Bit(DnsQueryOptions.IPv4Only))
+                    {
+                        return new DnsResponse(param, IPAddress.Loopback._SingleList());
+                    }
+                    else
+                    {
+                        return new DnsResponse(param, new[] { IPAddress.Loopback, IPAddress.IPv6Loopback });
+                    }
+                }
+
+                if (hostname._IsSamei("localhost6") || hostname._IsSamei("localhost6.localdomain6"))
+                {
+                    if (ipQuery.Options.Bit(DnsQueryOptions.IPv4Only) == false)
+                    {
+                        return new DnsResponse(param, new[] { IPAddress.Loopback, IPAddress.IPv6Loopback });
+                    }
+                }
+            }
+
+            throw;
         }
     }
     public DnsResponse QueryDns(DnsQueryParamBase param, CancellationToken cancel = default)

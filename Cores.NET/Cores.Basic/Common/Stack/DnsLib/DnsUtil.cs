@@ -198,7 +198,7 @@ public class DnsUdpPacket
     public DnsUdpPacketFlags Flags { get; }
 
     public IPEndPoint RemoteEndPoint { get; } // UDP パケット送付元の DNS クライアントの情報 (dnsdist 等の DNS プロキシ経由の場合はプロキシの情報)
-    public IPEndPoint LocalEndPoint { get; }
+    public IPEndPoint? LocalEndPoint { get; }
     public IPEndPoint OriginalRemoteEndPoint { get; } // dnsdist 等の DNS プロキシを経由してきた場合の元の DNS クライアントの情報
 
     public DnsMessageBase Message { get; }
@@ -206,11 +206,11 @@ public class DnsUdpPacket
     public string? DnsResolver { get; }
     public string? EdnsClientSubnet { get; }
 
-    public DnsUdpPacket(IPEndPoint remoteEndPoint, IPEndPoint localEndPoint, DnsMessageBase message, IPEndPoint? originalRemoteEndPoint = null, DnsUdpPacketFlags flags = DnsUdpPacketFlags.None)
+    public DnsUdpPacket(IPEndPoint remoteEndPoint, IPEndPoint? localEndPoint, DnsMessageBase message, IPEndPoint? originalRemoteEndPoint = null, DnsUdpPacketFlags flags = DnsUdpPacketFlags.None)
     {
         originalRemoteEndPoint ??= remoteEndPoint;
 
-        if (remoteEndPoint.AddressFamily != localEndPoint.AddressFamily)
+        if (localEndPoint != null && remoteEndPoint.AddressFamily != localEndPoint.AddressFamily)
         {
             throw new CoresException("remoteEndPoint.AddressFamily != localEndPoint.AddressFamily");
         }
@@ -338,8 +338,13 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
     {
         await using var udpListener = LocalNet.CreateUdpListener(new NetUdpListenerOptions(TcpDirectionType.Server));
 
+        // リスナ用
         udpListener.AddEndPoint(new IPEndPoint(IPAddress.Any, this.Setting.UdpPort));
         udpListener.AddEndPoint(new IPEndPoint(IPAddress.IPv6Any, this.Setting.UdpPort));
+
+        // フォワーダ用
+        udpListener.AddEndPoint(new IPEndPoint(IPAddress.Any, 0));
+        udpListener.AddEndPoint(new IPEndPoint(IPAddress.IPv6Any, 0));
 
         await using var udpSock = udpListener.GetSocket(true);
 
@@ -411,9 +416,14 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
                         {
                             Memory<byte> packetData = DnsUtil.BuildPacket(responsePkt.Message).ToArray();
 
+                            //responsePkt.RemoteEndPoint.ToString()._Print();
+
                             var datagram = new Datagram(packetData, responsePkt.RemoteEndPoint, responsePkt.LocalEndPoint);
 
+                            //responsePkt.RemoteEndPoint.ToString()._Print();
                             perTaskSendList.Add(datagram);
+                            //responsePkt.RemoteEndPoint.ToString()._Print();
+                            //perTaskSendList[0].RemoteEndPoint.ToString()._Print();
                         }
                         catch { }
                     }
@@ -700,7 +710,7 @@ public class EasyDnsResponderDynamicRecordCallbackRequest
     public string RequestFqdn { init; get; } = null!;
     public string RequestHostName { init; get; } = null!;
     public string CallbackId { init; get; } = null!;
-    public DnsUdpPacket? RequestPacket { init; get; } = null;
+    public DnsUdpPacket RequestPacket { init; get; } = null!;
 }
 
 // ダイナミックレコードのコールバック関数で返却すべきデータ
@@ -744,53 +754,154 @@ public class EasyDnsResponderForwarderCallbackResult
 
 public class EasyDnsResponder
 {
-    FwdTranslateEntry[] FwdTranslateTable = new FwdTranslateEntry[65536];
-    ushort[] FwdTranslateIdSeed = new ushort[65536];
-    int FwdTranslateIdSeedPos = 0;
-
-    public EasyDnsResponder()
+    // フォワーダ変換テーブル
+    public class ForwarderTranslateTable
     {
-    }
-
-    void FwdRandomizeTranslateIdSeedCritical()
-    {
-        List<ushort> tmp = new List<ushort>();
-        for (int i = 0; i < 65536; i++)
+        public class Entry
         {
-            ushort us = (ushort)i;
-            tmp.Add(us);
+            public IPEndPoint TargetForwarderEndPoint = null!;
+            public long ExpiresTick;
+            public ushort NewTransactionId;
+            public DnsUdpPacket OriginalRequestPacket = null!;
+            public Func<Entry, DnsUdpPacket, DnsUdpPacket> GenerateResponsePacketCallback = null!;
         }
-        tmp = tmp._Shuffle().ToList();
 
-        tmp.CopyTo(FwdTranslateIdSeed);
-    }
+        Entry?[] Table = new Entry[65536];
+        ushort[] IdSeed = new ushort[65536];
+        int IdSeedPos = 0;
 
-    int FwdGetNextTranslateIdCritical()
-    {
-        for (int i = 0; i < 65536 * 2; i++)
+        public ForwarderTranslateTable()
         {
-            ushort candidate = FwdGetNextTranslateIdCandidateCritical();
+            RandomizeTranslateIdSeedCritical();
+        }
 
-            if (FwdTranslateTable[candidate] == null)
+        public Entry? TryLookup(IPEndPoint targetForwarderEndPoint, ushort newTranscationId)
+        {
+            Entry? ret = null;
+
+            long now = TickNow;
+
+            GcCritical();
+
+            int id = (int)newTranscationId;
+
+            lock (Table)
             {
-                return candidate;
+                var e = this.Table[id];
+
+                if (e != null)
+                {
+                    if (IpEndPointComparer.ComparerIgnoreScopeId.Equals(e.TargetForwarderEndPoint, targetForwarderEndPoint))
+                    {
+                        if (now < e.ExpiresTick)
+                        {
+                            ret = e;
+                        }
+                        this.Table[id] = null;
+                    }
+                }
+            }
+            return ret;
+        }
+
+        public Entry? TryCreateNew(IPEndPoint targetForwarderEndPoint, long expiresTick, DnsUdpPacket originalRequestPacket, Func<Entry, DnsUdpPacket, DnsUdpPacket> generateResponsePacketCallback)
+        {
+            Entry e = new Entry
+            {
+                TargetForwarderEndPoint = targetForwarderEndPoint,
+                ExpiresTick = expiresTick,
+                GenerateResponsePacketCallback = generateResponsePacketCallback,
+                OriginalRequestPacket = originalRequestPacket,
+            };
+
+            GcCritical();
+
+            lock (Table)
+            {
+                int newId = GetNextTranslateIdCritical();
+                if (newId < 0)
+                {
+                    return null;
+                }
+
+                e.NewTransactionId = (ushort)newId;
+
+                Table[newId] = e;
+            }
+
+            return e;
+        }
+
+        void RandomizeTranslateIdSeedCritical()
+        {
+            List<ushort> tmp = new List<ushort>();
+            for (int i = 0; i < 65536; i++)
+            {
+                ushort us = (ushort)i;
+                tmp.Add(us);
+            }
+            tmp = tmp._Shuffle().ToList();
+
+            tmp.CopyTo(IdSeed);
+        }
+
+        int GcCounter = 0;
+
+        [MethodImpl(Inline)]
+        void GcCritical()
+        {
+            int c = ++GcCounter;
+            if (c >= 1000)
+            {
+                c = 0;
+                GcCoreCritical(Time.Tick64);
             }
         }
-        return -1;
+
+        void GcCoreCritical(long now)
+        {
+            for (int i = 0; i < 65536; i++)
+            {
+                Entry? e = Table[i];
+                if (e != null)
+                {
+                    if (now >= e.ExpiresTick)
+                    {
+                        Table[i] = null;
+                    }
+                }
+            }
+        }
+
+        int GetNextTranslateIdCritical()
+        {
+            for (int i = 0; i < 65536 * 2; i++)
+            {
+                ushort candidate = GetNextTranslateIdCandidateCritical();
+
+                if (Table[candidate] == null)
+                {
+                    return candidate;
+                }
+            }
+            return -1;
+        }
+
+        ushort GetNextTranslateIdCandidateCritical()
+        {
+            ushort ret = 0;
+            ret = IdSeed[IdSeedPos];
+            IdSeedPos++;
+            if (IdSeedPos >= 65536)
+            {
+                RandomizeTranslateIdSeedCritical();
+                IdSeedPos = 0;
+            }
+            return ret;
+        }
     }
 
-    ushort FwdGetNextTranslateIdCandidateCritical()
-    {
-        ushort ret = 0;
-        ret = FwdTranslateIdSeed[FwdTranslateIdSeedPos];
-        FwdTranslateIdSeedPos++;
-        if (FwdTranslateIdSeedPos >= 65536)
-        {
-            FwdRandomizeTranslateIdSeedCritical();
-            FwdTranslateIdSeedPos = 0;
-        }
-        return ret;
-    }
+    public ForwarderTranslateTable FwdTranslateTable = new ForwarderTranslateTable();
 
     // ダイナミックレコードのコールバック関数
     public Func<EasyDnsResponderDynamicRecordCallbackRequest, EasyDnsResponderDynamicRecordCallbackResult?>? DynamicRecordCallback { get; set; }
@@ -1921,7 +2032,7 @@ public class EasyDnsResponder
     public class SearchRequest
     {
         public string FqdnNormalized { init; get; } = null!;
-        public DnsUdpPacket? RequestPacket { init; get; } = null!;
+        public DnsUdpPacket RequestPacket { init; get; } = null!;
     }
 
     [Flags]
@@ -1946,14 +2057,8 @@ public class EasyDnsResponder
         [JsonConverter(typeof(StringEnumConverter))]
         public SearchResultFlags ResultFlags { get; set; } = SearchResultFlags.NormalAnswer;
         public ReturnCode RaiseCustomError { get; set; } = ReturnCode.NoError;
-    }
 
-    // フォワーダ変換テーブル
-    public class FwdTranslateEntry
-    {
-        public IPEndPoint ForwarderEndPoint = null!;
-        public IPEndPoint TargetEndPoint = null!;
-        public long ExpiresTick;
+        public List<DnsUdpPacket>? AlternativeSendPackets { get; set; } = null; // 追加送信パケット
     }
 
     DataSet? CurrentDataSet = null;
@@ -1965,6 +2070,42 @@ public class EasyDnsResponder
         this.CurrentDataSet = dataSet;
     }
 
+    public DnsUdpPacket? TryProcessForwarderResponse(DnsUdpPacket recvPacket)
+    {
+        var dataSet = this.CurrentDataSet;
+        if (dataSet == null)
+        {
+            return null;
+        }
+
+        if (recvPacket.Message.IsQuery)
+        {
+            return null;
+        }
+
+        if (dataSet.HasForwarder_DomainBased || dataSet.HasForwarder_SubnetBased || dataSet.HasForwarder_WildcardBased)
+        {
+            // フォワーダセッションテーブルの検索
+            var e = this.FwdTranslateTable.TryLookup(recvPacket.RemoteEndPoint, recvPacket.Message.TransactionID);
+            if (e != null)
+            {
+                // 戻りパケットの生成
+                var responsePacket = e.GenerateResponsePacketCallback(e, recvPacket._CloneDeep());
+
+                if (responsePacket != null)
+                {
+                    // トランザクション ID の書き戻し
+                    responsePacket.Message.TransactionID = e.OriginalRequestPacket.Message.TransactionID;
+
+
+                    return responsePacket;
+                }
+            }
+        }
+
+        return null;
+    }
+
     public SearchResult? Query(SearchRequest request, EasyDnsResponderRecordType type)
     {
         var dataSet = this.CurrentDataSet;
@@ -1973,6 +2114,7 @@ public class EasyDnsResponder
             throw new CoresException("Current DNS Server Data Set is not loaded");
         }
 
+        // ユーザーからのクエリがフォワード対象の場合は、フォワーダに飛ばす。
         // 最初に一致するフォワーダがあるかどうか調べる。
         // フォワーダは最優先で使用される。
         if (dataSet.HasForwarder_DomainBased || dataSet.HasForwarder_SubnetBased || dataSet.HasForwarder_WildcardBased)
@@ -2061,9 +2203,46 @@ public class EasyDnsResponder
                 else
                 {
                     // フォワーダ処理の実施
-                    foreach (var destEndPoint in forwarder.TargetServersList)
+                    long expires = Time.Tick64 + forwarder.TimeoutMsecs;
+                    bool ok = false;
+
+                    SearchResult ret3 = new SearchResult { };
+                    ret3.AlternativeSendPackets = new List<DnsUdpPacket>();
+
+                    foreach (var targetEndPoint in forwarder.TargetServersList)
                     {
+                        var e = this.FwdTranslateTable.TryCreateNew(targetEndPoint, expires, request.RequestPacket, (e, src) =>
+                        {
+                            var reqPacket = request.RequestPacket;
+                            return new DnsUdpPacket(reqPacket.RemoteEndPoint, reqPacket.LocalEndPoint, src.Message);
+                        });
+                        if (e != null)
+                        {
+                            ok = true;
+
+                            // フォワーダに転送すべきパケットをここで生成する
+                            DnsMessageBase newMessage = request.RequestPacket.Message._CloneDeep();
+                            newMessage.TransactionID = e.NewTransactionId;
+
+                            var local = new IPEndPoint(targetEndPoint.AddressFamily == AddressFamily.InterNetworkV6 ? IPAddress.IPv6Any : IPAddress.Any, 0);
+                            DnsUdpPacket newPacket = new DnsUdpPacket(targetEndPoint, local, newMessage);
+
+                            ret3.AlternativeSendPackets.Add(newPacket);
+                        }
                     }
+
+                    if (ok == false)
+                    {
+                        SearchResult ret2 = new SearchResult
+                        {
+                            // Transcation ID 空き無し
+                            RaiseCustomError = ReturnCode.ServerFailure,
+                        };
+                        return ret2;
+                    }
+
+                    // フォワーダ宛パケットの送信
+                    return ret3;
                 }
             }
         }

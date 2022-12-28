@@ -395,7 +395,15 @@ public abstract class DnsResolver : AsyncService
     {
         hostname = Str.NormalizeFqdn(hostname);
 
-        if (hostname._IsSamei("localhost") || hostname._IsSamei("localhost.localdomain") || hostname._IsSamei("localhost6") || hostname._IsSamei("localhost6.localdomain6"))
+        if (hostname._IsSamei("localhost") || hostname._IsSamei("localhost.localdomain"))
+        {
+            if (queryType == DnsResolverQueryType.AAAA)
+                return IPAddress.IPv6Loopback._SingleList();
+            else
+                return null;
+        }
+
+        if (hostname._IsSamei("localhost6") || hostname._IsSamei("localhost6.localdomain6"))
         {
             if (queryType == DnsResolverQueryType.AAAA)
                 return IPAddress.IPv6Loopback._SingleList();

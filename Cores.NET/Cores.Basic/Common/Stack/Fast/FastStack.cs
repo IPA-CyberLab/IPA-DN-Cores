@@ -1108,6 +1108,7 @@ public class NetPalUdpProtocolStub : NetUdpProtocolStubBase
         var list = this.GetEndPointList();
         HashSet<NetUdpBindPoint> table = new HashSet<NetUdpBindPoint>();
 
+        // 普通のエンドポイント
         foreach (var item in list.Where(x => x.EndPoint.Port >= 1 && x.EndPoint.Port <= 65535))
         {
             table.Add(item);
@@ -1137,6 +1138,15 @@ public class NetPalUdpProtocolStub : NetUdpProtocolStubBase
                             ._DoForEach(x => table.Add(new NetUdpBindPoint(new IPEndPoint(x, item.EndPoint.Port), item.CpuId)));
                     }
                 }
+            }
+        }
+
+        // 動的ポート番号を用いたエンドポイント
+        foreach (var item in list.Where(x => x.EndPoint.Port == 0))
+        {
+            if (item.EndPoint.Address._IsAny())
+            {
+                table.Add(item);
             }
         }
 
@@ -1204,11 +1214,11 @@ public abstract class NetSock : AsyncService
             this.Pipe.OnDisconnected.Add(async () =>
             {
                 this.Disconnected = DateTimeOffset.Now;
-                    // デッドロック防止 2021/06/19
-                    TaskUtil.StartAsyncTaskAsync(async () => await this._DisposeSafeAsync())._LaissezFaire(true);
+                // デッドロック防止 2021/06/19
+                TaskUtil.StartAsyncTaskAsync(async () => await this._DisposeSafeAsync())._LaissezFaire(true);
                 await Task.CompletedTask;
-                    //await this._DisposeSafeAsync();
-                });
+                //await this._DisposeSafeAsync();
+            });
         }
         catch
         {

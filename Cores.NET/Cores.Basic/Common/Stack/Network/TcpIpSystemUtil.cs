@@ -185,6 +185,76 @@ public class GetIpAddressFamilyMismatchException : ApplicationException
 
 public abstract partial class TcpIpSystem
 {
+    public async Task<string> ResolveHostAndPortListStrToIpAndPortListStrAsync(string srcStr, int? defaultPort = null, AddressFamily? addressFamily = null, int timeout = -1, int numParallelTasks = 8, Func<IPAddress, long>? orderBy = null, CancellationToken cancel = default)
+    {
+        string[] targetTokenList = srcStr._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, " ", "\t", ";", ",", "/");
+
+        List<Tuple<string, Ref<string>>> tmp = new List<Tuple<string, Ref<string>>>();
+
+        foreach (var targetToken in targetTokenList)
+        {
+            tmp.Add(new (targetToken, ""));
+        }
+
+        Exception? firstError = null;
+
+        await tmp._DoForEachParallelAsync(async (targetElement, taskIndex) =>
+        {
+            try
+            {
+                targetElement.Item2.Set(await ResolveHostAndPortStrToIpAndPortStrAsync(targetElement.Item1, defaultPort, addressFamily, timeout, orderBy, cancel));
+            }
+            catch (Exception ex)
+            {
+                // 例外があった場合は例外は握りつぶし、エラーを表示する
+                firstError ??= ex;
+                ex._Error();
+            }
+        },
+        numParallelTasks,
+        MultitaskDivideOperation.RoundRobin,
+        cancel);
+
+        if (tmp.Any() == false || tmp.Any(x => x.Item2._IsFilled()))
+        {
+            // 1 つでも結果がある場合は、例外を発生させない
+            string ret = tmp.Select(x => x.Item2.Value)._Combine(" ");
+
+            ret._Debug();
+
+            return ret;
+        }
+        else
+        {
+            // 結果が 0 の場合は、例外を発生させる
+            firstError ??= new CoresException($"No resolve results found from the string '{srcStr}'");
+
+            throw firstError;
+        }
+    }
+
+    public async Task<string> ResolveHostAndPortStrToIpAndPortStrAsync(string srcStr, int? defaultPort = null, AddressFamily? addressFamily = null, int timeout = -1, Func<IPAddress, long>? orderBy = null, CancellationToken cancel = default)
+    {
+        if (IPUtil.TryParseHostPort(srcStr, out string host, out int port, defaultPort) == false)
+        {
+            throw new CoresException($"String '{srcStr}' is not like host:port or [ip]:port");
+        }
+
+        if (IPAddress.TryParse(host, out IPAddress? ip) == false)
+        {
+            ip = await this.GetIpAsync(host, addressFamily, timeout, cancel, orderBy);
+        }
+
+        if (ip.AddressFamily == AddressFamily.InterNetwork)
+        {
+            return $"{ip.ToString()}:{port}";
+        }
+        else
+        {
+            return $"[{ip.ToString()}]:{port}";
+        }
+    }
+
     public async Task<IPAddress> GetIpAsync(string hostname, AddressFamily? addressFamily = null, int timeout = -1, CancellationToken cancel = default, Func<IPAddress, long>? orderBy = null)
     {
         DnsResponse res = await this.QueryDnsAsync(new DnsGetIpQueryParam(hostname, timeout: timeout));
@@ -585,8 +655,8 @@ public class IpConnectionRateLimiter
                 // 同時接続数 OK
                 return new Holder<HashKeys.SingleIPAddress>(key2 =>
                 {
-                        // Dispose 時に同時接続数デクメリントを実施
-                        this.ConcurrentLimiter.Exit(key, out _);
+                    // Dispose 時に同時接続数デクメリントを実施
+                    this.ConcurrentLimiter.Exit(key, out _);
                 },
                 key,
                 LeakCounterKind.IpConnectionRateLimiterTryEnterHolder);

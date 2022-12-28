@@ -138,7 +138,7 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
                     requestCopy = request._CloneDeep();
                 }
 
-                var response = RequestPacketToResponsePacket(request);
+                var response = RequestPacketToResponsePacket(request, out var alternativeSendPacketsList);
 
                 if (debug)
                 {
@@ -160,6 +160,11 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
                 {
                     responsePackets.Add(response);
                 }
+
+                if (alternativeSendPacketsList != null)
+                {
+                    responsePackets.AddRange(alternativeSendPacketsList);
+                }
             }
             catch (Exception ex)
             {
@@ -171,8 +176,9 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
     }
 
     // ある 1 つの DNS リクエストパケットに対して DNS レスポンスパケットを作る関数
-    DnsUdpPacket? RequestPacketToResponsePacket(DnsUdpPacket request)
+    DnsUdpPacket? RequestPacketToResponsePacket(DnsUdpPacket request, out List<DnsUdpPacket>? alternativeSendPacketsList)
     {
+        alternativeSendPacketsList = null;
         DnsMessage? q = request.Message as DnsMessage;
 
         if (q == null) return null;
@@ -181,7 +187,7 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
 
         try
         {
-            r = QueryToResponse(q, request);
+            r = QueryToResponse(q, request, out alternativeSendPacketsList);
         }
         catch (Exception ex)
         {
@@ -200,12 +206,22 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
 
     // ある 1 つの DNS クエリメッセージに対して応答メッセージを作る関数
     // CPU 時間の節約のため、届いたクエリメッセージ構造体をそのまま応答メッセージ構造体として書き換えて応答する
-    DnsMessage? QueryToResponse(DnsMessage? q, DnsUdpPacket? requestPacket = null)
+    DnsMessage? QueryToResponse(DnsMessage? q, DnsUdpPacket requestPacket, out List<DnsUdpPacket>? alternativeSendPacketsList)
     {
-        if (q == null) return null;
-        if (q.IsQuery == false) return null;
+        alternativeSendPacketsList = null;
 
-        q.IsQuery = false;
+        if (q == null) return null;
+        if (q.IsQuery == false)
+        {
+            // フォワーダからの戻りパケットの処理
+            var responsePacket = this.DnsResponder.TryProcessForwarderResponse(requestPacket);
+            if (responsePacket != null)
+            {
+                alternativeSendPacketsList = responsePacket._SingleList();
+                return null;
+            }
+        }
+
         q.ReturnCode = ReturnCode.NoError;
 
         if (this.CopyQueryAdditionalRecordsToResponse == false)
@@ -217,6 +233,7 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
         if (q.Questions.Count == 0)
         {
             // 質問が付いていない
+            q.IsQuery = false;
             q.ReturnCode = ReturnCode.FormatError;
             return q;
         }
@@ -232,6 +249,7 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
         if (questionFqdn._IsEmpty())
         {
             // 質問の FQDN 名が不正である
+            q.IsQuery = false;
             q.ReturnCode = ReturnCode.FormatError;
             return q;
         }
@@ -252,8 +270,18 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
             {
                 // Zone 不存在。Refuse する。
                 q.ReturnCode = ReturnCode.Refused;
+                q.IsQuery = false;
                 return q;
             }
+
+            if (searchResponse.AlternativeSendPackets != null)
+            {
+                // 代替パケットを応答する (フォワーダ等が生成したパケットである)
+                alternativeSendPacketsList = searchResponse.AlternativeSendPackets;
+                return null;
+            }
+
+            q.IsQuery = false;
 
             if (searchResponse.RaiseCustomError != ReturnCode.NoError)
             {

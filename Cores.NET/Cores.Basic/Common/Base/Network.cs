@@ -353,7 +353,25 @@ namespace IPA.Cores.Basic
 
     public class IpEndPointComparer : IEqualityComparer<IPEndPoint?>, IComparer<IPEndPoint?>
     {
-        public static IpEndPointComparer Comparer { get; } = new IpEndPointComparer();
+        public bool IgnoreScopeId { get; }
+        IpComparer IpCmp { get; }
+
+        public IpEndPointComparer(bool ignoreSopeId)
+        {
+            this.IgnoreScopeId = ignoreSopeId;
+
+            if (this.IgnoreScopeId == false)
+            {
+                this.IpCmp = IpComparer.Comparer;
+            }
+            else
+            {
+                this.IpCmp = IpComparer.ComparerWithIgnoreScopeId;
+            }
+        }
+
+        public static IpEndPointComparer Comparer { get; } = new IpEndPointComparer(false);
+        public static IpEndPointComparer ComparerIgnoreScopeId { get; } = new IpEndPointComparer(true);
 
         public int Compare(IPEndPoint? x, IPEndPoint? y)
         {
@@ -364,7 +382,7 @@ namespace IPA.Cores.Basic
             x._MarkNotNull();
             y._MarkNotNull();
 
-            int r = IpComparer.Comparer.Compare(x.Address, y.Address);
+            int r = this.IpCmp.Compare(x.Address, y.Address);
             if (r != 0) return r;
 
             r = x.Port.CompareTo(y.Port);
@@ -378,13 +396,29 @@ namespace IPA.Cores.Basic
         {
             if (obj == null) return 0;
 
-            return obj.GetHashCode();
+            if (this.IgnoreScopeId == false)
+            {
+                return obj.GetHashCode();
+            }
+            else
+            {
+                return obj._RemoveScopeId().GetHashCode();
+            }
         }
     }
 
     public class IpComparer : IEqualityComparer<IPAddress?>, IComparer<IPAddress?>
     {
-        public static IpComparer Comparer { get; } = new IpComparer();
+        public bool IgnoreScopeId { get; } = false;
+
+        public IpComparer(bool ignoreScopeId = false)
+        {
+            this.IgnoreScopeId = ignoreScopeId;
+        }
+
+
+        public static IpComparer Comparer { get; } = new IpComparer(false);
+        public static IpComparer ComparerWithIgnoreScopeId { get; } = new IpComparer(true);
 
         public int Compare(IPAddress? x, IPAddress? y)
         {
@@ -403,17 +437,33 @@ namespace IPA.Cores.Basic
 
             if (x.AddressFamily != System.Net.Sockets.AddressFamily.InterNetworkV6) return 0;
 
-            return x.ScopeId.CompareTo(y.ScopeId);
+            if (IgnoreScopeId == false)
+            {
+                return x.ScopeId.CompareTo(y.ScopeId);
+            }
+            else
+            {
+                return 0;
+            }
         }
 
+        [MethodImpl(Inline)]
         public bool Equals(IPAddress? x, IPAddress? y)
             => (Compare(x, y) == 0);
 
+        [MethodImpl(Inline)]
         public int GetHashCode(IPAddress? obj)
         {
             if (obj == null) return 0;
 
-            return obj.GetHashCode();
+            if (IgnoreScopeId == false)
+            {
+                return obj.GetHashCode();
+            }
+            else
+            {
+                return obj._RemoveScopeId().GetHashCode();
+            }
         }
     }
 
@@ -1428,12 +1478,15 @@ namespace IPA.Cores.Basic
                 {
                     // ipv6:port
                     char[] tmp = src.Reverse().ToArray();
-                    for (int i = 0; i < tmp.Length; i++)
+                    if ((defaultPort ?? 0) <= 0 || t[0]._InStri("."))
                     {
-                        if (tmp[i] == ':')
+                        for (int i = 0; i < tmp.Length; i++)
                         {
-                            tmp[i] = '@';
-                            break;
+                            if (tmp[i] == ':')
+                            {
+                                tmp[i] = '@';
+                                break;
+                            }
                         }
                     }
                     string tmp2 = new string(tmp.Reverse().ToArray());
@@ -2105,7 +2158,7 @@ namespace IPA.Cores.Basic
         }
 
         // 指定されたサブネット長がホストアドレスを指定するものかどうか検索する
-        public static bool IsSubnetLenHostAddress(AddressFamily af, int len )
+        public static bool IsSubnetLenHostAddress(AddressFamily af, int len)
         {
             return (GetSubnetLenForAddressFamily(af) == len);
         }

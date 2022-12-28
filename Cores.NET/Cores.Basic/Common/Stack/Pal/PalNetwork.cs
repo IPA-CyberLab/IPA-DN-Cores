@@ -349,8 +349,21 @@ namespace IPA.Cores.Basic
             else
             {
                 // UDP
-                _Socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ExclusiveAddressUse, false);
-                _Socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, udpReuse);
+                bool isRandomPortMode = false;
+
+                if (localEP is IPEndPoint ipEp)
+                {
+                    if (ipEp.Port == 0)
+                    {
+                        isRandomPortMode = true;
+                    }
+                }
+
+                if (isRandomPortMode == false)
+                {
+                    _Socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ExclusiveAddressUse, false);
+                    _Socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, udpReuse);
+                }
             }
             _Socket.Bind(localEP);
             this.LocalEndPoint.Flush();
