@@ -734,23 +734,41 @@ public class EasyDnsResponderDynamicRecordCallbackResult
     public bool NotFound { get; set; } // 発見されず
 }
 
-// フォワーダのコールバック関数に渡されるリクエストデータ
-public class EasyDnsResponderForwarderCallbackRequest
+// フォワーダのリクエストメッセージ変形コールバック関数に渡されるデータ
+public class EasyDnsResponderForwarderRequestTransformerCallbackRequest
 {
     public string RequestFqdn { init; get; } = null!;
     public string CallbackId { init; get; } = null!;
-    public DnsUdpPacket? OriginalRequestPacket { init; get; } = null;
+    public DnsUdpPacket OriginalRequestPacket { init; get; } = null!;
     public EasyDnsResponderForwarder ForwarderDef { init; get; } = null!;
     public EasyDnsResponder.Forwarder ForwarderInternal { init; get; } = null!;
 }
 
-// フォワーダのコールバック関数から返却されるべきデータ
-public class EasyDnsResponderForwarderCallbackResult
+// フォワーダのリクエストメッセージ変形コールバック関数から返却されるべきデータ
+public class EasyDnsResponderForwarderRequestTransformerCallbackResult
 {
     public bool SkipForwarder { get; set; } = false;
     public ReturnCode ErrorCode { get; set; } = ReturnCode.NoError;
-    public DnsMessageBase? ModifiedDnsMessage { get; set; } = null;
+    public DnsMessageBase? ModifiedDnsRequestMessage { get; set; } = null;
+    public Func<EasyDnsResponderForwarderResponseTransformerCallbackRequest, EasyDnsResponderForwarderResponseTransformerCallbackResult>? ForwarderResponseTransformerCallback { get; set; }
 }
+
+// フォワーダのレスポンスメッセージ変形コールバック関数に渡されるデータ
+public class EasyDnsResponderForwarderResponseTransformerCallbackRequest
+{
+    public string CallbackId { init; get; } = null!;
+    public DnsUdpPacket OriginalResponsePacket { init; get; } = null!;
+    public EasyDnsResponderForwarder ForwarderDef { init; get; } = null!;
+    public EasyDnsResponder.Forwarder ForwarderInternal { init; get; } = null!;
+}
+
+// フォワーダのレスポンスメッセージ変形コールバック関数から返却されるべきデータ
+public class EasyDnsResponderForwarderResponseTransformerCallbackResult
+{
+    public bool Ignore { get; set; } = false;
+    public DnsMessageBase? ModifiedDnsResponseMessage { get; set; } = null;
+}
+
 
 public class EasyDnsResponder
 {
@@ -763,7 +781,8 @@ public class EasyDnsResponder
             public long ExpiresTick;
             public ushort NewTransactionId;
             public DnsUdpPacket OriginalRequestPacket = null!;
-            public Func<Entry, DnsUdpPacket, DnsUdpPacket> GenerateResponsePacketCallback = null!;
+            public DnsMessageBase ModifiedRequestMessage = null!;
+            public Func<Entry, DnsUdpPacket, DnsUdpPacket?> GenerateResponsePacketCallback = null!;
         }
 
         Entry?[] Table = new Entry[65536];
@@ -804,7 +823,7 @@ public class EasyDnsResponder
             return ret;
         }
 
-        public Entry? TryCreateNew(HashSet<IPEndPoint> targetForwarderEndPointHashSet, long expiresTick, DnsUdpPacket originalRequestPacket, Func<Entry, DnsUdpPacket, DnsUdpPacket> generateResponsePacketCallback)
+        public Entry? TryCreateNew(HashSet<IPEndPoint> targetForwarderEndPointHashSet, long expiresTick, DnsUdpPacket originalRequestPacket, DnsMessageBase modifiedRequestMessage, Func<Entry, DnsUdpPacket, DnsUdpPacket?> generateResponsePacketCallback)
         {
             Entry e = new Entry
             {
@@ -812,6 +831,7 @@ public class EasyDnsResponder
                 ExpiresTick = expiresTick,
                 GenerateResponsePacketCallback = generateResponsePacketCallback,
                 OriginalRequestPacket = originalRequestPacket,
+                ModifiedRequestMessage = modifiedRequestMessage,
             };
 
             GcCritical();
@@ -907,7 +927,7 @@ public class EasyDnsResponder
     public Func<EasyDnsResponderDynamicRecordCallbackRequest, EasyDnsResponderDynamicRecordCallbackResult?>? DynamicRecordCallback { get; set; }
 
     // フォワーダのコールバック関数
-    public Func<EasyDnsResponderForwarderCallbackRequest, EasyDnsResponderForwarderCallbackResult>? ForwarderCallback { get; set; }
+    public Func<EasyDnsResponderForwarderRequestTransformerCallbackRequest, EasyDnsResponderForwarderRequestTransformerCallbackResult>? ForwarderRequestTransformerCallback { get; set; }
 
     // 内部データセット
     public class Record_A : Record
@@ -2097,8 +2117,12 @@ public class EasyDnsResponder
                     // トランザクション ID の書き戻し
                     responsePacket.Message.TransactionID = e.OriginalRequestPacket.Message.TransactionID;
 
-
                     return responsePacket;
+                }
+                else
+                {
+                    // 無視
+                    return null;
                 }
             }
         }
@@ -2124,14 +2148,17 @@ public class EasyDnsResponder
             // ワイルドカードベース -> サブネットベース -> ドメイン名ベースの順に走査する。
 
             // ワイルドカードベース
-            if (dataSet.HasForwarder_WildcardBased)
+            if (forwarder == null)
             {
-                foreach (var w in dataSet.Forwarder_WildcardBasedList)
+                if (dataSet.HasForwarder_WildcardBased)
                 {
-                    if (Str.WildcardMatch(request.FqdnNormalized, w.WildcardFqdn))
+                    foreach (var w in dataSet.Forwarder_WildcardBasedList)
                     {
-                        forwarder = w;
-                        break;
+                        if (Str.WildcardMatch(request.FqdnNormalized, w.WildcardFqdn))
+                        {
+                            forwarder = w;
+                            break;
+                        }
                     }
                 }
             }
@@ -2141,8 +2168,8 @@ public class EasyDnsResponder
             {
                 if (dataSet.HasForwarder_SubnetBased)
                 {
-                    if (Str.IsEqualToOrSubdomainOf(EnsureSpecial.Yes, request.FqdnNormalized, "in-addr.arpa") ||
-                        Str.IsEqualToOrSubdomainOf(EnsureSpecial.Yes, request.FqdnNormalized, "ip6.arpa"))
+                    if (Str.IsEqualToOrSubdomainOf(EnsureSpecial.Yes, request.FqdnNormalized, "in-addr.arpa", out _) ||
+                        Str.IsEqualToOrSubdomainOf(EnsureSpecial.Yes, request.FqdnNormalized, "ip6.arpa", out _))
                     {
                         var tmp = IPUtil.PtrZoneOrFqdnToIpAddressAndSubnet(request.FqdnNormalized, true);
                         if (IPUtil.IsSubnetLenHostAddress(tmp.Item1.AddressFamily, tmp.Item2))
@@ -2165,26 +2192,29 @@ public class EasyDnsResponder
             if (forwarder != null)
             {
                 // 使用すべきフォワーダが見つかった。コールバックを呼ぶ。
-                var callback = this.ForwarderCallback;
+                var callback = this.ForwarderRequestTransformerCallback;
 
-                EasyDnsResponderForwarderCallbackRequest fwdReq = new EasyDnsResponderForwarderCallbackRequest
+                EasyDnsResponderForwarderRequestTransformerCallbackRequest fwdReq = new EasyDnsResponderForwarderRequestTransformerCallbackRequest
                 {
                     CallbackId = forwarder.CallbackId,
                     ForwarderInternal = forwarder,
                     ForwarderDef = forwarder.Src,
-                    OriginalRequestPacket = request.RequestPacket,
+                    OriginalRequestPacket = request.RequestPacket._CloneDeep(),
                     RequestFqdn = request.FqdnNormalized,
                 };
 
-                EasyDnsResponderForwarderCallbackResult fwdResult;
+                EasyDnsResponderForwarderRequestTransformerCallbackResult fwdResult;
+
+                Func<EasyDnsResponderForwarderResponseTransformerCallbackRequest, EasyDnsResponderForwarderResponseTransformerCallbackResult>? callback2 = null;
 
                 if (callback != null)
                 {
                     fwdResult = callback(fwdReq);
+                    callback2 = fwdResult.ForwarderResponseTransformerCallback;
                 }
                 else
                 {
-                    fwdResult = new EasyDnsResponderForwarderCallbackResult { };
+                    fwdResult = new EasyDnsResponderForwarderRequestTransformerCallbackResult { };
                 }
 
                 if (fwdResult.SkipForwarder)
@@ -2202,6 +2232,17 @@ public class EasyDnsResponder
                 }
                 else
                 {
+                    DnsMessageBase modifiedRequestMessage;
+
+                    if (fwdResult.ModifiedDnsRequestMessage != null)
+                    {
+                        modifiedRequestMessage = fwdResult.ModifiedDnsRequestMessage._CloneDeep();
+                    }
+                    else
+                    {
+                        modifiedRequestMessage = request.RequestPacket.Message._CloneDeep();
+                    }
+
                     // フォワーダ処理の実施
                     long expires = Time.Tick64 + forwarder.TimeoutMsecs;
                     bool ok = false;
@@ -2216,24 +2257,53 @@ public class EasyDnsResponder
                         targetEndPointHashSet.Add(targetEndPoint);
                     }
 
-                    var e = this.FwdTranslateTable.TryCreateNew(targetEndPointHashSet, expires, request.RequestPacket, (e, src) =>
+                    var e = this.FwdTranslateTable.TryCreateNew(targetEndPointHashSet, expires, request.RequestPacket, modifiedRequestMessage, (e, src) =>
                     {
+                        DnsMessageBase? newDnsMessage = null;
+
+                        if (callback2 != null)
+                        {
+                            EasyDnsResponderForwarderResponseTransformerCallbackRequest callbackIn = new EasyDnsResponderForwarderResponseTransformerCallbackRequest
+                            {
+                                CallbackId = forwarder.CallbackId,
+                                ForwarderInternal = forwarder,
+                                ForwarderDef = forwarder.Src,
+                                OriginalResponsePacket = src,
+                            };
+
+                            var callbackOut = callback2(callbackIn);
+
+                            if (callbackOut.Ignore)
+                            {
+                                return null;
+                            }
+
+                            if (callbackOut.ModifiedDnsResponseMessage != null)
+                            {
+                                newDnsMessage = callbackOut.ModifiedDnsResponseMessage;
+                            }
+                        }
+
+                        if (newDnsMessage == null)
+                        {
+                            newDnsMessage = src.Message;
+                        }
+
                         var reqPacket = request.RequestPacket;
-                        return new DnsUdpPacket(reqPacket.RemoteEndPoint, reqPacket.LocalEndPoint, src.Message);
+
+                        return new DnsUdpPacket(reqPacket.RemoteEndPoint, reqPacket.LocalEndPoint, newDnsMessage);
                     });
 
                     if (e != null)
                     {
+                        modifiedRequestMessage.TransactionID = e.NewTransactionId;
+
                         foreach (var targetEndPoint in targetEndPointHashSet)
                         {
                             ok = true;
 
-                            // フォワーダに転送すべきパケットをここで生成する
-                            DnsMessageBase newMessage = request.RequestPacket.Message._CloneDeep();
-                            newMessage.TransactionID = e.NewTransactionId;
-
                             var local = new IPEndPoint(targetEndPoint.AddressFamily == AddressFamily.InterNetworkV6 ? IPAddress.IPv6Any : IPAddress.Any, 0);
-                            DnsUdpPacket newPacket = new DnsUdpPacket(targetEndPoint, local, newMessage);
+                            DnsUdpPacket newPacket = new DnsUdpPacket(targetEndPoint, local, modifiedRequestMessage);
 
                             ret3.AlternativeSendPackets.Add(newPacket);
                         }

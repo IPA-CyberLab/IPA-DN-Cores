@@ -1091,3 +1091,35 @@
 {"TimeStamp":"2022-12-27T09:48:36.8023936+09:00","Data":{"TestName":"Wildcard Match","Ret":333.1035825279718,"PerSecond":3002069},"Tag":"result"}
 {"TimeStamp":"2022-12-27T09:48:37.3301923+09:00","Data":{"TestName":"Radix Trie","Ret":450.9610031665054,"PerSecond":2217486},"Tag":"result"}
 {"TimeStamp":"2022-12-27T09:48:37.86765+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":27.733139025675946,"PerSecond":36057944},"Tag":"result"}
+{"TimeStamp":"2022-12-29T11:08:13.6921939+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-29T11:08:13.692209+09:00","Data":"Commit: 5f2b3465643b1c75f2db86060f79bd135a49627c","Tag":"text"}
+{"TimeStamp":"2022-12-29T11:08:13.6922106+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-29T11:08:13.6922126+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-29T11:08:13.6922227+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-29T11:08:13.6922245+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-29T11:08:15.0154115+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-29T11:08:15.5651823+09:00","Data":{"TestName":"DNS Packet Clone","Ret":1186.6202604319437,"PerSecond":842729},"Tag":"result"}
+{"TimeStamp":"2022-12-29T11:08:16.1117102+09:00","Data":{"TestName":"Wildcard Match","Ret":322.75345521024707,"PerSecond":3098340},"Tag":"result"}
+{"TimeStamp":"2022-12-29T11:08:16.6653613+09:00","Data":{"TestName":"Radix Trie","Ret":425.43701560400575,"PerSecond":2350524},"Tag":"result"}
+{"TimeStamp":"2022-12-29T11:08:17.2000975+09:00","Data":{"TestName":"ByteToHex (New) - No Padding","Ret":30.1496822914227,"PerSecond":33167845},"Tag":"result"}
+{"TimeStamp":"2022-12-29T11:08:17.7389802+09:00","Data":{"TestName":"ByteToHex (New) - Padding","Ret":106.28362484554063,"PerSecond":9408787},"Tag":"result"}
+{"TimeStamp":"2022-12-29T11:08:18.346966+09:00","Data":{"TestName":"throw Exception","Ret":8384.939732711258,"PerSecond":119261},"Tag":"result"}
+{"TimeStamp":"2022-12-29T11:08:18.8818151+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (TaskResult)","Ret":798.0630956904549,"PerSecond":1253033},"Tag":"result"}
+{"TimeStamp":"2022-12-29T11:08:19.4153829+09:00","Data":{"TestName":"StartAsyncTaskAsync Normal (async)","Ret":945.114252531038,"PerSecond":1058073},"Tag":"result"}
+{"TimeStamp":"2022-12-29T11:08:19.9498949+09:00","Data":{"TestName":"StartAsyncTaskAsync with Task Param","Ret":1405.9822667034452,"PerSecond":711246},"Tag":"result"}
+{"TimeStamp":"2022-12-29T11:08:20.7065723+09:00","Data":{"TestName":"DeflateStream compress 1MB Optimal","Ret":23955553.879867263,"PerSecond":41},"Tag":"result"}
+{"TimeStamp":"2022-12-29T11:08:21.3562799+09:00","Data":{"TestName":"DeflateStream compress 1MB Fastest","Ret":18120688.954408936,"PerSecond":55},"Tag":"result"}
+{"TimeStamp":"2022-12-29T11:08:22.0059333+09:00","Data":{"TestName":"DeflateStream compress 1MB SmallestSize","Ret":18185273.941482488,"PerSecond":54},"Tag":"result"}
+{"TimeStamp":"2022-12-29T11:08:22.5440508+09:00","Data":{"TestName":"DeflateStream decompress 1MB Optimal","Ret":1179082.0655488463,"PerSecond":848},"Tag":"result"}
+{"TimeStamp":"2022-12-29T11:08:23.0980027+09:00","Data":{"TestName":"DeflateStream decompress 1MB Fastest","Ret":1168336.331830045,"PerSecond":855},"Tag":"result"}
+{"TimeStamp":"2022-12-29T11:08:23.6518009+09:00","Data":{"TestName":"DeflateStream decompress 1MB SmallestSize","Ret":1067691.2810340724,"PerSecond":936},"Tag":"result"}
+{"TimeStamp":"2022-12-29T11:08:24.209016+09:00","Data":{"TestName":"ImmutableDictionary Search 10000","Ret":156.51666125928296,"PerSecond":6389096},"Tag":"result"}
+{"TimeStamp":"2022-12-29T11:08:43.5358179+09:00","Data":"----- Start new benchmark -----","Tag":"text"}
+{"TimeStamp":"2022-12-29T11:08:43.5358343+09:00","Data":"Commit: 5f2b3465643b1c75f2db86060f79bd135a49627c","Tag":"text"}
+{"TimeStamp":"2022-12-29T11:08:43.5358358+09:00","Data":"ExeFileName: C:\\git\\IPA-DN-Cores\\Cores.NET\\Dev.Test\\bin\\Release\\net6.0\\win-x64\\Dev.Test.dll","Tag":"text"}
+{"TimeStamp":"2022-12-29T11:08:43.535837+09:00","Data":"OS: Microsoft Windows 10.0.19045","Tag":"text"}
+{"TimeStamp":"2022-12-29T11:08:43.5358484+09:00","Data":"Framework: .NET 6.0.12 with Win32_Schannel","Tag":"text"}
+{"TimeStamp":"2022-12-29T11:08:43.5358505+09:00","Data":"Host: PC34","Tag":"text"}
+{"TimeStamp":"2022-12-29T11:08:44.9160884+09:00","Data":{"TestName":"Sample Loop (Do Nothing)","Ret":0.0,"PerSecond":9999999999999},"Tag":"result"}
+{"TimeStamp":"2022-12-29T11:08:45.4618946+09:00","Data":{"TestName":"DNS Packet Clone","Ret":1246.4631382897815,"PerSecond":802270},"Tag":"result"}
+{"TimeStamp":"2022-12-29T11:08:46.0059213+09:00","Data":{"TestName":"Wildcard Match","Ret":351.2665648163077,"PerSecond":2846840},"Tag":"result"}

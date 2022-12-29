@@ -8780,38 +8780,42 @@ namespace IPA.Cores.Basic
             return true;
         }
 
-        public static bool IsSubdomainOf(string subDomain, string parentDomain)
+        public static bool IsSubdomainOf(string subDomain, string parentDomain, out string normalizedHostLabel)
         {
-            return IsSubdomainOf(EnsureSpecial.Yes, subDomain._NormalizeFqdn(), parentDomain._NormalizeFqdn());
+            return IsSubdomainOf(EnsureSpecial.Yes, subDomain._NormalizeFqdn(), parentDomain._NormalizeFqdn(), out normalizedHostLabel);
         }
 
-        public static bool IsSubdomainOf(EnsureSpecial normalized, string normalizedSubDomain, string normalizedParentDomain)
+        public static bool IsSubdomainOf(EnsureSpecial normalized, string normalizedSubDomain, string normalizedParentDomain, out string normalizedHostLabel)
         {
             if (normalizedParentDomain._IsEmpty() || normalizedParentDomain == ".")
             {
+                normalizedHostLabel = normalizedSubDomain;
                 return true;
             }
             if (normalizedSubDomain.EndsWith("." + normalizedParentDomain, StringComparison.Ordinal))
             {
+                normalizedHostLabel = normalizedSubDomain.Substring(0, normalizedSubDomain.Length - (normalizedParentDomain.Length + 1));
                 return true;
             }
 
+            normalizedHostLabel = "";
             return false;
         }
 
-        public static bool IsEqualToOrSubdomainOf(string subDomain, string parentDomain)
+        public static bool IsEqualToOrSubdomainOf(string subDomain, string parentDomain, out string normalizedHostLabel)
         {
-            return IsEqualToOrSubdomainOf(EnsureSpecial.Yes, subDomain._NormalizeFqdn(), parentDomain._NormalizeFqdn());
+            return IsEqualToOrSubdomainOf(EnsureSpecial.Yes, subDomain._NormalizeFqdn(), parentDomain._NormalizeFqdn(), out normalizedHostLabel);
         }
 
-        public static bool IsEqualToOrSubdomainOf(EnsureSpecial normalized, string normalizedSubDomain, string normalizedParentDomain)
+        public static bool IsEqualToOrSubdomainOf(EnsureSpecial normalized, string normalizedSubDomain, string normalizedParentDomain, out string normalizedHostLabel)
         {
             if (normalizedSubDomain._IsSamei(normalizedParentDomain))
             {
+                normalizedHostLabel = "";
                 return true;
             }
 
-            return IsSubdomainOf(EnsureSpecial.Yes, normalizedSubDomain, normalizedParentDomain);
+            return IsSubdomainOf(EnsureSpecial.Yes, normalizedSubDomain, normalizedParentDomain, out normalizedHostLabel);
         }
 
         public static string NormalizeFqdn(string fqdn)

@@ -118,7 +118,7 @@ public abstract class AddressRecordBase : DnsRecordBase, IAddressRecord
     /// <summary>
     ///   IP address of the host
     /// </summary>
-    public IPAddress Address { get; private set; }
+    public IPAddress Address { get; set; }
 
     protected AddressRecordBase() { }
 

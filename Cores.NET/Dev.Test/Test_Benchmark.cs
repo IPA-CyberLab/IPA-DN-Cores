@@ -768,6 +768,23 @@ partial class TestDevCommands
             });
         }), enabled: true, priority: 999999)
 
+        .Add(new MicroBenchmark($"DNS Packet Clone", Benchmark_CountForNormal, count =>
+        {
+            var packetMem = Res.AppRoot["210613_novlan_dns_query_simple.txt"].HexParsedBinary;
+            Packet packet = new Packet(default, packetMem._CloneSpan());
+            var parsed = new PacketParsed(ref packet);
+            var dnsPacket = parsed.L7.Generic.GetSpan(ref packet);
+
+            var array = dnsPacket.ToArray().AsSpan();
+
+            var msg = DnsUtil.ParsePacket(array);
+
+            for (int c = 0; c < count; c++)
+            {
+                msg._CloneDeep();
+            }
+        }), enabled: true, priority: 221229)
+
         .Add(new MicroBenchmark($"Wildcard Match", Benchmark_CountForNormal, count =>
         {
             Async(async () =>
@@ -777,7 +794,7 @@ partial class TestDevCommands
                     Str.WildcardMatch("abc-12345-6789.example.org", "abc-12345-*.example.org");
                 }
             });
-        }), enabled: true, priority: 999999)
+        }), enabled: true, priority: 221229)
 
 
         .Add(new MicroBenchmark($"Radix Trie", Benchmark_CountForNormal, count =>
@@ -793,7 +810,7 @@ partial class TestDevCommands
                     }
                 }
             });
-        }), enabled: true, priority: 999999)
+        }), enabled: true, priority: 221229)
 
 
         .Add(new MicroBenchmark($"ByteToHex (New) - No Padding", Benchmark_CountForNormal, count =>
@@ -810,7 +827,7 @@ partial class TestDevCommands
                     Str.ByteToHex(src);
                 }
             });
-        }), enabled: true, priority: 999999)
+        }), enabled: true, priority: 221229)
 
         .Add(new MicroBenchmark($"ByteToHex (New) - Padding", Benchmark_CountForNormal, count =>
         {
@@ -826,7 +843,7 @@ partial class TestDevCommands
                     Str.ByteToHex(src, " ");
                 }
             });
-        }), enabled: true, priority: 999999)
+        }), enabled: true, priority: 221229)
 
         .Add(new MicroBenchmark($"throw Exception", Benchmark_CountForNormal, count =>
         {

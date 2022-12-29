@@ -218,8 +218,8 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
             if (responsePacket != null)
             {
                 alternativeSendPacketsList = responsePacket._SingleList();
-                return null;
             }
+            return null;
         }
 
         q.ReturnCode = ReturnCode.NoError;

@@ -1091,3 +1091,35 @@
 2022/12/27 09:48:36.802 +09:00 Wildcard Match: 333.10 ns, 3,002,069 / sec
 2022/12/27 09:48:37.330 +09:00 Radix Trie: 450.96 ns, 2,217,486 / sec
 2022/12/27 09:48:37.867 +09:00 ByteToHex (New) - No Padding: 27.73 ns, 36,057,944 / sec
+2022/12/29 11:08:13.692 +09:00 ----- Start new benchmark -----
+2022/12/29 11:08:13.692 +09:00 Commit: 5f2b3465643b1c75f2db86060f79bd135a49627c
+2022/12/29 11:08:13.692 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/29 11:08:13.692 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/29 11:08:13.692 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/29 11:08:13.692 +09:00 Host: PC34
+2022/12/29 11:08:15.015 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/29 11:08:15.565 +09:00 DNS Packet Clone: 1,186.62 ns, 842,729 / sec
+2022/12/29 11:08:16.111 +09:00 Wildcard Match: 322.75 ns, 3,098,340 / sec
+2022/12/29 11:08:16.665 +09:00 Radix Trie: 425.44 ns, 2,350,524 / sec
+2022/12/29 11:08:17.200 +09:00 ByteToHex (New) - No Padding: 30.15 ns, 33,167,845 / sec
+2022/12/29 11:08:17.738 +09:00 ByteToHex (New) - Padding: 106.28 ns, 9,408,787 / sec
+2022/12/29 11:08:18.346 +09:00 throw Exception: 8,384.94 ns, 119,261 / sec
+2022/12/29 11:08:18.881 +09:00 StartAsyncTaskAsync Normal (TaskResult): 798.06 ns, 1,253,033 / sec
+2022/12/29 11:08:19.415 +09:00 StartAsyncTaskAsync Normal (async): 945.11 ns, 1,058,073 / sec
+2022/12/29 11:08:19.949 +09:00 StartAsyncTaskAsync with Task Param: 1,405.98 ns, 711,246 / sec
+2022/12/29 11:08:20.706 +09:00 DeflateStream compress 1MB Optimal: 23,955,553.88 ns, 41 / sec
+2022/12/29 11:08:21.356 +09:00 DeflateStream compress 1MB Fastest: 18,120,688.95 ns, 55 / sec
+2022/12/29 11:08:22.005 +09:00 DeflateStream compress 1MB SmallestSize: 18,185,273.94 ns, 54 / sec
+2022/12/29 11:08:22.544 +09:00 DeflateStream decompress 1MB Optimal: 1,179,082.07 ns, 848 / sec
+2022/12/29 11:08:23.098 +09:00 DeflateStream decompress 1MB Fastest: 1,168,336.33 ns, 855 / sec
+2022/12/29 11:08:23.651 +09:00 DeflateStream decompress 1MB SmallestSize: 1,067,691.28 ns, 936 / sec
+2022/12/29 11:08:24.209 +09:00 ImmutableDictionary Search 10000: 156.52 ns, 6,389,096 / sec
+2022/12/29 11:08:43.535 +09:00 ----- Start new benchmark -----
+2022/12/29 11:08:43.535 +09:00 Commit: 5f2b3465643b1c75f2db86060f79bd135a49627c
+2022/12/29 11:08:43.535 +09:00 ExeFileName: C:\git\IPA-DN-Cores\Cores.NET\Dev.Test\bin\Release\net6.0\win-x64\Dev.Test.dll
+2022/12/29 11:08:43.535 +09:00 OS: Microsoft Windows 10.0.19045
+2022/12/29 11:08:43.535 +09:00 Framework: .NET 6.0.12 with Win32_Schannel
+2022/12/29 11:08:43.535 +09:00 Host: PC34
+2022/12/29 11:08:44.916 +09:00 Sample Loop (Do Nothing): 0.00 ns, 9,999,999,999,999 / sec
+2022/12/29 11:08:45.461 +09:00 DNS Packet Clone: 1,246.46 ns, 802,270 / sec
+2022/12/29 11:08:46.005 +09:00 Wildcard Match: 351.27 ns, 2,846,840 / sec

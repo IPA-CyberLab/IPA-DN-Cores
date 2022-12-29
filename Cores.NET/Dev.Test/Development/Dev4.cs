@@ -773,7 +773,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
             {
                 if (currentLimitZonesList == null) return true;
 
-                return currentLimitZonesList.Where(x => x.Type == ZoneDefType.Forward).Any(x => Str.IsEqualToOrSubdomainOf(EnsureSpecial.Yes, normalizedFqdn, x.Fqdn));
+                return currentLimitZonesList.Where(x => x.Type == ZoneDefType.Forward).Any(x => Str.IsEqualToOrSubdomainOf(EnsureSpecial.Yes, normalizedFqdn, x.Fqdn, out _));
             }
 
             // ユーティリティ関数: 指定した逆引きレコードが Limit の範囲内かどうか検査
@@ -1059,7 +1059,9 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
 
         LastConfigJson = configJson;
 
-        settings.ForwarderList.Add(new EasyDnsResponderForwarder { Selector = "sec.softether.co.jp", TargetServers = await LocalNet.ResolveHostAndPortListStrToIpAndPortListStrAsync("google-public-dns-v6.test.sehosts.com 8.8.8.7 8.8.8.1 8.8.8.9", 53, cancel: cancel), });
+        settings.ForwarderList.Add(new EasyDnsResponderForwarder { Selector = "sec.softether.co.jp", TargetServers = await LocalNet.ResolveHostAndPortListStrToIpAndPortListStrAsync("google-public-dns-v6.test.sehosts.com 8.8.8.7 8.8.8.1 8.8.8.9", 53, cancel: cancel), CallbackId = "1", });
+        settings.ForwarderList.Add(new EasyDnsResponderForwarder { Selector = "*pc37*", TargetServers = await LocalNet.ResolveHostAndPortListStrToIpAndPortListStrAsync("google-public-dns-v6.test.sehosts.com 8.8.8.7 8.8.8.1 8.8.8.9", 53, cancel: cancel), });
+        settings.ForwarderList.Add(new EasyDnsResponderForwarder { Selector = "10.20.0.0/16", TargetServers = await LocalNet.ResolveHostAndPortListStrToIpAndPortListStrAsync("192.168.3.2", 53, cancel: cancel), });
 
         try
         {
@@ -1071,6 +1073,69 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
             currentDynOptions.DnsProxyProtocolAcceptSrcIpAcl = config.Dns_Protocol_ProxyProtocolAcceptSrcIpAcl;
 
             this.DnsServer.DnsServer.SetCurrentDynOptions(currentDynOptions);
+
+            this.DnsServer.DnsResponder.ForwarderRequestTransformerCallback = (inData) =>
+            {
+                if (inData.CallbackId == "1")
+                {
+                    List<Tuple<string, string>> replaceStringList = new List<Tuple<string, string>>();
+
+                    // DNS クエリ / レスポンス変形のサンプルコード
+                    var src = (DnsMessage)inData.OriginalRequestPacket.Message;
+                    for (int i = 0; i < src.Questions.Count; i++)
+                    {
+                        var q = src.Questions[i];
+                        var fqdn = q.Name.ToNormalizedFqdnFast();
+                        if (Str.IsEqualToOrSubdomainOf(fqdn, "sec.softether.co.jp", out string hostLabel))
+                        {
+                            string fqdn2 = hostLabel + ".sehosts.com";
+                            replaceStringList.Add(new Tuple<string, string>(fqdn, fqdn2));
+                            q.Name = DomainName.Parse(fqdn2);
+                        }
+                    }
+                    return new EasyDnsResponderForwarderRequestTransformerCallbackResult
+                    {
+                        ModifiedDnsRequestMessage = src,
+                        ForwarderResponseTransformerCallback = inData2 =>
+                        {
+                            var src = (DnsMessage)inData2.OriginalResponsePacket.Message;
+                            for (int i = 0; i < src.Questions.Count; i++)
+                            {
+                                var q = src.Questions[i];
+                                var fqdn = q.Name.ToNormalizedFqdnFast();
+                                if (Str.IsEqualToOrSubdomainOf(fqdn, ".sehosts.com", out string hostLabel))
+                                {
+                                    string fqdn2 = hostLabel + ".sec.softether.co.jp";
+                                    replaceStringList.Add(new Tuple<string, string>(fqdn, fqdn2));
+                                    q.Name = DomainName.Parse(fqdn2);
+                                }
+                            }
+                            for (int i = 0; i < src.AnswerRecords.Count; i++)
+                            {
+                                var answer = src.AnswerRecords[i];
+                                var fqdn = answer.Name.ToNormalizedFqdnFast();
+                                if (Str.IsEqualToOrSubdomainOf(fqdn, ".sehosts.com", out string hostLabel))
+                                {
+                                    string fqdn2 = hostLabel + ".sec.softether.co.jp";
+                                    replaceStringList.Add(new Tuple<string, string>(fqdn, fqdn2));
+                                    answer.Name = DomainName.Parse(fqdn2);
+                                }
+                                if (answer is ARecord a)
+                                {
+                                    a.Address = IPUtil.GetPrefixAddress(a.Address, 24);
+                                }
+                            }
+                            return new EasyDnsResponderForwarderResponseTransformerCallbackResult
+                            {
+                                ModifiedDnsResponseMessage = src,
+                            };
+                        },
+                    };
+                }
+                return new EasyDnsResponderForwarderRequestTransformerCallbackResult
+                {
+                };
+            };
 
             this.DnsServer.DnsResponder.DynamicRecordCallback = (req) =>
             {

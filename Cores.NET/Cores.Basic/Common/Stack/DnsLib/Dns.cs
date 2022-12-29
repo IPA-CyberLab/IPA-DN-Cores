@@ -2550,17 +2550,17 @@ public abstract class DnsMessageEntryBase : IEquatable<DnsMessageEntryBase>
     /// <summary>
     ///   Domain name
     /// </summary>
-    public DomainName Name { get; internal set; }
+    public DomainName Name { get; set; }
 
     /// <summary>
     ///   Type of the record
     /// </summary>
-    public RecordType RecordType { get; internal set; }
+    public RecordType RecordType { get; set; }
 
     /// <summary>
     ///   Class of the record
     /// </summary>
-    public RecordClass RecordClass { get; internal set; }
+    public RecordClass RecordClass { get; set; }
 
     internal abstract int MaximumLength { get; }
 
