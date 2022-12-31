@@ -171,11 +171,25 @@ public static class Json
             => IPAddress.Parse((string)reader.Value!);
     }
 
+    public class IPEndPointJsonConverter : JsonConverter
+    {
+        public static readonly IPEndPointJsonConverter Singleton = new IPEndPointJsonConverter();
+
+        public override bool CanConvert(Type objectType) => objectType == typeof(IPEndPoint);
+
+        public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
+            => writer.WriteValue(value!.ToString());
+
+        public override object ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
+            => IPEndPoint.Parse((string)reader.Value!);
+    }
+
     static readonly StringEnumConverter JsonNet_StringEnumConverter = new StringEnumConverter();
 
     public static void AddStandardSettingsToJsonConverter(JsonSerializerSettings settings, JsonFlags flags = JsonFlags.None, IList<JsonConverter>? converters = null)
     {
         settings.Converters.Add(IPAddressJsonConverter.Singleton);
+        settings.Converters.Add(IPEndPointJsonConverter.Singleton);
         settings.Converters.Add(ClassWithIToJsonJsonConverter.Singleton);
 
         if (flags.Bit(JsonFlags.AllEnumToStr))

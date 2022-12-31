@@ -112,8 +112,9 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
 
     public class DnsAccessLog
     {
-        public DnsUdpPacket? RequestPacket;
-        public DnsUdpPacket? ResponsePacket;
+        public DnsUdpPacket? ReceivePacket;
+        public DnsUdpPacket? SubmitPacket;
+        public DnsUdpPacket[]? ForwardedSubmitPackets;
         public string TookSeconds = "";
     }
 
@@ -149,9 +150,14 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
                     DnsAccessLog log = new DnsAccessLog
                     {
                         TookSeconds = ((double)timespan / 10000000.0).ToString("F9"),
-                        RequestPacket = requestCopy,
-                        ResponsePacket = response,
+                        ReceivePacket = requestCopy,
+                        SubmitPacket = response,
                     };
+
+                    if (alternativeSendPacketsList != null && alternativeSendPacketsList.Any())
+                    {
+                        log.ForwardedSubmitPackets = alternativeSendPacketsList.ToArray();
+                    }
 
                     log._PostAccessLog("DDnsAccessLogForDebug");
                 }

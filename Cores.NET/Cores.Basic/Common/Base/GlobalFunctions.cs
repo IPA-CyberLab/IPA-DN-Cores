@@ -69,6 +69,12 @@ public static partial class Basic
 
     public const MethodImplOptions Inline = MethodImplOptions.AggressiveInlining | (MethodImplOptions)512 /* AggressiveOptimization */;
 
+    public static int BreakPoint()
+    {
+        Dbg.Break();
+        return 0;
+    }
+
     public static int DoNothing() => NoOp();
 
     public static void Sleep(int msecs) => Kernel.SleepThread(msecs);
