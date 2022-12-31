@@ -1132,6 +1132,43 @@ public static class BasicHelper
         return ret!;
     }
 
+    public static bool _GetBoolAt<T>(this IEnumerable<KeyValuePair<string, T>> d, string key, int index, bool defaultValue = false, StringComparison comparison = StringComparison.OrdinalIgnoreCase)
+        => d._GetStrAt(key, index, "", comparison)._ToBool(defaultValue);
+
+    public static int _GetIntAt<T>(this IEnumerable<KeyValuePair<string, T>> d, string key, int index, int defaultValue = 0, StringComparison comparison = StringComparison.OrdinalIgnoreCase)
+        => d._GetStrAt(key, index, defaultValue.ToString(), comparison)._ToInt();
+
+    public static long _GetLongAt<T>(this IEnumerable<KeyValuePair<string, T>> d, string key, int index, long defaultValue = 0, StringComparison comparison = StringComparison.OrdinalIgnoreCase)
+        => d._GetStrAt(key, index, defaultValue.ToString(), comparison)._ToLong();
+
+    public static string _GetStrAt<T>(this IEnumerable<KeyValuePair<string, T>> d, string key, int index, string defaultStr = "", StringComparison comparison = StringComparison.OrdinalIgnoreCase, bool autoTrim = true)
+    {
+        if (key._IsEmpty()) throw new ArgumentNullException(nameof(key));
+
+        if (d == null) return defaultStr;
+
+        T value = d.Where(x => x.Key._IsSameTrim(key, comparison)).ElementAtOrDefault(index).Value;
+
+        if (value._IsNullOrDefault())
+        {
+            return defaultStr;
+        }
+
+        string? ret = value.ToString();
+
+        if (ret._IsEmpty())
+        {
+            return defaultStr;
+        }
+
+        if (autoTrim)
+        {
+            ret = ret._NonNullTrim();
+        }
+
+        return ret!;
+    }
+
     public static string _QStr<T>(this IEnumerable<KeyValuePair<string, T>> d, string key, string defaultStr = "", StringComparison comparison = StringComparison.OrdinalIgnoreCase, bool autoTrim = true)
         => _GetStrFirst(d, key, defaultStr, comparison, autoTrim);
 

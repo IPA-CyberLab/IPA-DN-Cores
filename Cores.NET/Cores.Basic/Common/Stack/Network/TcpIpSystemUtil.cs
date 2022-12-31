@@ -220,8 +220,6 @@ public abstract partial class TcpIpSystem
             // 1 つでも結果がある場合は、例外を発生させない
             string ret = tmp.Select(x => x.Item2.Value)._Combine(" ");
 
-            ret._Debug();
-
             return ret;
         }
         else

@@ -8780,6 +8780,21 @@ namespace IPA.Cores.Basic
             return true;
         }
 
+        public static string CombineFqdn(params string[] labelsOrFqdns)
+        {
+            List<string> tokens = new List<string>();
+            int estimatedLength = 0;
+            foreach (var a in labelsOrFqdns)
+            {
+                string b = a._NonNullTrim().ToLowerInvariant();
+                var t = b.Split(".", StringSplitOptions.RemoveEmptyEntries);
+                tokens.AddRange(t);
+
+                estimatedLength += a.Length + 2;
+            }
+            return tokens._Combine(".", estimatedLength: estimatedLength);
+        }
+
         public static bool IsSubdomainOf(string subDomain, string parentDomain, out string normalizedHostLabel)
         {
             return IsSubdomainOf(EnsureSpecial.Yes, subDomain._NormalizeFqdn(), parentDomain._NormalizeFqdn(), out normalizedHostLabel);

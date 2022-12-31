@@ -77,7 +77,6 @@ public static partial class CoresConfig
         public static Copenhagen<ushort> Default_MxPreference = 100;
 
         public static Copenhagen<int> Default_ForwarderTimeoutMsecs = 10000;
-        public static Copenhagen<int> Default_ForwarderMaxSessions = 10000;
     }
 }
 
@@ -674,6 +673,8 @@ public class EasyDnsResponderForwarder
     public string CallbackId { get; set; } = "";
 
     public int TimeoutMsecs { get; set; } = CoresConfig.EasyDnsResponderSettings.Default_ForwarderTimeoutMsecs;
+
+    public QueryStringList ArgsList { get; set; } = new QueryStringList();
 }
 
 public class EasyDnsResponderZone
@@ -696,8 +697,6 @@ public class EasyDnsResponderSettings
     public bool SaveAccessLogForDebug { get; set; } = false;
 
     public bool CopyQueryAdditionalRecordsToResponse { get; set; } = false;
-
-    public int ForwarderMaxSessions { get; set; } = CoresConfig.EasyDnsResponderSettings.Default_ForwarderMaxSessions;
 }
 
 // ダイナミックレコードのコールバック関数に渡されるリクエストデータ
@@ -739,6 +738,7 @@ public class EasyDnsResponderForwarderRequestTransformerCallbackRequest
 {
     public string RequestFqdn { init; get; } = null!;
     public string CallbackId { init; get; } = null!;
+    public QueryStringList ArgsList => this.ForwarderInternal.ArgsList;
     public DnsUdpPacket OriginalRequestPacket { init; get; } = null!;
     public EasyDnsResponderForwarder ForwarderDef { init; get; } = null!;
     public EasyDnsResponder.Forwarder ForwarderInternal { init; get; } = null!;
@@ -1523,6 +1523,7 @@ public class EasyDnsResponder
         public int Subnet_SubnetLength = 32;
         public int TimeoutMsecs;
         public string CallbackId = "";
+        public QueryStringList ArgsList;
         public List<IPEndPoint> TargetServersList = new List<IPEndPoint>();
         public EasyDnsResponderForwarder Src;
 
@@ -1559,6 +1560,8 @@ public class EasyDnsResponder
 
             this.TimeoutMsecs = src.TimeoutMsecs;
             if (this.TimeoutMsecs <= 0) this.TimeoutMsecs = CoresConfig.EasyDnsResponderSettings.Default_ForwarderTimeoutMsecs;
+
+            this.ArgsList = src.ArgsList;
 
             string[] targetToken = src.TargetServers._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, " ", "\t", ";", ",", "/");
 

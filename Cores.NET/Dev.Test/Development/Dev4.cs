@@ -236,6 +236,33 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
         public EasyDnsResponderRecordSettings? Settings;
     }
 
+    public class ForwarderDef
+    {
+        public string Selector = "";
+        public string ForwarderList = "";
+        public QueryStringList ArgsList = new QueryStringList();
+        public int TimeoutMsecs = CoresConfig.EasyDnsResponderSettings.Default_ForwarderTimeoutMsecs;
+
+        public ForwarderDef() { }
+
+        public ForwarderDef(string str, QueryStringList argsList)
+        {
+            var tokenList = str._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, " ", "\t", "　", ",", ";");
+
+            this.Selector = tokenList.ElementAtOrDefault(0)._NonNullTrim();
+
+            if (this.Selector._IsEmpty())
+            {
+                throw new CoresException("Invalid forwarder definition");
+            }
+
+            this.ForwarderList = tokenList.Skip(1)._Combine(" ");
+            this.ArgsList = argsList;
+
+            this.TimeoutMsecs = this.ArgsList._GetIntFirst("timeout", CoresConfig.EasyDnsResponderSettings.Default_ForwarderTimeoutMsecs);
+        }
+    }
+
     public class ZoneDef
     {
         public ZoneDefType Type;
@@ -303,6 +330,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
     public class Config
     {
         public StrDictionary<ZoneDef> ZoneList = new StrDictionary<ZoneDef>();
+        public List<ForwarderDef> ForwarderList = new List<ForwarderDef>();
         public FullRoute46<StandardRecord> ReverseRadixTrie = new FullRoute46<StandardRecord>();
         public List<StandardRecord> ReverseRecordsList = new List<StandardRecord>();
 
@@ -370,6 +398,33 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                                 this.ZoneList.Add(zone.Fqdn, zone);
                                             }
                                         }
+                                        else if (key._IsSamei("!DefineForwarder"))
+                                        {
+                                            // フォワーダの定義
+                                            string str1 = key;
+                                            string str2;
+                                            string paramsStr = "";
+
+                                            // value 部の ! で続くパラメータ制御文字列を除く
+                                            int startParamsIndex = value._Search("!");
+                                            if (startParamsIndex == -1)
+                                            {
+                                                // ! がない
+                                                str2 = value;
+                                            }
+                                            else
+                                            {
+                                                // ! がある
+                                                str2 = value.Substring(0, startParamsIndex);
+                                                paramsStr = value.Substring(startParamsIndex + 1);
+                                            }
+
+                                            QueryStringList argsList = new QueryStringList(paramsStr, splitChar: ',', trimKeyAndValue: true);
+
+                                            var forwarderDef = new ForwarderDef(str2, argsList);
+
+                                            this.ForwarderList.Add(forwarderDef);
+                                        }
                                         else if (key._IsSamei("!Limit"))
                                         {
                                             // 制限の定義
@@ -391,6 +446,10 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                                 throw;
                                             }
                                             currentLimitZonesList = tmp;
+                                        }
+                                        else
+                                        {
+                                            throw new CoresException($"Invalid instruction");
                                         }
                                     }
                                 }
@@ -1016,6 +1075,28 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
             dst.ZoneList.Add(zone);
         }
 
+        // フォワーダの定義
+        foreach (var forwarderDef in cfg.ForwarderList)
+        {
+            try
+            {
+                EasyDnsResponderForwarder fwd = new EasyDnsResponderForwarder
+                {
+                    CallbackId = "_this_is_static_defined_forwarder_callback",
+                    Selector = forwarderDef.Selector,
+                    TargetServers = await LocalNet.ResolveHostAndPortListStrToIpAndPortListStrAsync(forwarderDef.ForwarderList, Consts.Ports.Dns, cancel: cancel),
+                    TimeoutMsecs = forwarderDef.TimeoutMsecs,
+                    ArgsList = forwarderDef.ArgsList,
+                };
+
+                dst.ForwarderList.Add(fwd);
+            }
+            catch (Exception ex)
+            {
+                ex._Error();
+            }
+        }
+
         LastConfigBody = body;
 
         string errorStr = err.ToString();
@@ -1059,9 +1140,9 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
 
         LastConfigJson = configJson;
 
-        settings.ForwarderList.Add(new EasyDnsResponderForwarder { Selector = "sec.softether.co.jp", TargetServers = await LocalNet.ResolveHostAndPortListStrToIpAndPortListStrAsync("google-public-dns-v6.test.sehosts.com 8.8.8.7 8.8.8.1 8.8.8.9", 53, cancel: cancel), CallbackId = "1", });
-        settings.ForwarderList.Add(new EasyDnsResponderForwarder { Selector = "*pc37*", TargetServers = await LocalNet.ResolveHostAndPortListStrToIpAndPortListStrAsync("google-public-dns-v6.test.sehosts.com 8.8.8.7 8.8.8.1 8.8.8.9", 53, cancel: cancel), });
-        settings.ForwarderList.Add(new EasyDnsResponderForwarder { Selector = "10.20.0.0/16", TargetServers = await LocalNet.ResolveHostAndPortListStrToIpAndPortListStrAsync("192.168.3.2", 53, cancel: cancel), });
+        //settings.ForwarderList.Add(new EasyDnsResponderForwarder { Selector = "sec.softether.co.jp", TargetServers = await LocalNet.ResolveHostAndPortListStrToIpAndPortListStrAsync("google-public-dns-v6.test.sehosts.com 8.8.8.7 8.8.8.1 8.8.8.9", 53, cancel: cancel), CallbackId = "1", });
+        //settings.ForwarderList.Add(new EasyDnsResponderForwarder { Selector = "*pc37*", TargetServers = await LocalNet.ResolveHostAndPortListStrToIpAndPortListStrAsync("google-public-dns-v6.test.sehosts.com 8.8.8.7 8.8.8.1 8.8.8.9", 53, cancel: cancel), });
+        //settings.ForwarderList.Add(new EasyDnsResponderForwarder { Selector = "10.20.0.0/16", TargetServers = await LocalNet.ResolveHostAndPortListStrToIpAndPortListStrAsync("192.168.3.2", 53, cancel: cancel), });
 
         try
         {
@@ -1076,61 +1157,93 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
 
             this.DnsServer.DnsResponder.ForwarderRequestTransformerCallback = (inData) =>
             {
-                if (inData.CallbackId == "1")
+                if (inData.CallbackId == "_this_is_static_defined_forwarder_callback")
                 {
-                    List<Tuple<string, string>> replaceStringList = new List<Tuple<string, string>>();
+                    // フォワーダで Modifier が指定されている場合、その Modifier を用いてフォワーダのリクエストとレスポンスを加工する
+                    var args = inData.ArgsList;
+                    string modifier = args._GetStrFirst("modifier").ToLowerInvariant();
 
-                    // DNS クエリ / レスポンス変形のサンプルコード
-                    var src = (DnsMessage)inData.OriginalRequestPacket.Message;
-                    for (int i = 0; i < src.Questions.Count; i++)
+                    switch (modifier)
                     {
-                        var q = src.Questions[i];
-                        var fqdn = q.Name.ToNormalizedFqdnFast();
-                        if (Str.IsEqualToOrSubdomainOf(fqdn, "sec.softether.co.jp", out string hostLabel))
-                        {
-                            string fqdn2 = hostLabel + ".sehosts.com";
-                            replaceStringList.Add(new Tuple<string, string>(fqdn, fqdn2));
-                            q.Name = DomainName.Parse(fqdn2);
-                        }
-                    }
-                    return new EasyDnsResponderForwarderRequestTransformerCallbackResult
-                    {
-                        ModifiedDnsRequestMessage = src,
-                        ForwarderResponseTransformerCallback = inData2 =>
-                        {
-                            var src = (DnsMessage)inData2.OriginalResponsePacket.Message;
+                        case "replace_query_domain":
+                            // ドメイン名部分の文字列置換
+                            var srcList = args.Where(x => x.Key._IsSamei("src")).Select(x => x.Value).ToList();
+                            var dstList = args.Where(x => x.Key._IsSamei("dst")).Select(x => x.Value).ToList();
+                            int numSrcDest = Math.Min(srcList.Count, dstList.Count);
+
+                            List<Tuple<string, string>> replaceStringList = new List<Tuple<string, string>>();
+
+                            // DNS クエリ / レスポンス変形のサンプルコード
+                            var src = (DnsMessage)inData.OriginalRequestPacket.Message;
                             for (int i = 0; i < src.Questions.Count; i++)
                             {
                                 var q = src.Questions[i];
                                 var fqdn = q.Name.ToNormalizedFqdnFast();
-                                if (Str.IsEqualToOrSubdomainOf(fqdn, ".sehosts.com", out string hostLabel))
+
+                                for (int j = 0; j < numSrcDest; j++)
                                 {
-                                    string fqdn2 = hostLabel + ".sec.softether.co.jp";
-                                    replaceStringList.Add(new Tuple<string, string>(fqdn, fqdn2));
-                                    q.Name = DomainName.Parse(fqdn2);
+                                    if (srcList[j]._IsFilled() && dstList[j]._IsFilled())
+                                    {
+                                        if (Str.IsEqualToOrSubdomainOf(fqdn, srcList[j], out string hostLabel))
+                                        {
+                                            string fqdn2 = Str.CombineFqdn(hostLabel, dstList[j]);
+                                            replaceStringList.Add(new Tuple<string, string>(fqdn, fqdn2));
+                                            q.Name = DomainName.Parse(fqdn2);
+                                            break;
+                                        }
+                                    }
                                 }
                             }
-                            for (int i = 0; i < src.AnswerRecords.Count; i++)
+
+                            return new EasyDnsResponderForwarderRequestTransformerCallbackResult
                             {
-                                var answer = src.AnswerRecords[i];
-                                var fqdn = answer.Name.ToNormalizedFqdnFast();
-                                if (Str.IsEqualToOrSubdomainOf(fqdn, ".sehosts.com", out string hostLabel))
+                                ModifiedDnsRequestMessage = src,
+                                ForwarderResponseTransformerCallback = inData2 =>
                                 {
-                                    string fqdn2 = hostLabel + ".sec.softether.co.jp";
-                                    replaceStringList.Add(new Tuple<string, string>(fqdn, fqdn2));
-                                    answer.Name = DomainName.Parse(fqdn2);
-                                }
-                                if (answer is ARecord a)
-                                {
-                                    a.Address = IPUtil.GetPrefixAddress(a.Address, 24);
-                                }
-                            }
-                            return new EasyDnsResponderForwarderResponseTransformerCallbackResult
-                            {
-                                ModifiedDnsResponseMessage = src,
+                                    var src = (DnsMessage)inData2.OriginalResponsePacket.Message;
+                                    for (int i = 0; i < src.Questions.Count; i++)
+                                    {
+                                        var q = src.Questions[i];
+                                        var fqdn = q.Name.ToNormalizedFqdnFast();
+                                        for (int j = 0; j < numSrcDest; j++)
+                                        {
+                                            if (srcList[j]._IsFilled() && dstList[j]._IsFilled())
+                                            {
+                                                if (Str.IsEqualToOrSubdomainOf(fqdn, dstList[j], out string hostLabel))
+                                                {
+                                                    string fqdn2 = Str.CombineFqdn(hostLabel, srcList[j]);
+                                                    replaceStringList.Add(new Tuple<string, string>(fqdn, fqdn2));
+                                                    q.Name = DomainName.Parse(fqdn2);
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    for (int i = 0; i < src.AnswerRecords.Count; i++)
+                                    {
+                                        var answer = src.AnswerRecords[i];
+                                        var fqdn = answer.Name.ToNormalizedFqdnFast();
+                                        for (int j = 0; j < numSrcDest; j++)
+                                        {
+                                            if (srcList[j]._IsFilled() && dstList[j]._IsFilled())
+                                            {
+                                                if (Str.IsEqualToOrSubdomainOf(fqdn, dstList[j], out string hostLabel))
+                                                {
+                                                    string fqdn2 = Str.CombineFqdn(hostLabel, srcList[j]);
+                                                    replaceStringList.Add(new Tuple<string, string>(fqdn, fqdn2));
+                                                    answer.Name = DomainName.Parse(fqdn2);
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    return new EasyDnsResponderForwarderResponseTransformerCallbackResult
+                                    {
+                                        ModifiedDnsResponseMessage = src,
+                                    };
+                                },
                             };
-                        },
-                    };
+                    }
                 }
                 return new EasyDnsResponderForwarderRequestTransformerCallbackResult
                 {
