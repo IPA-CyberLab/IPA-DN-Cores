@@ -3730,6 +3730,34 @@ public static class BasicHelper
 
     public static void _CheckIsIPv4OrIPv6AddressFamily(this IPAddress ip, Exception? ex = null)
         => _CheckIsIPv4OrIPv6AddressFamily(ip.AddressFamily, ex);
+
+    [MethodImpl(Inline)]
+    public static T Max<T>(this IComparer<T> comparer, T x, T y)
+    {
+        int r = comparer.Compare(x, y);
+        if (r > 0)
+        {
+            return x;
+        }
+        else
+        {
+            return y;
+        }
+    }
+
+    [MethodImpl(Inline)]
+    public static T Min<T>(this IComparer<T> comparer, T x, T y)
+    {
+        int r = comparer.Compare(x, y);
+        if (r < 0)
+        {
+            return x;
+        }
+        else
+        {
+            return y;
+        }
+    }
 }
 
 

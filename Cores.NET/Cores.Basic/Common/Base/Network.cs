@@ -1297,6 +1297,21 @@ namespace IPA.Cores.Basic
                 throw new ArgumentException("invalid address family.");
             }
         }
+        public static IPAddress GetBroadcastAddress(IPAddress ip, int subnetLength)
+        {
+            if (ip.AddressFamily == AddressFamily.InterNetwork)
+            {
+                return GetBroadcastAddress(ip, IPUtil.IntToSubnetMask4(subnetLength));
+            }
+            else if (ip.AddressFamily == AddressFamily.InterNetworkV6)
+            {
+                return GetBroadcastAddress(ip, IPUtil.IntToSubnetMask6(subnetLength));
+            }
+            else
+            {
+                throw new CoresLibException($"{nameof(ip)} is not IPv4 or IPv6");
+            }
+        }
 
         // ルータアドレスの取得
         public static IPAddress GetRouterAddress(IPAddress ip, IPAddress subnet)

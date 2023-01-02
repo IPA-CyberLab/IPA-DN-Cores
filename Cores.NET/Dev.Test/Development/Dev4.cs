@@ -1290,13 +1290,136 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                 // 標準的な静的レコードリストの構築
                 List<EasyDnsResponder.Record> list = req.GenerateStandardStaticRecordsListFromZoneData(req.Cancel);
 
-                // 動的レコードリストの構築
-                var ipStart = IPv4Addr.FromString("10.0.0.0");
-                for (int i = 0; i < 5; i++)
-                {
-                    EasyDnsResponder.Record_A a = new EasyDnsResponder.Record_A(req.ZoneInternal, new EasyDnsResponderRecordSettings { }, $"test{i}", ipStart.Add(i).GetIPAddress());
+                var rootVirtualZone = new EasyDnsResponder.Zone(isVirtualRootZone: EnsureSpecial.Yes, req.ZoneInternal);
 
-                    list.Add(a);
+                HashSet<string> ipHashSet = new HashSet<string>();
+
+                // 動的レコードリストの構築 (逆引きゾーン)
+                if (Str.IsEqualToOrSubdomainOf(req.Zone.DomainName, "in-addr.arpa", out _) ||
+                    Str.IsEqualToOrSubdomainOf(req.Zone.DomainName, "ip6.arpa", out _))
+                {
+                    bool ok = false;
+                    (IPAddress, int) targetSubnetInfo = default;
+
+                    try
+                    {
+                        targetSubnetInfo = IPUtil.PtrZoneOrFqdnToIpAddressAndSubnet(req.Zone.DomainName);
+                        ok = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Error();
+                    }
+
+                    if (ok)
+                    {
+                        var ipCmp = IpComparer.ComparerWithIgnoreScopeId;
+                        var zoneIpStart = IPUtil.GetPrefixAddress(targetSubnetInfo.Item1!, targetSubnetInfo.Item2);
+                        var zoneIpEnd = IPUtil.GetBroadcastAddress(targetSubnetInfo.Item1!, targetSubnetInfo.Item2);
+
+                        // すべての逆引きゾーン定義を走査
+                        // Longest Match を実現するため、サブネット長の長い順に安定ソート
+                        foreach (var record in cfg.ReverseRecordsList
+                            .Where(x => x.Type.EqualsAny(StandardRecordType.ReverseCNameSingle, StandardRecordType.ReverseCNameSubnet, StandardRecordType.ReverseSingle, StandardRecordType.ReverseSubnet))
+                            .OrderByDescending(x => x.SubnetLength))
+                        {
+                            IPAddress recordIpStart, recordIpEnd;
+
+                            // サブネットレコードの範囲をゾーンの範囲で分割
+                            if (record.Type == StandardRecordType.ReverseCNameSubnet || record.Type == StandardRecordType.ReverseSubnet)
+                            {
+                                recordIpStart = IPUtil.GetPrefixAddress(record.IpNetwork, record.IpSubnetMask);
+                                recordIpEnd = IPUtil.GetBroadcastAddress(record.IpNetwork, record.IpSubnetMask);
+                            }
+                            else
+                            {
+                                recordIpStart = record.IpNetwork;
+                                recordIpEnd = record.IpNetwork;
+                            }
+
+                            List<IPAddress> targetIpList = new List<IPAddress>();
+
+                            IPAddress scopeStart = ipCmp.Max(zoneIpStart, recordIpStart);
+                            IPAddress scopeEnd = ipCmp.Min(zoneIpEnd, recordIpEnd);
+
+                            if (record.Type == StandardRecordType.ReverseCNameSubnet || record.Type == StandardRecordType.ReverseSubnet)
+                            {
+                                if (ipCmp.Compare(scopeStart, scopeEnd) <= 0)
+                                {
+                                    IPAddr scopeStartEx = IPAddr.FromAddress(scopeStart);
+                                    IPAddr scopeEndEx = IPAddr.FromAddress(scopeEnd);
+
+                                    BigNumber scopeStartBn = scopeStartEx.GetBigNumber();
+                                    BigNumber scopeEndBn = scopeEndEx.GetBigNumber();
+
+                                    BigNumber num = scopeEndBn - scopeStartBn + 1;
+                                    if (num <= 65536)
+                                    {
+                                        for (int i = 0; i < num; i++)
+                                        {
+                                            targetIpList.Add(scopeStartEx.Add(i).GetIPAddress());
+                                        }
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                if (ipCmp.Compare(scopeStart, scopeEnd) == 0)
+                                {
+                                    targetIpList.Add(scopeStart);
+                                }
+                            }
+
+                            foreach (var ip in targetIpList)
+                            {
+                                string ipStr = ip._RemoveScopeId().ToString();
+
+                                if (ipHashSet.Add(ipStr))
+                                {
+                                    string ptrStr = IPUtil.IPAddressOrSubnetToPtrZoneOrFqdn(ip);
+
+                                    EasyDnsResponderRecordSettings settings = record.Settings ?? req.ZoneInternal.Settings;
+
+                                    if (record.Fqdn.StartsWith("*.", StringComparison.Ordinal))
+                                    {
+                                        if (record.Type == StandardRecordType.ReverseSingle || record.Type == StandardRecordType.ReverseSubnet)
+                                        {
+                                            // PTR
+                                            string baseFqdn = record.Fqdn.Substring(2);
+                                            string fqdn = IPUtil.GenerateWildCardDnsFqdn(ip, baseFqdn, record.FirstTokenWildcardBefore, record.FirstTokenWildcardAfter);
+
+                                            list.Add(new EasyDnsResponder.Record_PTR(rootVirtualZone, settings, ptrStr, DomainName.Parse(fqdn)));
+                                        }
+                                        else
+                                        {
+                                            // CNAME
+                                            string fqdn;
+                                            if (record.ReverseCName_HyphenMode == false)
+                                            {
+                                                // 1.2.3.4 -> 4.3.2.1.target.domain
+                                                string ipAddressLabelPart = IPUtil.IPAddressOrSubnetToPtrZoneOrFqdn(ip, withSuffix: false);
+                                                fqdn = ipAddressLabelPart + "." + record.Fqdn;
+                                            }
+                                            else
+                                            {
+                                                // 1.2.3.4 -> 1-2-3-4.target.domain
+                                                fqdn = IPUtil.GenerateWildCardDnsFqdn(ip, record.Fqdn);
+                                            }
+
+                                            list.Add(new EasyDnsResponder.Record_CNAME(rootVirtualZone, settings, ptrStr, DomainName.Parse(fqdn)));
+                                        }
+                                    }
+                                    else
+                                    {
+                                        // PTR
+                                        string fqdn = record.Fqdn;
+
+                                        list.Add(new EasyDnsResponder.Record_PTR(rootVirtualZone, settings, ptrStr, DomainName.Parse(fqdn)));
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
 
                 // 送付
