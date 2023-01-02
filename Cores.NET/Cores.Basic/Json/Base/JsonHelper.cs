@@ -57,6 +57,12 @@ namespace IPA.Cores.Helper.Basic
         public static string _ObjectToJson<T>([AllowNull] this T obj, EnsurePresentInterface yes, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false, JsonFlags jsonFlags = JsonFlags.None)
             => _ObjectToJson(obj, includeNull, escapeHtml, maxDepth, compact, referenceHandling, base64url, typeof(T), jsonFlags);
 
+        public static byte[] _CalcObjectDigestAsJson(this object? obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = true, bool referenceHandling = false, Type? type = null, JsonFlags jsonFlags = JsonFlags.None)
+            => Json.GetDigest(obj, includeNull, escapeHtml, maxDepth, compact, referenceHandling, type, jsonFlags);
+
+        public static byte[] _CalcObjectDigestAsJson<T>([AllowNull] this T obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = true, bool referenceHandling = false, JsonFlags jsonFlags = JsonFlags.None)
+            => _CalcObjectDigestAsJson(obj, includeNull, escapeHtml, maxDepth, compact, referenceHandling, typeof(T), jsonFlags);
+
         public static void _ObjectToJsonTextWriter(this object? obj, TextWriter destTextWriter, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, Type? type = null, JsonFlags jsonFlags = JsonFlags.None)
             => Json.Serialize(destTextWriter, obj, includeNull, escapeHtml, maxDepth, compact, referenceHandling, type, jsonFlags);
 

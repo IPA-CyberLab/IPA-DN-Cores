@@ -1025,7 +1025,6 @@ SRV _ldap._tcp.abc 0 100 123 ldap_server.your_company.net
                 case HadbEventType.ReloadDataFull:
                 case HadbEventType.ReloadDataPartially:
                 case HadbEventType.DatabaseStateChangedToRecovery:
-                    this.DnsServer.LastDatabaseHealtyTimeStamp = DateTime.Now;
                     break;
             }
 

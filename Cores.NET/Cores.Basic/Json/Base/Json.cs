@@ -47,6 +47,7 @@ using static IPA.Cores.Globals.Basic;
 using Newtonsoft.Json.Serialization;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Security.Cryptography;
 using System.Linq;
 using System.Net;
 using System.Text.Json.Nodes;
@@ -243,6 +244,18 @@ public static class Json
         }
 
         return ret;
+    }
+
+    public static byte[] GetDigest(object? obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = true, bool referenceHandling = false, Type? type = null, JsonFlags jsonFlags = JsonFlags.None)
+    {
+        using HashCalcStream hashStream = new HashCalcStream(SHA1.Create());
+        using StreamWriter writer = new StreamWriter(hashStream, Str.Utf8Encoding);
+
+        Serialize(writer, obj, includeNull, escapeHtml, maxDepth, compact, referenceHandling, type, jsonFlags);
+
+        writer.Flush();
+
+        return hashStream.GetFinalHash();
     }
 
     public static void Serialize(TextWriter destTextWriter, object? obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, Type? type = null, JsonFlags jsonFlags = JsonFlags.None)

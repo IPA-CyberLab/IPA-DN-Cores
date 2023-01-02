@@ -3874,6 +3874,17 @@ cccadmin
 
                 if (true)
                 {
+                    byte[] utf = line._GetBytes_UTF8();
+
+                    using HashCalcStream st = new HashCalcStream(SHA512.Create());
+
+                    //st.Write(utf);
+                    utf._DoForEach(x => st.WriteByte(x));
+
+                    st.GetFinalHash()._GetHexString()._Print();
+                }
+                else if (true)
+                {
                     var ip = line._StrToIP(noException: true);
                     if (ip != null)
                     {

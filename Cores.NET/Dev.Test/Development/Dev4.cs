@@ -874,6 +874,8 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
 
         public int Dns_Protocol_TcpAxfrMaxRecordsPerMessage = 32;
 
+        public int Dns_ZoneForceReloadIntervalMsecs = 3000;
+
         public string Dns_ZoneDefFilePathOrUrl = "";
 
 
@@ -895,6 +897,11 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
             if (Dns_Protocol_TcpAxfrMaxRecordsPerMessage <= 0)
             {
                 Dns_Protocol_TcpAxfrMaxRecordsPerMessage = 32;
+            }
+
+            if (Dns_ZoneForceReloadIntervalMsecs <= 0)
+            {
+                Dns_ZoneForceReloadIntervalMsecs = 3000;
             }
 
             base.NormalizeImpl();
@@ -971,7 +978,6 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                 case HadbEventType.ReloadDataPartially:
                 case HadbEventType.DatabaseStateChangedToRecovery:
                     this.LoopManager.Fire();
-                    this.DnsServer.LastDatabaseHealtyTimeStamp = DateTime.Now;
                     break;
             }
 
@@ -1017,7 +1023,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
             return null;
         }
 
-        Con.WriteLine($"Zone Def File is changed. Body size = {body._GetBytes_UTF8().Length._ToString3()} bytes. Reloading...");
+        Con.WriteLine($"Zone Def File is {(forceReload ? "being reloaded forcefully" : "changed")}. Body size = {body._GetBytes_UTF8().Length._ToString3()} bytes. Reloading...");
 
         Config cfg = new Config(body, err);
 
@@ -1141,6 +1147,8 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
 
     string LastConfigJson = " ";
 
+    long LastConfigReloadTick = 0;
+
     // HADB の DynamicConfig を元に DDNS サーバーの設定を構築してリロードする
     async Task ReloadLoopTaskAsync(AsyncLoopManager manager, CancellationToken cancel)
     {
@@ -1163,7 +1171,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
         settings.SaveAccessLogForDebug = config.Dns_SaveDnsQueryAccessLogForDebug;
         settings.CopyQueryAdditionalRecordsToResponse = config.Dns_Protocol_CopyQueryAdditionalRecordsToResponse;
 
-        Config? cfg = await LoadZoneConfigAsync(settings, err, LastConfigJson != configJson, cancel);
+        Config? cfg = await LoadZoneConfigAsync(settings, err, LastConfigJson != configJson || (TickNow > LastConfigReloadTick + config.Dns_ZoneForceReloadIntervalMsecs), cancel);
 
         if (cfg == null)
         {
@@ -1171,11 +1179,9 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
             return;
         }
 
-        LastConfigJson = configJson;
+        LastConfigReloadTick = TickNow;
 
-        //settings.ForwarderList.Add(new EasyDnsResponderForwarder { Selector = "sec.softether.co.jp", TargetServers = await LocalNet.ResolveHostAndPortListStrToIpAndPortListStrAsync("google-public-dns-v6.test.sehosts.com 8.8.8.7 8.8.8.1 8.8.8.9", 53, cancel: cancel), CallbackId = "1", });
-        //settings.ForwarderList.Add(new EasyDnsResponderForwarder { Selector = "*pc37*", TargetServers = await LocalNet.ResolveHostAndPortListStrToIpAndPortListStrAsync("google-public-dns-v6.test.sehosts.com 8.8.8.7 8.8.8.1 8.8.8.9", 53, cancel: cancel), });
-        //settings.ForwarderList.Add(new EasyDnsResponderForwarder { Selector = "10.20.0.0/16", TargetServers = await LocalNet.ResolveHostAndPortListStrToIpAndPortListStrAsync("192.168.3.2", 53, cancel: cancel), });
+        LastConfigJson = configJson;
 
         try
         {

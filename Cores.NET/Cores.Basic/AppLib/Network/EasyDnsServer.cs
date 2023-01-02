@@ -71,7 +71,7 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
 {
     public EasyDnsServer DnsServer { get; }
     public EasyDnsResponder DnsResponder { get; }
-    public DateTimeOffset LastDatabaseHealtyTimeStamp { get; set; }
+    public DateTimeOffset LastDatabaseHealtyTimeStamp => this.DnsResponder.LastDatabaseHealtyTimeStamp;
 
     public bool SaveAccessLogForDebug { get; private set; }
     public bool CopyQueryAdditionalRecordsToResponse { get; set; } = false;
@@ -80,7 +80,6 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
     {
         try
         {
-            this.LastDatabaseHealtyTimeStamp = DnsUtil.DnsDtStartDay;
             this.DnsResponder = new EasyDnsResponder();
             this.DnsServer = new EasyDnsServer(new EasyDnsServerSetting(this.DnsQueryResponseCallback, this.DnsTcpAxfrCallbackAsync, settings.UdpPort, settings.TcpPort));
         }

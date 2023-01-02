@@ -618,7 +618,142 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public class HashCalcStream : StreamImplBase
+    {
+        public HashAlgorithm Algorithm { get; }
+        public bool AutoDispose { get; }
 
+        public HashCalcStream(HashAlgorithm algorithm, bool autoDispose = true) : base(new StreamImplBaseOptions(false, true, false))
+        {
+            try
+            {
+                this.Algorithm = algorithm;
+                this.AutoDispose = autoDispose;
+
+                this.Algorithm.Initialize();
+            }
+            catch
+            {
+                this._DisposeSafe();
+                throw;
+            }
+        }
+
+        public override bool DataAvailable => throw new NotImplementedException();
+
+        protected override Task FlushImplAsync(CancellationToken cancellationToken = default)
+        {
+            return TaskCompleted;
+        }
+
+        protected override long GetLengthImpl()
+        {
+            throw new NotImplementedException();
+        }
+
+        protected override long GetPositionImpl()
+        {
+            throw new NotImplementedException();
+        }
+
+        protected override ValueTask<int> ReadImplAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        protected override long SeekImpl(long offset, SeekOrigin origin)
+        {
+            throw new NotImplementedException();
+        }
+
+        protected override void SetLengthImpl(long length)
+        {
+            throw new NotImplementedException();
+        }
+
+        protected override void SetPositionImpl(long position)
+        {
+            throw new NotImplementedException();
+        }
+
+        protected override ValueTask WriteImplAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var seg = buffer._AsSegment();
+
+            if (seg.Count >= 1)
+            {
+                seg.Array._NullCheck();
+
+                this.Algorithm.TransformBlock(seg.Array, seg.Offset, seg.Count, null, 0);
+            }
+
+            return ValueTask.CompletedTask;
+        }
+
+        Once FinalFlag;
+        byte[]? HashResult = null;
+        Exception Error = new CoresException("Unknown error");
+
+        public byte[] GetFinalHash()
+        {
+            if (FinalFlag.IsFirstCall())
+            {
+                try
+                {
+                    this.Algorithm.TransformFinalBlock(new byte[0], 0, 0);
+
+                    this.HashResult = this.Algorithm.Hash;
+                }
+                catch (Exception ex)
+                {
+                    this.Error = ex;
+                    throw;
+                }
+            }
+
+            if (this.HashResult == null)
+            {
+                throw this.Error;
+            }
+            else
+            {
+                return this.HashResult;
+            }
+        }
+
+        Once DisposeFlag;
+        public override async ValueTask DisposeAsync()
+        {
+            try
+            {
+                if (DisposeFlag.IsFirstCall() == false) return;
+                await DisposeInternalAsync();
+            }
+            finally
+            {
+                await base.DisposeAsync();
+            }
+        }
+        protected override void Dispose(bool disposing)
+        {
+            try
+            {
+                if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+                DisposeInternalAsync()._GetResult();
+            }
+            finally { base.Dispose(disposing); }
+        }
+        Task DisposeInternalAsync()
+        {
+            if (this.AutoDispose)
+            {
+                this.Algorithm._DisposeSafe();
+            }
+            return Task.CompletedTask;
+        }
+    }
 
     public class SeedBasedRandomGenerator
     {

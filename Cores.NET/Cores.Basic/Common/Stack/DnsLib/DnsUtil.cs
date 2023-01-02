@@ -94,9 +94,19 @@ public static class DnsUtil
         return message.Encode(false);
     }
 
-    public static readonly DateTimeOffset DnsDtStartDay = (new DateTime(2021, 1, 1)).AddHours(-9)._AsDateTimeOffset(false, false);
+    public static readonly DateTimeOffset DnsDtStartDay = (new DateTime(2023, 1, 1)).AddHours(-9)._AsDateTimeOffset(false, false);
 
     public static uint GenerateSoaSerialNumberFromDateTime(DateTimeOffset dt)
+    {
+        var diff = (dt - DnsDtStartDay);
+        if (diff.Ticks < 0) diff = default;
+
+        var a = (long)diff.TotalSeconds;
+        if (a <= 0) a = 1;
+        return (uint)a;
+    }
+
+    public static uint GenerateSoaSerialNumberFromDateTime_Legacy(DateTimeOffset dt)
     {
         var diff = (dt - DnsDtStartDay);
         int days = (int)diff.TotalDays;
@@ -2566,9 +2576,21 @@ public class EasyDnsResponder
         public bool HasForwarder_SubnetBased = false;
         public bool HasForwarder_WildcardBased = false;
 
+        public DateTimeOffset TimeStamp = DnsUtil.DnsDtStartDay;
+        public int AddSecondsToTimeStamp = 0;
+
         // Settings からコンパイルする
-        public DataSet(EasyDnsResponderSettings src)
+        public DataSet(EasyDnsResponderSettings src, DateTimeOffset timeStamp = default, int addSecondsToTimeStamp = 0)
         {
+            if (timeStamp == default)
+            {
+                timeStamp = DnsUtil.DnsDtStartDay;
+            }
+
+            this.TimeStamp = timeStamp;
+
+            this.AddSecondsToTimeStamp = Math.Max(0, addSecondsToTimeStamp);
+
             this.Settings = (src.DefaultSettings ?? new EasyDnsResponderRecordSettings())._CloneDeep();
 
             // ゾーン情報のコンパイル
@@ -2680,11 +2702,58 @@ public class EasyDnsResponder
 
     DataSet? CurrentDataSet = null;
 
+    public DateTimeOffset LastDatabaseHealtyTimeStamp
+    {
+        get
+        {
+            var ds = this.CurrentDataSet;
+            if (ds == null)
+            {
+                return DnsUtil.DnsDtStartDay;
+            }
+            else
+            {
+                var ts = ds.TimeStamp;
+
+                if (ds.AddSecondsToTimeStamp >= 0)
+                {
+                    ts = ts.AddSeconds(ds.AddSecondsToTimeStamp);
+                }
+
+                if (ts >= DnsUtil.DnsDtStartDay)
+                {
+                    return ts;
+                }
+                else
+                {
+                    return DnsUtil.DnsDtStartDay;
+                }
+            }
+        }
+    }
+
+    string OldDigest = "";
+
+    readonly CriticalSection<EasyDnsResponder> ApplySettingsLock = new CriticalSection<EasyDnsResponder>();
+
+    int NumChanged = 0;
+
     public void ApplySetting(EasyDnsResponderSettings setting)
     {
-        var dataSet = new DataSet(setting);
+        string newDigest = setting._CalcObjectDigestAsJson()._GetHexString();
 
-        this.CurrentDataSet = dataSet;
+        lock (ApplySettingsLock)
+        {
+            if (newDigest != OldDigest)
+            {
+                OldDigest = newDigest;
+
+                int numChanged = this.NumChanged++;
+
+                var dataSet = new DataSet(setting, DtOffsetNow, numChanged);
+                this.CurrentDataSet = dataSet;
+            }
+        }
     }
 
     public DnsUdpPacket? TryProcessForwarderResponse(DnsUdpPacket recvPacket)
