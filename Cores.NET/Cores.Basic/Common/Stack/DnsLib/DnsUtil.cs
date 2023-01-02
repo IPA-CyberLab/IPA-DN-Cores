@@ -913,7 +913,7 @@ public class EasyDnsResponderTcpAxfrCallbackRequest
 
 
     // 現在の Zone に静的に定義されている静的レコードリストを送信する (SOA を除く)
-    public List<EasyDnsResponder.Record> GenerateStaticRecordsList(CancellationToken cancel = default)
+    public List<EasyDnsResponder.Record> GenerateStandardStaticRecordsListFromZoneData(CancellationToken cancel = default)
     {
         List<EasyDnsResponder.Record> list = new List<EasyDnsResponder.Record>();
 
@@ -1017,6 +1017,139 @@ public class EasyDnsResponderTcpAxfrCallbackRequest
             }
         }
 
+        // 様々な静的レコード
+        foreach (var record in ZoneInternal.RecordList)
+        {
+            string label = record.Name;
+            string fqdn = Str.CombineFqdn(label, ZoneInternal.DomainFqdn);
+
+            switch (record)
+            {
+                case EasyDnsResponder.Record_A a:
+                    if (a.IsSubnet == false)
+                    {
+                        // 通常の A レコード
+                        if (fqdn._IsValidFqdn(true, true))
+                        {
+                            // ワイルドカード無し、またはシンプルなワイルドカードのみ許容
+                            list.Add(a);
+                        }
+                    }
+                    else
+                    {
+                        var attributes = a.Param as EasyJsonStrAttributes;
+                        string wildcard_before_str = "";
+                        string wildcard_after_str = "";
+                        if (attributes != null)
+                        {
+                            wildcard_before_str = attributes["wildcard_before_str"];
+                            wildcard_after_str = attributes["wildcard_after_str"];
+                        }
+
+                        // サブネット形式の A レコード
+                        if (fqdn._IsValidFqdn(true, true))
+                        {
+                            if (fqdn._InStri("*"))
+                            {
+                                // ワイルドカードの場合は、展開をする
+                                if (Str.TryParseFirstWildcardFqdnSandwitched(fqdn, out var wildcardInfo))
+                                {
+                                    if (a.IPv4SubnetMaskLength >= 15) // /16 すなわち 65536 個まで自動生成する
+                                    {
+                                        var ipStart = IPUtil.GetPrefixAddress(a.IPv4Address, a.IPv4SubnetMaskLength);
+                                        var ipStart2 = IPv4Addr.FromAddress(ipStart);
+                                        int num = (int)IPUtil.CalcNumIPFromSubnetLen(AddressFamily.InterNetwork, a.IPv4SubnetMaskLength);
+
+                                        for (int i = 0; i < num; i++)
+                                        {
+                                            var ip = ipStart2.Add(i).GetIPAddress();
+
+                                            List<string> tmp = new List<string>();
+
+                                            tmp.Add(IPUtil.GenerateWildCardDnsFqdn(ip, wildcardInfo.suffix, "", ""));
+
+                                            if (wildcard_before_str._IsFilled())
+                                            {
+                                                tmp.Add(IPUtil.GenerateWildCardDnsFqdn(ip, wildcardInfo.suffix, wildcard_before_str, ""));
+                                            }
+
+                                            if (wildcard_after_str._IsFilled())
+                                            {
+                                                tmp.Add(IPUtil.GenerateWildCardDnsFqdn(ip, wildcardInfo.suffix, "", wildcard_after_str));
+                                            }
+
+                                            foreach (var new_fqdn in tmp)
+                                            {
+                                                list.Add(new EasyDnsResponder.Record_A(rootVirtualZone, a.Settings, new_fqdn, ip));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                // 非ワイルドカードの場合は、最初の 1 個を応答するレコードを生成する
+                                var ipStart = IPUtil.GetPrefixAddress(a.IPv4Address, a.IPv4SubnetMaskLength);
+                                list.Add(new EasyDnsResponder.Record_A(rootVirtualZone, a.Settings, fqdn, ipStart));
+                            }
+                        }
+                    }
+                    break;
+
+                case EasyDnsResponder.Record_AAAA aaaa:
+                    if (aaaa.IsSubnet == false)
+                    {
+                        // 通常の A レコード
+                        if (fqdn._IsValidFqdn(true, true))
+                        {
+                            // ワイルドカード無し、またはシンプルなワイルドカードのみ許容
+                            list.Add(aaaa);
+                        }
+                    }
+                    else
+                    {
+                        var attributes = aaaa.Param as EasyJsonStrAttributes;
+                        string wildcard_before_str = "";
+                        string wildcard_after_str = "";
+                        if (attributes != null)
+                        {
+                            wildcard_before_str = attributes["wildcard_before_str"];
+                            wildcard_after_str = attributes["wildcard_after_str"];
+                        }
+
+                        // サブネット形式の A レコード
+                        if (fqdn._IsValidFqdn(true, true))
+                        {
+                            if (fqdn._InStri("*"))
+                            {
+                                // ワイルドカードの場合は、展開をしない。数が多すぎて、事実上展開は不可能である。
+                            }
+                            else
+                            {
+                                // 非ワイルドカードの場合は、最初の 1 個を応答するレコードを生成する
+                                var ipStart = IPUtil.GetPrefixAddress(aaaa.IPv6Address, aaaa.IPv6SubnetMask);
+                                list.Add(new EasyDnsResponder.Record_A(rootVirtualZone, aaaa.Settings, fqdn, ipStart));
+                            }
+                        }
+                    }
+                    break;
+
+                case EasyDnsResponder.Record_SOA:
+                case EasyDnsResponder.Record_NS:
+                    // 何もしない
+                    break;
+
+                default:
+                    // その他のレコード
+                    if (fqdn._IsValidFqdn(true, true))
+                    {
+                        // ワイルドカード無し、またはシンプルなワイルドカードのみ許容
+                        list.Add(record);
+                    }
+                    break;
+            }
+        }
+
         return list;
     }
 
@@ -1037,7 +1170,18 @@ public class EasyDnsResponderTcpAxfrCallbackRequest
                 timeStampForSoa2 = timeStampForSoa ?? DtOffsetNow;
             }
 
-            var answer = record.ToDnsLibRecordBase(DomainName.Parse(fqdn), timeStampForSoa2);
+            DomainName domainName;
+
+            if (fqdn._InStri("*"))
+            {
+                domainName = DomainName.ParseWildcardAllow(fqdn);
+            }
+            else
+            {
+                domainName = DomainName.Parse(fqdn);
+            }
+
+            var answer = record.ToDnsLibRecordBase(domainName, timeStampForSoa2);
 
             if (answer != null)
             {
@@ -1048,7 +1192,9 @@ public class EasyDnsResponderTcpAxfrCallbackRequest
             }
         }
 
-        answerList._DoSortBy(a => a.OrderBy(x => x.Name.ToString(), FqdnReverseStrComparer.Comparer));
+        var comparer = new FqdnReverseStrComparer(FqdnReverseStrComparerFlags.ConsiderDepth);
+
+        answerList._DoSortBy(a => a.OrderBy(x => x.Name.ToString(), comparer));
 
         if (answerList.Any())
         {
@@ -1328,7 +1474,7 @@ public class EasyDnsResponder
                 throw new CoresLibException($"AddressFamily of '{tmp}' is not IPv4.");
         }
 
-        public Record_A(Zone parent, EasyDnsResponderRecordSettings settings, string nameNormalized, IPAddress ipv4address) : base(parent, EasyDnsResponderRecordType.A, settings, nameNormalized)
+        public Record_A(Zone parent, EasyDnsResponderRecordSettings settings, string nameNormalized, IPAddress ipv4address, object? param = null) : base(parent, EasyDnsResponderRecordType.A, settings, nameNormalized, param)
         {
             this.IPv4Address = ipv4address;
             this.IPv4SubnetMask = IPAddress.Broadcast;
@@ -1385,7 +1531,7 @@ public class EasyDnsResponder
             this.IPv6Address.ScopeId = 0;
         }
 
-        public Record_AAAA(Zone parent, EasyDnsResponderRecordSettings settings, string nameNormalized, IPAddress ipv6address) : base(parent, EasyDnsResponderRecordType.AAAA, settings, nameNormalized)
+        public Record_AAAA(Zone parent, EasyDnsResponderRecordSettings settings, string nameNormalized, IPAddress ipv6address, object? param = null) : base(parent, EasyDnsResponderRecordType.AAAA, settings, nameNormalized, param)
         {
             this.IPv6Address = ipv6address;
             this.IPv6SubnetMask = IPUtil.IPv6AllFilledAddressCache;
@@ -1469,7 +1615,7 @@ public class EasyDnsResponder
             if (this.ServerName.IsEmptyDomain()) throw new CoresLibException("NS server field is empty.");
         }
 
-        public Record_NS(Zone parent, EasyDnsResponderRecordSettings settings, string nameNormalized, DomainName serverName) : base(parent, EasyDnsResponderRecordType.NS, settings, nameNormalized)
+        public Record_NS(Zone parent, EasyDnsResponderRecordSettings settings, string nameNormalized, DomainName serverName, object? param = null) : base(parent, EasyDnsResponderRecordType.NS, settings, nameNormalized, param)
         {
             this.ServerName = serverName;
         }
@@ -1495,7 +1641,7 @@ public class EasyDnsResponder
             if (this.CName.IsEmptyDomain()) throw new CoresLibException("CNAME field is empty.");
         }
 
-        public Record_CNAME(Zone parent, EasyDnsResponderRecordSettings settings, string nameNormalized, DomainName cname) : base(parent, EasyDnsResponderRecordType.CNAME, settings, nameNormalized)
+        public Record_CNAME(Zone parent, EasyDnsResponderRecordSettings settings, string nameNormalized, DomainName cname, object? param = null) : base(parent, EasyDnsResponderRecordType.CNAME, settings, nameNormalized, param)
         {
             this.CName = cname;
         }
@@ -1564,7 +1710,7 @@ public class EasyDnsResponder
             if (this.Ptr.IsEmptyDomain()) throw new CoresLibException("PTR field is empty.");
         }
 
-        public Record_PTR(Zone parent, EasyDnsResponderRecordSettings settings, string nameNormalized, DomainName ptr) : base(parent, EasyDnsResponderRecordType.PTR, settings, nameNormalized)
+        public Record_PTR(Zone parent, EasyDnsResponderRecordSettings settings, string nameNormalized, DomainName ptr, object? param = null) : base(parent, EasyDnsResponderRecordType.PTR, settings, nameNormalized, param)
         {
             this.Ptr = ptr;
         }
@@ -1595,7 +1741,7 @@ public class EasyDnsResponder
             this.Target = DomainName.Parse(tokens[3]._NonNullTrim());
         }
 
-        public Record_SRV(Zone parent, EasyDnsResponderRecordSettings settings, string nameNormalized, ushort priority, ushort weight, ushort port, DomainName target) : base(parent, EasyDnsResponderRecordType.SRV, settings, nameNormalized)
+        public Record_SRV(Zone parent, EasyDnsResponderRecordSettings settings, string nameNormalized, ushort priority, ushort weight, ushort port, DomainName target, object? param = null) : base(parent, EasyDnsResponderRecordType.SRV, settings, nameNormalized, param)
         {
             this.Priority = priority;
             this.Weight = weight;
@@ -1626,7 +1772,7 @@ public class EasyDnsResponder
             if (this.Preference <= 0) this.Preference = CoresConfig.EasyDnsResponderSettings.Default_MxPreference;
         }
 
-        public Record_MX(Zone parent, EasyDnsResponderRecordSettings settings, string nameNormalized, DomainName mailServer, ushort preference) : base(parent, EasyDnsResponderRecordType.MX, settings, nameNormalized)
+        public Record_MX(Zone parent, EasyDnsResponderRecordSettings settings, string nameNormalized, DomainName mailServer, ushort preference, object? param = null) : base(parent, EasyDnsResponderRecordType.MX, settings, nameNormalized, param)
         {
             this.MailServer = mailServer;
             this.Preference = preference;
@@ -1655,7 +1801,7 @@ public class EasyDnsResponder
             this.Value = tokens.ElementAt(2);
         }
 
-        public Record_CAA(Zone parent, EasyDnsResponderRecordSettings settings, string nameNormalized, byte flags, string tag, string value) : base(parent, EasyDnsResponderRecordType.CAA, settings, nameNormalized)
+        public Record_CAA(Zone parent, EasyDnsResponderRecordSettings settings, string nameNormalized, byte flags, string tag, string value, object? param = null) : base(parent, EasyDnsResponderRecordType.CAA, settings, nameNormalized, param)
         {
             this.Flags = flags;
             this.Tag = tag;
@@ -1677,7 +1823,7 @@ public class EasyDnsResponder
             this.TextData = src.Contents._NonNull();
         }
 
-        public Record_TXT(Zone parent, EasyDnsResponderRecordSettings settings, string nameNormalized, string textData) : base(parent, EasyDnsResponderRecordType.TXT, settings, nameNormalized)
+        public Record_TXT(Zone parent, EasyDnsResponderRecordSettings settings, string nameNormalized, string textData, object? param = null) : base(parent, EasyDnsResponderRecordType.TXT, settings, nameNormalized, param)
         {
             this.TextData = textData._NonNull();
         }
@@ -1741,12 +1887,13 @@ public class EasyDnsResponder
         readonly CachedProperty<string>? _StringForCompareCache;
         public string ToStringForCompare() => _StringForCompareCache ?? "";
 
-        public Record(Zone parent, EasyDnsResponderRecordType type, EasyDnsResponderRecordSettings settings, string nameNormalized)
+        public Record(Zone parent, EasyDnsResponderRecordType type, EasyDnsResponderRecordSettings settings, string nameNormalized, object? param = null)
         {
             this.ParentZone = parent;
             this.Type = type;
             this.Settings = settings;
             this.Name = nameNormalized;
+            this.Param = param;
 
             this._StringForCompareCache = new CachedProperty<string>(getter: () =>
             {

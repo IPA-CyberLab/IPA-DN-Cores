@@ -1078,12 +1078,17 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                     else
                     {
                         // ワイルドカード
+                        EasyJsonStrAttributes attributes = new EasyJsonStrAttributes();
+                        attributes["wildcard_before_str"] = recordDef.FirstTokenWildcardBefore;
+                        attributes["wildcard_after_str"] = recordDef.FirstTokenWildcardAfter;
+
                         zone.RecordList.Add(new EasyDnsResponderRecord
                         {
                             Type = recordDef.IpNetwork.AddressFamily == AddressFamily.InterNetwork ? EasyDnsResponderRecordType.A : EasyDnsResponderRecordType.AAAA,
                             Name = label,
                             Contents = $"{recordDef.IpNetwork._RemoveScopeId().ToString()}/{recordDef.SubnetLength}",
                             Settings = recordDef.Settings,
+                            Param = attributes,
                         });
                     }
                 }
@@ -1282,8 +1287,8 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
 
             this.DnsServer.DnsResponder.TcpAxfrCallback = async (req) =>
             {
-                // 静的レコードリストの構築
-                List<EasyDnsResponder.Record> list = req.GenerateStaticRecordsList(req.Cancel);
+                // 標準的な静的レコードリストの構築
+                List<EasyDnsResponder.Record> list = req.GenerateStandardStaticRecordsListFromZoneData(req.Cancel);
 
                 // 動的レコードリストの構築
                 var ipStart = IPv4Addr.FromString("10.0.0.0");

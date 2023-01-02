@@ -921,6 +921,14 @@ public class DomainName : IEquatable<DomainName>, IComparable<DomainName>
         throw new ArgumentException("Domain name could not be parsed", nameof(s));
     }
 
+    public static DomainName ParseWildcardAllow(string fqdn)
+    {
+        fqdn = fqdn._NonNullTrim().ToLowerInvariant();
+        string[] tokens = fqdn.Split(".", StringSplitOptions.RemoveEmptyEntries);
+
+        return new DomainName(tokens);
+    }
+
     /// <summary>
     ///   Parses the string representation of a domain name
     /// </summary>

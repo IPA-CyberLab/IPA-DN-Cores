@@ -1114,9 +1114,23 @@ namespace IPA.Cores.Basic
         }
     }
 
+    [Flags]
+    public enum FqdnReverseStrComparerFlags
+    {
+        None = 0,
+        ConsiderDepth = 1,
+    }
+
     public class FqdnReverseStrComparer : IEqualityComparer<string?>, IComparer<string?>
     {
         public static FqdnReverseStrComparer Comparer { get; } = new FqdnReverseStrComparer();
+
+        public FqdnReverseStrComparerFlags Flags { get; }
+
+        public FqdnReverseStrComparer(FqdnReverseStrComparerFlags flags = FqdnReverseStrComparerFlags.None)
+        {
+            this.Flags = flags;
+        }
 
         public int Compare(string? x, string? y)
         {
@@ -1125,10 +1139,19 @@ namespace IPA.Cores.Basic
 
             if ((IgnoreCase)x == y) return 0;
 
-            x = Str.ReverseFqdnStr(x);
-            y = Str.ReverseFqdnStr(y);
+            x = Str.ReverseFqdnStr(x, out int depth_x);
+            y = Str.ReverseFqdnStr(y, out int depth_y);
 
-            return string.Compare(x, y, StringComparison.OrdinalIgnoreCase);
+            if (this.Flags.Bit(FqdnReverseStrComparerFlags.ConsiderDepth))
+            {
+                int r = depth_x.CompareTo(depth_y);
+                if (r != 0)
+                {
+                    return r;
+                }
+            }
+
+            return  string.Compare(x, y, StringComparison.OrdinalIgnoreCase);
         }
 
         public bool Equals(string? x, string? y)
@@ -1148,7 +1171,7 @@ namespace IPA.Cores.Basic
         {
             obj = obj._NonNullTrim();
 
-            return obj.GetHashCode();
+            return obj.GetHashCode(StringComparison.OrdinalIgnoreCase);
         }
     }
 
@@ -1920,11 +1943,19 @@ namespace IPA.Cores.Basic
             => Str.CheckFqdn(fqdn, allowWildcard, wildcardFirstTokenMustBeSimple);
 
         [return: NotNullIfNotNull("fqdn")]
-        public static string? ReverseFqdnStr(string? fqdn)
+        public static string? ReverseFqdnStr(string? fqdn, out int numTokens)
         {
+            numTokens = 0;
             if (fqdn == null) return null;
-            return fqdn._Split(StringSplitOptions.None, '.').Reverse()._Combine(".", estimatedLength: fqdn.Length);
+
+            var tmpTokens = fqdn._Split(StringSplitOptions.None, '.');
+
+            numTokens = tmpTokens.Length;
+
+            return tmpTokens.Reverse()._Combine(".", estimatedLength: fqdn.Length);
         }
+        [return: NotNullIfNotNull("fqdn")]
+        public static string? ReverseFqdnStr(string? fqdn) => ReverseFqdnStr(fqdn, out _);
 
         public static Memory<byte> CHexArrayToBinary(string body)
         {
