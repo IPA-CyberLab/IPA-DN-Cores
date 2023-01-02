@@ -911,8 +911,119 @@ public class EasyDnsResponderTcpAxfrCallbackRequest
 
     public CancellationToken Cancel => this.CallbackParam.Cancel;
 
-    public async Task SendBufferedAsync(IEnumerable<EasyDnsResponder.Record> recordList, CancellationToken cancel = default, DateTimeOffset? timeStampForSoa = null)
+
+    // 現在の Zone に静的に定義されている静的レコードリストを送信する (SOA を除く)
+    public List<EasyDnsResponder.Record> GenerateStaticRecordsList(CancellationToken cancel = default)
     {
+        List<EasyDnsResponder.Record> list = new List<EasyDnsResponder.Record>();
+
+        var rootVirtualZone = new EasyDnsResponder.Zone(isVirtualRootZone: EnsureSpecial.Yes, ZoneInternal);
+
+        // この Zone そのものの NS レコード
+        foreach (var ns in ZoneInternal.NSRecordList)
+        {
+            list.Add(ns);
+
+            // NS レコードに付随する Glue レコード (明示的指定)
+            foreach (var glue in ns.GlueRecordList)
+            {
+                switch (glue)
+                {
+                    case EasyDnsResponder.Record_A glueA:
+                        list.Add(glueA);
+                        break;
+
+                    case EasyDnsResponder.Record_AAAA glueAAAA:
+                        list.Add(glueAAAA);
+                        break;
+                }
+            }
+
+            // NS レコードに付随する Glue レコード (暗黙的な指定、A または AAAA が存在すれば Glue レコードとみなす)
+            string nsFqdn = ns.ServerName.ToNormalizedFqdnFast();
+            var found2 = ZoneInternal.ParentDataSet.Search(nsFqdn);
+            if (found2 != null && found2.RecordList != null)
+            {
+                foreach (var record in found2.RecordList.Where(x => x.Type == EasyDnsResponderRecordType.A || x.Type == EasyDnsResponderRecordType.AAAA))
+                {
+                    switch (record)
+                    {
+                        case EasyDnsResponder.Record_A a:
+                            if (a.IsSubnet == false)
+                            {
+                                list.Add(new EasyDnsResponder.Record_A(rootVirtualZone, a.Settings, nsFqdn, a.IPv4Address));
+                            }
+                            break;
+
+                        case EasyDnsResponder.Record_AAAA aaaa:
+                            if (aaaa.IsSubnet == false)
+                            {
+                                list.Add(new EasyDnsResponder.Record_AAAA(rootVirtualZone, aaaa.Settings, nsFqdn, aaaa.IPv6Address));
+                            }
+                            break;
+                    }
+                }
+            }
+        }
+
+        // 権限移譲 NS レコード
+        foreach (var dele in ZoneInternal.NSDelegationRecordList)
+        {
+            string fqdn = dele.Key;
+            foreach (var ns in dele.Value)
+            {
+                list.Add(ns);
+
+                // NS レコードに付随する Glue レコード (明示的指定)
+                foreach (var glue in ns.GlueRecordList)
+                {
+                    switch (glue)
+                    {
+                        case EasyDnsResponder.Record_A glueA:
+                            list.Add(glueA);
+                            break;
+
+                        case EasyDnsResponder.Record_AAAA glueAAAA:
+                            list.Add(glueAAAA);
+                            break;
+                    }
+                }
+
+                // NS レコードに付随する Glue レコード (暗黙的な指定、A または AAAA が存在すれば Glue レコードとみなす)
+                string nsFqdn = ns.ServerName.ToNormalizedFqdnFast();
+                var found2 = ZoneInternal.ParentDataSet.Search(nsFqdn);
+                if (found2 != null && found2.RecordList != null)
+                {
+                    foreach (var record in found2.RecordList.Where(x => x.Type == EasyDnsResponderRecordType.A || x.Type == EasyDnsResponderRecordType.AAAA))
+                    {
+                        switch (record)
+                        {
+                            case EasyDnsResponder.Record_A a:
+                                if (a.IsSubnet == false)
+                                {
+                                    list.Add(new EasyDnsResponder.Record_A(rootVirtualZone, a.Settings, nsFqdn, a.IPv4Address));
+                                }
+                                break;
+
+                            case EasyDnsResponder.Record_AAAA aaaa:
+                                if (aaaa.IsSubnet == false)
+                                {
+                                    list.Add(new EasyDnsResponder.Record_AAAA(rootVirtualZone, aaaa.Settings, nsFqdn, aaaa.IPv6Address));
+                                }
+                                break;
+                        }
+                    }
+                }
+            }
+        }
+
+        return list;
+    }
+
+    // 複数個の DNS レコードを送信する
+    public async Task SendBufferedAsync(IEnumerable<EasyDnsResponder.Record> recordList, CancellationToken cancel = default, DateTimeOffset? timeStampForSoa = null, bool distinct = false, bool sort = false)
+    {
+        HashSet<string> distinctHash = new HashSet<string>();
         List<DnsRecordBase> answerList = new List<DnsRecordBase>();
 
         foreach (var record in recordList)
@@ -930,9 +1041,14 @@ public class EasyDnsResponderTcpAxfrCallbackRequest
 
             if (answer != null)
             {
-                answerList.Add(answer);
+                if (distinct == false || distinctHash.Add(answer.ToString()))
+                {
+                    answerList.Add(answer);
+                }
             }
         }
+
+        answerList._DoSortBy(a => a.OrderBy(x => x.Name.ToString(), FqdnReverseStrComparer.Comparer));
 
         if (answerList.Any())
         {
@@ -940,6 +1056,7 @@ public class EasyDnsResponderTcpAxfrCallbackRequest
         }
     }
 
+    // 1 個の DNS レコードを送信する
     public Task SendBufferedAsync(EasyDnsResponder.Record record, CancellationToken cancel = default, DateTimeOffset? timeStampForSoa = null)
         => SendBufferedAsync(record._SingleArray(), cancel, timeStampForSoa);
 }
@@ -1855,13 +1972,13 @@ public class EasyDnsResponder
         public KeyValueList<string, List<Record>> WildcardEndWithRecordList = new KeyValueList<string, List<Record>>(); // "*abc" または "*.abc" という先頭ワイルドカード
         public KeyValueList<string, List<Record>> WildcardInStrRecordList = new KeyValueList<string, List<Record>>(); // "*abc*" とか "abc*def" とか "abc?def" という複雑なワイルドカード
 
-        public List<Record> NSRecordList = new List<Record>(); // このゾーンそのものの NS レコード
-        public StrDictionary<List<Record>> NSDelegationRecordList = new StrDictionary<List<Record>>(); // サブドメイン権限委譲レコード
+        public List<Record_NS> NSRecordList = new List<Record_NS>(); // このゾーンそのものの NS レコード
+        public StrDictionary<List<Record_NS>> NSDelegationRecordList = new StrDictionary<List<Record_NS>>(); // サブドメイン権限委譲レコード
 
         public bool Has_WildcardAnyRecordList = false;
         public bool Has_WildcardEndWithRecordList = false;
         public bool Has_WildcardInStrRecordList = false;
-        public bool Has_WildcardNSDelegationRecordList = false;
+        public bool Has_NSDelegationRecordList = false;
 
         public bool IsVirtualRootZone = false;
 
@@ -1992,7 +2109,7 @@ public class EasyDnsResponder
                 if (r.Name._IsEmpty())
                 {
                     // これは、このゾーンそのものに関する NS 情報である。Name は空文字である。
-                    this.NSRecordList.Add(r);
+                    this.NSRecordList.Add((Record_NS)r);
                 }
                 else
                 {
@@ -2010,7 +2127,7 @@ public class EasyDnsResponder
                     }
 
                     // 問題なければ、NS 権限委譲レコードとして追加する。
-                    this.NSDelegationRecordList._GetOrNew(r.Name).Add(r);
+                    this.NSDelegationRecordList._GetOrNew(r.Name).Add((Record_NS)r);
                 }
             }
 
@@ -2022,14 +2139,15 @@ public class EasyDnsResponder
             this.Has_WildcardAnyRecordList = this.WildcardAnyRecordList.Any();
             this.Has_WildcardEndWithRecordList = this.WildcardEndWithRecordList.Any();
             this.Has_WildcardInStrRecordList = this.WildcardInStrRecordList.Any();
-            this.Has_WildcardNSDelegationRecordList = this.NSDelegationRecordList.Any();
+            this.Has_NSDelegationRecordList = this.NSDelegationRecordList.Any();
 
             this.SrcZone = src._CloneDeep();
         }
 
-        public SearchResult Search(SearchRequest request, string hostLabelNormalized, ReadOnlyMemory<string> hostLabelSpan)
+        public SearchResult Search(string hostLabelNormalized, ReadOnlyMemory<string> hostLabelSpan)
         {
             List<Record>? answers = null;
+            List<Record> glueRecords = new List<Record>();
 
             bool isWildcardMatch = false;
 
@@ -2049,14 +2167,14 @@ public class EasyDnsResponder
                     // a.b.c、b.c、c の順で検索し、最初に発見されたものを NS 委譲されているサブドメインとして扱う。
                     for (int i = 0; i < hostLabelSpan.Length; i++)
                     {
-                        if (this.NSDelegationRecordList.TryGetValue(hostLabelSpan.Slice(i)._Combine(".", estimatedLength: hostLabelNormalized.Length), out List<Record>? found2))
+                        if (this.NSDelegationRecordList.TryGetValue(hostLabelSpan.Slice(i)._Combine(".", estimatedLength: hostLabelNormalized.Length), out List<Record_NS>? found2))
                         {
                             // 権限委譲ドメイン情報が見つかった
                             SearchResult ret2 = new SearchResult
                             {
                                 SOARecord = this.SOARecord,
                                 Zone = this,
-                                RecordList = found2,
+                                RecordList = found2.Cast<Record>().ToList(),
                                 ResultFlags = SearchResultFlags.SubDomainIsDelegated,
                                 RequestHostName = hostLabelNormalized,
                             };
@@ -2205,17 +2323,72 @@ public class EasyDnsResponder
                 // このゾーン名を完全一致でクエリをしてきている場合、このゾーンに関する NS と SOA レコードも追加する
                 if (hostLabelSpan.Length == 0)
                 {
+                    // SOA
+                    answers.Add(this.SOARecord);
+
+                    // Glue
+                    List<Record> glueRecordsListTmp = new List<Record>();
+
+                    var rootVirtualZone = new Zone(isVirtualRootZone: EnsureSpecial.Yes, this);
+
                     foreach (var ns in this.NSRecordList)
                     {
                         answers.Add(ns);
+
+                        // Glue レコードの追記 (明示的な指定)
+                        foreach (var glue in ns.GlueRecordList)
+                        {
+                            glueRecordsListTmp.Add(glue);
+                        }
+
+                        // Glue レコードの追記 (暗黙的な指定、A または AAAA が存在すれば Glue レコードとみなす)
+                        string nsFqdn = ns.ServerName.ToNormalizedFqdnFast();
+                        var found2 = this.ParentDataSet.Search(nsFqdn);
+                        if (found2 != null && found2.RecordList != null)
+                        {
+                            foreach (var record in found2.RecordList.Where(x => x.Type == EasyDnsResponderRecordType.A || x.Type == EasyDnsResponderRecordType.AAAA))
+                            {
+                                switch (record)
+                                {
+                                    case Record_A a:
+                                        if (a.IsSubnet == false)
+                                        {
+                                            glueRecordsListTmp.Add(new Record_A(rootVirtualZone, a.Settings, nsFqdn, a.IPv4Address));
+                                        }
+                                        break;
+
+                                    case Record_AAAA aaaa:
+                                        if (aaaa.IsSubnet == false)
+                                        {
+                                            glueRecordsListTmp.Add(new Record_AAAA(rootVirtualZone, aaaa.Settings, nsFqdn, aaaa.IPv6Address));
+                                        }
+                                        break;
+                                }
+                            }
+                        }
                     }
-                    answers.Add(this.SOARecord);
+
+                    // Glue 重複排除
+                    HashSet<string> glueRecordDistinctHash = new HashSet<string>();
+
+                    foreach (var glue in glueRecordsListTmp)
+                    {
+                        string test = glue.Name + "." + glue.ParentZone.DomainFqdn + " = " + glue.ToStringForCompare();
+
+                        if (glueRecordDistinctHash.Contains(test) == false)
+                        {
+                            glueRecordDistinctHash.Add(test);
+
+                            glueRecords.Add(glue);
+                        }
+                    }
                 }
             }
 
             SearchResult ret = new SearchResult
             {
                 RecordList = answers,
+                AdditionalRecordList = glueRecords,
                 SOARecord = this.SOARecord,
                 Zone = this,
                 ResultFlags = (answers == null ? SearchResultFlags.NotFound : SearchResultFlags.NormalAnswer),
@@ -2302,9 +2475,9 @@ public class EasyDnsResponder
         }
 
         // クエリ検索
-        public SearchResult? Search(SearchRequest request)
+        public SearchResult? Search(string fqdnNormalized)
         {
-            Zone? zone = SearchLongestMatchDnsZone(request.FqdnNormalized, out string hostLabelStr, out ReadOnlyMemory<string> hostLabels);
+            Zone? zone = SearchLongestMatchDnsZone(fqdnNormalized, out string hostLabelStr, out ReadOnlyMemory<string> hostLabels);
 
             if (zone == null)
             {
@@ -2313,7 +2486,7 @@ public class EasyDnsResponder
                 return null;
             }
 
-            return zone.Search(request, hostLabelStr, hostLabels);
+            return zone.Search(hostLabelStr, hostLabels);
         }
     }
 
@@ -2336,6 +2509,7 @@ public class EasyDnsResponder
     public class SearchResult
     {
         public List<Record>? RecordList { get; set; } = null; // null: サブドメインが全く存在しない 空リスト: サブドメインは存在するものの、レコードは存在しない
+        public List<Record>? AdditionalRecordList { get; set; } = null;
 
         [JsonIgnore]
         public Zone Zone { get; set; } = null!;
@@ -2410,6 +2584,17 @@ public class EasyDnsResponder
         zoneFqdn = zoneFqdn._NormalizeFqdn();
 
         return dataSet.SearchExactMatchDnsZone(zoneFqdn);
+    }
+
+    public SearchResult? Search(string fqdnNormalized)
+    {
+        var dataSet = this.CurrentDataSet;
+        if (dataSet == null)
+        {
+            throw new CoresException("Current DNS Server Data Set is not loaded");
+        }
+
+        return dataSet.Search(fqdnNormalized);
     }
 
     public SearchResult? Query(SearchRequest request, EasyDnsResponderRecordType type)
@@ -2610,7 +2795,7 @@ public class EasyDnsResponder
         // -- 以下は、フォワーダで処理がなされなかった場合のメイン処理の継続 --
 
         // 純粋な Zone の検索処理を実施する。クエリにおける要求レコードタイプは見ない。
-        SearchResult? ret = dataSet.Search(request);
+        SearchResult? ret = this.Search(request.FqdnNormalized);
 
         // 次にクエリにおける要求レコードタイプに従って特別処理を行なう。
         if (ret != null)

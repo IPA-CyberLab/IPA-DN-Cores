@@ -1116,6 +1116,8 @@ namespace IPA.Cores.Basic
 
     public class FqdnReverseStrComparer : IEqualityComparer<string?>, IComparer<string?>
     {
+        public static FqdnReverseStrComparer Comparer { get; } = new FqdnReverseStrComparer();
+
         public int Compare(string? x, string? y)
         {
             x = x._NonNullTrim();

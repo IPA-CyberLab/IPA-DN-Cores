@@ -1037,8 +1037,18 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
             zone.RecordList.Add(new EasyDnsResponderRecord
             {
                 Type = EasyDnsResponderRecordType.SOA,
-                Contents = $"{zoneDef.Options.NameServersFqdnList._ElementAtOrDefaultStr(0, "unknown.example.org")} {zoneDef.Options.Responsible._FilledOrDefault("unknown.example.org")} {Consts.Numbers.MagicNumber_u32} {zoneDef.Options.RefreshInterval} {zoneDef.Options.RetryInterval} {zoneDef.Options.ExpireInterval} {zoneDef.Options.NegativeCacheTtl}",
+                Contents = $"{zoneDef.Options.NameServersFqdnList._ElementAtOrDefaultStr(0, "unknown.example.org")._NonNullTrim()._Split(StringSplitOptions.None, "=").FirstOrDefault()} {zoneDef.Options.Responsible._FilledOrDefault("unknown.example.org")} {Consts.Numbers.MagicNumber_u32} {zoneDef.Options.RefreshInterval} {zoneDef.Options.RetryInterval} {zoneDef.Options.ExpireInterval} {zoneDef.Options.NegativeCacheTtl}",
             });
+
+            // NS レコードを定義
+            foreach (var ns in zoneDef.Options.NameServersFqdnList)
+            {
+                zone.RecordList.Add(new EasyDnsResponderRecord
+                {
+                    Type = EasyDnsResponderRecordType.NS,
+                    Contents = ns,
+                });
+            }
 
             // カスタムレコードを登録
             foreach (var customDef in zoneDef.CustomRecordList)
@@ -1272,13 +1282,20 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
 
             this.DnsServer.DnsResponder.TcpAxfrCallback = async (req) =>
             {
+                // 静的レコードリストの構築
+                List<EasyDnsResponder.Record> list = req.GenerateStaticRecordsList(req.Cancel);
+
+                // 動的レコードリストの構築
                 var ipStart = IPv4Addr.FromString("10.0.0.0");
-                for (int i = 0; i < 1000000; i++)
+                for (int i = 0; i < 5; i++)
                 {
                     EasyDnsResponder.Record_A a = new EasyDnsResponder.Record_A(req.ZoneInternal, new EasyDnsResponderRecordSettings { }, $"test{i}", ipStart.Add(i).GetIPAddress());
 
-                    await req.SendBufferedAsync(a, req.Cancel);
+                    list.Add(a);
                 }
+
+                // 送付
+                await req.SendBufferedAsync(list, req.Cancel, distinct: true, sort: true);
             };
 
             this.DnsServer.DnsResponder.DynamicRecordCallback = (req) =>

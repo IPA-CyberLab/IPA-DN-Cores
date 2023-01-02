@@ -341,9 +341,9 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
                 return q;
             }
 
-            List<DnsRecordBase> answersList = new List<DnsRecordBase>(searchResponse.RecordList.Count);
+            List<DnsRecordBase> answersList = new List<DnsRecordBase>(searchResponse.RecordList.Count + (searchResponse.AdditionalRecordList?.Count ?? 0));
 
-            foreach (var ans in searchResponse.RecordList)
+            foreach (var ans in searchResponse.RecordList._Shuffle())
             {
                 var a = ans.ToDnsLibRecordBase(question, this.LastDatabaseHealtyTimeStamp);
                 if (a != null)
@@ -352,9 +352,16 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
                 }
             }
 
-            if (answersList.Count >= 2)
+            if (searchResponse.AdditionalRecordList != null)
             {
-                answersList = answersList._Shuffle().ToList();
+                foreach (var ans in searchResponse.AdditionalRecordList._Shuffle())
+                {
+                    var a = ans.ToDnsLibRecordBase(DomainName.Parse(Str.CombineFqdn(ans.Name, ans.ParentZone.DomainFqdn)), this.LastDatabaseHealtyTimeStamp);
+                    if (a != null)
+                    {
+                        answersList.Add(a);
+                    }
+                }
             }
 
             if (searchResponse.ResultFlags.Bit(EasyDnsResponder.SearchResultFlags.SubDomainIsDelegated))
@@ -374,28 +381,72 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
                     ans.Name = targetSubDomainFqdnParsed;
                 }
 
-                // Glue レコードの追記
-                HashSet<string> glueRecordDistinctHash = new HashSet<string>();
+                // Glue レコードの追記 (明示的な指定)
+                List<EasyDnsResponder.Record> glueRecordsList = new List<EasyDnsResponder.Record>();
+
                 foreach (var rec in searchResponse.RecordList)
                 {
                     if (rec is EasyDnsResponder.Record_NS ns)
                     {
                         foreach (var glue in ns.GlueRecordList)
                         {
-                            string test = glue.Name + "." + glue.ParentZone.DomainFqdn + " = " + glue.ToStringForCompare();
+                            glueRecordsList.Add(glue);
+                        }
+                    }
+                }
 
-                            if (glueRecordDistinctHash.Contains(test) == false)
+                // Glue レコードの追記 (暗黙的な指定、A または AAAA が存在すれば Glue レコードとみなす)
+                foreach (var ans in answersList)
+                {
+                    if (ans is NsRecord ns)
+                    {
+                        string nsFqdn = ns.NameServer.ToNormalizedFqdnFast();
+                        var found2 = this.DnsResponder.Search(nsFqdn);
+                        if (found2 != null && found2.RecordList != null)
+                        {
+                            foreach (var record in found2.RecordList.Where(x => x.Type == EasyDnsResponderRecordType.A || x.Type == EasyDnsResponderRecordType.AAAA))
                             {
-                                glueRecordDistinctHash.Add(test);
+                                var rootVirtualZone = new EasyDnsResponder.Zone(isVirtualRootZone: EnsureSpecial.Yes, record.ParentZone);
 
-                                var r = glue.ToDnsLibRecordBase(DomainName.Parse(glue.Name + "." + glue.ParentZone.DomainFqdn), this.LastDatabaseHealtyTimeStamp);
+                                switch (record)
+                                {
+                                    case EasyDnsResponder.Record_A a:
+                                        if (a.IsSubnet == false)
+                                        {
+                                            glueRecordsList.Add(new EasyDnsResponder.Record_A(rootVirtualZone, a.Settings, nsFqdn, a.IPv4Address));
+                                        }
+                                        break;
 
-                                q.AdditionalRecords.Add(r);
+                                    case EasyDnsResponder.Record_AAAA aaaa:
+                                        if (aaaa.IsSubnet == false)
+                                        {
+                                            glueRecordsList.Add(new EasyDnsResponder.Record_AAAA(rootVirtualZone, aaaa.Settings, nsFqdn, aaaa.IPv6Address));
+                                        }
+                                        break;
+                                }
                             }
                         }
                     }
                 }
 
+                // 重複排除
+                HashSet<string> glueRecordDistinctHash = new HashSet<string>();
+
+                foreach (var glue in glueRecordsList)
+                {
+                    string test = glue.Name + "." + glue.ParentZone.DomainFqdn + " = " + glue.ToStringForCompare();
+
+                    if (glueRecordDistinctHash.Contains(test) == false)
+                    {
+                        glueRecordDistinctHash.Add(test);
+
+                        var r = glue.ToDnsLibRecordBase(DomainName.Parse(glue.Name + "." + glue.ParentZone.DomainFqdn), this.LastDatabaseHealtyTimeStamp);
+
+                        q.AdditionalRecords.Add(r);
+                    }
+                }
+
+                // シャッフル
                 if (q.AdditionalRecords.Count >= 1)
                 {
                     q.AdditionalRecords = q.AdditionalRecords._Shuffle().ToList();
