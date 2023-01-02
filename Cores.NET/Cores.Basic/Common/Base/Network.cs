@@ -927,7 +927,7 @@ namespace IPA.Cores.Basic
         }
 
         // IP アドレスからワイルドカード DNS 名を生成
-        public static string GenerateWildCardDnsFqdn(IPAddress ip, string baseDomainName, string prefix = "", string suffix = "")
+        public static string GenerateWildCardDnsFqdn(IPAddress ip, string baseDomainName, string prefix = "", string suffix = "", bool allDigits = false)
         {
             prefix = prefix._NonNullTrim();
             suffix = suffix._NonNullTrim();
@@ -940,11 +940,11 @@ namespace IPA.Cores.Basic
 
             if (ip.AddressFamily == AddressFamily.InterNetwork)
             {
-                return prefix + ip.ToString()._ReplaceStr(".", "-") + suffix + baseDomainName;
+                return prefix + ip._IPToStr(allDigits)._ReplaceStr(".", "-") + suffix + baseDomainName;
             }
             else if (ip.AddressFamily == AddressFamily.InterNetworkV6)
             {
-                return prefix + ip.ToString()._ReplaceStr(":", "-") + suffix + baseDomainName;
+                return prefix + ip._IPToStr(allDigits)._ReplaceStr(":", "-") + suffix + baseDomainName;
             }
             else
             {
@@ -1733,9 +1733,40 @@ namespace IPA.Cores.Basic
         }
 
         // IP アドレスを文字列に変換
-        public static string IPToStr(IPAddress ip)
+        public static string IPToStr(IPAddress ip, bool allDigits = false)
         {
-            return ip.ToString();
+            if (allDigits == false)
+            {
+                return ip.ToString();
+            }
+            else
+            {
+                ip._CheckIsIPv4OrIPv6AddressFamily();
+                var data = ip.GetAddressBytes();
+                if (ip.AddressFamily == AddressFamily.InterNetwork)
+                {
+                    return $"{(uint)data[0]:D3}.{(uint)data[1]:D3}.{(uint)data[2]:D3}.{(uint)data[3]:D3}";
+                }
+                else
+                {
+                    StringBuilder sb = new StringBuilder(40);
+                    for (int i = 0; i < 8; i++)
+                    {
+                        uint x = data[i * 2];
+                        uint y = data[i * 2 + 1];
+                        if (i != 0)
+                        {
+                            sb.Append(":");
+                        }
+                        sb.Append($"{x:x2}{y:x2}");
+                    }
+                    if (ip.ScopeId != 0)
+                    {
+                        sb.Append("%" + ip.ScopeId);
+                    }
+                    return sb.ToString();
+                }
+            }
         }
 
         // 指定された IP アドレスが IPv4 かどうか検査
@@ -3217,7 +3248,7 @@ namespace IPA.Cores.Basic
         }
 
         // IP アドレスまたは IP サブネットから in-addr.arpa または ip6.arpa 形式の逆引き FQDN を生成
-        public static string IPAddressOrSubnetToPtrZoneOrFqdn(IPAddress ip, int subnetLength = -1, bool withSuffix = true)
+        public static string IPAddressOrSubnetToPtrZoneOrFqdn(IPAddress ip, int subnetLength = -1, bool withSuffix = true, bool ipv4AllDigitsForSortKey = false)
         {
             if (ip.AddressFamily == AddressFamily.InterNetwork)
             {
@@ -3228,14 +3259,29 @@ namespace IPA.Cores.Basic
 
                 string tmp;
 
-                switch (subnetLength)
+                if (ipv4AllDigitsForSortKey == false)
                 {
-                    case 0: tmp = ""; break;
-                    case 8: tmp = $"{d[0]}"; break;
-                    case 16: tmp = $"{d[1]}.{d[0]}"; break;
-                    case 24: tmp = $"{d[2]}.{d[1]}.{d[0]}"; break;
-                    case 32: tmp = $"{d[3]}.{d[2]}.{d[1]}.{d[0]}"; break;
-                    default: throw new CoresException($"in-addr.arpa prefix length: '{subnetLength}' must be 0, 8, 16, 24 or 32");
+                    switch (subnetLength)
+                    {
+                        case 0: tmp = ""; break;
+                        case 8: tmp = $"{d[0]}"; break;
+                        case 16: tmp = $"{d[1]}.{d[0]}"; break;
+                        case 24: tmp = $"{d[2]}.{d[1]}.{d[0]}"; break;
+                        case 32: tmp = $"{d[3]}.{d[2]}.{d[1]}.{d[0]}"; break;
+                        default: throw new CoresException($"in-addr.arpa prefix length: '{subnetLength}' must be 0, 8, 16, 24 or 32");
+                    }
+                }
+                else
+                {
+                    switch (subnetLength)
+                    {
+                        case 0: tmp = ""; break;
+                        case 8: tmp = $"{d[0]:D3}"; break;
+                        case 16: tmp = $"{d[1]:D3}.{d[0]:D3}"; break;
+                        case 24: tmp = $"{d[2]:D3}.{d[1]:D3}.{d[0]:D3}"; break;
+                        case 32: tmp = $"{d[3]:D3}.{d[2]:D3}.{d[1]:D3}.{d[0]:D3}"; break;
+                        default: throw new CoresException($"in-addr.arpa prefix length: '{subnetLength}' must be 0, 8, 16, 24 or 32");
+                    }
                 }
 
                 if (withSuffix)

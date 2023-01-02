@@ -1288,7 +1288,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
             this.DnsServer.DnsResponder.TcpAxfrCallback = async (req) =>
             {
                 // 標準的な静的レコードリストの構築
-                List<EasyDnsResponder.Record> list = req.GenerateStandardStaticRecordsListFromZoneData(req.Cancel);
+                List<Tuple<EasyDnsResponder.Record, string?>> list = req.GenerateStandardStaticRecordsListFromZoneData(req.Cancel);
 
                 var rootVirtualZone = new EasyDnsResponder.Zone(isVirtualRootZone: EnsureSpecial.Yes, req.ZoneInternal);
 
@@ -1377,44 +1377,45 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                 if (ipHashSet.Add(ipStr))
                                 {
                                     string ptrStr = IPUtil.IPAddressOrSubnetToPtrZoneOrFqdn(ip);
+                                    string ptrStrForSort = IPUtil.IPAddressOrSubnetToPtrZoneOrFqdn(ip, ipv4AllDigitsForSortKey: true);
 
                                     EasyDnsResponderRecordSettings settings = record.Settings ?? req.ZoneInternal.Settings;
 
-                                    if (record.Fqdn.StartsWith("*.", StringComparison.Ordinal))
+                                    if (record.Type == StandardRecordType.ReverseSingle || record.Type == StandardRecordType.ReverseSubnet)
                                     {
-                                        if (record.Type == StandardRecordType.ReverseSingle || record.Type == StandardRecordType.ReverseSubnet)
+                                        if (record.Fqdn.StartsWith("*.", StringComparison.Ordinal))
                                         {
-                                            // PTR
+                                            // Subnet Wildcard PTR
                                             string baseFqdn = record.Fqdn.Substring(2);
                                             string fqdn = IPUtil.GenerateWildCardDnsFqdn(ip, baseFqdn, record.FirstTokenWildcardBefore, record.FirstTokenWildcardAfter);
 
-                                            list.Add(new EasyDnsResponder.Record_PTR(rootVirtualZone, settings, ptrStr, DomainName.Parse(fqdn)));
+                                            list.Add(new Tuple<EasyDnsResponder.Record, string?>(new EasyDnsResponder.Record_PTR(rootVirtualZone, settings, ptrStr, DomainName.Parse(fqdn)), ptrStrForSort));
                                         }
                                         else
                                         {
-                                            // CNAME
-                                            string fqdn;
-                                            if (record.ReverseCName_HyphenMode == false)
-                                            {
-                                                // 1.2.3.4 -> 4.3.2.1.target.domain
-                                                string ipAddressLabelPart = IPUtil.IPAddressOrSubnetToPtrZoneOrFqdn(ip, withSuffix: false);
-                                                fqdn = ipAddressLabelPart + "." + record.Fqdn;
-                                            }
-                                            else
-                                            {
-                                                // 1.2.3.4 -> 1-2-3-4.target.domain
-                                                fqdn = IPUtil.GenerateWildCardDnsFqdn(ip, record.Fqdn);
-                                            }
+                                            // PTR
+                                            string fqdn = record.Fqdn;
 
-                                            list.Add(new EasyDnsResponder.Record_CNAME(rootVirtualZone, settings, ptrStr, DomainName.Parse(fqdn)));
+                                            list.Add(new Tuple<EasyDnsResponder.Record, string?>(new EasyDnsResponder.Record_PTR(rootVirtualZone, settings, ptrStr, DomainName.Parse(fqdn)), ptrStrForSort));
                                         }
                                     }
                                     else
                                     {
-                                        // PTR
-                                        string fqdn = record.Fqdn;
+                                        // Subnet CNAME
+                                        string fqdn;
 
-                                        list.Add(new EasyDnsResponder.Record_PTR(rootVirtualZone, settings, ptrStr, DomainName.Parse(fqdn)));
+                                        if (record.ReverseCName_HyphenMode == false)
+                                        {
+                                            // 1.2.3.4 -> 4.3.2.1.target.domain
+                                            fqdn = IPUtil.IPAddressOrSubnetToPtrZoneOrFqdn(ip, withSuffix: false) + "." + record.Fqdn;
+                                        }
+                                        else
+                                        {
+                                            // 1.2.3.4 -> 1-2-3-4.target.domain
+                                            fqdn = IPUtil.GenerateWildCardDnsFqdn(ip, record.Fqdn);
+                                        }
+
+                                        list.Add(new Tuple<EasyDnsResponder.Record, string?>(new EasyDnsResponder.Record_CNAME(rootVirtualZone, settings, ptrStr, DomainName.Parse(fqdn)), ptrStrForSort));
                                     }
                                 }
                             }

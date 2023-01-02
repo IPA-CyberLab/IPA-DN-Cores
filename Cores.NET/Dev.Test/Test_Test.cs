@@ -3874,13 +3874,10 @@ cccadmin
 
                 if (true)
                 {
-                    if (IPUtil.TryParseHostPort(line, out string host, out int port, 80) == false)
+                    var ip = line._StrToIP(noException: true);
+                    if (ip != null)
                     {
-                        "NG"._Print();
-                    }
-                    else
-                    {
-                        $"host = {host}   port = {port}"._Print();
+                        ip._IPToStr(true)._Print();
                     }
                 }
                 else if (true)

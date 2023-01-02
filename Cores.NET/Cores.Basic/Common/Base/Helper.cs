@@ -1002,6 +1002,8 @@ public static class BasicHelper
 
     public static uint _IPToUINT(this IPAddress? addr) => IPUtil.IPToUINT(addr);
 
+    public static string _IPToStr(this IPAddress ip, bool allDigits = false) => IPUtil.IPToStr(ip, allDigits);
+
     public static IPAddressType _GetIPAddressType(this IPAddress ip) => IPUtil.GetIPAddressType(ip);
     public static IPAddressType _GetIPAddressType(this string ip) => IPUtil.GetIPAddressType(ip);
 

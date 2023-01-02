@@ -147,13 +147,13 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
 
         // SOA レコード (開始を意味する)
         var timeStamp = LastDatabaseHealtyTimeStamp;
-        await req.SendBufferedAsync(zone.SOARecord, cancel, timeStamp);
+        await req.SendBufferedAsync(zone.SOARecord, null, cancel, timeStamp);
 
         // 本体
         await this.DnsResponder.TcpAxfrCallback(req);
 
         // SOA レコード (終了を意味する)
-        await req.SendBufferedAsync(zone.SOARecord, cancel, timeStamp);
+        await req.SendBufferedAsync(zone.SOARecord, null, cancel, timeStamp);
     }
 
     // DNS サーバーから呼ばれる通常クエリに対するコールバック関数。ここでクエリに対する応答を作る。

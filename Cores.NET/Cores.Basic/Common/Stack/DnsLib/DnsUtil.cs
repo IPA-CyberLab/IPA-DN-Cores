@@ -913,16 +913,16 @@ public class EasyDnsResponderTcpAxfrCallbackRequest
 
 
     // 現在の Zone に静的に定義されている静的レコードリストを送信する (SOA を除く)
-    public List<EasyDnsResponder.Record> GenerateStandardStaticRecordsListFromZoneData(CancellationToken cancel = default)
+    public List<Tuple<EasyDnsResponder.Record, string?>> GenerateStandardStaticRecordsListFromZoneData(CancellationToken cancel = default)
     {
-        List<EasyDnsResponder.Record> list = new List<EasyDnsResponder.Record>();
+        List<Tuple<EasyDnsResponder.Record, string?>> list = new List<Tuple<EasyDnsResponder.Record, string?>>();
 
         var rootVirtualZone = new EasyDnsResponder.Zone(isVirtualRootZone: EnsureSpecial.Yes, ZoneInternal);
 
         // この Zone そのものの NS レコード
         foreach (var ns in ZoneInternal.NSRecordList)
         {
-            list.Add(ns);
+            list.Add(new Tuple<EasyDnsResponder.Record, string?>(ns, null));
 
             // NS レコードに付随する Glue レコード (明示的指定)
             foreach (var glue in ns.GlueRecordList)
@@ -930,11 +930,11 @@ public class EasyDnsResponderTcpAxfrCallbackRequest
                 switch (glue)
                 {
                     case EasyDnsResponder.Record_A glueA:
-                        list.Add(glueA);
+                        list.Add(new Tuple<EasyDnsResponder.Record, string?>(glueA, null));
                         break;
 
                     case EasyDnsResponder.Record_AAAA glueAAAA:
-                        list.Add(glueAAAA);
+                        list.Add(new Tuple<EasyDnsResponder.Record, string?>(glueAAAA, null));
                         break;
                 }
             }
@@ -951,14 +951,14 @@ public class EasyDnsResponderTcpAxfrCallbackRequest
                         case EasyDnsResponder.Record_A a:
                             if (a.IsSubnet == false)
                             {
-                                list.Add(new EasyDnsResponder.Record_A(rootVirtualZone, a.Settings, nsFqdn, a.IPv4Address));
+                                list.Add(new Tuple<EasyDnsResponder.Record, string?>(new EasyDnsResponder.Record_A(rootVirtualZone, a.Settings, nsFqdn, a.IPv4Address), null));
                             }
                             break;
 
                         case EasyDnsResponder.Record_AAAA aaaa:
                             if (aaaa.IsSubnet == false)
                             {
-                                list.Add(new EasyDnsResponder.Record_AAAA(rootVirtualZone, aaaa.Settings, nsFqdn, aaaa.IPv6Address));
+                                list.Add(new Tuple<EasyDnsResponder.Record, string?>(new EasyDnsResponder.Record_AAAA(rootVirtualZone, aaaa.Settings, nsFqdn, aaaa.IPv6Address), null));
                             }
                             break;
                     }
@@ -972,7 +972,7 @@ public class EasyDnsResponderTcpAxfrCallbackRequest
             string fqdn = dele.Key;
             foreach (var ns in dele.Value)
             {
-                list.Add(ns);
+                list.Add(new Tuple<EasyDnsResponder.Record, string?>(ns, null));
 
                 // NS レコードに付随する Glue レコード (明示的指定)
                 foreach (var glue in ns.GlueRecordList)
@@ -980,11 +980,11 @@ public class EasyDnsResponderTcpAxfrCallbackRequest
                     switch (glue)
                     {
                         case EasyDnsResponder.Record_A glueA:
-                            list.Add(glueA);
+                            list.Add(new Tuple<EasyDnsResponder.Record, string?>(glueA, null));
                             break;
 
                         case EasyDnsResponder.Record_AAAA glueAAAA:
-                            list.Add(glueAAAA);
+                            list.Add(new Tuple<EasyDnsResponder.Record, string?>(glueAAAA, null));
                             break;
                     }
                 }
@@ -1001,14 +1001,14 @@ public class EasyDnsResponderTcpAxfrCallbackRequest
                             case EasyDnsResponder.Record_A a:
                                 if (a.IsSubnet == false)
                                 {
-                                    list.Add(new EasyDnsResponder.Record_A(rootVirtualZone, a.Settings, nsFqdn, a.IPv4Address));
+                                    list.Add(new Tuple<EasyDnsResponder.Record, string?>(new EasyDnsResponder.Record_A(rootVirtualZone, a.Settings, nsFqdn, a.IPv4Address), null));
                                 }
                                 break;
 
                             case EasyDnsResponder.Record_AAAA aaaa:
                                 if (aaaa.IsSubnet == false)
                                 {
-                                    list.Add(new EasyDnsResponder.Record_AAAA(rootVirtualZone, aaaa.Settings, nsFqdn, aaaa.IPv6Address));
+                                    list.Add(new Tuple<EasyDnsResponder.Record, string?>(new EasyDnsResponder.Record_AAAA(rootVirtualZone, aaaa.Settings, nsFqdn, aaaa.IPv6Address), null));
                                 }
                                 break;
                         }
@@ -1032,7 +1032,7 @@ public class EasyDnsResponderTcpAxfrCallbackRequest
                         if (fqdn._IsValidFqdn(true, true))
                         {
                             // ワイルドカード無し、またはシンプルなワイルドカードのみ許容
-                            list.Add(a);
+                            list.Add(new Tuple<EasyDnsResponder.Record, string?>(a, null));
                         }
                     }
                     else
@@ -1064,23 +1064,23 @@ public class EasyDnsResponderTcpAxfrCallbackRequest
                                         {
                                             var ip = ipStart2.Add(i).GetIPAddress();
 
-                                            List<string> tmp = new List<string>();
+                                            List<(string, string)> tmp = new List<(string, string)>();
 
-                                            tmp.Add(IPUtil.GenerateWildCardDnsFqdn(ip, wildcardInfo.suffix, "", ""));
+                                            tmp.Add((IPUtil.GenerateWildCardDnsFqdn(ip, wildcardInfo.suffix, "", "", false), IPUtil.GenerateWildCardDnsFqdn(ip, wildcardInfo.suffix, "", "", true)));
 
                                             if (wildcard_before_str._IsFilled())
                                             {
-                                                tmp.Add(IPUtil.GenerateWildCardDnsFqdn(ip, wildcardInfo.suffix, wildcard_before_str, ""));
+                                                tmp.Add((IPUtil.GenerateWildCardDnsFqdn(ip, wildcardInfo.suffix, wildcard_before_str, "", false), IPUtil.GenerateWildCardDnsFqdn(ip, wildcardInfo.suffix, wildcard_before_str, "", true)));
                                             }
 
                                             if (wildcard_after_str._IsFilled())
                                             {
-                                                tmp.Add(IPUtil.GenerateWildCardDnsFqdn(ip, wildcardInfo.suffix, "", wildcard_after_str));
+                                                tmp.Add((IPUtil.GenerateWildCardDnsFqdn(ip, wildcardInfo.suffix, "", wildcard_after_str, false), IPUtil.GenerateWildCardDnsFqdn(ip, wildcardInfo.suffix, "", wildcard_after_str, true)));
                                             }
 
                                             foreach (var new_fqdn in tmp)
                                             {
-                                                list.Add(new EasyDnsResponder.Record_A(rootVirtualZone, a.Settings, new_fqdn, ip));
+                                                list.Add(new Tuple<EasyDnsResponder.Record, string?>(new EasyDnsResponder.Record_A(rootVirtualZone, a.Settings, new_fqdn.Item1, ip), new_fqdn.Item2));
                                             }
                                         }
                                     }
@@ -1090,7 +1090,7 @@ public class EasyDnsResponderTcpAxfrCallbackRequest
                             {
                                 // 非ワイルドカードの場合は、最初の 1 個を応答するレコードを生成する
                                 var ipStart = IPUtil.GetPrefixAddress(a.IPv4Address, a.IPv4SubnetMaskLength);
-                                list.Add(new EasyDnsResponder.Record_A(rootVirtualZone, a.Settings, fqdn, ipStart));
+                                list.Add(new Tuple<EasyDnsResponder.Record, string?>(new EasyDnsResponder.Record_A(rootVirtualZone, a.Settings, fqdn, ipStart), null));
                             }
                         }
                     }
@@ -1103,7 +1103,7 @@ public class EasyDnsResponderTcpAxfrCallbackRequest
                         if (fqdn._IsValidFqdn(true, true))
                         {
                             // ワイルドカード無し、またはシンプルなワイルドカードのみ許容
-                            list.Add(aaaa);
+                            list.Add(new Tuple<EasyDnsResponder.Record, string?>(aaaa, null));
                         }
                     }
                     else
@@ -1128,7 +1128,7 @@ public class EasyDnsResponderTcpAxfrCallbackRequest
                             {
                                 // 非ワイルドカードの場合は、最初の 1 個を応答するレコードを生成する
                                 var ipStart = IPUtil.GetPrefixAddress(aaaa.IPv6Address, aaaa.IPv6SubnetMask);
-                                list.Add(new EasyDnsResponder.Record_A(rootVirtualZone, aaaa.Settings, fqdn, ipStart));
+                                list.Add(new Tuple<EasyDnsResponder.Record, string?>(new EasyDnsResponder.Record_A(rootVirtualZone, aaaa.Settings, fqdn, ipStart), null));
                             }
                         }
                     }
@@ -1144,7 +1144,7 @@ public class EasyDnsResponderTcpAxfrCallbackRequest
                     if (fqdn._IsValidFqdn(true, true))
                     {
                         // ワイルドカード無し、またはシンプルなワイルドカードのみ許容
-                        list.Add(record);
+                        list.Add(new Tuple<EasyDnsResponder.Record, string?>(record, null));
                     }
                     break;
             }
@@ -1154,18 +1154,18 @@ public class EasyDnsResponderTcpAxfrCallbackRequest
     }
 
     // 複数個の DNS レコードを送信する
-    public async Task SendBufferedAsync(IEnumerable<EasyDnsResponder.Record> recordList, CancellationToken cancel = default, DateTimeOffset? timeStampForSoa = null, bool distinct = false, bool sort = false)
+    public async Task SendBufferedAsync(IEnumerable<Tuple<EasyDnsResponder.Record, string?>> recordList, CancellationToken cancel = default, DateTimeOffset? timeStampForSoa = null, bool distinct = false, bool sort = false)
     {
         HashSet<string> distinctHash = new HashSet<string>();
-        List<DnsRecordBase> answerList = new List<DnsRecordBase>();
+        List<(DnsRecordBase, string)> answerList = new List<(DnsRecordBase, string)>();
 
         foreach (var record in recordList)
         {
             DateTimeOffset timeStampForSoa2 = DtOffsetZero;
 
-            string fqdn = Str.CombineFqdn(record.Name, record.ParentZone.DomainFqdn);
+            string fqdn = Str.CombineFqdn(record.Item1.Name, record.Item1.ParentZone.DomainFqdn);
 
-            if (record.Type == EasyDnsResponderRecordType.SOA)
+            if (record.Item1.Type == EasyDnsResponderRecordType.SOA)
             {
                 timeStampForSoa2 = timeStampForSoa ?? DtOffsetNow;
             }
@@ -1181,30 +1181,37 @@ public class EasyDnsResponderTcpAxfrCallbackRequest
                 domainName = DomainName.Parse(fqdn);
             }
 
-            var answer = record.ToDnsLibRecordBase(domainName, timeStampForSoa2);
+            var answer = record.Item1.ToDnsLibRecordBase(domainName, timeStampForSoa2);
 
             if (answer != null)
             {
                 if (distinct == false || distinctHash.Add(answer.ToString()))
                 {
-                    answerList.Add(answer);
+                    string? fqdnForSort = record.Item2;
+
+                    if (fqdnForSort == null)
+                    {
+                        fqdnForSort = answer.Name.ToString();
+                    }
+
+                    answerList.Add((answer, fqdnForSort));
                 }
             }
         }
 
         var comparer = new FqdnReverseStrComparer(FqdnReverseStrComparerFlags.ConsiderDepth);
 
-        answerList._DoSortBy(a => a.OrderBy(x => x.Name.ToString(), comparer));
+        answerList._DoSortBy(a => a.OrderBy(x => x.Item2, comparer));
 
         if (answerList.Any())
         {
-            await this.CallbackParam.SendRecordsBufferedCallbackAsync(answerList, cancel);
+            await this.CallbackParam.SendRecordsBufferedCallbackAsync(answerList.Select(x => x.Item1), cancel);
         }
     }
 
     // 1 個の DNS レコードを送信する
-    public Task SendBufferedAsync(EasyDnsResponder.Record record, CancellationToken cancel = default, DateTimeOffset? timeStampForSoa = null)
-        => SendBufferedAsync(record._SingleArray(), cancel, timeStampForSoa);
+    public Task SendBufferedAsync(EasyDnsResponder.Record record, string? fqdnForSort = null, CancellationToken cancel = default, DateTimeOffset? timeStampForSoa = null)
+        => SendBufferedAsync(new Tuple<EasyDnsResponder.Record, string?>(record, fqdnForSort)._SingleArray(), cancel, timeStampForSoa);
 }
 
 // ダイナミックレコードのコールバック関数に渡されるリクエストデータ
