@@ -35,6 +35,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Net;
+using System.Net.Sockets;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -73,6 +75,9 @@ public class LogDefIPEndPoints
     public int LocalPort = 0;
     public string? RemoteIP = null;
     public int RemotePort = 0;
+
+    public IPEndPoint GetLocalEndPoint() => new IPEndPoint(IPAddress.Parse(this.LocalIP!), this.LocalPort);
+    public IPEndPoint GetRemoteEndPoint() => new IPEndPoint(IPAddress.Parse(this.RemoteIP!), this.RemotePort);
 }
 
 public class LogDefSslSession

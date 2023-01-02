@@ -870,6 +870,10 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
         [SimpleComment("If DDns_Protocol_AcceptUdpProxyProtocolV2 is true you can specify the source IP address ACL to accept UDP Proxy Protocol (You can specify multiple items. e.g. 127.0.0.0/8,1.2.3.0/24)")]
         public string Dns_Protocol_ProxyProtocolAcceptSrcIpAcl = "";
 
+        public string Dns_Protocol_TcpAxfrAcceptSrcIpAcl = "";
+
+        public int Dns_Protocol_TcpAxfrMaxRecordsPerMessage = 32;
+
         public string Dns_ZoneDefFilePathOrUrl = "";
 
 
@@ -877,9 +881,20 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
         {
             Dns_Protocol_ProxyProtocolAcceptSrcIpAcl = EasyIpAcl.NormalizeRules(Dns_Protocol_ProxyProtocolAcceptSrcIpAcl, false, true);
 
+            if (Dns_Protocol_TcpAxfrAcceptSrcIpAcl._IsEmpty())
+            {
+                Dns_Protocol_TcpAxfrAcceptSrcIpAcl = "127.0.0.0/8; 192.168.0.0/16; 172.16.0.0/12; 10.0.0.0/8; 1.2.3.4/32; 2041:af80:1234::/48";
+            }
+            Dns_Protocol_TcpAxfrAcceptSrcIpAcl = EasyIpAcl.NormalizeRules(Dns_Protocol_TcpAxfrAcceptSrcIpAcl, false, true);
+
             if (Dns_ZoneDefFilePathOrUrl._IsEmpty())
             {
                 Dns_ZoneDefFilePathOrUrl = Lfs.PathParser.Combine(Env.AppRootDir, "ZoneDef.config");
+            }
+
+            if (Dns_Protocol_TcpAxfrMaxRecordsPerMessage <= 0)
+            {
+                Dns_Protocol_TcpAxfrMaxRecordsPerMessage = 32;
             }
 
             base.NormalizeImpl();
@@ -900,10 +915,12 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
     public class HiveSettings : HadbBasedServiceHiveSettingsBase
     {
         public int Dns_UdpListenPort;
+        public int Dns_TcpListenPort;
 
         public override void NormalizeImpl()
         {
             if (Dns_UdpListenPort <= 0) Dns_UdpListenPort = Consts.Ports.Dns;
+            if (Dns_TcpListenPort <= 0) Dns_TcpListenPort = Consts.Ports.Dns;
         }
     }
 
@@ -936,6 +953,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
             new EasyDnsResponderBasedDnsServerSettings
             {
                 UdpPort = this.SettingsFastSnapshot.Dns_UdpListenPort,
+                TcpPort = this.SettingsFastSnapshot.Dns_TcpListenPort,
             }
             );
 
@@ -1152,6 +1170,8 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
 
             currentDynOptions.ParseUdpProxyProtocolV2 = config.Dns_Protocol_ParseUdpProxyProtocolV2;
             currentDynOptions.DnsProxyProtocolAcceptSrcIpAcl = config.Dns_Protocol_ProxyProtocolAcceptSrcIpAcl;
+            currentDynOptions.DnsTcpAxfrAcceptSrcIpAcl = config.Dns_Protocol_TcpAxfrAcceptSrcIpAcl;
+            currentDynOptions.DnsTcpAxfrMaxRecordsPerMessage = config.Dns_Protocol_TcpAxfrMaxRecordsPerMessage;
 
             this.DnsServer.DnsServer.SetCurrentDynOptions(currentDynOptions);
 
@@ -1248,6 +1268,17 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                 return new EasyDnsResponderForwarderRequestTransformerCallbackResult
                 {
                 };
+            };
+
+            this.DnsServer.DnsResponder.TcpAxfrCallback = async (req) =>
+            {
+                var ipStart = IPv4Addr.FromString("10.0.0.0");
+                for (int i = 0; i < 1000000; i++)
+                {
+                    EasyDnsResponder.Record_A a = new EasyDnsResponder.Record_A(req.ZoneInternal, new EasyDnsResponderRecordSettings { }, $"test{i}", ipStart.Add(i).GetIPAddress());
+
+                    await req.SendBufferedAsync(a, req.Cancel);
+                }
             };
 
             this.DnsServer.DnsResponder.DynamicRecordCallback = (req) =>

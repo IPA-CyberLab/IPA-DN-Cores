@@ -64,6 +64,7 @@ namespace IPA.Cores.Basic;
 public class EasyDnsResponderBasedDnsServerSettings
 {
     public int UdpPort { init; get; }
+    public int TcpPort { init; get; }
 }
 
 public class EasyDnsResponderBasedDnsServer : AsyncService
@@ -81,7 +82,7 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
         {
             this.LastDatabaseHealtyTimeStamp = DnsUtil.DnsDtStartDay;
             this.DnsResponder = new EasyDnsResponder();
-            this.DnsServer = new EasyDnsServer(new EasyDnsServerSetting(this.DnsQueryResponseCallback, settings.UdpPort));
+            this.DnsServer = new EasyDnsServer(new EasyDnsServerSetting(this.DnsQueryResponseCallback, this.DnsTcpAxfrCallbackAsync, settings.UdpPort, settings.TcpPort));
         }
         catch
         {
@@ -118,7 +119,44 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
         public string TookSeconds = "";
     }
 
-    // DNS サーバーから呼ばれるコールバック関数。ここでクエリに対する応答を作る。
+    // DNS サーバーから呼ばれる TCP AXFR リクエストに対するコールバック関数。ここで TCP レコード応答リストを作る。
+    async Task DnsTcpAxfrCallbackAsync(EasyDnsServer svr, EasyDnsServerTcpAxfrCallbackParam p)
+    {
+        if (this.DnsResponder.TcpAxfrCallback == null)
+        {
+            throw new CoresException("this.DnsResponder.TcpAxfrCallback is not implemented");
+        }
+
+        string zoneFqdn = p.Question.Name.ToString();
+        var zone = this.DnsResponder.GetExactlyMatchZone(zoneFqdn);
+
+        if (zone == null)
+        {
+            throw new CoresException($"Specified zone '{zoneFqdn}' is not defined in the database");
+        }
+
+        EasyDnsResponderTcpAxfrCallbackRequest req = new EasyDnsResponderTcpAxfrCallbackRequest
+        {
+            CallbackParam = p,
+            RequestPacket = p.RequestPacket,
+            Zone = zone.SrcZone,
+            ZoneInternal = zone,
+        };
+
+        var cancel = req.Cancel;
+
+        // SOA レコード (開始を意味する)
+        var timeStamp = LastDatabaseHealtyTimeStamp;
+        await req.SendBufferedAsync(zone.SOARecord, cancel, timeStamp);
+
+        // 本体
+        await this.DnsResponder.TcpAxfrCallback(req);
+
+        // SOA レコード (終了を意味する)
+        await req.SendBufferedAsync(zone.SOARecord, cancel, timeStamp);
+    }
+
+    // DNS サーバーから呼ばれる通常クエリに対するコールバック関数。ここでクエリに対する応答を作る。
     List<DnsUdpPacket> DnsQueryResponseCallback(EasyDnsServer svr, List<DnsUdpPacket> requestPackets)
     {
         List<DnsUdpPacket> responsePackets = new List<DnsUdpPacket>(requestPackets.Count);

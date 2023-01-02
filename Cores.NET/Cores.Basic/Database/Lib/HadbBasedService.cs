@@ -279,7 +279,7 @@ public class HadbBasedServiceDynConfig : HadbDynamicConfig
 
         if (Service_HeavyRequestRateLimiterExemptAcl == "_initial_")
         {
-            Service_HeavyRequestRateLimiterExemptAcl = "127.0.0.0/8; 192.168.0.0/16; 172.16.0.0/24; 10.0.0.0/8; 1.2.3.4/32; 2041:af80:1234::/48";
+            Service_HeavyRequestRateLimiterExemptAcl = "127.0.0.0/8; 192.168.0.0/16; 172.16.0.0/12; 10.0.0.0/8; 1.2.3.4/32; 2041:af80:1234::/48";
         }
 
         if (Service_SendMail_SmtpServer_Port <= 0) Service_SendMail_SmtpServer_Port = Consts.Ports.Smtp;

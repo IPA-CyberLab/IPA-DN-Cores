@@ -69,6 +69,11 @@ public static partial class Basic
 
     public const MethodImplOptions Inline = MethodImplOptions.AggressiveInlining | (MethodImplOptions)512 /* AggressiveOptimization */;
 
+    public static int DbgBreak()
+    {
+        Dbg.Break();
+        return 0;
+    }
     public static int BreakPoint()
     {
         Dbg.Break();

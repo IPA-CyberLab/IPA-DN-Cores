@@ -264,6 +264,8 @@ public class EasyDnsServerDynOptions : INormalizable
     public int UdpDelayedResponsePacketQueueLength { get; set; } = 0;
     public bool ParseUdpProxyProtocolV2 { get; set; } = false;
     public string DnsProxyProtocolAcceptSrcIpAcl { get; set; } = "";
+    public string DnsTcpAxfrAcceptSrcIpAcl { get; set; } = "";
+    public int DnsTcpAxfrMaxRecordsPerMessage { get; set; } = 0;
 
     public EasyDnsServerDynOptions()
     {
@@ -285,19 +287,41 @@ public class EasyDnsServerDynOptions : INormalizable
         {
             this.DnsProxyProtocolAcceptSrcIpAcl = Consts.Strings.EasyAclAllowAllRule;
         }
+
+        if (this.DnsTcpAxfrAcceptSrcIpAcl._IsEmpty())
+        {
+            this.DnsTcpAxfrAcceptSrcIpAcl = Consts.Strings.EasyAclAllowAllRule;
+        }
+
+        if (this.DnsTcpAxfrMaxRecordsPerMessage <= 0)
+        {
+            this.DnsTcpAxfrMaxRecordsPerMessage = 32;
+        }
     }
+}
+
+public class EasyDnsServerTcpAxfrCallbackParam
+{
+    public CancellationToken Cancel { init; get; }
+    public DnsUdpPacket RequestPacket { init; get; } = null!;
+    public DnsQuestion Question { init; get; } = null!;
+    public Func<IEnumerable<DnsRecordBase>, CancellationToken, Task> SendRecordsBufferedCallbackAsync { init; get; } = null!;
 }
 
 public class EasyDnsServerSetting
 {
     public int UdpPort { get; }
-    public Func<EasyDnsServer, List<DnsUdpPacket>, List<DnsUdpPacket>> Callback { get; }
+    public int TcpPort { get; }
+    public Func<EasyDnsServer, List<DnsUdpPacket>, List<DnsUdpPacket>> StandardQueryCallback { get; }
+    public Func<EasyDnsServer, EasyDnsServerTcpAxfrCallbackParam, Task>? TcpAxfrCallback { get; }
 
 
-    public EasyDnsServerSetting(Func<EasyDnsServer, List<DnsUdpPacket>, List<DnsUdpPacket>> callback, int udpPort = Consts.Ports.Dns)
+    public EasyDnsServerSetting(Func<EasyDnsServer, List<DnsUdpPacket>, List<DnsUdpPacket>> standardQueryCallback, Func<EasyDnsServer, EasyDnsServerTcpAxfrCallbackParam, Task>? tcpAxfrCallback, int udpPort = Consts.Ports.Dns, int tcpPort = 0)
     {
-        this.Callback = callback;
+        this.StandardQueryCallback = standardQueryCallback;
+        this.TcpAxfrCallback = tcpAxfrCallback;
         this.UdpPort = udpPort;
+        this.TcpPort = tcpPort;
     }
 }
 
@@ -333,15 +357,193 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
     readonly List<Datagram> DelayedReplyUdpPacketsList = new List<Datagram>();
     readonly AsyncAutoResetEvent UdpRecvCancelEvent = new AsyncAutoResetEvent();
 
+    async Task TcpListenerAcceptProcAsync(NetTcpListenerPort listener, ConnSock sock)
+    {
+        var tcpAcl = new EasyIpAcl(this._DynOptions.DnsTcpAxfrAcceptSrcIpAcl, EasyIpAclAction.Deny, EasyIpAclAction.Deny, false);
+
+        var cancel = this.GrandCancel;
+
+        using var st = sock.GetStream();
+
+        // ACL の検査
+        if (tcpAcl.Evaluate(sock.EndPointInfo.RemoteIP!) != EasyIpAclAction.Permit)
+        {
+            // アクセス拒否
+            throw new CoresException($"TCP DNS connection request from {sock.EndPointInfo.GetRemoteEndPoint().ToString()} but this end point is not allowed in the TCP AXFR allowed acl");
+        }
+
+        if (this.Setting.TcpAxfrCallback == null)
+        {
+            throw new CoresException($"TCP DNS connection request is not allowed because the callback '{nameof(this.Setting.TcpAxfrCallback)}' is not set");
+        }
+
+        st.ReadTimeout = 60 * 1000;
+
+        while (true)
+        {
+            // DNS パケットの受信
+            var requestPacket = await ReceiveDnsPacketAsync(sock, st, cancel);
+
+            var requestMsg = requestPacket.Message;
+
+            DnsQuestion? firstQuestion = null;
+
+            if (requestMsg.IsQuery && requestMsg.Questions.Count >= 1)
+            {
+                firstQuestion = requestMsg.Questions[0];
+            }
+
+            if ((firstQuestion?.RecordType ?? RecordType.Unspec) == RecordType.Axfr)
+            {
+                // AXFR リクエストの場合は特別処理を開始
+                await TcpProcessAxfrAsync(st, requestPacket, firstQuestion!, cancel);
+            }
+            else
+            {
+                // AXFR リクエスト以外の普通の要求に対する応答処理を実施
+                if ((firstQuestion?.RecordType ?? RecordType.Unspec) != RecordType.Soa)
+                {
+                    // SOA 以外の要求は拒否する
+                    throw new CoresException($"TCP DNS request packet's type must be SOA or AXFR, but the client requested '{(firstQuestion?.RecordType ?? RecordType.Unspec).ToString()}'");
+                }
+
+                List<DnsMessageBase> sendMessagesList = new List<DnsMessageBase>();
+
+                // DNS パケットの処理
+                var responsePackets = Setting.StandardQueryCallback(this, requestPacket._SingleList());
+
+                // DNS 応答パケットの生成
+                foreach (var responsePacket in responsePackets)
+                {
+                    // 途中で生成された DNS パケットのうち、フォワーダとして他の DNS サーバーに転送するパケットは無視する (TCP 経由では応答しない)
+                    if (IpEndPointComparer.ComparerIgnoreScopeId.Equals(requestPacket.LocalEndPoint, responsePacket.LocalEndPoint) &&
+                        IpEndPointComparer.ComparerIgnoreScopeId.Equals(requestPacket.RemoteEndPoint, responsePacket.RemoteEndPoint))
+                    {
+                        sendMessagesList.Add(responsePacket.Message);
+                    }
+                }
+
+                if (sendMessagesList.Any() == false)
+                {
+                    // 1 つも返すべきパケットがない場合は ServFail を返す
+                    var servFailMessage = (DnsMessage)requestPacket.Message._CloneDeep();
+                    servFailMessage.IsQuery = false;
+                    servFailMessage.ReturnCode = ReturnCode.ServerFailure;
+                    sendMessagesList.Add(servFailMessage);
+                }
+
+                // DNS 応答パケットの送信
+                await SendDnsPacketAsync(st, sendMessagesList, cancel);
+            }
+        }
+    }
+
+    // TCP DNS AXFR リクエストに対する応答を生成して送信する特別処理 (物理的な送信処理を実装する)
+    async Task TcpProcessAxfrAsync(PipeStream st, DnsUdpPacket requestPacket, DnsQuestion question, CancellationToken cancel = default)
+    {
+        int maxBufferedItems = this._DynOptions.DnsTcpAxfrMaxRecordsPerMessage;
+
+        FastStreamBuffer<DnsRecordBase> sendQueue = new FastStreamBuffer<DnsRecordBase>(true);
+
+        EasyDnsServerTcpAxfrCallbackParam param = new EasyDnsServerTcpAxfrCallbackParam
+        {
+            Cancel = cancel,
+            RequestPacket = requestPacket,
+            Question = question,
+            SendRecordsBufferedCallbackAsync = async (list, c) =>
+            {
+                // キューに追加
+                sendQueue.Enqueue(list.ToArray());
+
+                // キューに一定数以上溜まっていたら送信を試みる
+                await SendQueuedAsync(c, false);
+            },
+        };
+
+        // コールバック関数を呼んで、応答データを生成しながら送信をする
+        await this.Setting.TcpAxfrCallback!(this, param);
+
+        // 全部送信する
+        await SendQueuedAsync(cancel, true);
+
+        await st.FlushAsync(cancel);
+
+        // 送信処理の実装関数
+        async Task SendQueuedAsync(CancellationToken cancel = default, bool force = false)
+        {
+            while (true)
+            {
+                if (sendQueue.Length >= 1 && ((sendQueue.Length >= maxBufferedItems) || force))
+                {
+                    var sendItems = sendQueue.DequeueContiguousSlow(maxBufferedItems);
+
+                    if (sendItems.Length >= 1)
+                    {
+                        // TCP DNS 応答パケットの生成
+                        DnsMessage m = new DnsMessage();
+
+                        m.IsQuery = false;
+                        m.TransactionID = requestPacket.Message.TransactionID;
+                        m.Questions = requestPacket.Message.Questions._CloneDeep();
+                        m.AnswerRecords = sendItems.ToArray().ToList();
+
+                        await this.SendDnsPacketAsync(st, m._SingleArray(), cancel);
+
+                        continue;
+                    }
+                }
+
+                break;
+            }
+        }
+    }
+
+    // DNS パケットを TCP で送信する
+    async Task SendDnsPacketAsync(PipeStream st, IEnumerable<DnsMessageBase> messages, CancellationToken cancel = default)
+    {
+        MemoryBuffer<byte> sendBuffer = new MemoryBuffer<byte>();
+
+        foreach (var message in messages)
+        {
+            var messageData = message.BuildPacket().ToArray();
+            int messageSize = messageData.Length;
+
+            if (messageSize > ushort.MaxValue)
+            {
+                throw new CoresException($"DNS reply message is too long: {messageSize}");
+            }
+
+            sendBuffer.WriteUInt16((ushort)messageSize);
+            sendBuffer.Write(messageData);
+        }
+
+        await st.SendAsync(sendBuffer, cancel);
+    }
+
+    // DNS パケットを 1 つ TCP で受信する
+    async Task<DnsUdpPacket> ReceiveDnsPacketAsync(ConnSock sock, PipeStream st, CancellationToken cancel = default)
+    {
+        int packetSize = (int)(await st.ReceiveUInt16Async(cancel));
+
+        var recvData = await st.ReceiveAllAsync(packetSize, cancel);
+
+        var message = DnsUtil.ParsePacket(recvData.Span);
+
+        DnsUdpPacket packet = new DnsUdpPacket(sock.EndPointInfo.GetRemoteEndPoint(), sock.EndPointInfo.GetLocalEndPoint(), message);
+
+        return packet;
+    }
+
     async Task MainLoopAsync(CancellationToken cancel)
     {
         await using var udpListener = LocalNet.CreateUdpListener(new NetUdpListenerOptions(TcpDirectionType.Server));
+        await using var tcpListener = LocalNet.CreateTcpListener(new TcpListenParam(TcpListenerAcceptProcAsync, null, new[] { this.Setting.TcpPort }));
 
-        // リスナ用
+        // UDP: リスナ用
         udpListener.AddEndPoint(new IPEndPoint(IPAddress.Any, this.Setting.UdpPort));
         udpListener.AddEndPoint(new IPEndPoint(IPAddress.IPv6Any, this.Setting.UdpPort));
 
-        // フォワーダ用
+        // UDP: フォワーダ用 (DNS クライアントポートとして動作)
         udpListener.AddEndPoint(new IPEndPoint(IPAddress.Any, 0));
         udpListener.AddEndPoint(new IPEndPoint(IPAddress.IPv6Any, 0));
 
@@ -404,7 +606,7 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
                     }
 
                     // 指定されたコールバック関数を呼び出して DNS クエリを解決し、回答すべき DNS レスポンス一覧を生成する
-                    List<DnsUdpPacket> perTaskReaponsePacketsList = Setting.Callback(this, perTaskRequestPacketsList);
+                    List<DnsUdpPacket> perTaskReaponsePacketsList = Setting.StandardQueryCallback(this, perTaskRequestPacketsList);
 
                     List<Datagram> perTaskSendList = new List<Datagram>(perTaskReaponsePacketsList.Count);
 
@@ -699,6 +901,49 @@ public class EasyDnsResponderSettings
     public bool CopyQueryAdditionalRecordsToResponse { get; set; } = false;
 }
 
+// TCP AXFR コールバック関数に渡されるリクエストデータ
+public class EasyDnsResponderTcpAxfrCallbackRequest
+{
+    public EasyDnsResponderZone Zone { init; get; } = null!;
+    public EasyDnsResponder.Zone ZoneInternal { init; get; } = null!;
+    public DnsUdpPacket RequestPacket { init; get; } = null!;
+    public EasyDnsServerTcpAxfrCallbackParam CallbackParam { get; set; } = null!;
+
+    public CancellationToken Cancel => this.CallbackParam.Cancel;
+
+    public async Task SendBufferedAsync(IEnumerable<EasyDnsResponder.Record> recordList, CancellationToken cancel = default, DateTimeOffset? timeStampForSoa = null)
+    {
+        List<DnsRecordBase> answerList = new List<DnsRecordBase>();
+
+        foreach (var record in recordList)
+        {
+            DateTimeOffset timeStampForSoa2 = DtOffsetZero;
+
+            string fqdn = Str.CombineFqdn(record.Name, record.ParentZone.DomainFqdn);
+
+            if (record.Type == EasyDnsResponderRecordType.SOA)
+            {
+                timeStampForSoa2 = timeStampForSoa ?? DtOffsetNow;
+            }
+
+            var answer = record.ToDnsLibRecordBase(DomainName.Parse(fqdn), timeStampForSoa2);
+
+            if (answer != null)
+            {
+                answerList.Add(answer);
+            }
+        }
+
+        if (answerList.Any())
+        {
+            await this.CallbackParam.SendRecordsBufferedCallbackAsync(answerList, cancel);
+        }
+    }
+
+    public Task SendBufferedAsync(EasyDnsResponder.Record record, CancellationToken cancel = default, DateTimeOffset? timeStampForSoa = null)
+        => SendBufferedAsync(record._SingleArray(), cancel, timeStampForSoa);
+}
+
 // ダイナミックレコードのコールバック関数に渡されるリクエストデータ
 public class EasyDnsResponderDynamicRecordCallbackRequest
 {
@@ -925,6 +1170,9 @@ public class EasyDnsResponder
 
     // ダイナミックレコードのコールバック関数
     public Func<EasyDnsResponderDynamicRecordCallbackRequest, EasyDnsResponderDynamicRecordCallbackResult?>? DynamicRecordCallback { get; set; }
+
+    // TCP AXFR のコールバック関数
+    public Func<EasyDnsResponderTcpAxfrCallbackRequest, Task>? TcpAxfrCallback { get; set; }
 
     // フォワーダのコールバック関数
     public Func<EasyDnsResponderForwarderRequestTransformerCallbackRequest, EasyDnsResponderForwarderRequestTransformerCallbackResult>? ForwarderRequestTransformerCallback { get; set; }
@@ -2035,10 +2283,28 @@ public class EasyDnsResponder
             this.Forwarder_WildcardBasedList._DoSortBy(x => x.OrderByDescending(y => y.WildcardFqdn.Length).ThenByDescending(y => y.WildcardFqdn));
         }
 
+        public Zone? SearchExactMatchDnsZone(string fqdnNormalized)
+        {
+            if (this.ZoneDict.TryGetValue(fqdnNormalized, out Zone? ret))
+            {
+                return ret;
+            }
+
+            return null;
+        }
+
+        // ゾーン検索
+        public Zone? SearchLongestMatchDnsZone(string fqdnNormalized, out string hostLabelStr, out ReadOnlyMemory<string> hostLabels)
+        {
+            Zone? zone = DnsUtil.SearchLongestMatchDnsZone(this.ZoneDict, fqdnNormalized, out hostLabelStr, out hostLabels);
+
+            return zone;
+        }
+
         // クエリ検索
         public SearchResult? Search(SearchRequest request)
         {
-            Zone? zone = DnsUtil.SearchLongestMatchDnsZone(this.ZoneDict, request.FqdnNormalized, out string hostLabelStr, out ReadOnlyMemory<string> hostLabels);
+            Zone? zone = SearchLongestMatchDnsZone(request.FqdnNormalized, out string hostLabelStr, out ReadOnlyMemory<string> hostLabels);
 
             if (zone == null)
             {
@@ -2131,6 +2397,19 @@ public class EasyDnsResponder
         }
 
         return null;
+    }
+
+    public Zone? GetExactlyMatchZone(string zoneFqdn)
+    {
+        var dataSet = this.CurrentDataSet;
+        if (dataSet == null)
+        {
+            throw new CoresException("Current DNS Server Data Set is not loaded");
+        }
+
+        zoneFqdn = zoneFqdn._NormalizeFqdn();
+
+        return dataSet.SearchExactMatchDnsZone(zoneFqdn);
     }
 
     public SearchResult? Query(SearchRequest request, EasyDnsResponderRecordType type)
