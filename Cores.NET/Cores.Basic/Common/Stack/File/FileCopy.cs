@@ -230,6 +230,7 @@ public class CopyFileParams
     public string EncryptPassword { get; }
     public bool DeleteFileIfVerifyFailed { get; }
     public bool EnsureBufferSize { get; }
+    public int VerifyFailedRetryCount { get; }
 
     public ProgressReporterFactoryBase ProgressReporterFactory { get; }
 
@@ -240,12 +241,13 @@ public class CopyFileParams
     public CopyFileParams(bool overwrite = true, FileFlags flags = FileFlags.None, FileMetadataCopier? metadataCopier = null, int bufferSize = 0, bool asyncCopy = true,
         bool ignoreReadError = false, int ignoreReadErrorSectorSize = 0,
         ProgressReporterFactoryBase? reporterFactory = null, EncryptOption encryptOption = EncryptOption.None, string encryptPassword = "",
-        bool deleteFileIfVerifyFailed = false, bool ensureBufferSize = false)
+        bool deleteFileIfVerifyFailed = false, bool ensureBufferSize = false, int verifyFailedRetryCount = 3)
     {
         if (metadataCopier == null) metadataCopier = DefaultFileMetadataCopier;
         if (bufferSize <= 0) bufferSize = CoresConfig.FileUtilSettings.FileCopyBufferSize;
         if (reporterFactory == null) reporterFactory = NullReporterFactory;
         if (ignoreReadErrorSectorSize <= 0) ignoreReadErrorSectorSize = CoresConfig.FileUtilSettings.DefaultSectorSize;
+        if (verifyFailedRetryCount < 0) verifyFailedRetryCount = 0;
 
         this.Overwrite = overwrite;
         this.Flags = flags;
@@ -260,6 +262,7 @@ public class CopyFileParams
         this.EncryptPassword = encryptPassword._NonNull();
         this.DeleteFileIfVerifyFailed = deleteFileIfVerifyFailed;
         this.EnsureBufferSize = ensureBufferSize;
+        this.VerifyFailedRetryCount = verifyFailedRetryCount;
     }
 }
 
@@ -630,13 +633,59 @@ public static partial class FileUtil
         return status;
     }
 
+    // Verify エラー時に再試行する機能を有するファイルコピー
     public static async Task CopyFileAsync(FileSystem srcFileSystem, string srcPath, FileSystem destFileSystem, string destPath,
-        CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, RefBool? readErrorIgnored = null, FileMetadata? newFileMeatadata = null)
+    CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, RefBool? readErrorIgnored = null, FileMetadata? newFileMeatadata = null)
+    {
+        if (param == null)
+            param = new CopyFileParams();
+
+        Exception? raisedException = null;
+
+        await TaskUtil.RetryAsync(async c =>
+        {
+            RefBool verifyError = false;
+
+            try
+            {
+                await CopyFileCoreAsync(srcFileSystem, srcPath, destFileSystem, destPath, param, state, cancel, readErrorIgnored, newFileMeatadata, verifyError);
+            }
+            catch (Exception ex)
+            {
+                if (verifyError)
+                {
+                    throw;
+                }
+
+                raisedException = ex;
+            }
+
+            return 0;
+        },
+        1000,
+        param.VerifyFailedRetryCount + 1,
+        cancel,
+        true);
+
+        if (raisedException != null)
+        {
+            throw raisedException;
+        }
+    }
+
+    // ファイルコピーの実体 (Verify エラー時に再試行しない)
+    static async Task CopyFileCoreAsync(FileSystem srcFileSystem, string srcPath, FileSystem destFileSystem, string destPath,
+        CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, RefBool? readErrorIgnored = null, FileMetadata? newFileMeatadata = null, RefBool? verifyError = null)
     {
         if (readErrorIgnored == null)
             readErrorIgnored = new RefBool(false);
 
         readErrorIgnored.Set(false);
+
+        if (verifyError == null)
+            verifyError = new RefBool(false);
+
+        verifyError.Set(false);
 
         if (param == null)
             param = new CopyFileParams();
@@ -766,7 +815,7 @@ public static partial class FileUtil
                                 {
                                     await using var srcFile2 = await srcFileSystem.OpenAsync(srcPath, flags: param.Flags, cancel: cancel);
 
-                                    bool verityError = false;
+                                    verifyError.Set(false);
 
                                     try
                                     {
@@ -804,7 +853,7 @@ public static partial class FileUtil
                                                 if (srcZipCrc.Value != destZipCrc)
                                                 {
                                                     // なんと Verify に失敗したぞ
-                                                    verityError = true;
+                                                    verifyError.Set(true);
                                                     throw new CoresException($"CopyFile_Verify error. Src file: '{srcPath}', Dest file: '{destPath}', srcCrc: {srcZipCrc.Value}, destCrc = {destZipCrc}");
                                                 }
                                             }
@@ -818,7 +867,7 @@ public static partial class FileUtil
                                     }
                                     finally
                                     {
-                                        if (verityError)
+                                        if (verifyError)
                                         {
                                             if (param.DeleteFileIfVerifyFailed)
                                             {
@@ -845,7 +894,7 @@ public static partial class FileUtil
 
                                     await destFile.CloseAsync();
 
-                                    bool verityError = false;
+                                    verifyError.Set(false);
 
                                     try
                                     {
@@ -857,14 +906,14 @@ public static partial class FileUtil
                                             if (srcZipCrc.Value != destZipCrc)
                                             {
                                                 // なんと Verify に失敗したぞ
-                                                verityError = true;
+                                                verifyError.Set(true);
                                                 throw new CoresException($"CopyFile_Verify error. Src file: '{srcPath}', Dest file: '{destPath}', srcCrc: {srcZipCrc.Value}, destCrc = {destZipCrc}");
                                             }
                                         }
                                     }
                                     finally
                                     {
-                                        if (verityError)
+                                        if (verifyError)
                                         {
                                             if (param.DeleteFileIfVerifyFailed)
                                             {
