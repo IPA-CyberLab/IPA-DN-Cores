@@ -143,6 +143,9 @@ public class DirSuperBackupStat
 
     public long Error_NumDeleteDirs;
     public long Error_NumDeleteFiles;
+
+    public long RecoveredError_NumFiles;
+    public long RecoveredError_TotalSize;
 }
 
 // ディレクトリ単位の世代対応バックアップユーティリティ
@@ -262,6 +265,12 @@ public class DirSuperBackup : AsyncService
                 }
 
                 await WriteLogMainAsync(this.InfoLogWriter, line);
+
+                if (this.InfoLogWriter != null)
+                {
+                    // 2023/1/3 Flush するようにした
+                    await this.InfoLogWriter.FlushAsync();
+                }
             }
         }
         catch
@@ -282,6 +291,237 @@ public class DirSuperBackup : AsyncService
         await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("Stat", this.Stat._ObjectToJson(compact: true)));
     }
 
+    // 1 つのディレクトリを検証する
+    public async Task DoSingleDirVerifyAsync(string archivedDir, string localDir, CancellationToken cancel = default, string? ignoreDirNames = null)
+    {
+        DateTimeOffset now = DateTimeOffset.Now;
+
+        FileSystemEntity[]? archivedDirEnum = null;
+        FileSystemEntity[]? localDirEnum = null;
+
+        string[] ignoreDirNamesList = ignoreDirNames._NonNull()._RemoveQuotation()._Split(StringSplitOptions.RemoveEmptyEntries, ",", ";");
+
+        bool noError = true;
+
+        try
+        {
+            if (archivedDir._IsSamei(localDir))
+            {
+                throw new CoresException($"archivedDir == localDir. Directory path: '{archivedDir}'");
+            }
+
+            // ローカルディレクトリが存在していることを確認する
+            if (await Fs.IsDirectoryExistsAsync(localDir, cancel) == false)
+            {
+                throw new CoresException($"The directory '{localDir}' not found.");
+            }
+
+            // バックアップ先ディレクトリが存在していることを確認する
+            if (await Fs.IsDirectoryExistsAsync(archivedDir, cancel) == false)
+            {
+                throw new CoresException($"The directory '{archivedDir}' not found.");
+            }
+
+            // バックアップ先ディレクトリを列挙する
+            archivedDirEnum = (await Fs.EnumDirectoryAsync(archivedDir, false, EnumDirectoryFlags.NoGetPhysicalSize, cancel)).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer).ToArray();
+
+            // バックアップディレクトリに存在するメタデータファイルのうち最新のファイルを取得する
+            // なお、メタデータファイルのパースがエラーになったら、必ずエラーを発生し中断する
+            DirSuperBackupMetadata? archivedDirMetaData = await GetLatestMetaDataFileNameAsync(archivedDir, archivedDirEnum, cancel, throwJsonParseError: true)!;
+            if (archivedDirMetaData == null)
+            {
+                throw new CoresException($"Metadata not found on the directory '{archivedDir}'.");
+            }
+
+            // バックアップ先ディレクトリのメタデータのファイル一覧をディクショナリに変形する
+            StrDictionary<DirSuperBackupMetadataFile> archivesDirFileMetaDataDic = new StrDictionary<DirSuperBackupMetadataFile>(StrCmpi);
+            archivedDirMetaData.FileList._DoForEach(x => archivesDirFileMetaDataDic.Add(x.FileName, x));
+
+            // ローカルディレクトリに存在するファイルを列挙する
+            localDirEnum = (await Fs.EnumDirectoryAsync(localDir, false, EnumDirectoryFlags.NoGetPhysicalSize, cancel)).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer).ToArray();
+
+            // ローカルディレクトリに存在するファイルを 1 つずつ読み出し、バックアップ先ディレクトリに存在するファイルと比較する
+            var localFileEntries = localDirEnum.Where(x => x.IsFile);
+
+            RefInt concurrentNum = new RefInt();
+
+            AsyncLock SafeLock = new AsyncLock();
+            await TaskUtil.ForEachAsync(Options.NumThreads, localFileEntries, async (localFile, taskIndex, cancel) =>
+            {
+                string errDescription = "GenericFileError";
+
+                await Task.Yield();
+
+                string archivedFilePath = Fs.PathParser.Combine(archivedDir, localFile.Name);
+
+                FileMetadata? localFileMetadata = null;
+
+                concurrentNum.Increment();
+                try
+                {
+                    // バックアップ先のメタデータからこのファイルを検索する
+                    if (archivesDirFileMetaDataDic.TryGetValue(localFile.Name, out var archivedMetaData) == false)
+                    {
+                        // バックアップ先のメタデータ上にこのファイルが存在しない
+                        errDescription = "FileNotFoundOnMetadata";
+                        throw new CoresException($"File '{localFile.Name}' not found on the metadata of the directory '{archivedDir}'");
+                    }
+
+                    // ローカルファイルとバックアップ先ファイルとのメタデータを比較する
+                    localFileMetadata = await Fs.GetFileMetadataAsync(localFile.FullPath, cancel: cancel);
+
+                    string localFileMetadataJson = localFileMetadata._ObjectToJson(compact: true);
+                    string archivedFileMetadataJson = archivedMetaData._ObjectToJson(compact: true);
+
+                    if (localFileMetadataJson != archivedFileMetadataJson)
+                    {
+                        // メタデータが異なる
+                        errDescription = "FileMetadataDifferent";
+                        throw new CoresException($"Local metadata [{localFileMetadataJson}] != archived metadata [{archivedFileMetadataJson}]");
+                    }
+
+                    bool isEncrypted = false;
+                    string encryptPassword = "";
+
+                    if (archivedMetaData.EncrypedFileName._IsNullOrZeroLen() == false)
+                    {
+                        // 暗号化ファイルである
+                        archivedFilePath = Fs.PathParser.Combine(archivedDir, archivedMetaData.EncrypedFileName);
+
+                        // 暗号化ファイルである
+                        if (Options.EncryptPassword._IsNullOrZeroLen())
+                        {
+                            // パスワードが指定されていない
+                            throw new CoresException($"The file '{archivedFilePath}' is encrypted, but no password is specified.");
+                        }
+
+                        isEncrypted = true;
+                        encryptPassword = this.Options.EncryptPassword;
+                    }
+
+                    // 2 つのファイルの内容を比較する
+                    ResultOrError<int> sameRet;
+
+                    string funcName;
+
+                    if (isEncrypted == false)
+                    {
+                        funcName = "CompareFileHashAsync";
+                        sameRet = await FileUtil.CompareFileHashAsync(new FilePath(localFile.FullPath, Fs, flags: FileFlags.BackupMode), new FilePath(archivedFilePath, Fs, flags: FileFlags.BackupMode), cancel: cancel);
+                    }
+                    else
+                    {
+                        funcName = "CompareEncryptedFileHashAsync";
+                        sameRet = await FileUtil.CompareEncryptedFileHashAsync(encryptPassword, true, new FilePath(localFile.FullPath, Fs, flags: FileFlags.BackupMode), new FilePath(archivedFilePath, Fs, flags: FileFlags.BackupMode), cancel: cancel);
+                    }
+
+                    if (sameRet.IsOk == false)
+                    {
+                        // ファイルの比較中にエラーが発生した
+                        errDescription = "FileReadError";
+                        throw new CoresException($"Compare function '{funcName}' returned an error");
+                    }
+
+                    if (sameRet.Value != 0)
+                    {
+                        // ファイルの比較結果が異なる
+                        errDescription = "FileDataDifferent";
+                        throw new CoresException($"Compare function '{funcName}' returned different result between two files");
+                    }
+
+                    // 合格
+                    Stat.Copy_NumFiles++;
+                    Stat.Copy_TotalSize += localFileMetadata.Size;
+
+                    await WriteLogAsync(DirSuperBackupLogType.Info, Str.CombineStringArrayForCsv("FileOk", localFile.FullPath, archivedFilePath));
+                }
+                catch (Exception ex)
+                {
+                    Stat.Error_NumFiles++;
+                    Stat.Error_TotalSize += localFile.Size;
+
+                    // ファイル単位のエラー発生
+                    await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv(errDescription, localFile.FullPath, archivedFilePath, ex.Message));
+
+                    noError = false;
+                }
+                finally
+                {
+                    concurrentNum.Decrement();
+                }
+            }, cancel: cancel);
+        }
+        catch (Exception ex)
+        {
+            Stat.Error_Dir++;
+
+            noError = false;
+
+            // なんか ex.Message の取得に失敗している可能性があるので少し冗長なことをする
+            string errMessage = "Unknown";
+            try
+            {
+                errMessage = ex.ToString();
+                errMessage = ex.Message;
+            }
+            catch { }
+            if (errMessage._IsEmpty()) errMessage = "Unknown2";
+
+            ex._Error();
+
+            // ディレクトリ単位のエラー発生
+            await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("DirError1", localDir, archivedDir, errMessage));
+        }
+
+        if (localDirEnum != null)
+        {
+            bool ok = false;
+
+            try
+            {
+                // ソースディレクトリの列挙に成功した場合は、サブディレクトリに対して再帰的に実行する
+                foreach (var subDir in localDirEnum.Where(x => x.IsDirectory && x.IsCurrentOrParentDirectory == false))
+                {
+                    // シンボリックリンクは無視する
+                    if (subDir.IsSymbolicLink == false)
+                    {
+                        // 無視リストのいずれにも合致しない場合のみ
+                        if (ignoreDirNamesList.Where(x => x._IsSamei(subDir.Name)).Any() == false)
+                        {
+                            await DoSingleDirVerifyAsync(Fs.PathParser.Combine(localDir, subDir.Name), Fs.PathParser.Combine(archivedDir, subDir.Name), cancel, ignoreDirNames);
+                        }
+                    }
+                }
+
+                ok = true;
+            }
+            catch (Exception ex)
+            {
+                // 何らかのディレクトリ単位のエラーで catch されていないものが発生
+                Stat.Error_Dir++;
+
+                // なんか ex.Message の取得に失敗している可能性があるので少し冗長なことをする
+                string errMessage = "Unknown";
+                try
+                {
+                    errMessage = ex.ToString();
+                    errMessage = ex.Message;
+                }
+                catch { }
+                if (errMessage._IsEmpty()) errMessage = "Unknown2";
+
+                ex._Error();
+
+                // ディレクトリ単位のエラー発生
+                await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("DirError2", localDir, archivedDir, errMessage));
+            }
+
+            Limbo.ObjectVolatileSlow = ok;
+        }
+
+        Limbo.ObjectVolatileSlow = noError;
+    }
+
     // 1 つのディレクトリを復元する
     public async Task DoSingleDirRestoreAsync(string srcDir, string destDir, CancellationToken cancel = default, string? ignoreDirNames = null)
     {
@@ -289,7 +529,7 @@ public class DirSuperBackup : AsyncService
 
         FileSystemEntity[]? srcDirEnum = null;
 
-        string[] ignoreDirNamesList = ignoreDirNames._NonNull()._Split(StringSplitOptions.RemoveEmptyEntries, ",", ";");
+        string[] ignoreDirNamesList = ignoreDirNames._NonNull()._RemoveQuotation()._Split(StringSplitOptions.RemoveEmptyEntries, ",", ";");
 
         try
         {
@@ -654,7 +894,7 @@ public class DirSuperBackup : AsyncService
 
         FileSystemEntity[]? srcDirEnum = null;
 
-        string[] ignoreDirNamesList = ignoreDirNames._NonNull()._Split(StringSplitOptions.RemoveEmptyEntries, ",", ";");
+        string[] ignoreDirNamesList = ignoreDirNames._NonNull()._RemoveQuotation()._Split(StringSplitOptions.RemoveEmptyEntries, ",", ";");
 
         FileMetadata? srcDirMetadata = null;
 
@@ -990,8 +1230,20 @@ public class DirSuperBackup : AsyncService
 
             noError = false;
 
+            // なんか ex.Message の取得に失敗している可能性があるので少し冗長なことをする
+            string errMessage = "Unknown";
+            try
+            {
+                errMessage = ex.ToString();
+                errMessage = ex.Message;
+            }
+            catch { }
+            if (errMessage._IsEmpty()) errMessage = "Unknown2";
+
+            ex._Error();
+
             // ディレクトリ単位のエラー発生
-            await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("DirError1", srcDir, destDir, ex.Message));
+            await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("DirError1", srcDir, destDir, errMessage));
         }
 
         // 再度 宛先ディレクトリの日付情報のみ属性書き込みする (Linux の場合、中のファイルを更新するとディレクトリの日時が変ってしまうため)
@@ -1034,8 +1286,20 @@ public class DirSuperBackup : AsyncService
                 // 何らかのディレクトリ単位のエラーで catch されていないものが発生
                 Stat.Error_Dir++;
 
+                // なんか ex.Message の取得に失敗している可能性があるので少し冗長なことをする
+                string errMessage = "Unknown";
+                try
+                {
+                    errMessage = ex.ToString();
+                    errMessage = ex.Message;
+                }
+                catch { }
+                if (errMessage._IsEmpty()) errMessage = "Unknown2";
+
+                ex._Error();
+
                 // ディレクトリ単位のエラー発生
-                await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("DirError2", srcDir, destDir, ex.Message));
+                await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("DirError2", srcDir, destDir, errMessage));
             }
 
             if (ok)
@@ -1106,8 +1370,20 @@ public class DirSuperBackup : AsyncService
                             // 何らかのディレクトリ単位のエラーで catch されていないものが発生
                             Stat.Error_Dir++;
 
+                            // なんか ex.Message の取得に失敗している可能性があるので少し冗長なことをする
+                            string errMessage = "Unknown";
+                            try
+                            {
+                                errMessage = ex.ToString();
+                                errMessage = ex.Message;
+                            }
+                            catch { }
+                            if (errMessage._IsEmpty()) errMessage = "Unknown2";
+
+                            ex._Error();
+
                             // ディレクトリ単位のエラー発生
-                            await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("DirSyncEnumError", srcDir, destDir, ex.Message));
+                            await WriteLogAsync(DirSuperBackupLogType.Error, Str.CombineStringArrayForCsv("DirSyncEnumError", srcDir, destDir, errMessage));
                         }
                     }
                 }

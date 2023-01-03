@@ -1537,6 +1537,95 @@ static class TestClass
         }
     }
 
+    static void Test_230103_Verify()
+    {
+        string infolog = @"C:\TMP\230103\log\restore_info.log";
+        string errorlog = @"C:\TMP\230103\log\restore_error.log";
+
+        string src = @"S:\Documents\研究開発\OpenVPN\";
+        string dst = @"C:\TMP\230103\A\";
+
+        if (true)
+        {
+            Con.WriteLine("--- Backup ---");
+
+            // バックアップ
+            bool err = false;
+
+            try
+            {
+                Lfs.EnableBackupPrivilege();
+            }
+            catch (Exception ex)
+            {
+                Con.WriteError(ex);
+            }
+
+            using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog, DirSuperBackupFlags.BackupMakeHistory, encryptPassword: "test")))
+            {
+                Async(async () =>
+                {
+                    await b.DoSingleDirBackupAsync(src, dst, default);
+                });
+
+                if (b.Stat.Error_Dir != 0 || b.Stat.Error_NumFiles != 0)
+                {
+                    err = true;
+                }
+            }
+
+            if (err)
+            {
+                Con.WriteError("Error occured.");
+            }
+            else
+            {
+                Con.WriteLine("Ok!!");
+            }
+        }
+
+        if (true)
+        {
+            Con.WriteLine(); Con.WriteLine();
+
+            Con.WriteLine("--- Verify ---");
+
+            // 比較
+            bool err = false;
+
+            try
+            {
+                Lfs.EnableBackupPrivilege();
+            }
+            catch (Exception ex)
+            {
+                Con.WriteError(ex);
+            }
+
+            using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog, DirSuperBackupFlags.BackupMakeHistory, encryptPassword: "test")))
+            {
+                Async(async () =>
+                {
+                    await b.DoSingleDirVerifyAsync(src, dst, default);
+                });
+
+                if (b.Stat.Error_Dir != 0 || b.Stat.Error_NumFiles != 0)
+                {
+                    err = true;
+                }
+            }
+
+            if (err)
+            {
+                Con.WriteError("Error occured.");
+            }
+            else
+            {
+                Con.WriteLine("Ok!!");
+            }
+        }
+    }
+
     static void Test_210307_Restore()
     {
         string infolog = @"C:\TMP\210307\log\restore_info.log";
@@ -3926,7 +4015,8 @@ cccadmin
     {
         if (true)
         {
-            Test_221212_IpNetToPtr();
+            Test_230103_Verify();
+            //Test_221212_IpNetToPtr();
             //Test_MakeDummyCerts_221206();
             //Test_MakeStatic2LtsDnIpaNttNetCert();
             //Test_MakeTestWebAppDefaultStaticCerts_220614();

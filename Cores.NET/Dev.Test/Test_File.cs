@@ -1333,6 +1333,75 @@ partial class TestDevCommands
         return err ? 1 : 0;
     }
 
+    // 指定されたディレクトリを DirSuperRestore を用いてリストアする
+    // 指定されたディレクトリやサブディレクトリを列挙し結果をファイルに書き出す
+    [ConsoleCommand(
+        "DirSuperVerify command",
+        "DirSuperVerify [local] /archived:archived /options:options1,options1,... [/errorlog:errorlog] [/infolog:infolog] [/password:password] [/numthreads:num] [/ignoredirs:dir1,dir2,...]",
+        "DirSuperVerify command")]
+    static int DirSuperVerify(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
+                new ConsoleParam("[local]", ConsoleService.Prompt, "Local directory path: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("archived", ConsoleService.Prompt, "Archived directory path: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("options", ConsoleService.Prompt, $"Options ({DirSuperBackupFlags.Default._GetDefinedEnumElementsStrList().Where(x=>!x._StartWithi("Backup"))._Combine(",")}) ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("errorlog"),
+                new ConsoleParam("infolog"),
+                new ConsoleParam("password"),
+                new ConsoleParam("numthreads"),
+                new ConsoleParam("ignoredirs"),
+            };
+
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        string local = vl.DefaultParam.StrValue;
+        string archived = vl["archived"].StrValue;
+        string errorlog = vl["errorlog"].StrValue;
+        string infolog = vl["infolog"].StrValue;
+        string ignoredirs = vl["ignoredirs"].StrValue;
+        string password = vl["password"].StrValue;
+        string options = vl["options"].StrValue;
+        string numthreads = vl["numthreads"].StrValue;
+
+        bool err = false;
+
+        try
+        {
+            Lfs.EnableBackupPrivilege();
+        }
+        catch (Exception ex)
+        {
+            Con.WriteError(ex);
+        }
+
+        var optionsValues = options._ParseEnumBits(DirSuperBackupFlags.Default, ',', '|', ' ');
+
+        using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog, optionsValues, encryptPassword: password, numThreads: numthreads._ToInt())))
+        {
+            Async(async () =>
+            {
+                await b.DoSingleDirVerifyAsync(local, archived, default, ignoredirs);
+            });
+
+            if (b.Stat.Error_Dir != 0 || b.Stat.Error_NumFiles != 0)
+            {
+                err = true;
+            }
+        }
+
+        if (err)
+        {
+            Con.WriteError("Error occured.");
+        }
+        else
+        {
+            Con.WriteError("All OK!");
+        }
+
+        return err ? 1 : 0;
+    }
+
     // 指定されたディレクトリやサブディレクトリを列挙し結果をファイルに書き出す
     [ConsoleCommand(
         "EnumDir command",

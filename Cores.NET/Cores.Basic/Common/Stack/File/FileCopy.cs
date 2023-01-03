@@ -230,7 +230,7 @@ public class CopyFileParams
     public string EncryptPassword { get; }
     public bool DeleteFileIfVerifyFailed { get; }
     public bool EnsureBufferSize { get; }
-    public int VerifyFailedRetryCount { get; }
+    public int RetryCount { get; }
 
     public ProgressReporterFactoryBase ProgressReporterFactory { get; }
 
@@ -241,13 +241,13 @@ public class CopyFileParams
     public CopyFileParams(bool overwrite = true, FileFlags flags = FileFlags.None, FileMetadataCopier? metadataCopier = null, int bufferSize = 0, bool asyncCopy = true,
         bool ignoreReadError = false, int ignoreReadErrorSectorSize = 0,
         ProgressReporterFactoryBase? reporterFactory = null, EncryptOption encryptOption = EncryptOption.None, string encryptPassword = "",
-        bool deleteFileIfVerifyFailed = false, bool ensureBufferSize = false, int verifyFailedRetryCount = 3)
+        bool deleteFileIfVerifyFailed = false, bool ensureBufferSize = false, int retryCount = 3)
     {
         if (metadataCopier == null) metadataCopier = DefaultFileMetadataCopier;
         if (bufferSize <= 0) bufferSize = CoresConfig.FileUtilSettings.FileCopyBufferSize;
         if (reporterFactory == null) reporterFactory = NullReporterFactory;
         if (ignoreReadErrorSectorSize <= 0) ignoreReadErrorSectorSize = CoresConfig.FileUtilSettings.DefaultSectorSize;
-        if (verifyFailedRetryCount < 0) verifyFailedRetryCount = 0;
+        if (retryCount < 0) retryCount = 0;
 
         this.Overwrite = overwrite;
         this.Flags = flags;
@@ -262,7 +262,7 @@ public class CopyFileParams
         this.EncryptPassword = encryptPassword._NonNull();
         this.DeleteFileIfVerifyFailed = deleteFileIfVerifyFailed;
         this.EnsureBufferSize = ensureBufferSize;
-        this.VerifyFailedRetryCount = verifyFailedRetryCount;
+        this.RetryCount = retryCount;
     }
 }
 
@@ -635,57 +635,48 @@ public static partial class FileUtil
 
     // Verify エラー時に再試行する機能を有するファイルコピー
     public static async Task CopyFileAsync(FileSystem srcFileSystem, string srcPath, FileSystem destFileSystem, string destPath,
-    CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, RefBool? readErrorIgnored = null, FileMetadata? newFileMeatadata = null)
+        CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, RefBool? readErrorIgnored = null, FileMetadata? newFileMeatadata = null, RefBool? errorOccuredButRecovered = null)
     {
         if (param == null)
             param = new CopyFileParams();
 
-        Exception? raisedException = null;
+        bool errorOccured = false;
 
         await TaskUtil.RetryAsync(async c =>
         {
-            RefBool verifyError = false;
-
             try
             {
-                await CopyFileCoreAsync(srcFileSystem, srcPath, destFileSystem, destPath, param, state, cancel, readErrorIgnored, newFileMeatadata, verifyError);
+                await CopyFileCoreAsync(srcFileSystem, srcPath, destFileSystem, destPath, param, state, cancel, readErrorIgnored, newFileMeatadata);
             }
-            catch (Exception ex)
+            catch
             {
-                if (verifyError)
-                {
-                    throw;
-                }
-
-                raisedException = ex;
+                errorOccured = true;
+                throw;
             }
 
             return 0;
         },
         1000,
-        param.VerifyFailedRetryCount + 1,
+        param.RetryCount + 1,
         cancel,
         true);
 
-        if (raisedException != null)
-        {
-            throw raisedException;
-        }
+        errorOccuredButRecovered?.Set(errorOccured);
     }
 
     // ファイルコピーの実体 (Verify エラー時に再試行しない)
     static async Task CopyFileCoreAsync(FileSystem srcFileSystem, string srcPath, FileSystem destFileSystem, string destPath,
-        CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, RefBool? readErrorIgnored = null, FileMetadata? newFileMeatadata = null, RefBool? verifyError = null)
+        CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, RefBool? readErrorIgnored = null, FileMetadata? newFileMeatadata = null, RefBool? verifyErrorOccured = null)
     {
         if (readErrorIgnored == null)
             readErrorIgnored = new RefBool(false);
 
         readErrorIgnored.Set(false);
 
-        if (verifyError == null)
-            verifyError = new RefBool(false);
+        if (verifyErrorOccured == null)
+            verifyErrorOccured = new RefBool(false);
 
-        verifyError.Set(false);
+        verifyErrorOccured.Set(false);
 
         if (param == null)
             param = new CopyFileParams();
@@ -815,7 +806,7 @@ public static partial class FileUtil
                                 {
                                     await using var srcFile2 = await srcFileSystem.OpenAsync(srcPath, flags: param.Flags, cancel: cancel);
 
-                                    verifyError.Set(false);
+                                    verifyErrorOccured.Set(false);
 
                                     try
                                     {
@@ -853,7 +844,7 @@ public static partial class FileUtil
                                                 if (srcZipCrc.Value != destZipCrc)
                                                 {
                                                     // なんと Verify に失敗したぞ
-                                                    verifyError.Set(true);
+                                                    verifyErrorOccured.Set(true);
                                                     throw new CoresException($"CopyFile_Verify error. Src file: '{srcPath}', Dest file: '{destPath}', srcCrc: {srcZipCrc.Value}, destCrc = {destZipCrc}");
                                                 }
                                             }
@@ -867,7 +858,7 @@ public static partial class FileUtil
                                     }
                                     finally
                                     {
-                                        if (verifyError)
+                                        if (verifyErrorOccured)
                                         {
                                             if (param.DeleteFileIfVerifyFailed)
                                             {
@@ -894,7 +885,7 @@ public static partial class FileUtil
 
                                     await destFile.CloseAsync();
 
-                                    verifyError.Set(false);
+                                    verifyErrorOccured.Set(false);
 
                                     try
                                     {
@@ -906,14 +897,14 @@ public static partial class FileUtil
                                             if (srcZipCrc.Value != destZipCrc)
                                             {
                                                 // なんと Verify に失敗したぞ
-                                                verifyError.Set(true);
+                                                verifyErrorOccured.Set(true);
                                                 throw new CoresException($"CopyFile_Verify error. Src file: '{srcPath}', Dest file: '{destPath}', srcCrc: {srcZipCrc.Value}, destCrc = {destZipCrc}");
                                             }
                                         }
                                     }
                                     finally
                                     {
-                                        if (verifyError)
+                                        if (verifyErrorOccured)
                                         {
                                             if (param.DeleteFileIfVerifyFailed)
                                             {
@@ -974,15 +965,15 @@ public static partial class FileUtil
         }
     }
     public static void CopyFile(FileSystem srcFileSystem, string srcPath, FileSystem destFileSystem, string destPath,
-        CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, RefBool? readErrorIgnored = null)
-        => CopyFileAsync(srcFileSystem, srcPath, destFileSystem, destPath, param, state, cancel, readErrorIgnored)._GetResult();
+        CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, RefBool? readErrorIgnored = null, FileMetadata? newFileMeatadata = null, RefBool? errorOccuredButRecovered = null)
+        => CopyFileAsync(srcFileSystem, srcPath, destFileSystem, destPath, param, state, cancel, readErrorIgnored, newFileMeatadata, errorOccuredButRecovered)._GetResult();
 
 
-    public static Task CopyFileAsync(FilePath src, FilePath dest, CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, RefBool? readErrorIgnored = null)
-        => CopyFileAsync(src.FileSystem, src.PathString, dest.FileSystem, dest.PathString, param, state, cancel, readErrorIgnored);
+    public static Task CopyFileAsync(FilePath src, FilePath dest, CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, RefBool? readErrorIgnored = null, FileMetadata? newFileMeatadata = null, RefBool? errorOccuredButRecovered = null)
+        => CopyFileAsync(src.FileSystem, src.PathString, dest.FileSystem, dest.PathString, param, state, cancel, readErrorIgnored, newFileMeatadata, errorOccuredButRecovered);
 
-    public static void CopyFile(FilePath src, FilePath dest, CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, RefBool? readErrorIgnored = null)
-        => CopyFileAsync(src, dest, param, state, cancel, readErrorIgnored)._GetResult();
+    public static void CopyFile(FilePath src, FilePath dest, CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, RefBool? readErrorIgnored = null, FileMetadata? newFileMeatadata = null, RefBool? errorOccuredButRecovered = null)
+        => CopyFileAsync(src, dest, param, state, cancel, readErrorIgnored, newFileMeatadata, errorOccuredButRecovered)._GetResult();
 
     static async Task<uint> CalcZipCrc32HandleAsync(FileBase src, CopyFileParams param, CancellationToken cancel)
     {
