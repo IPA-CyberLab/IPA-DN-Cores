@@ -473,6 +473,7 @@ namespace IPA.Cores.Basic
         {
             public static readonly Copenhagen<int> CachedAclObjectsExpires = 10 * 1000; // ACL オブジェクトキャッシュ有効期限
             public static readonly Copenhagen<int> CachedAclObjectResultsExpires = 60 * 1000; // ACL オブジェクトあたりの結果キャッシュ有効期限
+            public static readonly Copenhagen<int> CachedFqdnResolvedAclObjectExpires = 30 * 1000; // FQDN 名前解決の結果キャッシュ有効期限
         }
     }
 
@@ -501,6 +502,8 @@ namespace IPA.Cores.Basic
         public bool IsEmpty => this.RuleListInternal.Count == 0;
 
         static readonly FastCache<string, EasyIpAcl> GlobalAclObjectCache = new FastCache<string, EasyIpAcl>(CoresConfig.EasyIpAclConfig.CachedAclObjectsExpires, 0, CacheType.UpdateExpiresWhenAccess);
+
+        static readonly FastCache<string, string> GlobalAclResolvedFqdnCache = new FastCache<string, string>(CoresConfig.EasyIpAclConfig.CachedFqdnResolvedAclObjectExpires, 0, CacheType.DoNotUpdateExpiresWhenAccess);
 
         public EasyIpAcl(string? body, EasyIpAclAction defaultAction = EasyIpAclAction.Deny, EasyIpAclAction defaultActionForEmpty = EasyIpAclAction.Permit, bool enableCache = false)
         {
@@ -559,6 +562,151 @@ namespace IPA.Cores.Basic
                     return Consts.Strings.EasyAclAllowAllRule;
                 }
             }
+        }
+
+        public static async Task<EasyIpAclAction> EvaluateWithFqdnIncludedAsync(string? rulesFqdnAllow, string ipStr, EasyIpAclAction defaultAction = EasyIpAclAction.Deny, EasyIpAclAction defaultActionForEmpty = EasyIpAclAction.Permit, bool enableEvaluateCache = false, bool permitLocalHost = false, bool enableResolveCache=true, AddressFamily? resolveAddressFamily = null, int resolveTimeout = -1, int numParallelTasks = 8, CancellationToken cancel = default, Func<IPAddress, long>? orderBy = null, bool allowAllIfEmptyOrError = false)
+        {
+            string normalizedRule;
+
+            if (enableResolveCache)
+            {
+                normalizedRule = await ResolveFqdnIncludedAclRuleWithCacheAsync(rulesFqdnAllow, resolveAddressFamily, resolveTimeout, numParallelTasks, cancel, orderBy, false, allowAllIfEmptyOrError);
+            }
+            else
+            {
+                normalizedRule = await ResolveFqdnIncludedAclRuleAsync(rulesFqdnAllow, resolveAddressFamily, resolveTimeout, numParallelTasks, cancel, orderBy, false, allowAllIfEmptyOrError);
+            }
+
+            return EasyIpAcl.Evaluate(normalizedRule, ipStr, defaultAction, defaultActionForEmpty, enableEvaluateCache, permitLocalHost);
+        }
+
+        public static async Task<EasyIpAclAction> EvaluateWithFqdnIncludedAsync(string? rulesFqdnAllow, IPAddress ip, EasyIpAclAction defaultAction = EasyIpAclAction.Deny, EasyIpAclAction defaultActionForEmpty = EasyIpAclAction.Permit, bool enableEvaluateCache = false, bool permitLocalHost = false, bool enableResolveCache = true, AddressFamily? resolveAddressFamily = null, int resolveTimeout = -1, int numParallelTasks = 8, CancellationToken cancel = default, Func<IPAddress, long>? orderBy = null, bool allowAllIfEmptyOrError = false)
+        {
+            string normalizedRule;
+
+            if (enableResolveCache)
+            {
+                normalizedRule = await ResolveFqdnIncludedAclRuleWithCacheAsync(rulesFqdnAllow, resolveAddressFamily, resolveTimeout, numParallelTasks, cancel, orderBy, false, allowAllIfEmptyOrError);
+            }
+            else
+            {
+                normalizedRule = await ResolveFqdnIncludedAclRuleAsync(rulesFqdnAllow, resolveAddressFamily, resolveTimeout, numParallelTasks, cancel, orderBy, false, allowAllIfEmptyOrError);
+            }
+
+            return EasyIpAcl.Evaluate(normalizedRule, ip, defaultAction, defaultActionForEmpty, enableEvaluateCache, permitLocalHost);
+        }
+
+        public static async Task<string> ResolveFqdnIncludedAclRuleWithCacheAsync(string? rulesFqdnAllow, AddressFamily? addressFamily = null, int timeout = -1, int numParallelTasks = 8, CancellationToken cancel = default, Func<IPAddress, long>? orderBy = null, bool multiLines = false, bool allowAllIfEmptyOrError = false)
+        {
+            string cacheKey = $"{rulesFqdnAllow._NonNull()}@{addressFamily}@{timeout}@{multiLines}@{allowAllIfEmptyOrError}";
+
+            string? ret = await GlobalAclResolvedFqdnCache.GetOrCreateAsync(cacheKey, async _ =>
+            {
+                return await ResolveFqdnIncludedAclRuleAsync(rulesFqdnAllow, addressFamily, timeout, numParallelTasks, cancel, orderBy, multiLines, allowAllIfEmptyOrError);
+            });
+
+            return ret._NonNull();
+        }
+
+        public static async Task<string> ResolveFqdnIncludedAclRuleAsync(string? rulesFqdnAllow, AddressFamily? addressFamily = null, int timeout = -1, int numParallelTasks = 8, CancellationToken cancel = default, Func<IPAddress, long>? orderBy = null, bool multiLines = false, bool allowAllIfEmptyOrError = false)
+        {
+            rulesFqdnAllow = rulesFqdnAllow._NonNullTrim();
+
+            List<string> rulesStrList = new List<string>();
+
+            // ルールの列挙
+            string[] lines = rulesFqdnAllow._NonNull()._GetLines(true, true, Consts.Strings.CommentStartStringForEasyIpAcl);
+            foreach (string line in lines)
+            {
+                string[] tokens = line._Split(StringSplitOptions.RemoveEmptyEntries, ';', '|', ',', ' ', '　', '\t');
+
+                tokens.Where(x => x._IsFilled())._DoForEach(x => rulesStrList.Add(x));
+            }
+
+            List<(bool negative, string ipOrFqdn, string subnet, List<IPAddress> result)> jobs = new();
+
+            foreach (string str in rulesStrList)
+            {
+                string str2 = str;
+                bool negative = false;
+
+                if (str.StartsWith("-", StringComparison.Ordinal) || str.StartsWith("!", StringComparison.Ordinal))
+                {
+                    negative = true;
+                    str2 = str.Substring(1);
+                }
+
+                string[] tokens = str2.Split('/');
+                string ipOrFqdn = "";
+                string subnet = "";
+                if (tokens.Length >= 2)
+                {
+                    ipOrFqdn = tokens[0];
+                    subnet = tokens[1];
+                }
+                else if (tokens.Length >= 1)
+                {
+                    ipOrFqdn = tokens[0];
+                }
+
+                if (ipOrFqdn._IsFilled())
+                {
+                    var ipList = new List<IPAddress>();
+
+                    if (IPAddress.TryParse(ipOrFqdn, out IPAddress? ip))
+                    {
+                        ipList.Add(ip);
+                    }
+
+                    jobs.Add((negative, ipOrFqdn, subnet, ipList));
+                }
+            }
+
+            Exception? firstError = null;
+
+            await jobs._DoForEachParallelAsync(async (targetElement, taskIndex) =>
+            {
+                try
+                {
+                    if (targetElement.result.Any() == false)
+                    {
+                        var ipList = await LocalNet.GetIpMultipleAsync(targetElement.ipOrFqdn, addressFamily, timeout, cancel, orderBy);
+                        targetElement.result.AddRange(ipList);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // 例外があった場合は例外は握りつぶし、エラーを表示する
+                    firstError ??= ex;
+                    ex._Error();
+                }
+            },
+            numParallelTasks,
+            MultitaskDivideOperation.RoundRobin,
+            cancel);
+
+            List<string> tmp = new List<string>();
+
+            foreach (var job in jobs)
+            {
+                if (job.result.Any())
+                {
+                    string negativeStr = job.negative ? "!" : "";
+                    foreach (var ip in job.result)
+                    {
+                        if (job.subnet._IsFilled())
+                        {
+                            tmp.Add($"{negativeStr}{ip.ToString()}/{job.subnet}");
+                        }
+                        else
+                        {
+                            tmp.Add($"{negativeStr}{ip.ToString()}");
+                        }
+                    }
+                }
+            }
+
+            return EasyIpAcl.NormalizeRules(tmp._Combine(" "), multiLines, allowAllIfEmptyOrError);
         }
 
         public static EasyIpAclAction Evaluate(string? rules, string ipStr, EasyIpAclAction defaultAction = EasyIpAclAction.Deny, EasyIpAclAction defaultActionForEmpty = EasyIpAclAction.Permit, bool enableCache = false, bool permitLocalHost = false)
@@ -761,6 +909,9 @@ namespace IPA.Cores.Basic
             }
 
             IPUtil.ParseIPAndMask(ruleStr, out IPAddress network, out IPAddress subnetMask);
+
+            network = network._RemoveScopeId();
+            subnetMask = subnetMask._RemoveScopeId();
 
             this.AddressFamily = network.AddressFamily;
             this.Mask = subnetMask;

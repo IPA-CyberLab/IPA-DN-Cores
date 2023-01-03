@@ -150,6 +150,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
         public int RetryInterval;
         public int ExpireInterval;
         public int DefaultTtl;
+        public string TcpAxfrAllowedAcl = "";
 
         public ZoneDefOptions() { }
 
@@ -167,6 +168,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
             this.RetryInterval = o._GetOrEmpty("RetryInterval")._ToInt();
             this.ExpireInterval = o._GetOrEmpty("ExpireInterval")._ToInt();
             this.DefaultTtl = o._GetOrEmpty("DefaultTtl")._ToInt();
+            this.TcpAxfrAllowedAcl = o._GetOrEmpty("AllowTcpAxfrAclRule");
 
             this.Normalize();
         }

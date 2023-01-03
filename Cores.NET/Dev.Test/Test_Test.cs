@@ -706,7 +706,7 @@ static class TestClass
         {
             PkiUtil.GenerateRsaKeyPair(4096, out PrivKey priv, out _);
 
-            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.RootCertiticate, "dummycert.example.org", c: "JP", expires:  (new DateTime(2099, 12, 30))._AsDateTimeOffset(true) , shaSize: PkiShaSize.SHA512));
+            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.RootCertiticate, "dummycert.example.org", c: "JP", expires: (new DateTime(2099, 12, 30))._AsDateTimeOffset(true), shaSize: PkiShaSize.SHA512));
 
             CertificateStore store = new CertificateStore(cert, priv);
 
@@ -858,7 +858,7 @@ static class TestClass
 
             Lfs.WriteStringToFile(baseDir + @"00_Master.txt", store.ExportCertInfo(), FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
         }
-        
+
         if (true)
         {
             CertificateStore master = new CertificateStore(Lfs.ReadDataFromFile(baseDir + @"00_Master.pfx").Span);
@@ -3874,7 +3874,9 @@ cccadmin
 
                 if (true)
                 {
-                    LocalNet.ResolveHostAndPortListStrToIpAndPortListStrAsync(line, 80, multiple: true)._GetResult()._Print();
+                    string str = EasyIpAcl.ResolveFqdnIncludedAclRuleWithCacheAsync(line)._GetResult();
+                    str = EasyIpAcl.NormalizeRules(str);
+                    str._Print();
                 }
                 else if (true)
                 {
