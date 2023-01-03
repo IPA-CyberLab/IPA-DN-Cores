@@ -292,7 +292,7 @@ public class DirSuperBackup : AsyncService
     }
 
     // 1 つのディレクトリを検証する
-    public async Task DoSingleDirVerifyAsync(string archivedDir, string localDir, CancellationToken cancel = default, string? ignoreDirNames = null)
+    public async Task DoSingleDirVerifyAsync(string localDir, string archivedDir, CancellationToken cancel = default, string? ignoreDirNames = null)
     {
         DateTimeOffset now = DateTimeOffset.Now;
 
@@ -371,7 +371,7 @@ public class DirSuperBackup : AsyncService
                     localFileMetadata = await Fs.GetFileMetadataAsync(localFile.FullPath, cancel: cancel);
 
                     string localFileMetadataJson = localFileMetadata._ObjectToJson(compact: true);
-                    string archivedFileMetadataJson = archivedMetaData._ObjectToJson(compact: true);
+                    string archivedFileMetadataJson = archivedMetaData.MetaData._ObjectToJson(compact: true);
 
                     if (localFileMetadataJson != archivedFileMetadataJson)
                     {
@@ -404,36 +404,40 @@ public class DirSuperBackup : AsyncService
 
                     string funcName;
 
+                    Ref<Exception> exception = new Ref<Exception>();
+                    Ref<string> hashStr1 = new Ref<string>();
+                    Ref<string> hashStr2 = new Ref<string>();
+
                     if (isEncrypted == false)
                     {
                         funcName = "CompareFileHashAsync";
-                        sameRet = await FileUtil.CompareFileHashAsync(new FilePath(localFile.FullPath, Fs, flags: FileFlags.BackupMode), new FilePath(archivedFilePath, Fs, flags: FileFlags.BackupMode), cancel: cancel);
+                        sameRet = await FileUtil.CompareFileHashAsync(new FilePath(localFile.FullPath, Fs, flags: FileFlags.BackupMode), new FilePath(archivedFilePath, Fs, flags: FileFlags.BackupMode), cancel: cancel, hashStr1: hashStr1, hashStr2: hashStr2, exception: exception);
                     }
                     else
                     {
                         funcName = "CompareEncryptedFileHashAsync";
-                        sameRet = await FileUtil.CompareEncryptedFileHashAsync(encryptPassword, true, new FilePath(localFile.FullPath, Fs, flags: FileFlags.BackupMode), new FilePath(archivedFilePath, Fs, flags: FileFlags.BackupMode), cancel: cancel);
+                        sameRet = await FileUtil.CompareEncryptedFileHashAsync(encryptPassword, true, new FilePath(localFile.FullPath, Fs, flags: FileFlags.BackupMode), new FilePath(archivedFilePath, Fs, flags: FileFlags.BackupMode), cancel: cancel, hashStr1: hashStr1, hashStr2: hashStr2, exception: exception);
                     }
 
                     if (sameRet.IsOk == false)
                     {
                         // ファイルの比較中にエラーが発生した
                         errDescription = "FileReadError";
-                        throw new CoresException($"Compare function '{funcName}' returned an error");
+                        throw new CoresException($"Compare function '{funcName}' returned an error: {exception.Value?.Message ?? "Unknown error"}");
                     }
 
                     if (sameRet.Value != 0)
                     {
                         // ファイルの比較結果が異なる
                         errDescription = "FileDataDifferent";
-                        throw new CoresException($"Compare function '{funcName}' returned different result between two files");
+                        throw new CoresException($"Compare function '{funcName}' returned different result between two files. Local_Hash = {hashStr1}, Remote_Hash = {hashStr2}");
                     }
 
                     // 合格
                     Stat.Copy_NumFiles++;
                     Stat.Copy_TotalSize += localFileMetadata.Size;
 
-                    await WriteLogAsync(DirSuperBackupLogType.Info, Str.CombineStringArrayForCsv("FileOk", localFile.FullPath, archivedFilePath));
+                    await WriteLogAsync(DirSuperBackupLogType.Info, Str.CombineStringArrayForCsv("FileOk", localFile.FullPath, archivedFilePath, hashStr1));
                 }
                 catch (Exception ex)
                 {

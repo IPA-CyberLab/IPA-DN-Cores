@@ -299,8 +299,16 @@ public static partial class FileUtil
         return await Secure.CalcStreamHashAsync(stream, hash, truncateSize, bufferSize, fileSize, cancel);
     }
 
-    public static async Task<ResultOrError<int>> CompareFileHashAsync(FilePath file1, FilePath file2, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? fileSize = null, CancellationToken cancel = default)
+    public static async Task<ResultOrError<int>> CompareFileHashAsync(FilePath file1, FilePath file2, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? fileSize = null, CancellationToken cancel = default, Ref<Exception?>? exception = null, Ref<string>? hashStr1 = null, Ref<string>? hashStr2 = null)
     {
+        if (exception == null) exception = new Ref<Exception?>();
+        exception.Set(null);
+
+        if (hashStr1 == null) hashStr1 = new Ref<string>();
+        if (hashStr2 == null) hashStr2 = new Ref<string>();
+        hashStr1.Set("");
+        hashStr2.Set("");
+
         using SHA1 sha1 = SHA1.Create();
 
         byte[] hash1, hash2;
@@ -309,13 +317,17 @@ public static partial class FileUtil
         {
             if (await file1.IsFileExistsAsync(cancel) == false)
             {
+                exception.Set(new CoresException($"File '{file1}' not found"));
+
                 return new ResultOrError<int>(EnsureError.Error);
             }
 
             hash1 = await CalcFileHashAsync(file1, sha1, bufferSize: bufferSize, fileSize: fileSize, cancel: cancel);
         }
-        catch
+        catch (Exception ex)
         {
+            exception.Set(new CoresException($"File '{file1}': {ex.Message}"));
+
             return new ResultOrError<int>(EnsureError.Error);
         }
 
@@ -323,21 +335,36 @@ public static partial class FileUtil
         {
             if (await file2.IsFileExistsAsync(cancel) == false)
             {
+                exception.Set(new CoresException($"File '{file2}' not found"));
+
                 return new ResultOrError<int>(EnsureError.Error);
             }
 
             hash2 = await CalcFileHashAsync(file2, sha1, bufferSize: bufferSize, cancel: cancel);
         }
-        catch
+        catch (Exception ex)
         {
+            exception.Set(new CoresException($"File '{file2}': {ex.Message}"));
+
             return new ResultOrError<int>(EnsureError.Error);
         }
+
+        hashStr1.Set(hash1._GetHexString());
+        hashStr2.Set(hash2._GetHexString());
 
         return hash1._MemCompare(hash2);
     }
 
-    public static async Task<ResultOrError<int>> CompareEncryptedFileHashAsync(string encryptPassword, bool isCompressed, FilePath filePlain, FilePath fileEncrypted, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? fileSize = null, CancellationToken cancel = default)
+    public static async Task<ResultOrError<int>> CompareEncryptedFileHashAsync(string encryptPassword, bool isCompressed, FilePath filePlain, FilePath fileEncrypted, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? fileSize = null, CancellationToken cancel = default, Ref<Exception?>? exception = null, Ref<string>? hashStr1 = null, Ref<string>? hashStr2 = null)
     {
+        if (exception == null) exception = new Ref<Exception?>();
+        exception.Set(null);
+
+        if (hashStr1 == null) hashStr1 = new Ref<string>();
+        if (hashStr2 == null) hashStr2 = new Ref<string>();
+        hashStr1.Set("");
+        hashStr2.Set("");
+
         using SHA1 sha1 = SHA1.Create();
 
         byte[] hash1, hash2;
@@ -346,13 +373,17 @@ public static partial class FileUtil
         {
             if (await filePlain.IsFileExistsAsync(cancel) == false)
             {
+                exception.Set(new CoresException($"File '{filePlain}' not found"));
+
                 return new ResultOrError<int>(EnsureError.Error);
             }
 
             hash1 = await CalcFileHashAsync(filePlain, sha1, bufferSize: bufferSize, fileSize: fileSize, cancel: cancel);
         }
-        catch
+        catch (Exception ex)
         {
+            exception.Set(new CoresException($"File '{filePlain}': {ex.Message}"));
+
             return new ResultOrError<int>(EnsureError.Error);
         }
 
@@ -360,6 +391,8 @@ public static partial class FileUtil
         {
             if (await fileEncrypted.IsFileExistsAsync(cancel) == false)
             {
+                exception.Set(new CoresException($"File '{fileEncrypted}' not found"));
+
                 return new ResultOrError<int>(EnsureError.Error);
             }
 
@@ -369,10 +402,15 @@ public static partial class FileUtil
 
             hash2 = await Secure.CalcStreamHashAsync(internalStream, sha1, bufferSize: bufferSize, cancel: cancel);
         }
-        catch
+        catch (Exception ex)
         {
+            exception.Set(new CoresException($"File '{fileEncrypted}': {ex.Message}"));
+
             return new ResultOrError<int>(EnsureError.Error);
         }
+
+        hashStr1.Set(hash1._GetHexString());
+        hashStr2.Set(hash2._GetHexString());
 
         return hash1._MemCompare(hash2);
     }

@@ -1545,7 +1545,7 @@ static class TestClass
         string src = @"S:\Documents\研究開発\OpenVPN\";
         string dst = @"C:\TMP\230103\A\";
 
-        if (true)
+        if (false)
         {
             Con.WriteLine("--- Backup ---");
 
@@ -1560,6 +1560,8 @@ static class TestClass
             {
                 Con.WriteError(ex);
             }
+
+            Lfs.DeleteDirectory(dst, true);
 
             using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog, DirSuperBackupFlags.BackupMakeHistory, encryptPassword: "test")))
             {
@@ -4015,8 +4017,8 @@ cccadmin
     {
         if (true)
         {
-            Test_230103_Verify();
-            //Test_221212_IpNetToPtr();
+            //Test_230103_Verify();
+            Test_221212_IpNetToPtr();
             //Test_MakeDummyCerts_221206();
             //Test_MakeStatic2LtsDnIpaNttNetCert();
             //Test_MakeTestWebAppDefaultStaticCerts_220614();
