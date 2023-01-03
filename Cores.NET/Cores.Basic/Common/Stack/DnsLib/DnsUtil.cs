@@ -274,7 +274,6 @@ public class EasyDnsServerDynOptions : INormalizable
     public int UdpDelayedResponsePacketQueueLength { get; set; } = 0;
     public bool ParseUdpProxyProtocolV2 { get; set; } = false;
     public string DnsProxyProtocolAcceptSrcIpAcl { get; set; } = "";
-    public string DnsTcpAxfrAcceptSrcIpAcl { get; set; } = "";
     public int DnsTcpAxfrMaxRecordsPerMessage { get; set; } = 0;
 
     public EasyDnsServerDynOptions()
@@ -296,11 +295,6 @@ public class EasyDnsServerDynOptions : INormalizable
         if (this.DnsProxyProtocolAcceptSrcIpAcl._IsEmpty())
         {
             this.DnsProxyProtocolAcceptSrcIpAcl = Consts.Strings.EasyAclAllowAllRule;
-        }
-
-        if (this.DnsTcpAxfrAcceptSrcIpAcl._IsEmpty())
-        {
-            this.DnsTcpAxfrAcceptSrcIpAcl = Consts.Strings.EasyAclAllowAllRule;
         }
 
         if (this.DnsTcpAxfrMaxRecordsPerMessage <= 0)
@@ -369,18 +363,9 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
 
     async Task TcpListenerAcceptProcAsync(NetTcpListenerPort listener, ConnSock sock)
     {
-        var tcpAcl = new EasyIpAcl(this._DynOptions.DnsTcpAxfrAcceptSrcIpAcl, EasyIpAclAction.Deny, EasyIpAclAction.Deny, false);
-
         var cancel = this.GrandCancel;
 
         using var st = sock.GetStream();
-
-        // ACL の検査
-        if (tcpAcl.Evaluate(sock.EndPointInfo.RemoteIP!) != EasyIpAclAction.Permit)
-        {
-            // アクセス拒否
-            throw new CoresException($"TCP DNS connection request from {sock.EndPointInfo.GetRemoteEndPoint().ToString()} but this end point is not allowed in the TCP AXFR allowed acl");
-        }
 
         if (this.Setting.TcpAxfrCallback == null)
         {
@@ -896,6 +881,8 @@ public class EasyDnsResponderZone
     public List<EasyDnsResponderRecord> RecordList { get; set; } = new List<EasyDnsResponderRecord>();
 
     public EasyDnsResponderRecordSettings? DefaultSettings { get; set; } = null;
+
+    public string TcpAxfrAllowedAcl { get; set; } = "";
 }
 
 public class EasyDnsResponderSettings
@@ -2124,6 +2111,7 @@ public class EasyDnsResponder
         public DomainName DomainName;
         public EasyDnsResponderRecordSettings Settings;
         public EasyDnsResponderZone SrcZone;
+        public string TcpAxfrAllowedAcl = "";
 
         public List<Record> RecordList = new List<Record>();
         public StrDictionary<List<Record>> RecordDictByName = new StrDictionary<List<Record>>();
@@ -2168,6 +2156,8 @@ public class EasyDnsResponder
             this.DomainFqdn = src.DomainName._NormalizeFqdn();
 
             this.DomainName = new DomainName(this.DomainFqdn._Split(StringSplitOptions.None, '.').AsMemory());
+
+            this.TcpAxfrAllowedAcl = src.TcpAxfrAllowedAcl;
 
             Record_SOA? soa = null;
 

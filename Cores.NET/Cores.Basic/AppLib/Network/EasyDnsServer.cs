@@ -126,12 +126,21 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
             throw new CoresException("this.DnsResponder.TcpAxfrCallback is not implemented");
         }
 
-        string zoneFqdn = p.Question.Name.ToString();
+        string zoneFqdn = p.Question.Name.ToNormalizedFqdnFast();
         var zone = this.DnsResponder.GetExactlyMatchZone(zoneFqdn);
 
         if (zone == null)
         {
-            throw new CoresException($"Specified zone '{zoneFqdn}' is not defined in the database");
+            throw new CoresException($"Specified zone '{zoneFqdn}' is not defined in the database. TCP AXFR requested client: {p.RequestPacket.RemoteEndPoint.ToString()}");
+        }
+
+        // ACL の検査
+        var aclResult = await EasyIpAcl.EvaluateWithFqdnIncludedAsync(zone.TcpAxfrAllowedAcl, p.RequestPacket.RemoteEndPoint.Address,
+            EasyIpAclAction.Deny, EasyIpAclAction.Deny, true);
+
+        if (aclResult != EasyIpAclAction.Permit)
+        {
+            throw new CoresException($"The DNS zone '{zoneFqdn}''s TcpAxfrAllowedAcl did not allow the TCP AXFR requested client '{p.RequestPacket.RemoteEndPoint.ToString()}' to execute the TCP AXFR command. Please add this host to the TcpAxfrAllowedAcl ACL rule of this DNS zone.");
         }
 
         EasyDnsResponderTcpAxfrCallbackRequest req = new EasyDnsResponderTcpAxfrCallbackRequest

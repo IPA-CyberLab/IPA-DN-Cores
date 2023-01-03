@@ -168,7 +168,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
             this.RetryInterval = o._GetOrEmpty("RetryInterval")._ToInt();
             this.ExpireInterval = o._GetOrEmpty("ExpireInterval")._ToInt();
             this.DefaultTtl = o._GetOrEmpty("DefaultTtl")._ToInt();
-            this.TcpAxfrAllowedAcl = o._GetOrEmpty("AllowTcpAxfrAclRule");
+            this.TcpAxfrAllowedAcl = o._GetOrEmpty("TcpAxfrAllowedAcl");
 
             this.Normalize();
         }
@@ -203,6 +203,8 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
             if (this.RetryInterval <= 0) this.RetryInterval = DevCoresConfig.IpaDnsServiceSettings.Default_RetryInterval;
             if (this.ExpireInterval <= 0) this.ExpireInterval = DevCoresConfig.IpaDnsServiceSettings.Default_ExpireInterval;
             if (this.DefaultTtl <= 0) this.DefaultTtl = DevCoresConfig.IpaDnsServiceSettings.Default_DefaultTtl;
+
+            TcpAxfrAllowedAcl = TcpAxfrAllowedAcl._NonNullTrim();
         }
     }
 
@@ -872,8 +874,6 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
         [SimpleComment("If DDns_Protocol_AcceptUdpProxyProtocolV2 is true you can specify the source IP address ACL to accept UDP Proxy Protocol (You can specify multiple items. e.g. 127.0.0.0/8,1.2.3.0/24)")]
         public string Dns_Protocol_ProxyProtocolAcceptSrcIpAcl = "";
 
-        public string Dns_Protocol_TcpAxfrAcceptSrcIpAcl = "";
-
         public int Dns_Protocol_TcpAxfrMaxRecordsPerMessage = 32;
 
         public int Dns_ZoneForceReloadIntervalMsecs = 3000;
@@ -884,12 +884,6 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
         protected override void NormalizeImpl()
         {
             Dns_Protocol_ProxyProtocolAcceptSrcIpAcl = EasyIpAcl.NormalizeRules(Dns_Protocol_ProxyProtocolAcceptSrcIpAcl, false, true);
-
-            if (Dns_Protocol_TcpAxfrAcceptSrcIpAcl._IsEmpty())
-            {
-                Dns_Protocol_TcpAxfrAcceptSrcIpAcl = "127.0.0.0/8; 192.168.0.0/16; 172.16.0.0/12; 10.0.0.0/8; 1.2.3.4/32; 2041:af80:1234::/48";
-            }
-            Dns_Protocol_TcpAxfrAcceptSrcIpAcl = EasyIpAcl.NormalizeRules(Dns_Protocol_TcpAxfrAcceptSrcIpAcl, false, true);
 
             if (Dns_ZoneDefFilePathOrUrl._IsEmpty())
             {
@@ -1039,6 +1033,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                 {
                     TtlSecs = zoneDef.Options.DefaultTtl,
                 },
+                TcpAxfrAllowedAcl = zoneDef.Options.TcpAxfrAllowedAcl._NonNullTrim(),
             };
 
             // SOA レコードを定義
@@ -1193,7 +1188,6 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
 
             currentDynOptions.ParseUdpProxyProtocolV2 = config.Dns_Protocol_ParseUdpProxyProtocolV2;
             currentDynOptions.DnsProxyProtocolAcceptSrcIpAcl = config.Dns_Protocol_ProxyProtocolAcceptSrcIpAcl;
-            currentDynOptions.DnsTcpAxfrAcceptSrcIpAcl = config.Dns_Protocol_TcpAxfrAcceptSrcIpAcl;
             currentDynOptions.DnsTcpAxfrMaxRecordsPerMessage = config.Dns_Protocol_TcpAxfrMaxRecordsPerMessage;
 
             this.DnsServer.DnsServer.SetCurrentDynOptions(currentDynOptions);
