@@ -31,6 +31,7 @@
 // LAW OR COURT RULE.
 
 using System;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Diagnostics;
@@ -185,7 +186,7 @@ public class GetIpAddressFamilyMismatchException : ApplicationException
 
 public abstract partial class TcpIpSystem
 {
-    public async Task<string> ResolveHostAndPortListStrToIpAndPortListStrAsync(string srcStr, int? defaultPort = null, AddressFamily? addressFamily = null, int timeout = -1, int numParallelTasks = 8, Func<IPAddress, long>? orderBy = null, CancellationToken cancel = default)
+    public async Task<string> ResolveHostAndPortListStrToIpAndPortListStrAsync(string srcStr, int? defaultPort = null, AddressFamily? addressFamily = null, int timeout = -1, int numParallelTasks = 8, Func<IPAddress, long>? orderBy = null, CancellationToken cancel = default, bool multiple = false)
     {
         string[] targetTokenList = srcStr._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, " ", "\t", ";", ",", "/");
 
@@ -202,7 +203,7 @@ public abstract partial class TcpIpSystem
         {
             try
             {
-                targetElement.Item2.Set(await ResolveHostAndPortStrToIpAndPortStrAsync(targetElement.Item1, defaultPort, addressFamily, timeout, orderBy, cancel));
+                targetElement.Item2.Set(await ResolveHostAndPortStrToIpAndPortStrAsync(targetElement.Item1, defaultPort, addressFamily, timeout, orderBy, cancel, multiple));
             }
             catch (Exception ex)
             {
@@ -231,41 +232,74 @@ public abstract partial class TcpIpSystem
         }
     }
 
-    public async Task<string> ResolveHostAndPortStrToIpAndPortStrAsync(string srcStr, int? defaultPort = null, AddressFamily? addressFamily = null, int timeout = -1, Func<IPAddress, long>? orderBy = null, CancellationToken cancel = default)
+    public async Task<string> ResolveHostAndPortStrToIpAndPortStrAsync(string srcStr, int? defaultPort = null, AddressFamily? addressFamily = null, int timeout = -1, Func<IPAddress, long>? orderBy = null, CancellationToken cancel = default, bool multiple = false)
     {
         if (IPUtil.TryParseHostPort(srcStr, out string host, out int port, defaultPort) == false)
         {
             throw new CoresException($"String '{srcStr}' is not like host:port or [ip]:port");
         }
 
-        if (IPAddress.TryParse(host, out IPAddress? ip) == false)
-        {
-            ip = await this.GetIpAsync(host, addressFamily, timeout, cancel, orderBy);
-        }
+        List<IPAddress> ipList = new List<IPAddress>();
 
-        if (ip.AddressFamily == AddressFamily.InterNetwork)
+        if (IPAddress.TryParse(host, out IPAddress? ip))
         {
-            return $"{ip.ToString()}:{port}";
+            ipList.Add(ip);
         }
         else
         {
-            return $"[{ip.ToString()}]:{port}";
+            if (multiple == false)
+            {
+                ip = await this.GetIpAsync(host, addressFamily, timeout, cancel, orderBy);
+                ipList.Add(ip);
+            }
+            else
+            {
+                ipList.AddRange(await this.GetIpMultipleAsync(host, addressFamily, timeout, cancel, orderBy));
+            }
         }
+
+        return ipList.Select(ip =>
+        {
+            if (ip.AddressFamily == AddressFamily.InterNetwork)
+            {
+                return $"{ip.ToString()}:{port}";
+            }
+            else
+            {
+                return $"[{ip.ToString()}]:{port}";
+            }
+        })._Combine(" ");
     }
 
-    public async Task<IPAddress> GetIpAsync(string hostname, AddressFamily? addressFamily = null, int timeout = -1, CancellationToken cancel = default, Func<IPAddress, long>? orderBy = null)
+    public async Task<IEnumerable<IPAddress>> GetIpMultipleAsync(string hostname, AddressFamily? addressFamily = null, int timeout = -1, CancellationToken cancel = default, Func<IPAddress, long>? orderBy = null)
     {
         DnsResponse res = await this.QueryDnsAsync(new DnsGetIpQueryParam(hostname, timeout: timeout));
 
-        var tmp = res.IPAddressList.Where(x => x.AddressFamily == AddressFamily.InterNetwork || x.AddressFamily == AddressFamily.InterNetworkV6)
+        var ipList = res.IPAddressList.Where(x => x.AddressFamily == AddressFamily.InterNetwork || x.AddressFamily == AddressFamily.InterNetworkV6)
             .Where(x => addressFamily == null || x.AddressFamily == addressFamily);
 
         if (orderBy != null)
         {
-            tmp = tmp.OrderBy(ip => orderBy(ip));
+            ipList = ipList.OrderBy(ip => orderBy(ip));
         }
 
-        IPAddress? ret = tmp.FirstOrDefault();
+        ipList = ipList.DistinctBy(x => x, IpComparer.Comparer);
+
+        if (ipList.Any() == false)
+        {
+            throw new GetIpAddressFamilyMismatchException($"The hostname \"{hostname}\" has no {addressFamily._ToIPv4v6String()} address.");
+        }
+
+        return ipList;
+    }
+    public IEnumerable<IPAddress> GetIpMultiple(string hostname, AddressFamily? addressFamily = null, int timeout = -1, CancellationToken cancel = default, Func<IPAddress, long>? orderBy = null)
+        => GetIpMultipleAsync(hostname, addressFamily, timeout, cancel, orderBy)._GetResult();
+
+    public async Task<IPAddress> GetIpAsync(string hostname, AddressFamily? addressFamily = null, int timeout = -1, CancellationToken cancel = default, Func<IPAddress, long>? orderBy = null)
+    {
+        var ipList = await GetIpMultipleAsync(hostname, addressFamily, timeout, cancel, orderBy);
+
+        IPAddress? ret = ipList.FirstOrDefault();
 
         if (ret == null)
         {
