@@ -404,7 +404,7 @@ public class DirSuperBackup : AsyncService
 
                     string funcName;
 
-                    Ref<Exception> exception = new Ref<Exception>();
+                    Ref<Exception?> exception = new Ref<Exception?>();
                     Ref<string> hashStr1 = new Ref<string>();
                     Ref<string> hashStr2 = new Ref<string>();
 
