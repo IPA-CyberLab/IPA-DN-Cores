@@ -126,6 +126,7 @@ public static partial class Consts
         public static readonly TimeSpan JapanStandardTimeOffset = new TimeSpan(9, 0, 0);
 
         public const uint MagicNumber_u32 = 0x7eadbeef;
+        public const uint MagicNumberB_u32 = 0x7eadcafe;
 
         public const int MikakaDDns_MaxUnlockKeyCountOnce = 1000;
 

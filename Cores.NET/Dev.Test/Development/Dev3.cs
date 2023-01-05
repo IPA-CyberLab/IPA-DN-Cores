@@ -249,6 +249,8 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
         [SimpleComment("If DDns_Protocol_AcceptUdpProxyProtocolV2 is true you can specify the source IP address ACL to accept UDP Proxy Protocol (You can specify multiple items. e.g. 127.0.0.0/8,1.2.3.0/24)")]
         public string DDns_Protocol_ProxyProtocolAcceptSrcIpAcl = "";
 
+        public string DDns_TcpAxfrAllowedAcl = "127.0.0.0/8; 1.2.3.0/24";
+
         [SimpleComment("Set a specific secret string to enable the 'License String' feature (Described in the API help)")]
         public string DDns_RequiredLicenseString = "";
 
@@ -310,6 +312,8 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
         protected override void NormalizeImpl()
         {
             DDns_HostFastUpdateQuota_DurationMsecs = Math.Min(DDns_HostFastUpdateQuota_DurationMsecs, 60 * 60 * 1000);
+
+            DDns_TcpAxfrAllowedAcl = DDns_TcpAxfrAllowedAcl._NonNullTrim();
 
             DDns_Protocol_ProxyProtocolAcceptSrcIpAcl = EasyIpAcl.NormalizeRules(DDns_Protocol_ProxyProtocolAcceptSrcIpAcl, false, true);
 
@@ -886,10 +890,12 @@ SRV _ldap._tcp.abc 0 100 123 ldap_server.your_company.net
     public class HiveSettings : HadbBasedServiceHiveSettingsBase
     {
         public int DDns_UdpListenPort;
+        public int DDns_TcpListenPort;
 
         public override void NormalizeImpl()
         {
             if (DDns_UdpListenPort <= 0) DDns_UdpListenPort = Consts.Ports.Dns;
+            if (DDns_TcpListenPort <= 0) DDns_TcpListenPort = Consts.Ports.Dns;
         }
     }
 
@@ -1009,6 +1015,7 @@ SRV _ldap._tcp.abc 0 100 123 ldap_server.your_company.net
             new EasyDnsResponderBasedDnsServerSettings
             {
                 UdpPort = this.SettingsFastSnapshot.DDns_UdpListenPort,
+                TcpPort = this.SettingsFastSnapshot.DDns_TcpListenPort,
             }
             );
 
@@ -1224,6 +1231,7 @@ SRV _ldap._tcp.abc 0 100 123 ldap_server.your_company.net
             {
                 DefaultSettings = settings.DefaultSettings,
                 DomainName = domainFqdn,
+                TcpAxfrAllowedAcl = config.DDns_TcpAxfrAllowedAcl,
             };
 
             foreach (var item in staticRecordsList)
@@ -1276,7 +1284,7 @@ SRV _ldap._tcp.abc 0 100 123 ldap_server.your_company.net
             zone.RecordList.Add(new EasyDnsResponderRecord
             {
                 Type = EasyDnsResponderRecordType.SOA,
-                Contents = $"{config.DDns_Protocol_SOA_MasterNsServerFqdn} {config.DDns_Protocol_SOA_ResponsibleFieldFqdn} {Consts.Numbers.MagicNumber_u32} {config.DDns_Protocol_SOA_RefreshIntervalSecs} {config.DDns_Protocol_SOA_RetryIntervalSecs} {config.DDns_Protocol_SOA_ExpireIntervalSecs} {config.DDns_Protocol_SOA_NegativeCacheTtlSecs}",
+                Contents = $"{config.DDns_Protocol_SOA_MasterNsServerFqdn} {config.DDns_Protocol_SOA_ResponsibleFieldFqdn} {Consts.Numbers.MagicNumberB_u32} {config.DDns_Protocol_SOA_RefreshIntervalSecs} {config.DDns_Protocol_SOA_RetryIntervalSecs} {config.DDns_Protocol_SOA_ExpireIntervalSecs} {config.DDns_Protocol_SOA_NegativeCacheTtlSecs}",
             });
 
             settings.ZoneList.Add(zone);
@@ -1321,6 +1329,93 @@ SRV _ldap._tcp.abc 0 100 123 ldap_server.your_company.net
             v6onlySuffixList = config.DDns_HostLabelLookup_DummySuffixListForIPv6Only._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ',')
                 .OrderByDescending(x => x.Length).ToArray();
         }
+
+
+        this.DnsServer.DnsResponder.TcpAxfrCallback = async (req) =>
+        {
+            // 標準的な静的レコードリストの構築
+            List<Tuple<EasyDnsResponder.Record, string?>> list = await req.GenerateStandardStaticRecordsListFromZoneDataAsync(req.Cancel);
+
+            var rootVirtualZone = new EasyDnsResponder.Zone(isVirtualRootZone: EnsureSpecial.Yes, req.ZoneInternal);
+
+            var hostList = this.Hadb.FastEnumObjects<Host>();
+
+            List<string> tmpSuffixList = new List<string>();
+            tmpSuffixList.Add("");
+            suffixIgnoreList?._DoForEach(x => tmpSuffixList.Add(x));
+
+            List<string> tmpPrefixList = new List<string>();
+            tmpPrefixList.Add("");
+            prefixIgnoreList?._DoForEach(x => tmpPrefixList.Add(x));
+
+            List<string> tmpIPv4OnlySuffixList = new List<string>();
+            tmpIPv4OnlySuffixList.Add("");
+            v4onlySuffixList?._DoForEach(x => tmpIPv4OnlySuffixList.Add(x));
+
+            List<string> tmpIPv6OnlySuffixList = new List<string>();
+            tmpIPv6OnlySuffixList.Add("");
+            v6onlySuffixList?._DoForEach(x => tmpIPv6OnlySuffixList.Add(x));
+
+            foreach (var host in hostList)
+            {
+                List<Tuple<EasyDnsResponder.Record, string?>> tmpList = new List<Tuple<EasyDnsResponder.Record, string?>>();
+
+                var data = host.GetData();
+
+                string ipv4Str = data.HostAddress_IPv4;
+                string ipv6Str = data.HostAddress_IPv6;
+
+                string basicLabel = data.HostLabel;
+
+                if (ipv4Str._IsFilled() && IPAddress.TryParse(ipv4Str, out var ipv4))
+                {
+                    HashSet<string> labels = new HashSet<string>(StrCmpi);
+
+                    foreach (var suffix in tmpSuffixList)
+                    {
+                        foreach (var prefix in tmpPrefixList)
+                        {
+                            foreach (var onlySuffix in tmpIPv4OnlySuffixList)
+                            {
+                                labels.Add(prefix + basicLabel + onlySuffix + suffix);
+                            }
+                        }
+                    }
+
+                    foreach (var label in labels)
+                    {
+                        tmpList.Add(new Tuple<EasyDnsResponder.Record, string?>(new EasyDnsResponder.Record_A(req.ZoneInternal, req.ZoneInternal.Settings, label, ipv4), null));
+                    }
+                }
+
+                if (ipv6Str._IsFilled() && IPAddress.TryParse(ipv6Str, out var ipv6))
+                {
+                    HashSet<string> labels = new HashSet<string>(StrCmpi);
+
+                    foreach (var suffix in tmpSuffixList)
+                    {
+                        foreach (var prefix in tmpPrefixList)
+                        {
+                            foreach (var onlySuffix in tmpIPv6OnlySuffixList)
+                            {
+                                labels.Add(prefix + basicLabel + onlySuffix);
+                            }
+                        }
+                    }
+
+                    foreach (var label in labels)
+                    {
+                        tmpList.Add(new Tuple<EasyDnsResponder.Record, string?>(new EasyDnsResponder.Record_A(req.ZoneInternal, req.ZoneInternal.Settings, label, ipv6), null));
+                    }
+                }
+
+                await req.SendBufferedAsync(tmpList, cancel: cancel);
+            }
+
+
+            // 送付
+            await req.SendBufferedAsync(list, req.Cancel, distinct: true, sort: true);
+        };
 
         this.DnsServer.DnsResponder.DynamicRecordCallback = (req) =>
         {

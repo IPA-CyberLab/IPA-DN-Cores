@@ -1041,7 +1041,8 @@ public class EasyDnsResponderTcpAxfrCallbackRequest
 
 
     // 現在の Zone に静的に定義されている静的レコードリストを送信する (SOA を除く)
-    public List<Tuple<EasyDnsResponder.Record, string?>> GenerateStandardStaticRecordsListFromZoneData(CancellationToken cancel = default)
+    // 件数の少ない静的レコードは戻り値として返し、件数の多い自動生成静的レコードは直ちに送信試行をする
+    public async Task<List<Tuple<EasyDnsResponder.Record, string?>>> GenerateStandardStaticRecordsListFromZoneDataAsync(CancellationToken cancel = default)
     {
         List<Tuple<EasyDnsResponder.Record, string?>> list = new List<Tuple<EasyDnsResponder.Record, string?>>();
 
@@ -1206,10 +1207,15 @@ public class EasyDnsResponderTcpAxfrCallbackRequest
                                                 tmp.Add((IPUtil.GenerateWildCardDnsFqdn(ip, wildcardInfo.suffix, "", wildcard_after_str, false), IPUtil.GenerateWildCardDnsFqdn(ip, wildcardInfo.suffix, "", wildcard_after_str, true)));
                                             }
 
+                                            List<Tuple<EasyDnsResponder.Record, string?>> tmpList = new List<Tuple<EasyDnsResponder.Record, string?>>();
+
                                             foreach (var new_fqdn in tmp)
                                             {
-                                                list.Add(new Tuple<EasyDnsResponder.Record, string?>(new EasyDnsResponder.Record_A(rootVirtualZone, a.Settings, new_fqdn.Item1, ip), new_fqdn.Item2));
+                                                tmpList.Add(new Tuple<EasyDnsResponder.Record, string?>(new EasyDnsResponder.Record_A(rootVirtualZone, a.Settings, new_fqdn.Item1, ip), new_fqdn.Item2));
                                             }
+
+                                            // 件数が膨大であるので、戻り値リストに追加せず、ここで直ちに送信をする
+                                            await this.SendBufferedAsync(tmpList, cancel);
                                         }
                                     }
                                 }
@@ -1245,12 +1251,50 @@ public class EasyDnsResponderTcpAxfrCallbackRequest
                             wildcard_after_str = attributes["wildcard_after_str"];
                         }
 
-                        // サブネット形式の A レコード
+                        // サブネット形式の AAAA レコード
                         if (fqdn._IsValidFqdn(true, true))
                         {
                             if (fqdn._InStri("*"))
                             {
-                                // ワイルドカードの場合は、展開をしない。数が多すぎて、事実上展開は不可能である。
+                                // ワイルドカードの場合は、展開をする
+                                if (Str.TryParseFirstWildcardFqdnSandwitched(fqdn, out var wildcardInfo))
+                                {
+                                    if (aaaa.IPv6SubnetMaskLength >= 104) // /104 すなわち 16777216 個まで自動生成する
+                                    {
+                                        var ipStart = IPUtil.GetPrefixAddress(aaaa.IPv6Address, aaaa.IPv6SubnetMaskLength);
+                                        var ipStart2 = IPv6Addr.FromAddress(ipStart);
+                                        int num = (int)IPUtil.CalcNumIPFromSubnetLen(AddressFamily.InterNetworkV6, aaaa.IPv6SubnetMaskLength);
+
+                                        for (int i = 0; i < num; i++)
+                                        {
+                                            var ip = ipStart2.Add(i).GetIPAddress();
+
+                                            List<(string, string)> tmp = new List<(string, string)>();
+
+                                            tmp.Add((IPUtil.GenerateWildCardDnsFqdn(ip, wildcardInfo.suffix, "", "", false), IPUtil.GenerateWildCardDnsFqdn(ip, wildcardInfo.suffix, "", "", true)));
+
+                                            if (wildcard_before_str._IsFilled())
+                                            {
+                                                tmp.Add((IPUtil.GenerateWildCardDnsFqdn(ip, wildcardInfo.suffix, wildcard_before_str, "", false), IPUtil.GenerateWildCardDnsFqdn(ip, wildcardInfo.suffix, wildcard_before_str, "", true)));
+                                            }
+
+                                            if (wildcard_after_str._IsFilled())
+                                            {
+                                                tmp.Add((IPUtil.GenerateWildCardDnsFqdn(ip, wildcardInfo.suffix, "", wildcard_after_str, false), IPUtil.GenerateWildCardDnsFqdn(ip, wildcardInfo.suffix, "", wildcard_after_str, true)));
+                                            }
+
+                                            List<Tuple<EasyDnsResponder.Record, string?>> tmpList = new List<Tuple<EasyDnsResponder.Record, string?>>();
+
+                                            foreach (var new_fqdn in tmp)
+                                            {
+                                                tmpList.Add(new Tuple<EasyDnsResponder.Record, string?>(new EasyDnsResponder.Record_AAAA(rootVirtualZone, aaaa.Settings, new_fqdn.Item1, ip), new_fqdn.Item2));
+                                            }
+
+                                            // 件数が膨大であるので、戻り値リストに追加せず、ここで直ちに送信をする
+                                            await this.SendBufferedAsync(tmpList, cancel);
+                                        }
+                                    }
+                                }
                             }
                             else
                             {
@@ -2124,6 +2168,10 @@ public class EasyDnsResponder
                     {
                         serialNumber = DnsUtil.GenerateSoaSerialNumberFromDateTime(soaBootTime.AddSeconds(soaVersion));
                     }
+                    else if (serialNumber == Consts.Numbers.MagicNumberB_u32)
+                    {
+                        serialNumber = DnsUtil.GenerateSoaSerialNumberFromDateTime_Legacy(DtOffsetNow);
+                    }
                     return new SoaRecord(domainName, ttl, soa.MasterName, soa.ResponsibleName, serialNumber, soa.RefreshIntervalSecs, soa.RetryIntervalSecs, soa.ExpireIntervalSecs, soa.NegativeCacheTtlSecs);
 
                 case Record_PTR ptr:
@@ -2586,12 +2634,12 @@ public class EasyDnsResponder
                 }
 
                 answers = newList;
-                
-                //注意！ ここで 以下のようにしないこと！！
-                //if (answers.Any() == false)
-                //{
-                //    answers = null;
-                //}
+
+                // フィルタを通り抜けた結果が 1 つも無い場合は、この時点ではまだ not found 状態とする
+                if (answers.Any() == false)
+                {
+                    answers = null;
+                }
             }
 
             // この状態でまだ一致するものがなければ、サブドメイン一覧に一致する場合は空リストを返し、

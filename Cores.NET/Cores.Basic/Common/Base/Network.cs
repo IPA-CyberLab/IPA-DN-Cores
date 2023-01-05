@@ -1543,7 +1543,7 @@ namespace IPA.Cores.Basic
             }
             else
             {
-                int v = 64 - subnetLen;
+                int v = 128 - subnetLen;
                 if (v < 0)
                 {
                     v = 0;
