@@ -364,72 +364,82 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
 
     async Task TcpListenerAcceptProcAsync(NetTcpListenerPort listener, ConnSock sock)
     {
-        var cancel = this.GrandCancel;
-
-        using var st = sock.GetStream();
-
-        if (this.Setting.TcpAxfrCallback == null)
+        try
         {
-            throw new CoresException($"TCP DNS connection request is not allowed because the callback '{nameof(this.Setting.TcpAxfrCallback)}' is not set");
-        }
+            var cancel = this.GrandCancel;
 
-        st.ReadTimeout = 60 * 1000;
+            using var st = sock.GetStream();
 
-        while (true)
-        {
-            // DNS パケットの受信
-            var requestPacket = await ReceiveDnsPacketAsync(sock, st, cancel);
-
-            var requestMsg = requestPacket.Message;
-
-            DnsQuestion? firstQuestion = null;
-
-            if (requestMsg.IsQuery && requestMsg.Questions.Count >= 1)
+            if (this.Setting.TcpAxfrCallback == null)
             {
-                firstQuestion = requestMsg.Questions[0];
+                throw new CoresException($"TCP DNS connection request is not allowed because the callback '{nameof(this.Setting.TcpAxfrCallback)}' is not set");
             }
 
-            if ((firstQuestion?.RecordType ?? RecordType.Unspec).EqualsAny(RecordType.Axfr, RecordType.Ixfr))
+            st.ReadTimeout = 60 * 1000;
+
+            while (true)
             {
-                // AXFR リクエストの場合は特別処理を開始
-                await TcpProcessAxfrAsync(st, requestPacket, firstQuestion!, cancel);
-            }
-            else
-            {
-                // AXFR リクエスト以外の普通の要求に対する応答処理を実施
-                if ((firstQuestion?.RecordType ?? RecordType.Unspec) != RecordType.Soa)
+                // DNS パケットの受信
+                var requestPacket = await ReceiveDnsPacketAsync(sock, st, cancel);
+
+                var requestMsg = requestPacket.Message;
+
+                DnsQuestion? firstQuestion = null;
+
+                if (requestMsg.IsQuery && requestMsg.Questions.Count >= 1)
                 {
-                    // SOA 以外の要求は拒否する
-                    throw new CoresException($"TCP DNS request packet's type must be SOA or AXFR, but the client requested '{(firstQuestion?.RecordType ?? RecordType.Unspec).ToString()}'");
+                    firstQuestion = requestMsg.Questions[0];
                 }
 
-                List<DnsMessageBase> sendMessagesList = new List<DnsMessageBase>();
-
-                // DNS パケットの処理
-                var responsePackets = Setting.StandardQueryCallback(this, requestPacket._SingleList());
-
-                // DNS 応答パケットの生成
-                foreach (var responsePacket in responsePackets)
+                if ((firstQuestion?.RecordType ?? RecordType.Unspec).EqualsAny(RecordType.Axfr, RecordType.Ixfr))
                 {
-                    // 途中で生成された DNS パケットのうち、フォワーダとして他の DNS サーバーに転送するパケットは無視する (TCP 経由では応答しない)
-                    if (IpEndPointComparer.ComparerIgnoreScopeId.Equals(requestPacket.LocalEndPoint, responsePacket.LocalEndPoint) &&
-                        IpEndPointComparer.ComparerIgnoreScopeId.Equals(requestPacket.RemoteEndPoint, responsePacket.RemoteEndPoint))
+                    // AXFR リクエストの場合は特別処理を開始
+                    await TcpProcessAxfrAsync(st, requestPacket, firstQuestion!, cancel);
+                }
+                else
+                {
+                    // AXFR リクエスト以外の普通の要求に対する応答処理を実施
+                    if ((firstQuestion?.RecordType ?? RecordType.Unspec) != RecordType.Soa)
                     {
-                        sendMessagesList.Add(responsePacket.Message);
+                        // SOA 以外の要求は拒否する
+                        throw new CoresException($"TCP DNS request packet's type must be SOA or AXFR, but the client requested '{(firstQuestion?.RecordType ?? RecordType.Unspec).ToString()}'");
                     }
-                }
 
-                if (sendMessagesList.Any() == false)
-                {
-                    // 1 つも返すべきパケットがない場合は ServFail を返す
-                    var servFailMessage = (DnsMessage)requestPacket.Message._CloneDeep();
-                    servFailMessage.IsQuery = false;
-                    servFailMessage.ReturnCode = ReturnCode.ServerFailure;
-                    sendMessagesList.Add(servFailMessage);
-                }
+                    List<DnsMessageBase> sendMessagesList = new List<DnsMessageBase>();
 
-                // DNS 応答パケットの送信
-                await SendDnsPacketAsync(st, sendMessagesList, cancel);
+                    // DNS パケットの処理
+                    var responsePackets = Setting.StandardQueryCallback(this, requestPacket._SingleList());
+
+                    // DNS 応答パケットの生成
+                    foreach (var responsePacket in responsePackets)
+                    {
+                        // 途中で生成された DNS パケットのうち、フォワーダとして他の DNS サーバーに転送するパケットは無視する (TCP 経由では応答しない)
+                        if (IpEndPointComparer.ComparerIgnoreScopeId.Equals(requestPacket.LocalEndPoint, responsePacket.LocalEndPoint) &&
+                            IpEndPointComparer.ComparerIgnoreScopeId.Equals(requestPacket.RemoteEndPoint, responsePacket.RemoteEndPoint))
+                        {
+                            sendMessagesList.Add(responsePacket.Message);
+                        }
+                    }
+
+                    if (sendMessagesList.Any() == false)
+                    {
+                        // 1 つも返すべきパケットがない場合は ServFail を返す
+                        var servFailMessage = (DnsMessage)requestPacket.Message._CloneDeep();
+                        servFailMessage.IsQuery = false;
+                        servFailMessage.ReturnCode = ReturnCode.ServerFailure;
+                        sendMessagesList.Add(servFailMessage);
+                    }
+
+                    // DNS 応答パケットの送信
+                    await SendDnsPacketAsync(st, sendMessagesList, cancel);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            if (!(ex is DisconnectedException))
+            {
+                ex._Error();
             }
         }
     }
