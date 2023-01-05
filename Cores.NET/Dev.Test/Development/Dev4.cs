@@ -151,6 +151,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
         public int ExpireInterval;
         public int DefaultTtl;
         public string TcpAxfrAllowedAcl = "";
+        public string NotifyServers = "";
 
         public ZoneDefOptions() { }
 
@@ -169,6 +170,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
             this.ExpireInterval = o._GetOrEmpty("ExpireInterval")._ToInt();
             this.DefaultTtl = o._GetOrEmpty("DefaultTtl")._ToInt();
             this.TcpAxfrAllowedAcl = o._GetOrEmpty("TcpAxfrAllowedAcl");
+            this.NotifyServers = o._GetOrEmpty("NotifyServers");
 
             this.Normalize();
         }
@@ -189,7 +191,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                     o.Add(tmp);
                 }
             }
-            this.NameServersFqdnList = o._OrderByValue(StrCmpi).Distinct().ToList();
+            this.NameServersFqdnList = o.Distinct(StrCmpi).ToList();
 
             if (this.NameServersFqdnList.Any() == false)
             {
@@ -205,6 +207,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
             if (this.DefaultTtl <= 0) this.DefaultTtl = DevCoresConfig.IpaDnsServiceSettings.Default_DefaultTtl;
 
             TcpAxfrAllowedAcl = TcpAxfrAllowedAcl._NonNullTrim();
+            NotifyServers = NotifyServers._NonNullTrim();
         }
     }
 
@@ -876,7 +879,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
 
         public int Dns_Protocol_TcpAxfrMaxRecordsPerMessage = 32;
 
-        public int Dns_ZoneForceReloadIntervalMsecs = 3000;
+        public int Dns_ZoneForceReloadIntervalMsecs = 5 * 60 * 1000;
 
         public string Dns_ZoneDefFilePathOrUrl = "";
 
@@ -897,7 +900,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
 
             if (Dns_ZoneForceReloadIntervalMsecs <= 0)
             {
-                Dns_ZoneForceReloadIntervalMsecs = 3000;
+                Dns_ZoneForceReloadIntervalMsecs = 5 * 60 * 1000;
             }
 
             base.NormalizeImpl();
@@ -1034,6 +1037,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                     TtlSecs = zoneDef.Options.DefaultTtl,
                 },
                 TcpAxfrAllowedAcl = zoneDef.Options.TcpAxfrAllowedAcl._NonNullTrim(),
+                NotifyServers = zoneDef.Options.NotifyServers._NonNullTrim(),
             };
 
             // SOA レコードを定義
@@ -1106,6 +1110,88 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                     Contents = "_this_is_ptr_record_refer_ReverseRecordsList",
                     Attribute = EasyDnsResponderRecordAttribute.DynamicRecord,
                 });
+
+                // 逆引きゾーンであっても、ゾーンのシリアル番号の計算 (Digest の変化の検出) のために、この逆引きゾーンの範囲内に含まれる可能性のあるすべての逆引きレコードを列挙し、そのダイジェスト値をダミー的に計算する
+                List<StandardRecord> listForCalcDigest = new List<StandardRecord>();
+
+                if (Str.IsEqualToOrSubdomainOf(zone.DomainName, "in-addr.arpa", out _) ||
+                    Str.IsEqualToOrSubdomainOf(zone.DomainName, "ip6.arpa", out _))
+                {
+                    bool ok = false;
+                    (IPAddress, int) targetSubnetInfo = default;
+
+                    try
+                    {
+                        targetSubnetInfo = IPUtil.PtrZoneOrFqdnToIpAddressAndSubnet(zone.DomainName);
+                        ok = true;
+                    }
+                    catch { }
+
+                    if (ok)
+                    {
+                        var ipCmp = IpComparer.ComparerWithIgnoreScopeId;
+                        var zoneIpStart = IPUtil.GetPrefixAddress(targetSubnetInfo.Item1!, targetSubnetInfo.Item2);
+                        var zoneIpEnd = IPUtil.GetBroadcastAddress(targetSubnetInfo.Item1!, targetSubnetInfo.Item2);
+
+                        // すべての逆引きゾーン定義を走査
+                        // Longest Match を実現するため、サブネット長の長い順に安定ソート
+                        foreach (var record in cfg.ReverseRecordsList
+                            .Where(x => x.Type.EqualsAny(StandardRecordType.ReverseCNameSingle, StandardRecordType.ReverseCNameSubnet, StandardRecordType.ReverseSingle, StandardRecordType.ReverseSubnet))
+                            .OrderByDescending(x => x.SubnetLength))
+                        {
+                            IPAddress recordIpStart, recordIpEnd;
+
+                            // サブネットレコードの範囲をゾーンの範囲で分割
+                            if (record.Type == StandardRecordType.ReverseCNameSubnet || record.Type == StandardRecordType.ReverseSubnet)
+                            {
+                                recordIpStart = IPUtil.GetPrefixAddress(record.IpNetwork, record.IpSubnetMask);
+                                recordIpEnd = IPUtil.GetBroadcastAddress(record.IpNetwork, record.IpSubnetMask);
+                            }
+                            else
+                            {
+                                recordIpStart = record.IpNetwork;
+                                recordIpEnd = record.IpNetwork;
+                            }
+
+                            bool addThisRow = false;
+
+                            IPAddress scopeStart = ipCmp.Max(zoneIpStart, recordIpStart);
+                            IPAddress scopeEnd = ipCmp.Min(zoneIpEnd, recordIpEnd);
+
+                            if (record.Type == StandardRecordType.ReverseCNameSubnet || record.Type == StandardRecordType.ReverseSubnet)
+                            {
+                                if (ipCmp.Compare(scopeStart, scopeEnd) <= 0)
+                                {
+                                    IPAddr scopeStartEx = IPAddr.FromAddress(scopeStart);
+                                    IPAddr scopeEndEx = IPAddr.FromAddress(scopeEnd);
+
+                                    BigNumber scopeStartBn = scopeStartEx.GetBigNumber();
+                                    BigNumber scopeEndBn = scopeEndEx.GetBigNumber();
+
+                                    BigNumber num = scopeEndBn - scopeStartBn + 1;
+                                    if (num >= 1)
+                                    {
+                                        addThisRow = true;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                if (ipCmp.Compare(scopeStart, scopeEnd) == 0)
+                                {
+                                    addThisRow = true;
+                                }
+                            }
+
+                            if (addThisRow)
+                            {
+                                listForCalcDigest.Add(record);
+                            }
+                        }
+                    }
+                }
+
+                zone.AdditionalDigestSeedStr = listForCalcDigest._CalcObjectDigestAsJson()._GetHexString();
             }
 
             dst.ZoneList.Add(zone);
@@ -1510,7 +1596,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
             errorStr._Error();
         }
 
-        settings._ObjectToJson()._Print();
+        //settings._ObjectToJson()._Print();
     }
 
     protected override DynConfig CreateInitialDynamicConfigImpl()

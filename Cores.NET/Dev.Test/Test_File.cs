@@ -1138,7 +1138,7 @@ partial class TestDevCommands
         };
 
         ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
-        
+
         string diskName = vl.DefaultParam.StrValue;
         long size = vl["size"].StrValue._ToLong();
         if (size <= 0)
@@ -1337,7 +1337,7 @@ partial class TestDevCommands
     // 指定されたディレクトリやサブディレクトリを列挙し結果をファイルに書き出す
     [ConsoleCommand(
         "DirSuperVerify command",
-        "DirSuperVerify [local] /archived:archived /options:options1,options1,... [/errorlog:errorlog] [/infolog:infolog] [/password:password] [/numthreads:num] [/ignoredirs:dir1,dir2,...]",
+        "DirSuperVerify [local] /archived:archived [/errorlog:errorlog] [/infolog:infolog] [/password:password] [/numthreads:num] [/ignoredirs:dir1,dir2,...]",
         "DirSuperVerify command")]
     static int DirSuperVerify(ConsoleService c, string cmdName, string str)
     {
@@ -1345,7 +1345,6 @@ partial class TestDevCommands
         {
                 new ConsoleParam("[local]", ConsoleService.Prompt, "Local directory path: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("archived", ConsoleService.Prompt, "Archived directory path: ", ConsoleService.EvalNotEmpty, null),
-                new ConsoleParam("options", ConsoleService.Prompt, $"Options ({DirSuperBackupFlags.Default._GetDefinedEnumElementsStrList().Where(x=>!x._StartWithi("Backup"))._Combine(",")}) ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("errorlog"),
                 new ConsoleParam("infolog"),
                 new ConsoleParam("password"),
@@ -1361,7 +1360,6 @@ partial class TestDevCommands
         string infolog = vl["infolog"].StrValue;
         string ignoredirs = vl["ignoredirs"].StrValue;
         string password = vl["password"].StrValue;
-        string options = vl["options"].StrValue;
         string numthreads = vl["numthreads"].StrValue;
 
         bool err = false;
@@ -1375,9 +1373,7 @@ partial class TestDevCommands
             Con.WriteError(ex);
         }
 
-        var optionsValues = options._ParseEnumBits(DirSuperBackupFlags.Default, ',', '|', ' ');
-
-        using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog, optionsValues, encryptPassword: password, numThreads: numthreads._ToInt())))
+        using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog, DirSuperBackupFlags.Default, encryptPassword: password, numThreads: numthreads._ToInt())))
         {
             Async(async () =>
             {

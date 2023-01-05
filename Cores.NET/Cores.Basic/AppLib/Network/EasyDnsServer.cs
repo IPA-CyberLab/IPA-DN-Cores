@@ -71,7 +71,6 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
 {
     public EasyDnsServer DnsServer { get; }
     public EasyDnsResponder DnsResponder { get; }
-    public DateTimeOffset LastDatabaseHealtyTimeStamp => this.DnsResponder.LastDatabaseHealtyTimeStamp;
 
     public bool SaveAccessLogForDebug { get; private set; }
     public bool CopyQueryAdditionalRecordsToResponse { get; set; } = false;
@@ -81,7 +80,7 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
         try
         {
             this.DnsResponder = new EasyDnsResponder();
-            this.DnsServer = new EasyDnsServer(new EasyDnsServerSetting(this.DnsQueryResponseCallback, this.DnsTcpAxfrCallbackAsync, settings.UdpPort, settings.TcpPort));
+            this.DnsServer = new EasyDnsServer(new EasyDnsServerSetting(this.DnsQueryResponseCallback, this.DnsTcpAxfrCallbackAsync, this.GetNotifyPacketsCallback, settings.UdpPort, settings.TcpPort));
         }
         catch
         {
@@ -116,6 +115,31 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
         public DnsUdpPacket? SubmitPacket;
         public DnsUdpPacket[]? ForwardedSubmitPackets;
         public string TookSeconds = "";
+    }
+
+    // ゾーン更新通知パケット生成コールバック関数
+    List<Tuple<string, DnsUdpPacket>> GetNotifyPacketsCallback(EasyDnsServer svr)
+    {
+        List<Tuple<string, DnsUdpPacket>> ret = new List<Tuple<string, DnsUdpPacket>>();
+
+        var zones = this.DnsResponder.GetZonesList();
+
+        foreach (var zone in zones)
+        {
+            var soa = zone.SOARecord.ToDnsLibRecordBase(zone.DomainName, this.DnsResponder.BootDateTime, zone.Version);
+
+            DnsMessage msg = new DnsMessage();
+            msg.Flags = 0x2400; // Zone change notificateion
+
+            var query = new DnsQuestion(zone.DomainName, RecordType.Soa, RecordClass.INet);
+
+            msg.Questions.Add(query);
+            msg.AnswerRecords.Add(soa);
+
+            ret.Add(new Tuple<string, DnsUdpPacket>(zone.NotifyServers, new DnsUdpPacket(IPUtil.LocalHostIPv4HttpEndPoint, IPUtil.LocalHostIPv4HttpEndPoint, msg)));
+        }
+
+        return ret;
     }
 
     // DNS サーバーから呼ばれる TCP AXFR リクエストに対するコールバック関数。ここで TCP レコード応答リストを作る。
@@ -154,14 +178,13 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
         var cancel = req.Cancel;
 
         // SOA レコード (開始を意味する)
-        var timeStamp = LastDatabaseHealtyTimeStamp;
-        await req.SendBufferedAsync(zone.SOARecord, null, cancel, timeStamp);
+        await req.SendBufferedAsync(zone.SOARecord, null, cancel, this.DnsResponder.BootDateTime, zone.Version);
 
         // 本体
         await this.DnsResponder.TcpAxfrCallback(req);
 
         // SOA レコード (終了を意味する)
-        await req.SendBufferedAsync(zone.SOARecord, null, cancel, timeStamp);
+        await req.SendBufferedAsync(zone.SOARecord, null, cancel, this.DnsResponder.BootDateTime, zone.Version);
     }
 
     // DNS サーバーから呼ばれる通常クエリに対するコールバック関数。ここでクエリに対する応答を作る。
@@ -308,6 +331,12 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
 
         var questionType = DnsUtil.DnsLibRecordTypeToEasyDnsResponderRecordType(question.RecordType);
 
+        if (question.RecordType == RecordType.Axfr || question.RecordType == RecordType.Ixfr)
+        {
+            // UDP 経由で AXFR または IXFR リクエストが届いた場合は SOA 要求が届いたものとみなす
+            questionType = EasyDnsResponderRecordType.SOA;
+        }
+
         try
         {
             var searchRequest = new EasyDnsResponder.SearchRequest
@@ -349,25 +378,28 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
                 return q;
             }
 
-            List<DnsRecordBase> answersList = new List<DnsRecordBase>(searchResponse.RecordList.Count + (searchResponse.AdditionalRecordList?.Count ?? 0));
+            List<DnsRecordBase> answersList = new List<DnsRecordBase>(searchResponse.RecordList.Count + (searchResponse.GlueRecordListForNs?.Count ?? 0));
 
             foreach (var ans in searchResponse.RecordList._Shuffle())
             {
-                var a = ans.ToDnsLibRecordBase(question, this.LastDatabaseHealtyTimeStamp);
+                var a = ans.ToDnsLibRecordBase(question, this.DnsResponder.BootDateTime, searchResponse.Zone?.Version ?? 0);
                 if (a != null)
                 {
                     answersList.Add(a);
                 }
             }
 
-            if (searchResponse.AdditionalRecordList != null)
+            if (searchResponse.GlueRecordListForNs != null)
             {
-                foreach (var ans in searchResponse.AdditionalRecordList._Shuffle())
+                if (answersList.Where(x => x.RecordType == RecordType.Ns).Any()) // Glue レコードは NS 応答が 1 つ以上存在する場合のみ挿入する
                 {
-                    var a = ans.ToDnsLibRecordBase(DomainName.Parse(Str.CombineFqdn(ans.Name, ans.ParentZone.DomainFqdn)), this.LastDatabaseHealtyTimeStamp);
-                    if (a != null)
+                    foreach (var ans in searchResponse.GlueRecordListForNs._Shuffle())
                     {
-                        answersList.Add(a);
+                        var a = ans.ToDnsLibRecordBase(DomainName.Parse(Str.CombineFqdn(ans.Name, ans.ParentZone.DomainFqdn)), this.DnsResponder.BootDateTime, searchResponse.Zone?.Version ?? 0);
+                        if (a != null)
+                        {
+                            answersList.Add(a);
+                        }
                     }
                 }
             }
@@ -448,7 +480,7 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
                     {
                         glueRecordDistinctHash.Add(test);
 
-                        var r = glue.ToDnsLibRecordBase(DomainName.Parse(glue.Name + "." + glue.ParentZone.DomainFqdn), this.LastDatabaseHealtyTimeStamp);
+                        var r = glue.ToDnsLibRecordBase(DomainName.Parse(glue.Name + "." + glue.ParentZone.DomainFqdn), this.DnsResponder.BootDateTime, searchResponse.Zone?.Version ?? 0);
 
                         q.AdditionalRecords.Add(r);
                     }
@@ -470,7 +502,7 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
                 q.IsAuthoritiveAnswer = true;
 
                 // 回答権威者の SOA レコード
-                q.AuthorityRecords.Add(searchResponse.SOARecord.ToDnsLibRecordBase(searchResponse.ZoneDomainName, this.LastDatabaseHealtyTimeStamp));
+                q.AuthorityRecords.Add(searchResponse.SOARecord.ToDnsLibRecordBase(searchResponse.ZoneDomainName, this.DnsResponder.BootDateTime, searchResponse.Zone?.Version ?? 0));
             }
         }
         catch

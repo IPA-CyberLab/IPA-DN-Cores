@@ -318,12 +318,13 @@ public class EasyDnsServerSetting
     public int TcpPort { get; }
     public Func<EasyDnsServer, List<DnsUdpPacket>, List<DnsUdpPacket>> StandardQueryCallback { get; }
     public Func<EasyDnsServer, EasyDnsServerTcpAxfrCallbackParam, Task>? TcpAxfrCallback { get; }
+    public Func<EasyDnsServer, List<Tuple<string, DnsUdpPacket>>>? GetNotifyPacketsCallback { get; }
 
-
-    public EasyDnsServerSetting(Func<EasyDnsServer, List<DnsUdpPacket>, List<DnsUdpPacket>> standardQueryCallback, Func<EasyDnsServer, EasyDnsServerTcpAxfrCallbackParam, Task>? tcpAxfrCallback, int udpPort = Consts.Ports.Dns, int tcpPort = 0)
+    public EasyDnsServerSetting(Func<EasyDnsServer, List<DnsUdpPacket>, List<DnsUdpPacket>> standardQueryCallback, Func<EasyDnsServer, EasyDnsServerTcpAxfrCallbackParam, Task>? tcpAxfrCallback, Func<EasyDnsServer, List<Tuple<string, DnsUdpPacket>>>? getNotifyPacketsCallback, int udpPort = Consts.Ports.Dns, int tcpPort = 0)
     {
         this.StandardQueryCallback = standardQueryCallback;
         this.TcpAxfrCallback = tcpAxfrCallback;
+        this.GetNotifyPacketsCallback = getNotifyPacketsCallback;
         this.UdpPort = udpPort;
         this.TcpPort = tcpPort;
     }
@@ -388,7 +389,7 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
                 firstQuestion = requestMsg.Questions[0];
             }
 
-            if ((firstQuestion?.RecordType ?? RecordType.Unspec) == RecordType.Axfr)
+            if ((firstQuestion?.RecordType ?? RecordType.Unspec).EqualsAny(RecordType.Axfr, RecordType.Ixfr))
             {
                 // AXFR リクエストの場合は特別処理を開始
                 await TcpProcessAxfrAsync(st, requestPacket, firstQuestion!, cancel);
@@ -529,6 +530,132 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
         return packet;
     }
 
+    // DNS ゾーン更新通知のメインループ
+    async Task NotifyMainLoopAsync()
+    {
+        var cancel = this.GrandCancel;
+
+        while (cancel.IsCancellationRequested == false)
+        {
+            try
+            {
+                if (this.Setting.GetNotifyPacketsCallback != null)
+                {
+                    List<Tuple<string, DnsUdpPacket>> packetsList = this.Setting.GetNotifyPacketsCallback(this);
+
+                    // 送付先ホスト名の名前解決
+                    Dictionary<string, string> resolvedEpDict = new Dictionary<string, string>(StrCmpi);
+
+                    foreach (var packet in packetsList)
+                    {
+                        var serversList = packet.Item1;
+
+                        if (resolvedEpDict.ContainsKey(serversList) == false)
+                        {
+                            string resolved = "";
+
+                            try
+                            {
+                                resolved = await LocalNet.ResolveHostAndPortListStrToIpAndPortListStrAsync(serversList, 53, cancel: cancel, multiple: true);
+                            }
+                            catch (Exception ex)
+                            {
+                                ex._Error();
+                            }
+
+                            resolvedEpDict.Add(serversList, resolved);
+                        }
+                    }
+
+                    // 送付すべきパケットリストを DNS サーバーごとに整理する
+                    Dictionary<IPEndPoint, List<DnsUdpPacket>> perDnsServerList = new Dictionary<IPEndPoint, List<DnsUdpPacket>>(IpEndPointComparer.ComparerIgnoreScopeId);
+
+                    foreach (var packet in packetsList)
+                    {
+                        var serversList = packet.Item1;
+                        var udpPacket = packet.Item2;
+
+                        string resolved = resolvedEpDict._GetOrDefault(serversList, "");
+                        if (resolved._IsFilled())
+                        {
+                            var epList = IPUtil.ParseIpAndPortList(resolved);
+
+                            foreach (var ep in epList)
+                            {
+                                perDnsServerList._GetOrNew(ep).Add(udpPacket);
+                            }
+                        }
+                    }
+
+                    // 並列して更新通知パケットを送付
+                    await perDnsServerList._DoForEachParallelAsync(async (target, taskIndex) =>
+                    {
+                        try
+                        {
+                            var remoteEndPoint = target.Key;
+                            var packetList = target.Value;
+
+                            using UdpClient udp = new UdpClient(remoteEndPoint.AddressFamily);
+
+                            foreach (var packet in packetList)
+                            {
+                                int numTry = 5;
+                                int timeout = 2000;
+
+                                for (int i = 0; i < numTry; i++)
+                                {
+                                    bool ok = false;
+
+                                    try
+                                    {
+                                        await udp.SendAsync(DnsUtil.BuildPacket(packet.Message).ToArray(), remoteEndPoint, cancel);
+
+                                        long giveup = TickNow + timeout;
+
+                                        while (TickNow < giveup)
+                                        {
+                                            try
+                                            {
+                                                var recvMsg = await udp.ReceiveAsync(timeout / 4, cancel);
+                                                if (IpEndPointComparer.ComparerIgnoreScopeId.Equals(recvMsg.RemoteEndPoint, packet.RemoteEndPoint))
+                                                {
+                                                    ok = true;
+                                                    break;
+                                                }
+                                            }
+                                            catch { }
+                                        }
+                                    }
+                                    catch { }
+
+                                    if (ok)
+                                    {
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            // 例外は握りつぶす
+                            ex._Error();
+                        }
+                    },
+                    16,
+                    MultitaskDivideOperation.RoundRobin,
+                    cancel);
+                }
+            }
+            catch (Exception ex)
+            {
+                ex._Error();
+            }
+
+            await this.GrandCancel._WaitUntilCanceledAsync(Util.GenRandInterval(1000));
+        }
+    }
+
+    // DNS サーバー機能のメインループ
     async Task MainLoopAsync(CancellationToken cancel)
     {
         await using var udpListener = LocalNet.CreateUdpListener(new NetUdpListenerOptions(TcpDirectionType.Server));
@@ -542,110 +669,119 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
         udpListener.AddEndPoint(new IPEndPoint(IPAddress.Any, 0));
         udpListener.AddEndPoint(new IPEndPoint(IPAddress.IPv6Any, 0));
 
-        await using var udpSock = udpListener.GetSocket(true);
-
-        while (cancel.IsCancellationRequested == false)
+        // Zone 更新通知発信スレッド
+        var notifyLoopTask = TaskUtil.StartAsyncTaskAsync(NotifyMainLoopAsync);
+        try
         {
-            try
+            await using var udpSock = udpListener.GetSocket(true);
+
+            while (cancel.IsCancellationRequested == false)
             {
-                // UDP パケットを受信するまで待機して受信を実行 (タイムアウトが発生した場合も抜ける)
-                var allRecvList = await udpSock.ReceiveDatagramsListAsync(cancel: cancel, timeout: this._DynOptions.UdpRecvLoopPollingIntervalMsecs, noTimeoutException: true, cancelEvent: UdpRecvCancelEvent);
-
-                var proxyAcl = new EasyIpAcl(this._DynOptions.DnsProxyProtocolAcceptSrcIpAcl, EasyIpAclAction.Deny, EasyIpAclAction.Deny, false);
-
-                // 受信した UDP パケットを複数の CPU で処理
-                var allSendList = await allRecvList._ProcessParallelAndAggregateAsync((perTaskRecvList, taskIndex) =>
+                try
                 {
-                    // 以下の処理は各 CPU で分散
-                    List<DnsUdpPacket> perTaskRequestPacketsList = new List<DnsUdpPacket>(perTaskRecvList.Count);
+                    // UDP パケットを受信するまで待機して受信を実行 (タイムアウトが発生した場合も抜ける)
+                    var allRecvList = await udpSock.ReceiveDatagramsListAsync(cancel: cancel, timeout: this._DynOptions.UdpRecvLoopPollingIntervalMsecs, noTimeoutException: true, cancelEvent: UdpRecvCancelEvent);
 
-                    // 受信した UDP パケットをすべてパースし DNS パケットをパースする
-                    foreach (var item in perTaskRecvList)
+                    var proxyAcl = new EasyIpAcl(this._DynOptions.DnsProxyProtocolAcceptSrcIpAcl, EasyIpAclAction.Deny, EasyIpAclAction.Deny, false);
+
+                    // 受信した UDP パケットを複数の CPU で処理
+                    var allSendList = await allRecvList._ProcessParallelAndAggregateAsync((perTaskRecvList, taskIndex) =>
                     {
-                        if (item != null)
+                        // 以下の処理は各 CPU で分散
+                        List<DnsUdpPacket> perTaskRequestPacketsList = new List<DnsUdpPacket>(perTaskRecvList.Count);
+
+                        // 受信した UDP パケットをすべてパースし DNS パケットをパースする
+                        foreach (var item in perTaskRecvList)
                         {
-                            try
+                            if (item != null)
                             {
-                                DnsUdpPacketFlags flags = DnsUdpPacketFlags.None;
-
-                                IPEndPoint? originalRemoteEndPoint = null;
-
-                                var dnsPacketData = item.Data.Span;
-
-                                if (this._DynOptions.ParseUdpProxyProtocolV2)
+                                try
                                 {
-                                    // Proxy Protocol のパースを試行
-                                    if (ProxyProtocolV2Parsed.TryParse(ref dnsPacketData, out var proxyProtocolParsed))
+                                    DnsUdpPacketFlags flags = DnsUdpPacketFlags.None;
+
+                                    IPEndPoint? originalRemoteEndPoint = null;
+
+                                    var dnsPacketData = item.Data.Span;
+
+                                    if (this._DynOptions.ParseUdpProxyProtocolV2)
                                     {
-                                        // パースに成功した場合 ACL を確認
-                                        if (proxyAcl.Evaluate(item.RemoteIPEndPoint!.Address) == EasyIpAclAction.Permit)
+                                        // Proxy Protocol のパースを試行
+                                        if (ProxyProtocolV2Parsed.TryParse(ref dnsPacketData, out var proxyProtocolParsed))
                                         {
-                                            // ACL が一致した場合のみ Proxy Protocol の結果を採用。それ以外の場合は無視
-                                            originalRemoteEndPoint = proxyProtocolParsed.SrcEndPoint;
-                                            if (originalRemoteEndPoint != null)
+                                            // パースに成功した場合 ACL を確認
+                                            if (proxyAcl.Evaluate(item.RemoteIPEndPoint!.Address) == EasyIpAclAction.Permit)
                                             {
-                                                flags |= DnsUdpPacketFlags.ViaDnsProxy;
+                                                // ACL が一致した場合のみ Proxy Protocol の結果を採用。それ以外の場合は無視
+                                                originalRemoteEndPoint = proxyProtocolParsed.SrcEndPoint;
+                                                if (originalRemoteEndPoint != null)
+                                                {
+                                                    flags |= DnsUdpPacketFlags.ViaDnsProxy;
+                                                }
                                             }
                                         }
                                     }
+
+                                    var request = DnsUtil.ParsePacket(dnsPacketData);
+
+                                    DnsUdpPacket pkt = new DnsUdpPacket(item.RemoteIPEndPoint!, item.LocalIPEndPoint!, request, originalRemoteEndPoint, flags);
+
+                                    perTaskRequestPacketsList.Add(pkt);
                                 }
+                                catch { }
+                            }
+                        }
 
-                                var request = DnsUtil.ParsePacket(dnsPacketData);
+                        // 指定されたコールバック関数を呼び出して DNS クエリを解決し、回答すべき DNS レスポンス一覧を生成する
+                        List<DnsUdpPacket> perTaskReaponsePacketsList = Setting.StandardQueryCallback(this, perTaskRequestPacketsList);
 
-                                DnsUdpPacket pkt = new DnsUdpPacket(item.RemoteIPEndPoint!, item.LocalIPEndPoint!, request, originalRemoteEndPoint, flags);
+                        List<Datagram> perTaskSendList = new List<Datagram>(perTaskReaponsePacketsList.Count);
 
-                                perTaskRequestPacketsList.Add(pkt);
+                        // 回答すべき DNS レスポンス一覧をバイナリとしてビルドし UDP パケットを生成
+                        foreach (var responsePkt in perTaskReaponsePacketsList)
+                        {
+                            try
+                            {
+                                Memory<byte> packetData = DnsUtil.BuildPacket(responsePkt.Message).ToArray();
+
+                                //responsePkt.RemoteEndPoint.ToString()._Print();
+
+                                var datagram = new Datagram(packetData, responsePkt.RemoteEndPoint, responsePkt.LocalEndPoint);
+
+                                //responsePkt.RemoteEndPoint.ToString()._Print();
+                                perTaskSendList.Add(datagram);
+                                //responsePkt.RemoteEndPoint.ToString()._Print();
+                                //perTaskSendList[0].RemoteEndPoint.ToString()._Print();
                             }
                             catch { }
                         }
-                    }
 
-                    // 指定されたコールバック関数を呼び出して DNS クエリを解決し、回答すべき DNS レスポンス一覧を生成する
-                    List<DnsUdpPacket> perTaskReaponsePacketsList = Setting.StandardQueryCallback(this, perTaskRequestPacketsList);
+                        return TR(perTaskSendList);
+                    },
+                    operation: MultitaskDivideOperation.RoundRobin,
+                    cancel: cancel);
 
-                    List<Datagram> perTaskSendList = new List<Datagram>(perTaskReaponsePacketsList.Count);
+                    // UDP パケットを応答 (通常分)
+                    await udpSock.SendDatagramsListAsync(allSendList.ToArray(), cancel: cancel);
 
-                    // 回答すべき DNS レスポンス一覧をバイナリとしてビルドし UDP パケットを生成
-                    foreach (var responsePkt in perTaskReaponsePacketsList)
+                    // UDP パケットを応答 (Delay 回答分)
+                    Datagram[] delayedUdpPacketsArray;
+                    lock (this.DelayedReplyUdpPacketsList)
                     {
-                        try
-                        {
-                            Memory<byte> packetData = DnsUtil.BuildPacket(responsePkt.Message).ToArray();
-
-                            //responsePkt.RemoteEndPoint.ToString()._Print();
-
-                            var datagram = new Datagram(packetData, responsePkt.RemoteEndPoint, responsePkt.LocalEndPoint);
-
-                            //responsePkt.RemoteEndPoint.ToString()._Print();
-                            perTaskSendList.Add(datagram);
-                            //responsePkt.RemoteEndPoint.ToString()._Print();
-                            //perTaskSendList[0].RemoteEndPoint.ToString()._Print();
-                        }
-                        catch { }
+                        delayedUdpPacketsArray = DelayedReplyUdpPacketsList.ToArray();
+                        DelayedReplyUdpPacketsList.Clear();
                     }
 
-                    return TR(perTaskSendList);
-                },
-                operation: MultitaskDivideOperation.RoundRobin,
-                cancel: cancel);
-
-                // UDP パケットを応答 (通常分)
-                await udpSock.SendDatagramsListAsync(allSendList.ToArray(), cancel: cancel);
-
-                // UDP パケットを応答 (Delay 回答分)
-                Datagram[] delayedUdpPacketsArray;
-                lock (this.DelayedReplyUdpPacketsList)
-                {
-                    delayedUdpPacketsArray = DelayedReplyUdpPacketsList.ToArray();
-                    DelayedReplyUdpPacketsList.Clear();
+                    await udpSock.SendDatagramsListAsync(delayedUdpPacketsArray, cancel: cancel);
                 }
-
-                await udpSock.SendDatagramsListAsync(delayedUdpPacketsArray, cancel: cancel);
+                catch (Exception ex)
+                {
+                    ex._Debug();
+                }
             }
-            catch (Exception ex)
-            {
-                ex._Debug();
-            }
+        }
+        finally
+        {
+            await notifyLoopTask._TryWaitAsync();
         }
     }
 
@@ -883,6 +1019,8 @@ public class EasyDnsResponderZone
     public EasyDnsResponderRecordSettings? DefaultSettings { get; set; } = null;
 
     public string TcpAxfrAllowedAcl { get; set; } = "";
+    public string NotifyServers { get; set; } = "";
+    public string AdditionalDigestSeedStr { get; set; } = "";
 }
 
 public class EasyDnsResponderSettings
@@ -1151,20 +1289,20 @@ public class EasyDnsResponderTcpAxfrCallbackRequest
     }
 
     // 複数個の DNS レコードを送信する
-    public async Task SendBufferedAsync(IEnumerable<Tuple<EasyDnsResponder.Record, string?>> recordList, CancellationToken cancel = default, DateTimeOffset? timeStampForSoa = null, bool distinct = false, bool sort = false)
+    public async Task SendBufferedAsync(IEnumerable<Tuple<EasyDnsResponder.Record, string?>> recordList, CancellationToken cancel = default, DateTimeOffset? bootTimeForSoa = null, int soaVersion = 0, bool distinct = false, bool sort = false)
     {
         HashSet<string> distinctHash = new HashSet<string>();
         List<(DnsRecordBase, string)> answerList = new List<(DnsRecordBase, string)>();
 
         foreach (var record in recordList)
         {
-            DateTimeOffset timeStampForSoa2 = DtOffsetZero;
+            DateTimeOffset bootTimeForSoa2 = DtOffsetZero;
 
             string fqdn = Str.CombineFqdn(record.Item1.Name, record.Item1.ParentZone.DomainFqdn);
 
             if (record.Item1.Type == EasyDnsResponderRecordType.SOA)
             {
-                timeStampForSoa2 = timeStampForSoa ?? DtOffsetNow;
+                bootTimeForSoa2 = bootTimeForSoa ?? DtOffsetNow;
             }
 
             DomainName domainName;
@@ -1178,7 +1316,7 @@ public class EasyDnsResponderTcpAxfrCallbackRequest
                 domainName = DomainName.Parse(fqdn);
             }
 
-            var answer = record.Item1.ToDnsLibRecordBase(domainName, timeStampForSoa2);
+            var answer = record.Item1.ToDnsLibRecordBase(domainName, bootTimeForSoa2, soaVersion);
 
             if (answer != null)
             {
@@ -1207,8 +1345,8 @@ public class EasyDnsResponderTcpAxfrCallbackRequest
     }
 
     // 1 個の DNS レコードを送信する
-    public Task SendBufferedAsync(EasyDnsResponder.Record record, string? fqdnForSort = null, CancellationToken cancel = default, DateTimeOffset? timeStampForSoa = null)
-        => SendBufferedAsync(new Tuple<EasyDnsResponder.Record, string?>(record, fqdnForSort)._SingleArray(), cancel, timeStampForSoa);
+    public Task SendBufferedAsync(EasyDnsResponder.Record record, string? fqdnForSort = null, CancellationToken cancel = default, DateTimeOffset? bootTimeFotSoa = null, int soaVersion = 0)
+        => SendBufferedAsync(new Tuple<EasyDnsResponder.Record, string?>(record, fqdnForSort)._SingleArray(), cancel, bootTimeFotSoa, soaVersion);
 }
 
 // ダイナミックレコードのコールバック関数に渡されるリクエストデータ
@@ -1969,7 +2107,7 @@ public class EasyDnsResponder
             throw new CoresLibException($"Unknown record type: {src.Type}");
         }
 
-        public DnsRecordBase? ToDnsLibRecordBase(DomainName domainName, DateTimeOffset timeStampForSoa)
+        public DnsRecordBase? ToDnsLibRecordBase(DomainName domainName, DateTimeOffset soaBootTime, int soaVersion)
         {
             int ttl = this.Settings.TtlSecs;
 
@@ -1991,7 +2129,7 @@ public class EasyDnsResponder
                     uint serialNumber = soa.SerialNumber;
                     if (serialNumber == Consts.Numbers.MagicNumber_u32)
                     {
-                        serialNumber = DnsUtil.GenerateSoaSerialNumberFromDateTime(timeStampForSoa);
+                        serialNumber = DnsUtil.GenerateSoaSerialNumberFromDateTime(soaBootTime.AddSeconds(soaVersion));
                     }
                     return new SoaRecord(domainName, ttl, soa.MasterName, soa.ResponsibleName, serialNumber, soa.RefreshIntervalSecs, soa.RetryIntervalSecs, soa.ExpireIntervalSecs, soa.NegativeCacheTtlSecs);
 
@@ -2014,8 +2152,8 @@ public class EasyDnsResponder
             return null;
         }
 
-        public DnsRecordBase? ToDnsLibRecordBase(DnsQuestion q, DateTimeOffset timeStampForSoa)
-            => ToDnsLibRecordBase(q.Name, timeStampForSoa);
+        public DnsRecordBase? ToDnsLibRecordBase(DnsQuestion q, DateTimeOffset soaBootTime, int soaVersion)
+            => ToDnsLibRecordBase(q.Name, soaBootTime, soaVersion);
     }
 
     // フォワーダの種類
@@ -2112,6 +2250,9 @@ public class EasyDnsResponder
         public EasyDnsResponderRecordSettings Settings;
         public EasyDnsResponderZone SrcZone;
         public string TcpAxfrAllowedAcl = "";
+        public string NotifyServers = "";
+
+        public string SettingDigest = "";
 
         public List<Record> RecordList = new List<Record>();
         public StrDictionary<List<Record>> RecordDictByName = new StrDictionary<List<Record>>();
@@ -2133,6 +2274,8 @@ public class EasyDnsResponder
         public bool Has_NSDelegationRecordList = false;
 
         public bool IsVirtualRootZone = false;
+
+        public int Version = 0;
 
         // Glue レコード等の内部的生成に便宜上必要となるルートゾーン (.) の定義
         public Zone(EnsureSpecial isVirtualRootZone, Zone templateZone)
@@ -2158,6 +2301,8 @@ public class EasyDnsResponder
             this.DomainName = new DomainName(this.DomainFqdn._Split(StringSplitOptions.None, '.').AsMemory());
 
             this.TcpAxfrAllowedAcl = src.TcpAxfrAllowedAcl;
+
+            this.NotifyServers = src.NotifyServers;
 
             Record_SOA? soa = null;
 
@@ -2296,6 +2441,9 @@ public class EasyDnsResponder
             this.Has_NSDelegationRecordList = this.NSDelegationRecordList.Any();
 
             this.SrcZone = src._CloneDeep();
+
+            // ダイジェスト値の保存
+            this.SettingDigest = this.SrcZone._CalcObjectDigestAsJson()._GetHexString();
         }
 
         public SearchResult Search(string hostLabelNormalized, ReadOnlyMemory<string> hostLabelSpan)
@@ -2542,7 +2690,7 @@ public class EasyDnsResponder
             SearchResult ret = new SearchResult
             {
                 RecordList = answers,
-                AdditionalRecordList = glueRecords,
+                GlueRecordListForNs = glueRecords,
                 SOARecord = this.SOARecord,
                 Zone = this,
                 ResultFlags = (answers == null ? SearchResultFlags.NotFound : SearchResultFlags.NormalAnswer),
@@ -2566,21 +2714,9 @@ public class EasyDnsResponder
         public bool HasForwarder_SubnetBased = false;
         public bool HasForwarder_WildcardBased = false;
 
-        public DateTimeOffset TimeStamp = DnsUtil.DnsDtStartDay;
-        public int AddSecondsToTimeStamp = 0;
-
         // Settings からコンパイルする
-        public DataSet(EasyDnsResponderSettings src, DateTimeOffset timeStamp = default, int addSecondsToTimeStamp = 0)
+        public DataSet(EasyDnsResponderSettings src)
         {
-            if (timeStamp == default)
-            {
-                timeStamp = DnsUtil.DnsDtStartDay;
-            }
-
-            this.TimeStamp = timeStamp;
-
-            this.AddSecondsToTimeStamp = Math.Max(0, addSecondsToTimeStamp);
-
             this.Settings = (src.DefaultSettings ?? new EasyDnsResponderRecordSettings())._CloneDeep();
 
             // ゾーン情報のコンパイル
@@ -2675,7 +2811,7 @@ public class EasyDnsResponder
     public class SearchResult
     {
         public List<Record>? RecordList { get; set; } = null; // null: サブドメインが全く存在しない 空リスト: サブドメインは存在するものの、レコードは存在しない
-        public List<Record>? AdditionalRecordList { get; set; } = null;
+        public List<Record>? GlueRecordListForNs { get; set; } = null;
 
         [JsonIgnore]
         public Zone Zone { get; set; } = null!;
@@ -2692,58 +2828,67 @@ public class EasyDnsResponder
 
     DataSet? CurrentDataSet = null;
 
-    public DateTimeOffset LastDatabaseHealtyTimeStamp
+    string OldWholeDigest = "";
+
+    readonly CriticalSection<EasyDnsResponder> ApplySettingsLock = new CriticalSection<EasyDnsResponder>();
+
+    public readonly DateTimeOffset BootDateTime = DtOffsetNow;
+
+    StrDictionary<int> ZoneVersionsDict = new StrDictionary<int>(StrCmpi);
+
+    public void ApplySetting(EasyDnsResponderSettings setting)
     {
-        get
+        string newWholeDigest = setting._CalcObjectDigestAsJson()._GetHexString();
+
+        lock (ApplySettingsLock)
         {
-            var ds = this.CurrentDataSet;
-            if (ds == null)
+            if (newWholeDigest != OldWholeDigest) // setting 全体のハッシュを確認し、変化があった場合のみ読み込む
             {
-                return DnsUtil.DnsDtStartDay;
-            }
-            else
-            {
-                var ts = ds.TimeStamp;
+                OldWholeDigest = newWholeDigest;
 
-                if (ds.AddSecondsToTimeStamp >= 0)
+                var dataSet = new DataSet(setting);
+
+                // ゾーン情報の元データに変化があったかどうか確認する
+                foreach (var zone in dataSet.ZoneDict.Values)
                 {
-                    ts = ts.AddSeconds(ds.AddSecondsToTimeStamp);
+                    string newZoneDigest = zone.SettingDigest;
+
+                    string oldZoneDigest = "";
+                    if (this.CurrentDataSet != null)
+                    {
+                        var oldZone = this.CurrentDataSet.ZoneDict._GetOrDefault(zone.DomainFqdn);
+                        if (oldZone != null)
+                        {
+                            oldZoneDigest = oldZone.SettingDigest;
+                        }
+                    }
+
+                    if (newZoneDigest != oldZoneDigest)
+                    {
+                        int zoneVer = ZoneVersionsDict._GetOrDefault(zone.DomainFqdn, -1);
+                        zoneVer += 1;
+                        ZoneVersionsDict[zone.DomainFqdn] = zoneVer;
+                    }
+
+                    zone.Version = ZoneVersionsDict._GetOrDefault(zone.DomainFqdn, 0);
                 }
 
-                if (ts >= DnsUtil.DnsDtStartDay)
-                {
-                    return ts;
-                }
-                else
-                {
-                    return DnsUtil.DnsDtStartDay;
-                }
+                this.CurrentDataSet = dataSet;
+
+                ZoneVersionsDict._PrintAsJson();
             }
         }
     }
 
-    string OldDigest = "";
-
-    readonly CriticalSection<EasyDnsResponder> ApplySettingsLock = new CriticalSection<EasyDnsResponder>();
-
-    int NumChanged = 0;
-
-    public void ApplySetting(EasyDnsResponderSettings setting)
+    public List<Zone> GetZonesList()
     {
-        string newDigest = setting._CalcObjectDigestAsJson()._GetHexString();
-
-        lock (ApplySettingsLock)
+        List<Zone> ret = new List<Zone>();
+        var dataSet = this.CurrentDataSet;
+        if (dataSet != null)
         {
-            if (newDigest != OldDigest)
-            {
-                OldDigest = newDigest;
-
-                int numChanged = this.NumChanged++;
-
-                var dataSet = new DataSet(setting, DtOffsetNow, numChanged);
-                this.CurrentDataSet = dataSet;
-            }
+            dataSet.ZoneDict.Values.OrderBy(x => x.DomainFqdn, FqdnReverseStrComparer.ComparerConsiderDepth)._DoForEach(x => ret.Add(x));
         }
+        return ret;
     }
 
     public DnsUdpPacket? TryProcessForwarderResponse(DnsUdpPacket recvPacket)

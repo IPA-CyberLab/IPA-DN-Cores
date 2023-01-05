@@ -360,18 +360,23 @@ public class DirSuperBackup : AsyncService
                 try
                 {
                     // バックアップ先のメタデータからこのファイルを検索する
-                    if (archivesDirFileMetaDataDic.TryGetValue(localFile.Name, out var archivedMetaData) == false)
+                    if (archivesDirFileMetaDataDic.TryGetValue(localFile.Name, out var archivedFileMetaData2) == false)
                     {
                         // バックアップ先のメタデータ上にこのファイルが存在しない
                         errDescription = "FileNotFoundOnMetadata";
                         throw new CoresException($"File '{localFile.Name}' not found on the metadata of the directory '{archivedDir}'");
                     }
 
-                    // ローカルファイルとバックアップ先ファイルとのメタデータを比較する
+                    var archivedFileMetaData = archivedFileMetaData2.MetaData;
+
+                    // ローカルファイルとバックアップ先ファイルとの主要なメタデータを比較する
                     localFileMetadata = await Fs.GetFileMetadataAsync(localFile.FullPath, cancel: cancel);
 
+                    localFileMetadata.Security = null;
+                    archivedFileMetaData.Security = null;
+
                     string localFileMetadataJson = localFileMetadata._ObjectToJson(compact: true);
-                    string archivedFileMetadataJson = archivedMetaData.MetaData._ObjectToJson(compact: true);
+                    string archivedFileMetadataJson = archivedFileMetaData._ObjectToJson(compact: true);
 
                     if (localFileMetadataJson != archivedFileMetadataJson)
                     {
@@ -383,10 +388,10 @@ public class DirSuperBackup : AsyncService
                     bool isEncrypted = false;
                     string encryptPassword = "";
 
-                    if (archivedMetaData.EncrypedFileName._IsNullOrZeroLen() == false)
+                    if (archivedFileMetaData2.EncrypedFileName._IsNullOrZeroLen() == false)
                     {
                         // 暗号化ファイルである
-                        archivedFilePath = Fs.PathParser.Combine(archivedDir, archivedMetaData.EncrypedFileName);
+                        archivedFilePath = Fs.PathParser.Combine(archivedDir, archivedFileMetaData2.EncrypedFileName);
 
                         // 暗号化ファイルである
                         if (Options.EncryptPassword._IsNullOrZeroLen())
@@ -410,13 +415,15 @@ public class DirSuperBackup : AsyncService
 
                     if (isEncrypted == false)
                     {
+                        // NoCheckFileSize を付けないと、一部の Windows クライアントと一部の Samba サーバーとの間でヘンなエラーが発生する。
                         funcName = "CompareFileHashAsync";
-                        sameRet = await FileUtil.CompareFileHashAsync(new FilePath(localFile.FullPath, Fs, flags: FileFlags.BackupMode), new FilePath(archivedFilePath, Fs, flags: FileFlags.BackupMode), cancel: cancel, hashStr1: hashStr1, hashStr2: hashStr2, exception: exception);
+                        sameRet = await FileUtil.CompareFileHashAsync(new FilePath(localFile.FullPath, Fs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), new FilePath(archivedFilePath, Fs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), cancel: cancel, hashStr1: hashStr1, hashStr2: hashStr2, exception: exception);
                     }
                     else
                     {
+                        // NoCheckFileSize を付けないと、一部の Windows クライアントと一部の Samba サーバーとの間でヘンなエラーが発生する。
                         funcName = "CompareEncryptedFileHashAsync";
-                        sameRet = await FileUtil.CompareEncryptedFileHashAsync(encryptPassword, true, new FilePath(localFile.FullPath, Fs, flags: FileFlags.BackupMode), new FilePath(archivedFilePath, Fs, flags: FileFlags.BackupMode), cancel: cancel, hashStr1: hashStr1, hashStr2: hashStr2, exception: exception);
+                        sameRet = await FileUtil.CompareEncryptedFileHashAsync(encryptPassword, true, new FilePath(localFile.FullPath, Fs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), new FilePath(archivedFilePath, Fs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), cancel: cancel, hashStr1: hashStr1, hashStr2: hashStr2, exception: exception);
                     }
 
                     if (sameRet.IsOk == false)
@@ -695,11 +702,13 @@ public class DirSuperBackup : AsyncService
 
                                     if (isEncrypted == false)
                                     {
-                                        sameRet = await FileUtil.CompareFileHashAsync(new FilePath(srcFilePath, Fs, flags: FileFlags.BackupMode), new FilePath(destFilePath, Fs, flags: FileFlags.BackupMode), cancel: cancel);
+                                        // NoCheckFileSize を付けないと、一部の Windows クライアントと一部の Samba サーバーとの間でヘンなエラーが発生する。
+                                        sameRet = await FileUtil.CompareFileHashAsync(new FilePath(srcFilePath, Fs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), new FilePath(destFilePath, Fs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), cancel: cancel);
                                     }
                                     else
                                     {
-                                        sameRet = await FileUtil.CompareEncryptedFileHashAsync(encryptPassword, true, new FilePath(destFilePath, Fs, flags: FileFlags.BackupMode), new FilePath(srcFilePath, Fs, flags: FileFlags.BackupMode), cancel: cancel);
+                                        // NoCheckFileSize を付けないと、一部の Windows クライアントと一部の Samba サーバーとの間でヘンなエラーが発生する。
+                                        sameRet = await FileUtil.CompareEncryptedFileHashAsync(encryptPassword, true, new FilePath(destFilePath, Fs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), new FilePath(srcFilePath, Fs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), cancel: cancel);
                                     }
 
                                     if (sameRet.IsOk == false || sameRet.Value != 0)

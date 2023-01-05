@@ -1645,7 +1645,7 @@ public class DnsMessage : DnsMessageBase
 /// </summary>
 public abstract class DnsMessageBase
 {
-    protected ushort Flags;
+    public ushort Flags;
 
     protected internal List<DnsQuestion> Questions = new List<DnsQuestion>();
     protected internal List<DnsRecordBase> AnswerRecords = new List<DnsRecordBase>();

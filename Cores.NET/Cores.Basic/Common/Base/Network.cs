@@ -1025,6 +1025,8 @@ namespace IPA.Cores.Basic
     // IP ユーティリティ
     public static partial class IPUtil
     {
+        public static readonly IPEndPoint LocalHostIPv4HttpEndPoint = new IPEndPoint(IPAddress.Loopback, 80);
+
         // TCP ポートが開いているかどうかチェック
         public static async Task<bool> CheckTcpPortAsync(string hostname, int port, int connectTimeout = 500, CancellationToken cancel = default)
         {
@@ -1580,6 +1582,32 @@ namespace IPA.Cores.Basic
             {
                 return host + ":" + port;
             }
+        }
+
+        public static List<IPEndPoint> ParseIpAndPortList(string src, int? defaultPort = null)
+        {
+            List<IPEndPoint> ret = new List<IPEndPoint>();
+
+            string[] targetToken = src._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, " ", "\t", ";", ",", "/");
+
+            HashSet<string> distinctCheck = new HashSet<string>(StrCmpi);
+
+            foreach (var target in targetToken)
+            {
+                if (IPUtil.TryParseHostPort(target, out string host, out int port, defaultPort))
+                {
+                    IPEndPoint ep = new IPEndPoint(IPUtil.StrToIP(host)!, port);
+
+                    string test = ep.ToString();
+
+                    if (distinctCheck.Add(test))
+                    {
+                        ret.Add(ep);
+                    }
+                }
+            }
+
+            return ret;
         }
 
         // 文字列からホスト名とポート番号にパース

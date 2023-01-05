@@ -1124,6 +1124,7 @@ namespace IPA.Cores.Basic
     public class FqdnReverseStrComparer : IEqualityComparer<string?>, IComparer<string?>
     {
         public static FqdnReverseStrComparer Comparer { get; } = new FqdnReverseStrComparer();
+        public static FqdnReverseStrComparer ComparerConsiderDepth { get; } = new FqdnReverseStrComparer(FqdnReverseStrComparerFlags.ConsiderDepth);
 
         public FqdnReverseStrComparerFlags Flags { get; }
 
@@ -1151,7 +1152,7 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            return  string.Compare(x, y, StringComparison.OrdinalIgnoreCase);
+            return string.Compare(x, y, StringComparison.OrdinalIgnoreCase);
         }
 
         public bool Equals(string? x, string? y)
@@ -8882,7 +8883,7 @@ namespace IPA.Cores.Basic
                 if (fqdn.Length > 255) return false;
                 string[] tokens = fqdn.Split(".", StringSplitOptions.None);
 
-                if (tokens.Length <= 1) return false;
+                if (tokens.Length <= 0) return false;
 
                 for (int i = 0; i < tokens.Length; i++)
                 {
