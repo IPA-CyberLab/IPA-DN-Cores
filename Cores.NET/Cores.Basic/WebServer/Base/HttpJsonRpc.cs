@@ -2209,7 +2209,7 @@ code[class*=""language-""], pre[class*=""language-""] {
                     }
                     else
                     {
-                        await BasicAuthImpl.SendAuthenticateHeaderAsync(res, "ログブラウザ (管理者用)", req._GetRequestCancellationToken());
+                        await BasicAuthImpl.SendAuthenticateHeaderAsync(res, "Admin Log Browser" /* Must be in English */, req._GetRequestCancellationToken());
                     }
                 });
             }
