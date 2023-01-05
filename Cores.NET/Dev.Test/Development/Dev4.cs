@@ -1441,7 +1441,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                     BigNumber scopeEndBn = scopeEndEx.GetBigNumber();
 
                                     BigNumber num = scopeEndBn - scopeStartBn + 1;
-                                    if (num <= 65536)
+                                    if (num <= 16777216)
                                     {
                                         for (int i = 0; i < num; i++)
                                         {

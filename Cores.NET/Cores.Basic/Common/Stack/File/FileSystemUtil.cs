@@ -326,7 +326,7 @@ public abstract partial class FileSystem
 
                     if (fileSize > srcMemory.Length)
                     {
-                        //await file.SetFileSizeAsync(srcMemory.Length, cancel);
+                        await file.SetFileSizeAsync(srcMemory.Length, cancel);
                     }
 
                     return srcMemory.Length;

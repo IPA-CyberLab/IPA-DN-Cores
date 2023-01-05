@@ -156,7 +156,7 @@ public class HadbSimpleBase<TMem, TDynamicConfig> : HadbBase<TMem, TDynamicConfi
             }
         }
 
-        await Lfs.WriteKeyValueStrListToConfigFileAsync(this.SimpleConfigFilePath, tmp, this.DynamicConfigSampleObject.GetCommentsDictionary(), flags: FileFlags.AutoCreateDirectory, writeBom: true);
+        await Lfs.WriteKeyValueStrListToConfigFileAsync(this.SimpleConfigFilePath, tmp, this.DynamicConfigSampleObject.GetCommentsDictionary(), flags: FileFlags.AutoCreateDirectory | FileFlags.WriteOnlyIfChanged, writeBom: true, overwriteAndTruncate: true);
     }
 
     protected override Task<HadbTran> BeginDatabaseTransactionImplAsync(bool writeMode, bool isTransaction, HadbTranOptions options, CancellationToken cancel = default)

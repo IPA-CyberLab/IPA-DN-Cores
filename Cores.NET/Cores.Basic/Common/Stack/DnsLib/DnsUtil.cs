@@ -597,41 +597,34 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
 
                             using UdpClient udp = new UdpClient(remoteEndPoint.AddressFamily);
 
-                            foreach (var packet in packetList)
+                            int numSend = 5;
+                            int interval = 333;
+
+                            for (int i = 0; i < numSend; i++)
                             {
-                                int numTry = 5;
-                                int timeout = 2000;
-
-                                for (int i = 0; i < numTry; i++)
+                                if (cancel.IsCancellationRequested)
                                 {
-                                    bool ok = false;
+                                    break;
+                                }
 
-                                    try
-                                    {
-                                        await udp.SendAsync(DnsUtil.BuildPacket(packet.Message).ToArray(), remoteEndPoint, cancel);
-
-                                        long giveup = TickNow + timeout;
-
-                                        while (TickNow < giveup)
-                                        {
-                                            try
-                                            {
-                                                var recvMsg = await udp.ReceiveAsync(timeout / 4, cancel);
-                                                if (IpEndPointComparer.ComparerIgnoreScopeId.Equals(recvMsg.RemoteEndPoint, packet.RemoteEndPoint))
-                                                {
-                                                    ok = true;
-                                                    break;
-                                                }
-                                            }
-                                            catch { }
-                                        }
-                                    }
-                                    catch { }
-
-                                    if (ok)
+                                foreach (var packet in packetList)
+                                {
+                                    if (cancel.IsCancellationRequested)
                                     {
                                         break;
                                     }
+                                    try
+                                    {
+                                        await udp.SendAsync(DnsUtil.BuildPacket(packet.Message).ToArray(), remoteEndPoint, cancel);
+                                    }
+                                    catch { }
+                                }
+
+                                await this.GrandCancel._WaitUntilCanceledAsync(Util.GenRandInterval(interval));
+
+                                if (cancel.IsCancellationRequested)
+                                {
+                                    break;
                                 }
                             }
                         }
@@ -641,7 +634,7 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
                             ex._Error();
                         }
                     },
-                    16,
+                    32,
                     MultitaskDivideOperation.RoundRobin,
                     cancel);
                 }
@@ -651,7 +644,7 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
                 ex._Error();
             }
 
-            await this.GrandCancel._WaitUntilCanceledAsync(Util.GenRandInterval(1000));
+            await cancel._WaitUntilCanceledAsync(Util.GenRandInterval(1000));
         }
     }
 
@@ -1189,7 +1182,7 @@ public class EasyDnsResponderTcpAxfrCallbackRequest
                                 // ワイルドカードの場合は、展開をする
                                 if (Str.TryParseFirstWildcardFqdnSandwitched(fqdn, out var wildcardInfo))
                                 {
-                                    if (a.IPv4SubnetMaskLength >= 15) // /16 すなわち 65536 個まで自動生成する
+                                    if (a.IPv4SubnetMaskLength >= 8) // /8 すなわち 16777216 個まで自動生成する
                                     {
                                         var ipStart = IPUtil.GetPrefixAddress(a.IPv4Address, a.IPv4SubnetMaskLength);
                                         var ipStart2 = IPv4Addr.FromAddress(ipStart);
@@ -2593,6 +2586,12 @@ public class EasyDnsResponder
                 }
 
                 answers = newList;
+                
+                //注意！ ここで 以下のようにしないこと！！
+                //if (answers.Any() == false)
+                //{
+                //    answers = null;
+                //}
             }
 
             // この状態でまだ一致するものがなければ、サブドメイン一覧に一致する場合は空リストを返し、

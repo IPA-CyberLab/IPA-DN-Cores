@@ -117,7 +117,10 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
         public string TookSeconds = "";
     }
 
-    // ゾーン更新通知パケット生成コールバック関数
+    // 前回のゾーンのバージョン
+    StrDictionary<int> ZoneVersionsForNotify = new StrDictionary<int>();
+
+    // ゾーン更新通知パケット生成コールバック関数 (リエントラントではないので注意！)
     List<Tuple<string, DnsUdpPacket>> GetNotifyPacketsCallback(EasyDnsServer svr)
     {
         List<Tuple<string, DnsUdpPacket>> ret = new List<Tuple<string, DnsUdpPacket>>();
@@ -128,15 +131,20 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
         {
             var soa = zone.SOARecord.ToDnsLibRecordBase(zone.DomainName, this.DnsResponder.BootDateTime, zone.Version);
 
-            DnsMessage msg = new DnsMessage();
-            msg.Flags = 0x2400; // Zone change notificateion
+            if (this.ZoneVersionsForNotify._GetOrDefault(zone.DomainFqdn, -1) != zone.Version)
+            {
+                this.ZoneVersionsForNotify[zone.DomainFqdn] = zone.Version;
 
-            var query = new DnsQuestion(zone.DomainName, RecordType.Soa, RecordClass.INet);
+                DnsMessage msg = new DnsMessage();
+                msg.Flags = 0x2400; // Zone change notificateion
 
-            msg.Questions.Add(query);
-            msg.AnswerRecords.Add(soa);
+                var query = new DnsQuestion(zone.DomainName, RecordType.Soa, RecordClass.INet);
 
-            ret.Add(new Tuple<string, DnsUdpPacket>(zone.NotifyServers, new DnsUdpPacket(IPUtil.LocalHostIPv4HttpEndPoint, IPUtil.LocalHostIPv4HttpEndPoint, msg)));
+                msg.Questions.Add(query);
+                msg.AnswerRecords.Add(soa);
+
+                ret.Add(new Tuple<string, DnsUdpPacket>(zone.NotifyServers, new DnsUdpPacket(IPUtil.LocalHostIPv4HttpEndPoint, IPUtil.LocalHostIPv4HttpEndPoint, msg)));
+            }
         }
 
         return ret;
@@ -304,6 +312,10 @@ public class EasyDnsResponderBasedDnsServer : AsyncService
             // クエリに付いてきた Additional Records を削除 (dnsdist キャッシュ対策)
             q.AdditionalRecords.Clear();
         }
+
+        // クエリに付いてきた Authority Records と Answer Records を削除
+        q.AuthorityRecords.Clear();
+        q.AnswerRecords.Clear();
 
         if (q.Questions.Count == 0)
         {
