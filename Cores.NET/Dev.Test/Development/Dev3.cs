@@ -407,13 +407,9 @@ public class MikakaDDnsService : HadbBasedServiceBase<MikakaDDnsService.MemDb, M
             if (DDns_ProhibitedHostnamesEndsWith._IsSamei("_initial_"))
                 DDns_ProhibitedHostnamesEndsWith = new string[] {
                    "-v4",
-                   "-v4only",
                    "-v6",
-                   "-v6only",
                    "-ipv4",
-                   "-ipv4only",
                    "-ipv6",
-                   "-ipv6only",
                    "-ws",
                    "-websocket",
                    "-webapp",
