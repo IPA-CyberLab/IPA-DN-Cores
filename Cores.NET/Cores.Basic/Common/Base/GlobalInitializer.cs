@@ -586,7 +586,7 @@ public static class CoresLib
                     Con.WriteLine("*** Update Started ***");
 
                     // コピーを試す
-                    await Lfs.CopyFileAsync(Env.AppRealProcessExeFileName, targetExe);
+                    await Lfs.CopyFileAsync(Env.AppRealProcessExeFileName, targetExe, param: new CopyFileParams(retryCount: 0));
                 },
                 1000,
                 300,

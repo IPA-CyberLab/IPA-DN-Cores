@@ -1462,7 +1462,7 @@ partial class TestDevCommands
         RefBool ignoredError = new RefBool(false);
 
         Lfs.CopyFile(vl.DefaultParam.StrValue, vl["dest"].StrValue,
-            new CopyFileParams(overwrite: true, flags: FileFlags.AutoCreateDirectory, ignoreReadError: true,
+            new CopyFileParams(overwrite: true, flags: FileFlags.AutoCreateDirectory, ignoreReadError: true, retryCount: 0,
             reporterFactory: new ProgressFileProcessingReporterFactory(ProgressReporterOutputs.ConsoleAndDebug, options: ProgressReporterOptions.EnableThroughput)),
             readErrorIgnored: ignoredError);
 
@@ -1859,8 +1859,8 @@ partial class TestDevCommands
                 }
 
                 //Lfs.WriteToFile(ramFn, ram.Memory);
-                Lfs.CopyFile(normalFn, copySparse2Fn, new CopyFileParams(flags: flags | FileFlags.SparseFile, overwrite: true));
-                Lfs.CopyFile(sparseFn, copySparse3Fn, new CopyFileParams(flags: flags | FileFlags.SparseFile, overwrite: true));
+                Lfs.CopyFile(normalFn, copySparse2Fn, new CopyFileParams(flags: flags | FileFlags.SparseFile, overwrite: true, retryCount: 0));
+                Lfs.CopyFile(sparseFn, copySparse3Fn, new CopyFileParams(flags: flags | FileFlags.SparseFile, overwrite: true, retryCount: 0));
             }
 
             var largebytes = LLfsUtf8.ReadDataFromFile(largeFn);

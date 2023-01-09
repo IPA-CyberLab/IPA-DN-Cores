@@ -3404,7 +3404,7 @@ namespace IPA.Cores.Basic
 
                 if (destFilePath.IsFileExists() == false)
                 {
-                    FileUtil.CopyFile(srcFilePath, destFilePath, new CopyFileParams(overwrite: false, flags: flags));
+                    FileUtil.CopyFile(srcFilePath, destFilePath, new CopyFileParams(overwrite: false, flags: flags, retryCount: 0));
                 }
             }
             catch { }

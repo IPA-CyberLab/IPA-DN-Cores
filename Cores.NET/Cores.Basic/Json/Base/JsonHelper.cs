@@ -258,7 +258,7 @@ namespace IPA.Cores.Basic
                     //  この場合、このコピー作業の失敗エラーを無視して、メインファイルへの書き込みも実施してしまうと、
                     //  メインファイルも空き容量不足で破損した状態となり、データ喪失が発生するおそれがある。
                     //  これを防止するため、このようなケースにおいては、ここで例外を発生させることにより (キャッチしない)、バックアップファイルへの書き込みは実施してはならない。)
-                    await this.CopyFileAsync(path, backupFilePath, new CopyFileParams(flags: flags | FileFlags.AutoCreateDirectory | FileFlags.WriteOnlyIfChanged), cancel: cancel);
+                    await this.CopyFileAsync(path, backupFilePath, new CopyFileParams(flags: flags | FileFlags.AutoCreateDirectory | FileFlags.WriteOnlyIfChanged, retryCount: 0), cancel: cancel);
                 }
             }
 

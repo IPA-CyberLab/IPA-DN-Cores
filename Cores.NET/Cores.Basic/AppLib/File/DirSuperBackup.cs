@@ -94,6 +94,8 @@ public enum DirSuperBackupFlags
 
     BackupNoMd5 = 1048576,
     RestoreNoMd5 = 2097152,
+
+    NoFileNameLenLimit = 4194304,
 }
 
 public class DirSuperBackupOptions
@@ -344,7 +346,7 @@ public class DirSuperBackup : AsyncService
             archivedDirMetaData.FileList._DoForEach(x => archivesDirFileMetaDataDic.Add(x.FileName, x));
 
             // ローカルディレクトリに存在するファイルを列挙する
-            localDirEnum = (await Fs.EnumDirectoryAsync(localDir, false, EnumDirectoryFlags.NoGetPhysicalSize, cancel)).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer).ToArray();
+            localDirEnum = (await Fs.EnumDirectoryAsync(localDir, false, EnumDirectoryFlags.NoGetPhysicalSize | (this.Options.Flags.Bit(DirSuperBackupFlags.NoFileNameLenLimit) ? EnumDirectoryFlags.None : EnumDirectoryFlags.SkipTooLongFileName), cancel)).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer).ToArray();
 
             // ローカルディレクトリに存在するファイルを 1 つずつ読み出し、バックアップ先ディレクトリに存在するファイルと比較する
             var localFileEntries = localDirEnum.Where(x => x.IsFile);
@@ -412,7 +414,7 @@ public class DirSuperBackup : AsyncService
                         isEncrypted = true;
                         encryptPassword = this.Options.EncryptPassword;
                     }
-                    
+
                     Ref<string> hashStr1 = new Ref<string>();
                     Ref<string> hashStr2 = new Ref<string>();
 
@@ -981,7 +983,7 @@ public class DirSuperBackup : AsyncService
 
             srcDirMetadata = await Fs.GetDirectoryMetadataAsync(srcDir, cancel: cancel);
 
-            srcDirEnum = (await Fs.EnumDirectoryAsync(srcDir, false, EnumDirectoryFlags.NoGetPhysicalSize, cancel)).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer).ToArray();
+            srcDirEnum = (await Fs.EnumDirectoryAsync(srcDir, false, EnumDirectoryFlags.NoGetPhysicalSize | (this.Options.Flags.Bit(DirSuperBackupFlags.NoFileNameLenLimit) ? EnumDirectoryFlags.None : EnumDirectoryFlags.SkipTooLongFileName), cancel)).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer).ToArray();
 
             FileSystemEntity[] destDirEnum = new FileSystemEntity[0];
 
@@ -1401,7 +1403,7 @@ public class DirSuperBackup : AsyncService
                         try
                         {
                             // 両方のディレクトリを再列挙いたします
-                            var srcDirEnum2 = (await Fs.EnumDirectoryAsync(srcDir, false, EnumDirectoryFlags.NoGetPhysicalSize, cancel)).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer).ToArray();
+                            var srcDirEnum2 = (await Fs.EnumDirectoryAsync(srcDir, false, EnumDirectoryFlags.NoGetPhysicalSize | (this.Options.Flags.Bit(DirSuperBackupFlags.NoFileNameLenLimit) ? EnumDirectoryFlags.None : EnumDirectoryFlags.SkipTooLongFileName), cancel)).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer).ToArray();
                             var destDirEnum2 = (await Fs.EnumDirectoryAsync(destDir, false, EnumDirectoryFlags.NoGetPhysicalSize, cancel)).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer).ToArray();
 
                             // 余分なファイルを削除いたします

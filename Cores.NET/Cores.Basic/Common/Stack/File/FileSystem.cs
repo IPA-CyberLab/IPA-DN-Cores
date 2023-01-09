@@ -1794,6 +1794,7 @@ public enum EnumDirectoryFlags
     NoGetPhysicalSize = 1,
     IncludeCurrentDirectory = 2,
     IncludeParentDirectory = 4,
+    SkipTooLongFileName = 8,
 }
 
 [Flags]
@@ -2186,7 +2187,7 @@ public abstract partial class FileSystem : AsyncService
                 throw new ApplicationException("The first entry returned by EnumDirectoryImplAsync() is not a current directory.");
             }
 
-            IEnumerable<FileSystemEntity> ret = list.Skip(1).Where(x => GetSpecialFileNameKind(x.Name) == SpecialFileNameKind.Normal);
+            IEnumerable<FileSystemEntity> ret = list.Skip(1).Where(x => GetSpecialFileNameKind(x.Name) == SpecialFileNameKind.Normal).Where(x => x.Name.Length < 256 || flags.Bit(EnumDirectoryFlags.SkipTooLongFileName));
 
             if (flags.Bit(EnumDirectoryFlags.IncludeParentDirectory))
             {

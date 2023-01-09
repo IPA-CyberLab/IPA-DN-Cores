@@ -4022,6 +4022,21 @@ cccadmin
     {
         if (true)
         {
+            string fn = @"\\rd-bk3\administrator\test6";
+
+            for (int i = 1; i < 300; i++)
+            {
+                i._Print();
+                Lfs.WriteStringToFile(fn + "\\" + Str.MakeCharArray('x', i) + ".txt",
+                    "HELLO", flags: FileFlags.AutoCreateDirectory | FileFlags.BackupMode
+    );
+            }
+
+            return;
+        }
+
+        if (true)
+        {
             Test_230103_Verify();
             //Test_221212_IpNetToPtr();
             //Test_MakeDummyCerts_221206();
