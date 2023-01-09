@@ -4055,7 +4055,7 @@ namespace IPA.Cores.Basic
                 cancel.ThrowIfCancellationRequested();
                 try
                 {
-                    if (NoDebugMessage == false)
+                    if (NoDebugMessage == false && tryCount >= 2)
                     {
                         if (i >= 1) Dbg.WriteLine("Retrying...");
                     }
@@ -4080,7 +4080,7 @@ namespace IPA.Cores.Basic
                             interval = Util.GenRandInterval(interval);
                         }
 
-                        if (NoDebugMessage == false)
+                        if (NoDebugMessage == false && tryCount >= 2)
                         {
                             Dbg.WriteLine($"RetryHelper: round {i} error. {ex._GetSingleException().Message} Retrying in {interval} msecs...");
                         }
@@ -4089,7 +4089,7 @@ namespace IPA.Cores.Basic
                     }
                     else
                     {
-                        if (NoDebugMessage == false)
+                        if (NoDebugMessage == false && tryCount >= 2)
                         {
                             Dbg.WriteLine($"RetryHelper: round {i} error. {ex._GetSingleException().Message}");
                         }
