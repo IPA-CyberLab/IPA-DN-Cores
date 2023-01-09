@@ -1350,6 +1350,7 @@ partial class TestDevCommands
                 new ConsoleParam("password"),
                 new ConsoleParam("numthreads"),
                 new ConsoleParam("ignoredirs"),
+                new ConsoleParam("options"),
             };
 
         ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
@@ -1361,6 +1362,7 @@ partial class TestDevCommands
         string ignoredirs = vl["ignoredirs"].StrValue;
         string password = vl["password"].StrValue;
         string numthreads = vl["numthreads"].StrValue;
+        string options = vl["options"].StrValue;
 
         bool err = false;
 
@@ -1373,7 +1375,9 @@ partial class TestDevCommands
             Con.WriteError(ex);
         }
 
-        using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog, DirSuperBackupFlags.Default, encryptPassword: password, numThreads: numthreads._ToInt())))
+        var optionsValues = options._ParseEnumBits(DirSuperBackupFlags.Default, ',', '|', ' ');
+
+        using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog, optionsValues, encryptPassword: password, numThreads: numthreads._ToInt())))
         {
             Async(async () =>
             {

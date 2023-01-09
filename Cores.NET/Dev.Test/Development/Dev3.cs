@@ -1352,8 +1352,6 @@ SRV _ldap._tcp.abc 0 100 123 ldap_server.your_company.net
             tmpIPv6OnlySuffixList.Add("");
             v6onlySuffixList?._DoForEach(x => tmpIPv6OnlySuffixList.Add(x));
 
-            int count = 0;
-
             foreach (var host in hostList)
             {
                 List<Tuple<EasyDnsResponder.Record, string?>> tmpList = new List<Tuple<EasyDnsResponder.Record, string?>>();

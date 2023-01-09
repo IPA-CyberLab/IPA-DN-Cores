@@ -231,6 +231,7 @@ public class CopyFileParams
     public bool DeleteFileIfVerifyFailed { get; }
     public bool EnsureBufferSize { get; }
     public int RetryCount { get; }
+    public bool CalcDigest { get; }
 
     public ProgressReporterFactoryBase ProgressReporterFactory { get; }
 
@@ -241,7 +242,7 @@ public class CopyFileParams
     public CopyFileParams(bool overwrite = true, FileFlags flags = FileFlags.None, FileMetadataCopier? metadataCopier = null, int bufferSize = 0, bool asyncCopy = true,
         bool ignoreReadError = false, int ignoreReadErrorSectorSize = 0,
         ProgressReporterFactoryBase? reporterFactory = null, EncryptOption encryptOption = EncryptOption.None, string encryptPassword = "",
-        bool deleteFileIfVerifyFailed = false, bool ensureBufferSize = false, int retryCount = 3)
+        bool deleteFileIfVerifyFailed = false, bool ensureBufferSize = false, int retryCount = 3, bool calcDigest = false)
     {
         if (metadataCopier == null) metadataCopier = DefaultFileMetadataCopier;
         if (bufferSize <= 0) bufferSize = CoresConfig.FileUtilSettings.FileCopyBufferSize;
@@ -263,20 +264,21 @@ public class CopyFileParams
         this.DeleteFileIfVerifyFailed = deleteFileIfVerifyFailed;
         this.EnsureBufferSize = ensureBufferSize;
         this.RetryCount = retryCount;
+        this.CalcDigest = calcDigest;
     }
 }
 
 
 public abstract partial class FileSystem
 {
-    public async Task CopyFileAsync(string srcPath, string destPath, CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, FileSystem? destFileSystem = null, RefBool? readErrorIgnored = null, FileMetadata? newFileMeatadata = null)
+    public async Task CopyFileAsync(string srcPath, string destPath, CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, FileSystem? destFileSystem = null, RefBool? readErrorIgnored = null, FileMetadata? newFileMeatadata = null, RefBool? errorOccuredButRecovered = null, Ref<string>? digest = null)
     {
         if (destFileSystem == null) destFileSystem = this;
 
-        await FileUtil.CopyFileAsync(this, srcPath, destFileSystem, destPath, param, state, cancel, readErrorIgnored, newFileMeatadata);
+        await FileUtil.CopyFileAsync(this, srcPath, destFileSystem, destPath, param, state, cancel, readErrorIgnored, newFileMeatadata, errorOccuredButRecovered, digest);
     }
-    public void CopyFile(string srcPath, string destPath, CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, FileSystem? destFileSystem = null, RefBool? readErrorIgnored = null, FileMetadata? newFileMeatadata = null)
-        => CopyFileAsync(srcPath, destPath, param, state, cancel, destFileSystem, readErrorIgnored, newFileMeatadata)._GetResult();
+    public void CopyFile(string srcPath, string destPath, CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, FileSystem? destFileSystem = null, RefBool? readErrorIgnored = null, FileMetadata? newFileMeatadata = null, RefBool? errorOccuredButRecovered = null, Ref<string>? digest = null)
+        => CopyFileAsync(srcPath, destPath, param, state, cancel, destFileSystem, readErrorIgnored, newFileMeatadata, errorOccuredButRecovered, digest)._GetResult();
 
     public async Task<CopyDirectoryStatus> CopyDirAsync(string srcPath, string destPath, FileSystem? destFileSystem = null,
         CopyDirectoryParams? param = null, object? state = null, CopyDirectoryStatus? statusObject = null, CancellationToken cancel = default)
@@ -309,7 +311,7 @@ public static partial class FileUtil
         hashStr1.Set("");
         hashStr2.Set("");
 
-        using SHA1 sha1 = SHA1.Create();
+        using MD5 md5 = MD5.Create();
 
         byte[] hash1, hash2;
 
@@ -322,7 +324,7 @@ public static partial class FileUtil
                 return new ResultOrError<int>(EnsureError.Error);
             }
 
-            hash1 = await CalcFileHashAsync(file1, sha1, bufferSize: bufferSize, fileSize: fileSize, cancel: cancel);
+            hash1 = await CalcFileHashAsync(file1, md5, bufferSize: bufferSize, fileSize: fileSize, cancel: cancel);
         }
         catch (Exception ex)
         {
@@ -340,7 +342,7 @@ public static partial class FileUtil
                 return new ResultOrError<int>(EnsureError.Error);
             }
 
-            hash2 = await CalcFileHashAsync(file2, sha1, bufferSize: bufferSize, cancel: cancel);
+            hash2 = await CalcFileHashAsync(file2, md5, bufferSize: bufferSize, cancel: cancel);
         }
         catch (Exception ex)
         {
@@ -365,7 +367,7 @@ public static partial class FileUtil
         hashStr1.Set("");
         hashStr2.Set("");
 
-        using SHA1 sha1 = SHA1.Create();
+        using MD5 md5 = MD5.Create();
 
         byte[] hash1, hash2;
 
@@ -378,7 +380,7 @@ public static partial class FileUtil
                 return new ResultOrError<int>(EnsureError.Error);
             }
 
-            hash1 = await CalcFileHashAsync(filePlain, sha1, bufferSize: bufferSize, fileSize: fileSize, cancel: cancel);
+            hash1 = await CalcFileHashAsync(filePlain, md5, bufferSize: bufferSize, fileSize: fileSize, cancel: cancel);
         }
         catch (Exception ex)
         {
@@ -400,7 +402,7 @@ public static partial class FileUtil
             await using var xts = new XtsAesRandomAccess(fileEncryptedObject, encryptPassword, disposeObject: true);
             await using Stream internalStream = isCompressed == false ? xts.GetStream(disposeTarget: true) : await xts.GetDecompressStreamAsync();
 
-            hash2 = await Secure.CalcStreamHashAsync(internalStream, sha1, bufferSize: bufferSize, cancel: cancel);
+            hash2 = await Secure.CalcStreamHashAsync(internalStream, md5, bufferSize: bufferSize, cancel: cancel);
         }
         catch (Exception ex)
         {
@@ -673,7 +675,7 @@ public static partial class FileUtil
 
     // Verify エラー時に再試行する機能を有するファイルコピー
     public static async Task CopyFileAsync(FileSystem srcFileSystem, string srcPath, FileSystem destFileSystem, string destPath,
-        CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, RefBool? readErrorIgnored = null, FileMetadata? newFileMeatadata = null, RefBool? errorOccuredButRecovered = null)
+        CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, RefBool? readErrorIgnored = null, FileMetadata? newFileMeatadata = null, RefBool? errorOccuredButRecovered = null, Ref<string>? digest = null)
     {
         if (param == null)
             param = new CopyFileParams();
@@ -684,7 +686,7 @@ public static partial class FileUtil
         {
             try
             {
-                await CopyFileCoreAsync(srcFileSystem, srcPath, destFileSystem, destPath, param, state, cancel, readErrorIgnored, newFileMeatadata);
+                await CopyFileCoreAsync(srcFileSystem, srcPath, destFileSystem, destPath, param, state, cancel, readErrorIgnored, newFileMeatadata, null, digest);
             }
             catch
             {
@@ -704,7 +706,7 @@ public static partial class FileUtil
 
     // ファイルコピーの実体 (Verify エラー時に再試行しない)
     static async Task CopyFileCoreAsync(FileSystem srcFileSystem, string srcPath, FileSystem destFileSystem, string destPath,
-        CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, RefBool? readErrorIgnored = null, FileMetadata? newFileMeatadata = null, RefBool? verifyErrorOccured = null)
+        CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, RefBool? readErrorIgnored = null, FileMetadata? newFileMeatadata = null, RefBool? verifyErrorOccured = null, Ref<string>? digest = null)
     {
         if (readErrorIgnored == null)
             readErrorIgnored = new RefBool(false);
@@ -714,10 +716,22 @@ public static partial class FileUtil
         if (verifyErrorOccured == null)
             verifyErrorOccured = new RefBool(false);
 
+        if (digest == null)
+            digest = new Ref<string>();
+
+        digest.Set("");
+
         verifyErrorOccured.Set(false);
 
         if (param == null)
             param = new CopyFileParams();
+
+        HashAlgorithm? hash = null;
+
+        if (param.CalcDigest)
+        {
+            hash = MD5.Create();
+        }
 
         srcPath = await srcFileSystem.NormalizePathAsync(srcPath, cancel: cancel);
         destPath = await destFileSystem.NormalizePathAsync(destPath, cancel: cancel);
@@ -827,7 +841,7 @@ public static partial class FileUtil
                                         }
                                     }
 
-                                    copiedSize2 = await CopyBetweenStreamAsync(srcStream, destStream, param, reporter, srcFileMetadata.Size, cancel, readErrorIgnored, srcZipCrc);
+                                    copiedSize2 = await CopyBetweenStreamAsync(srcStream, destStream, param, reporter, srcFileMetadata.Size, cancel, readErrorIgnored, srcZipCrc, hash: hash);
                                 }
                                 finally
                                 {
@@ -914,7 +928,7 @@ public static partial class FileUtil
                             }
                             else
                             {
-                                long copiedSize = await CopyBetweenFileBaseAsync(srcFile, destFile, param, reporter, srcFileMetadata.Size, cancel, readErrorIgnored, srcZipCrc);
+                                long copiedSize = await CopyBetweenFileBaseAsync(srcFile, destFile, param, reporter, srcFileMetadata.Size, cancel, readErrorIgnored, srcZipCrc, hash: hash);
 
                                 if (param.Flags.Bit(FileFlags.CopyFile_Verify) && param.IgnoreReadError == false)
                                 {
@@ -1001,10 +1015,17 @@ public static partial class FileUtil
                 }
             }
         }
+
+        if (hash != null)
+        {
+            hash.TransformFinalBlock(new byte[0], 0, 0);
+
+            digest.Set(hash.Hash!._GetHexString());
+        }
     }
     public static void CopyFile(FileSystem srcFileSystem, string srcPath, FileSystem destFileSystem, string destPath,
-        CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, RefBool? readErrorIgnored = null, FileMetadata? newFileMeatadata = null, RefBool? errorOccuredButRecovered = null)
-        => CopyFileAsync(srcFileSystem, srcPath, destFileSystem, destPath, param, state, cancel, readErrorIgnored, newFileMeatadata, errorOccuredButRecovered)._GetResult();
+        CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, RefBool? readErrorIgnored = null, FileMetadata? newFileMeatadata = null, RefBool? errorOccuredButRecovered = null, Ref<string>? digest = null)
+        => CopyFileAsync(srcFileSystem, srcPath, destFileSystem, destPath, param, state, cancel, readErrorIgnored, newFileMeatadata, errorOccuredButRecovered, digest)._GetResult();
 
 
     public static Task CopyFileAsync(FilePath src, FilePath dest, CopyFileParams? param = null, object? state = null, CancellationToken cancel = default, RefBool? readErrorIgnored = null, FileMetadata? newFileMeatadata = null, RefBool? errorOccuredButRecovered = null)
@@ -1111,7 +1132,7 @@ public static partial class FileUtil
     }
 
     public static async Task<long> CopyBetweenFileBaseAsync(FileBase src, FileBase dest, CopyFileParams? param = null, ProgressReporterBase? reporter = null,
-        long estimatedSize = -1, CancellationToken cancel = default, RefBool? readErrorIgnored = null, Ref<uint>? srcZipCrc = null, long truncateSize = -1)
+        long estimatedSize = -1, CancellationToken cancel = default, RefBool? readErrorIgnored = null, Ref<uint>? srcZipCrc = null, long truncateSize = -1, HashAlgorithm? hash = null)
     {
         if (param == null) param = new CopyFileParams();
         if (reporter == null) reporter = new NullProgressReporter(null);
@@ -1219,6 +1240,13 @@ public static partial class FileUtil
                             srcCrc.Append(sliced.Span);
                         }
 
+                        if (hash != null)
+                        {
+                            var seg = sliced._AsSegment();
+
+                            hash.TransformBlock(seg.Array!, seg.Offset, seg.Count, null, 0);
+                        }
+
                         await dest.WriteAsync(sliced, cancel);
 
                         currentPosition += readSize;
@@ -1282,6 +1310,13 @@ public static partial class FileUtil
                                 srcCrc.Append(sliced.Span);
                             }
 
+                            if (hash != null)
+                            {
+                                var seg = sliced._AsSegment();
+
+                                hash.TransformBlock(seg.Array!, seg.Offset, seg.Count, null, 0);
+                            }
+
                             lastWriteTask = dest.WriteAsync(sliced, cancel);
                         }
 
@@ -1297,7 +1332,7 @@ public static partial class FileUtil
     }
 
     public static async Task<long> CopyBetweenStreamAsync(Stream src, Stream dest, CopyFileParams? param = null, ProgressReporterBase? reporter = null,
-        long estimatedSize = -1, CancellationToken cancel = default, RefBool? readErrorIgnored = null, Ref<uint>? srcZipCrc = null, long truncateSize = -1)
+        long estimatedSize = -1, CancellationToken cancel = default, RefBool? readErrorIgnored = null, Ref<uint>? srcZipCrc = null, long truncateSize = -1, HashAlgorithm? hash = null)
     {
         if (param == null) param = new CopyFileParams();
         if (reporter == null) reporter = new NullProgressReporter(null);
@@ -1373,6 +1408,13 @@ public static partial class FileUtil
                             srcCrc.Append(sliced.Span);
                         }
 
+                        if (hash != null)
+                        {
+                            var seg = sliced._AsSegment();
+
+                            hash.TransformBlock(seg.Array!, seg.Offset, seg.Count, null, 0);
+                        }
+
                         await dest.WriteAsync(sliced, cancel);
 
                         currentPosition += readSize;
@@ -1442,6 +1484,13 @@ public static partial class FileUtil
                             if (param.Flags.Bit(FileFlags.CopyFile_Verify))
                             {
                                 srcCrc.Append(sliced.Span);
+                            }
+
+                            if (hash != null)
+                            {
+                                var seg = sliced._AsSegment();
+
+                                hash.TransformBlock(seg.Array!, seg.Offset, seg.Count, null, 0);
                             }
 
                             lastWriteTask = dest.WriteAsync(sliced, cancel);

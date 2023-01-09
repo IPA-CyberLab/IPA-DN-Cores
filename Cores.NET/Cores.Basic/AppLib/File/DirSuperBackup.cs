@@ -71,6 +71,7 @@ public class DirSuperBackupMetadataFile
     public string FileName = null!;
     public string? EncrypedFileName;
     public long? EncryptedPhysicalSize;
+    public string? Md5;
     public FileMetadata MetaData = null!;
 }
 
@@ -88,6 +89,11 @@ public enum DirSuperBackupFlags
     BackupMakeHistory = 65536,
     BackupSync = 131072,
     BackupNoVerify = 262144,
+
+    VerifyIgnoreMetaData = 524288,
+
+    BackupNoMd5 = 1048576,
+    RestoreNoMd5 = 2097152,
 }
 
 public class DirSuperBackupOptions
@@ -378,11 +384,14 @@ public class DirSuperBackup : AsyncService
                     string localFileMetadataJson = localFileMetadata._ObjectToJson(compact: true);
                     string archivedFileMetadataJson = archivedFileMetaData._ObjectToJson(compact: true);
 
-                    if (localFileMetadataJson != archivedFileMetadataJson)
+                    if (this.Options.Flags.Bit(DirSuperBackupFlags.VerifyIgnoreMetaData) == false)
                     {
-                        // メタデータが異なる
-                        errDescription = "FileMetadataDifferent";
-                        throw new CoresException($"Local metadata [{localFileMetadataJson}] != archived metadata [{archivedFileMetadataJson}]");
+                        if (localFileMetadataJson != archivedFileMetadataJson)
+                        {
+                            // メタデータが異なる
+                            errDescription = "FileMetadataDifferent";
+                            throw new CoresException($"Local metadata [{localFileMetadataJson}] != archived metadata [{archivedFileMetadataJson}]");
+                        }
                     }
 
                     bool isEncrypted = false;
@@ -403,42 +412,53 @@ public class DirSuperBackup : AsyncService
                         isEncrypted = true;
                         encryptPassword = this.Options.EncryptPassword;
                     }
-
-                    // 2 つのファイルの内容を比較する
-                    ResultOrError<int> sameRet;
-
-                    string funcName;
-
-                    Ref<Exception?> exception = new Ref<Exception?>();
+                    
                     Ref<string> hashStr1 = new Ref<string>();
                     Ref<string> hashStr2 = new Ref<string>();
 
-                    if (isEncrypted == false)
+                    // 2 つのファイルの内容を比較する
+                    await TaskUtil.RetryAsync(async c =>
                     {
-                        // NoCheckFileSize を付けないと、一部の Windows クライアントと一部の Samba サーバーとの間でヘンなエラーが発生する。
-                        funcName = "CompareFileHashAsync";
-                        sameRet = await FileUtil.CompareFileHashAsync(new FilePath(localFile.FullPath, Fs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), new FilePath(archivedFilePath, Fs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), cancel: cancel, hashStr1: hashStr1, hashStr2: hashStr2, exception: exception);
-                    }
-                    else
-                    {
-                        // NoCheckFileSize を付けないと、一部の Windows クライアントと一部の Samba サーバーとの間でヘンなエラーが発生する。
-                        funcName = "CompareEncryptedFileHashAsync";
-                        sameRet = await FileUtil.CompareEncryptedFileHashAsync(encryptPassword, true, new FilePath(localFile.FullPath, Fs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), new FilePath(archivedFilePath, Fs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), cancel: cancel, hashStr1: hashStr1, hashStr2: hashStr2, exception: exception);
-                    }
+                        ResultOrError<int> sameRet;
 
-                    if (sameRet.IsOk == false)
-                    {
-                        // ファイルの比較中にエラーが発生した
-                        errDescription = "FileReadError";
-                        throw new CoresException($"Compare function '{funcName}' returned an error: {exception.Value?.Message ?? "Unknown error"}");
-                    }
+                        string funcName;
 
-                    if (sameRet.Value != 0)
-                    {
-                        // ファイルの比較結果が異なる
-                        errDescription = "FileDataDifferent";
-                        throw new CoresException($"Compare function '{funcName}' returned different result between two files. Local_Hash = {hashStr1}, Remote_Hash = {hashStr2}");
-                    }
+                        Ref<Exception?> exception = new Ref<Exception?>();
+
+                        if (isEncrypted == false)
+                        {
+                            // NoCheckFileSize を付けないと、一部の Windows クライアントと一部の Samba サーバーとの間でヘンなエラーが発生する。
+                            funcName = "CompareFileHashAsync";
+                            sameRet = await FileUtil.CompareFileHashAsync(new FilePath(localFile.FullPath, Fs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), new FilePath(archivedFilePath, Fs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), cancel: cancel, hashStr1: hashStr1, hashStr2: hashStr2, exception: exception);
+                        }
+                        else
+                        {
+                            // NoCheckFileSize を付けないと、一部の Windows クライアントと一部の Samba サーバーとの間でヘンなエラーが発生する。
+                            funcName = "CompareEncryptedFileHashAsync";
+                            sameRet = await FileUtil.CompareEncryptedFileHashAsync(encryptPassword, true, new FilePath(localFile.FullPath, Fs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), new FilePath(archivedFilePath, Fs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), cancel: cancel, hashStr1: hashStr1, hashStr2: hashStr2, exception: exception);
+                        }
+
+                        if (sameRet.IsOk == false)
+                        {
+                            // ファイルの比較中にエラーが発生した
+                            errDescription = "FileReadError";
+                            throw new CoresException($"Compare function '{funcName}' returned an error: {exception.Value?.Message ?? "Unknown error"}");
+                        }
+
+                        if (sameRet.Value != 0)
+                        {
+                            // ファイルの比較結果が異なる
+                            errDescription = "FileDataDifferent";
+                            throw new CoresRetryableException($"Compare function '{funcName}' returned different result between two files. Local_MD5 = {hashStr1}, Remote_MD5 = {hashStr2}");
+                        }
+
+                        return 0;
+                    },
+                    1000,
+                    4,
+                    cancel,
+                    true,
+                    true);
 
                     // 合格
                     Stat.Copy_NumFiles++;
@@ -597,10 +617,9 @@ public class DirSuperBackup : AsyncService
                         // ディレクトリ作成コマンドでなぜかエラーになっても、結果としてディレクトリが作成されればそれでよい
                         if (await Fs.IsDirectoryExistsAsync(destDir, cancel) == false)
                         {
+                            // やはりディレクトリが存在しないならばここでエラーを発生させる
                             throw;
                         }
-
-                        // やはりディレクトリの作成に失敗したらここでエラーを発生させる
                     }
                 }
             }
@@ -790,14 +809,54 @@ public class DirSuperBackup : AsyncService
                             flags |= FileFlags.CopyFile_Verify;
                         }
 
+                        Ref<string> actualMd5hash = new Ref<string>();
+
+                        string? metaDataMD5Hash = srcFile.Md5;
+
+                        bool checkMd5 = false;
+                        if (metaDataMD5Hash._IsFilled() && (this.Options.Flags.Bit(DirSuperBackupFlags.RestoreNoMd5) == false))
+                        {
+                            checkMd5 = true;
+                        }
+
+                        RefBool dstWriteErrorRecovered = false;
+                        RefBool md5ChecksumErrorRecovered = false;
+
                         // ファイルをコピーする
-                        await Fs.CopyFileAsync(srcFilePath, destFilePath,
-                        new CopyFileParams(flags: flags,
-                        metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll),
-                        encryptOption: isEncrypted ? EncryptOption.Decrypt | EncryptOption.Compress : EncryptOption.None,
-                        encryptPassword: encryptPassword),
-                        cancel: cancel,
-                        newFileMeatadata: Options.Flags.Bit(DirSuperBackupFlags.RestoreNoAcl) ? null : srcFileMetadata);
+                        await TaskUtil.RetryAsync(async c =>
+                        {
+                            await Fs.CopyFileAsync(srcFilePath, destFilePath,
+                                new CopyFileParams(flags: flags,
+                                    metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll),
+                                    encryptOption: isEncrypted ? EncryptOption.Decrypt | EncryptOption.Compress : EncryptOption.None,
+                                    encryptPassword: encryptPassword,
+                                    calcDigest: checkMd5),
+                                cancel: cancel,
+                                newFileMeatadata: Options.Flags.Bit(DirSuperBackupFlags.RestoreNoAcl) ? null : srcFileMetadata,
+                                digest: actualMd5hash, errorOccuredButRecovered: dstWriteErrorRecovered);
+
+                            if (checkMd5 && actualMd5hash.Value._IsFilled())
+                            {
+                                if (actualMd5hash.Value._IsSamei(metaDataMD5Hash) == false)
+                                {
+                                    md5ChecksumErrorRecovered.Set(true);
+                                    throw new CoresRetryableException($"Different MD5 hash between metadata and actual file. MD5_Metadata = '{metaDataMD5Hash}', MD5_ActualFile = '{actualMd5hash.Value}'");
+                                }
+                            }
+
+                            return 0;
+                        },
+                        1000,
+                        4,
+                        cancel,
+                        true,
+                        true);
+
+                        if (md5ChecksumErrorRecovered || dstWriteErrorRecovered)
+                        {
+                            Stat.RecoveredError_NumFiles++;
+                            Stat.RecoveredError_TotalSize += srcFile.MetaData.Size;
+                        }
 
                         Stat.Copy_NumFiles++;
                         Stat.Copy_TotalSize += srcFile.MetaData.Size;
@@ -999,6 +1058,8 @@ public class DirSuperBackup : AsyncService
 
                 concurrentNum.Increment();
 
+                Ref<string> md5hash = new Ref<string>();
+
                 try
                 {
                     srcFileMetadata = await Fs.GetFileMetadataAsync(srcFile.FullPath, cancel: cancel);
@@ -1131,11 +1192,19 @@ public class DirSuperBackup : AsyncService
                             flags |= FileFlags.CopyFile_Verify;
                         }
 
+                        RefBool verifyErrorRecovered = false;
+
                         await Fs.CopyFileAsync(srcFile.FullPath, destFilePath,
                             new CopyFileParams(flags: flags, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll),
                             encryptOption: Options.EncryptPassword._IsNullOrZeroLen() ? EncryptOption.None : EncryptOption.Encrypt | EncryptOption.Compress,
-                            encryptPassword: Options.EncryptPassword, deleteFileIfVerifyFailed: true),
-                            cancel: cancel);
+                            encryptPassword: Options.EncryptPassword, deleteFileIfVerifyFailed: true, calcDigest: this.Options.Flags.Bit(DirSuperBackupFlags.BackupNoMd5) == false),
+                            cancel: cancel, digest: md5hash, errorOccuredButRecovered: verifyErrorRecovered);
+
+                        if (verifyErrorRecovered)
+                        {
+                            Stat.RecoveredError_NumFiles++;
+                            Stat.RecoveredError_TotalSize += srcFile.Size;
+                        }
 
                         try
                         {
@@ -1175,12 +1244,16 @@ public class DirSuperBackup : AsyncService
                         {
                             string tmp1 = Fs.PathParser.GetFileName(destFilePath);
 
-                            encryptedPhysicalSize = destDirOldMetaData?.FileList.Where(x => x.EncrypedFileName._IsSame(tmp1) && x.MetaData.Size == srcFile.Size).FirstOrDefault()?.EncryptedPhysicalSize;
+                            var currentFileInfoInMetaData = destDirOldMetaData?.FileList.Where(x => x.EncrypedFileName._IsSame(tmp1) && x.MetaData.Size == srcFile.Size).FirstOrDefault();
+
+                            encryptedPhysicalSize = currentFileInfoInMetaData?.EncryptedPhysicalSize;
 
                             if (encryptedPhysicalSize.HasValue == false)
                             {
-                                encryptedPhysicalSize = destDirOldMetaData?.FileList.Where(x => x.EncrypedFileName._IsSamei(tmp1) && x.MetaData.Size == srcFile.Size).FirstOrDefault()?.EncryptedPhysicalSize;
+                                encryptedPhysicalSize = currentFileInfoInMetaData?.EncryptedPhysicalSize;
                             }
+
+                            md5hash.Set(currentFileInfoInMetaData!.Md5._NonNull());
                         }
 
                         Stat.Skip_NumFiles++;
@@ -1223,6 +1296,7 @@ public class DirSuperBackup : AsyncService
                             EncrypedFileName = Options.EncryptPassword._IsNullOrZeroLen() ? null : srcFile.Name + Consts.Extensions.CompressedXtsAes256,
                             MetaData = srcFileMetadata,
                             EncryptedPhysicalSize = encryptedPhysicalSize,
+                            Md5 = md5hash.Value._NullIfZeroLen(),
                         });
                     }
                 }

@@ -1769,15 +1769,15 @@ public static partial class TaskUtil
         ctx, LeakCounterKind.CreateCombinedCancellationToken);
     }
 
-    public static async Task<T> RetryAsync<T>(Func<Task<T>> proc, int retryInterval, int tryCount, CancellationToken cancel = default, bool randomInterval = false)
+    public static async Task<T> RetryAsync<T>(Func<Task<T>> proc, int retryInterval, int tryCount, CancellationToken cancel = default, bool randomInterval = false, bool onlyRetryableException = false)
     {
-        RetryHelper<T> retry = new RetryHelper<T>(retryInterval, tryCount, randomInterval);
+        RetryHelper<T> retry = new RetryHelper<T>(retryInterval, tryCount, randomInterval, onlyRetryableException: onlyRetryableException);
         return await retry.RunAsync(proc, cancel: cancel);
     }
 
-    public static async Task<T> RetryAsync<T>(Func<CancellationToken, Task<T>> proc, int retryInterval, int tryCount, CancellationToken cancel = default, bool randomInterval = false)
+    public static async Task<T> RetryAsync<T>(Func<CancellationToken, Task<T>> proc, int retryInterval, int tryCount, CancellationToken cancel = default, bool randomInterval = false, bool onlyRetryableException = false)
     {
-        RetryHelper<T> retry = new RetryHelper<T>(retryInterval, tryCount, randomInterval);
+        RetryHelper<T> retry = new RetryHelper<T>(retryInterval, tryCount, randomInterval, onlyRetryableException: onlyRetryableException);
         return await retry.RunAsync(proc, cancel: cancel);
     }
 

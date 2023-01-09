@@ -625,7 +625,7 @@ namespace IPA.Cores.Basic
                                 MemberInfo = v.memberInfo,
                                 Data = v.data,
                             };
-                            
+
                             ret.Add(item);
                         }
 
@@ -4015,6 +4015,14 @@ namespace IPA.Cores.Basic
         }
     }
 
+
+    public class CoresRetryableException : CoresException
+    {
+        public CoresRetryableException(string? message) : base(message)
+        {
+        }
+    }
+
     // 再試行ヘルパー
     public class RetryHelper<T>
     {
@@ -4022,13 +4030,15 @@ namespace IPA.Cores.Basic
         public int DefaultTryCount { get; set; }
         public bool RandomInterval { get; set; }
         public bool NoDebugMessage { get; set; }
+        public bool OnlyRetryableException { get; set; }
 
-        public RetryHelper(int defaultRetryInterval, int defaultTryCount, bool randomInterval = false, bool noDebugMessage =false)
+        public RetryHelper(int defaultRetryInterval, int defaultTryCount, bool randomInterval = false, bool noDebugMessage = false, bool onlyRetryableException = false)
         {
             this.DefaultRetryInterval = defaultRetryInterval;
             this.DefaultTryCount = defaultTryCount;
             this.RandomInterval = randomInterval;
             this.NoDebugMessage = noDebugMessage;
+            this.OnlyRetryableException = onlyRetryableException;
         }
 
         public async Task<T> RunAsync(Func<CancellationToken, Task<T>> proc, int? retryInterval = null, int? tryCount = null, CancellationToken cancel = default)
@@ -4052,7 +4062,7 @@ namespace IPA.Cores.Basic
                     T ret = await proc(cancel);
                     return ret;
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (this.OnlyRetryableException == false || ex is CoresRetryableException)
                 {
                     if (firstException == null)
                     {
