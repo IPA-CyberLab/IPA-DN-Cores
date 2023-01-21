@@ -408,6 +408,7 @@ public class WebApiSettings
     public bool UseProxy = CoresConfig.DefaultHttpClientSettings.UseProxy;
     public bool DisableKeepAlive = false;
     public bool DoNotThrowHttpResultError = false;
+    public string ManualProxyUri = "";
 
     public bool AllowAutoRedirect = true;
     public int MaxAutomaticRedirections = 10;
@@ -442,7 +443,7 @@ public partial class WebApi : IDisposable, IAsyncDisposable
 
     public Encoding RequestEncoding { get; set; } = Encoding.UTF8;
 
-    public SortedList<string, string> RequestHeaders = new SortedList<string, string>();
+    public StrDictionary<List<string>> RequestHeaders = new StrDictionary<List<string>>(StrCmpi);
 
     SocketsHttpHandler ClientHandler;
 
@@ -525,24 +526,65 @@ public partial class WebApi : IDisposable, IAsyncDisposable
         this.AddHeader("Authorization", tmp2);
     }
 
-    public void AddHeader(string name, string value)
+    public void AddHeader(string name, string value, bool allowMultiple = false)
     {
         if (name._IsEmpty()) return;
         lock (this.RequestHeaders)
         {
             if (value._IsEmpty() == false)
             {
-                if (this.RequestHeaders.ContainsKey(name))
-                    this.RequestHeaders[name] = value;
+                if (allowMultiple == false && this.RequestHeaders.ContainsKey(name))
+                    this.RequestHeaders[name] = value._SingleList();
                 else
-                    this.RequestHeaders.Add(name, value);
+                    this.RequestHeaders._GetOrNew(name, () => new List<string>()).Add(value);
             }
             else
             {
-                if (this.RequestHeaders.ContainsKey(name))
-                    this.RequestHeaders.Remove(name);
+                if (allowMultiple == false)
+                {
+                    if (this.RequestHeaders.ContainsKey(name))
+                        this.RequestHeaders.Remove(name);
+                }
             }
         }
+    }
+
+    public class SimpleProxyCredentialDef : ICredentials
+    {
+        public NetworkCredential? GetCredential(Uri uri, string authType)
+        {
+            return null;
+        }
+    }
+
+    public class SimpleProxyDef : IWebProxy
+    {
+        readonly Uri proxyUri;
+
+        public SimpleProxyDef(string uri)
+        {
+            proxyUri = new Uri(uri);
+        }
+
+        readonly SimpleProxyCredentialDef credentials = new SimpleProxyCredentialDef();
+
+        public ICredentials? Credentials { get => credentials; set => throw new NotImplementedException(); }
+
+        public Uri? GetProxy(Uri destination)
+        {
+            return proxyUri;
+        }
+
+        public bool IsBypassed(Uri host)
+        {
+            return false;
+        }
+    }
+
+    static readonly FastCache<string, SimpleProxyDef> ProxyDefCacheList = new FastCache<string, SimpleProxyDef>(-1, 0, CacheType.DoNotUpdateExpiresWhenAccess);
+    static SimpleProxyDef GetSimpleProxyDef(string proxyUri)
+    {
+        return ProxyDefCacheList.GetOrCreate(proxyUri, a => new SimpleProxyDef(a))!;
     }
 
     virtual protected HttpRequestMessage CreateWebRequest(WebMethods method, string url, params (string name, string? value)[]? queryList)
@@ -661,6 +703,20 @@ public partial class WebApi : IDisposable, IAsyncDisposable
         }
         catch { }
 
+        try
+        {
+            if (this.Settings.UseProxy && this.Settings.ManualProxyUri._IsFilled())
+            {
+                var proxy = GetSimpleProxyDef(this.Settings.ManualProxyUri);
+
+                if (this.ClientHandler.Proxy != proxy)
+                {
+                    this.ClientHandler.Proxy = proxy;
+                }
+            }
+        }
+        catch { }
+
         string embeddedAuthHeader = "";
         if (embeddedUsername._IsFilled() || embeddedPassword._IsFilled())
         {
@@ -670,6 +726,8 @@ public partial class WebApi : IDisposable, IAsyncDisposable
 
         lock (this.RequestHeaders)
         {
+            StrDictionary<List<string>> tmp = new StrDictionary<List<string>>(StrCmpi);
+
             foreach (string name in this.RequestHeaders.Keys)
             {
                 bool ok = true;
@@ -681,9 +739,16 @@ public partial class WebApi : IDisposable, IAsyncDisposable
 
                 if (ok)
                 {
-                    string value = this.RequestHeaders[name];
-                    requestMessage.Headers.Add(name, value);
+                    foreach (var value in this.RequestHeaders[name])
+                    {
+                        tmp._GetOrNew(name, () => new List<string>()).Add(value);
+                    }
                 }
+            }
+
+            foreach (var kv in tmp.OrderBy(x => x.Key, StrCmpi))
+            {
+                requestMessage.Headers.Add(kv.Key, kv.Value);
             }
         }
 

@@ -157,7 +157,16 @@ public static class WebServerHelper
 
         if (additionalHeaders != null)
         {
-            additionalHeaders._DoForEach(x => h.Headers.Add(x.Key, x.Value));
+            StrDictionary<List<string>> tmp = new StrDictionary<List<string>>(StrCmpi);
+            additionalHeaders._DoForEach(x =>
+            {
+                tmp._GetOrNew(x.Key, () => new List<string>()).Add(x.Value);
+            });
+
+            foreach (var kv in tmp)
+            {
+                h.Headers.Add(kv.Key, new StringValues(kv.Value.ToArray()));
+            }
         }
 
         if (preData.IsEmpty == false) await h.Body.WriteAsync(preData, cancel);

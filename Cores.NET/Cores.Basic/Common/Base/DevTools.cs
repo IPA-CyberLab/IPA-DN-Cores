@@ -106,5 +106,25 @@ public static partial class DevTools
 
         return ret;
     }
+
+    static readonly Singleton<PrivKey> AutoGeneratingDebugCertKey = new Singleton<PrivKey>(() =>
+    {
+        PkiUtil.GenerateRsaKeyPair(2048, out PrivKey newKey, out _);
+        return newKey;
+    });
+
+    static readonly Singleton<string, PalX509Certificate> AutoGeneratingDebugCertSingleton = new Singleton<string, PalX509Certificate>(hostname =>
+    {
+        var ca = CoresDebugCACert_20221125;
+
+        var newKey = AutoGeneratingDebugCertKey.CreateOrGet();
+
+        Certificate newCert = new Certificate(newKey, ca, new CertificateOptions(PkiAlgorithm.RSA, cn: hostname.Trim(), c: "US", type: CertificateOptionsType.ServerCertificate));
+        CertificateStore newCertStore = new CertificateStore(newCert, newKey);
+
+        return newCertStore.X509Certificate;
+    }, StrCmpi);
+
+    public static PalX509Certificate GetAutoGeneratingDebugCert(string hostname) => AutoGeneratingDebugCertSingleton[hostname];
 }
 

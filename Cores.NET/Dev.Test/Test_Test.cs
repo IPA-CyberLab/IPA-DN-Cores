@@ -4018,8 +4018,41 @@ cccadmin
         }
     }
 
+    public class ReverseProxyTestHandler : EasyReverseProxyHandlerBase
+    {
+    }
+
+    public static void Test_230121_ReverseProxyTest()
+    {
+        EasyReverseProxyHttpServerSettings settings = new EasyReverseProxyHttpServerSettings();
+        settings.WebOptions.Settings.UseProxy = true;
+        settings.WebOptions.Settings.ManualProxyUri = "http://10.21.2.135:3128/"; // Proxy URL
+
+        using ReverseProxyTestHandler h = new ReverseProxyTestHandler();
+
+        HttpServerOptions opt = new HttpServerOptions
+        {
+            HttpPortsList = new List<int> { 80 },
+            HttpsPortsList = new List<int> { 443 },
+            HiveName = "ReverseProxyTest8",
+            AutomaticRedirectToHttpsIfPossible = false,
+            UseGlobalCertVault = false,
+            ServerCertSelector = (_, sni) => DevTools.GetAutoGeneratingDebugCert(sni).NativeCertificate2,
+        };
+
+        using var svr = new EasyReverseProxyHttpServer(h, opt, settings, true);
+
+        Con.ReadLine();
+    }
+
     public static void Test_Generic()
     {
+        if (true)
+        {
+            Test_230121_ReverseProxyTest();
+            return;
+        }
+
         if (true)
         {
             string fn = @"\\rd-bk3\administrator\test6";
