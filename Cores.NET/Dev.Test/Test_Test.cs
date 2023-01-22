@@ -4018,8 +4018,108 @@ cccadmin
         }
     }
 
-    public class ReverseProxyTestHandler : EasyReverseProxyHandlerBase
+    public class ReverseProxyTestHandler : EasyReverseProxyHandler
     {
+        public class Gomakashi
+        {
+            public Memory<byte> VideoData;
+            public Memory<byte> PicData;
+        }
+
+        public Singleton<string, List<Gomakashi>> GomaStat = new Singleton<string, List<Gomakashi>>(id => new List<Gomakashi>(), StrCmpi);
+
+        // 某システム検証用フィルタ
+        public override async Task FilterAsync(EasyReverseProxyFilterContext ctx, CancellationToken cancel = default)
+        {
+            await Task.CompletedTask;
+
+            var now = DtNow;
+
+            ctx.Url._ParseUrl(out var uri, out var qs);
+
+            if (uri.AbsolutePath.StartsWith("/xxxxx/yyyyy", StringComparison.OrdinalIgnoreCase))
+            {
+                if (ctx.ParsedPostDataContentType.MediaType._IsSamei("multipart/form-data"))
+                {
+                    string boundaryStr = ctx.ParsedPostDataContentType.Parameters.Where(x => x.Name == "boundary").Select(x => x.Value).Single();
+
+                    var mp = MultiPartBody.TryParse(ctx.PostData.Span, boundaryStr);
+
+                    string infoStr = "";
+                    string idStr = "";
+
+                    var idPart = mp.ItemList.Where(x => x.ContentDisposition._InStri("reservation_id")).SingleOrDefault();
+                    if (idPart != null)
+                    {
+                        idStr = idPart.Data._GetString_UTF8()._GetFirstFilledLineFromLines();
+                    }
+
+                    var infoPart = mp.ItemList.Where(x => x.ContentDisposition._InStri("video_file_info")).SingleOrDefault();
+                    if (infoPart != null)
+                    {
+                        infoStr = infoPart.Data._GetString_UTF8()._GetFirstFilledLineFromLines();
+                    }
+
+                    if (infoStr._IsFilled())
+                    {
+                        var tokens = infoStr._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, "_");
+                        if (tokens.Length >= 2)
+                        {
+                            int start = tokens[0]._ToInt();
+                            int end = tokens[1]._ToInt();
+
+                            infoStr = $"{start / 1000} 秒目 ～ {end / 1000} 秒目";
+                        }
+                    }
+
+                    bool rebuild = false;
+
+                    if (idStr._IsFilled() && infoStr._IsFilled())
+                    {
+                        string baseFn = @"c:\tmp\230123\受験ID=" + idStr + @"\" + infoStr;
+
+                        var videoPart = mp.ItemList.Where(x => x.ContentDisposition._InStri("monitoring_video")).SingleOrDefault();
+                        if (videoPart != null)
+                        {
+                            Lfs.WriteDataToFile(baseFn + ",動画.mkv", videoPart.Data, FileFlags.AutoCreateDirectory);
+                        }
+
+                        var picPart = mp.ItemList.Where(x => x.ContentDisposition._InStri("examinee_image_sample")).SingleOrDefault();
+                        if (picPart != null)
+                        {
+                            var bin = picPart.Data._GetString_Ascii()._Base64Decode();
+                            Lfs.WriteDataToFile(baseFn + ",静止画.jpg", bin, FileFlags.AutoCreateDirectory);
+                        }
+
+                        if (videoPart != null && picPart != null)
+                        {
+                            // ごまかし実験
+                            var list = GomaStat.CreateOrGet(idStr);
+                            if (list.Count < 12)
+                            {
+                                list.Add(new Gomakashi { PicData = picPart.Data, VideoData = videoPart.Data });
+                                Where($"Store: {list.Count}");
+                            }
+                            else
+                            {
+                                //throw new CoresException("Inchiki error!");
+                                int randIndex = Secure.RandSInt31() % list.Count;
+                                var randSelected = list[randIndex];
+                                videoPart.Data = randSelected.VideoData;
+                                picPart.Data = randSelected.PicData;
+                                rebuild = true;
+                                Where($"Load and Replace: {randIndex}");
+                            }
+                        }
+                    }
+
+                    if (rebuild)
+                    {
+                        ctx.PostData = mp.Build();
+                    }
+                }
+            }
+        }
     }
 
     public static void Test_230121_ReverseProxyTest()
@@ -4034,9 +4134,11 @@ cccadmin
         {
             HttpPortsList = new List<int> { 80 },
             HttpsPortsList = new List<int> { 443 },
-            HiveName = "ReverseProxyTest8",
+            HiveName = "ReverseProxyTest9",
             AutomaticRedirectToHttpsIfPossible = false,
             UseGlobalCertVault = false,
+            DisableExcessiveHtmlEncoding = true,
+            UseKestrelWithIPACoreStack = false,
             ServerCertSelector = (_, sni) => DevTools.GetAutoGeneratingDebugCert(sni).NativeCertificate2,
         };
 
@@ -4047,8 +4149,25 @@ cccadmin
 
     public static void Test_Generic()
     {
+        if (false)
+        {
+            var x = MultiPartBody.TryParse(Lfs.ReadDataFromFile(@"C:\TMP\230122\20230122121509.dat").Span, "----WebKitFormBoundaryoU3WgSXQuiVOKFwB");
+
+            //x._PrintAsJson();
+
+            var y = x.Build();
+
+            Lfs.WriteDataToFile(@"C:\TMP\230122\test2.dat", y);
+
+            return;
+        }
+
         if (true)
         {
+            //MediaTypeHeaderValue.TryParse("multipart /form-data; boundary=something", out var test);
+
+            //test._Print();
+
             Test_230121_ReverseProxyTest();
             return;
         }

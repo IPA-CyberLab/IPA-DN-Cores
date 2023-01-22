@@ -748,7 +748,16 @@ public partial class WebApi : IDisposable, IAsyncDisposable
 
             foreach (var kv in tmp.OrderBy(x => x.Key, StrCmpi))
             {
-                requestMessage.Headers.Add(kv.Key, kv.Value);
+                if (kv.Key._IsSamei("cookie") == false)
+                {
+                    // cookie 以外はカンマ区切り
+                    requestMessage.Headers.Add(kv.Key, kv.Value);
+                }
+                else
+                {
+                    // cookie は ; 区切り
+                    requestMessage.Headers.Add(kv.Key, kv.Value._Combine("; "));
+                }
             }
         }
 
@@ -826,6 +835,15 @@ public partial class WebApi : IDisposable, IAsyncDisposable
         }
     }
 
+    public static MediaTypeHeaderValue ParseContentTypeStr(string str)
+    {
+        if (MediaTypeHeaderValue.TryParse(str, out var ret))
+        {
+            return ret;
+        }
+
+        return new MediaTypeHeaderValue(str);
+    }
 
     public virtual async Task<WebRet> SimplePostDataAsync(string url, byte[] postData, CancellationToken cancel = default, string postContentType = Consts.MimeTypes.Json)
     {
@@ -833,7 +851,7 @@ public partial class WebApi : IDisposable, IAsyncDisposable
         using HttpRequestMessage r = CreateWebRequest(WebMethods.POST, url);
 
         r.Content = new ByteArrayContent(postData);
-        r.Content.Headers.ContentType = new MediaTypeHeaderValue(postContentType);
+        r.Content.Headers.ContentType = ParseContentTypeStr(postContentType);
 
         using (HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseContentRead, cancel))
         {
@@ -858,7 +876,7 @@ public partial class WebApi : IDisposable, IAsyncDisposable
         byte[] upload_data = jsonString._GetBytes(this.RequestEncoding);
 
         r.Content = new ByteArrayContent(upload_data);
-        r.Content.Headers.ContentType = new MediaTypeHeaderValue(postContentType);
+        r.Content.Headers.ContentType = ParseContentTypeStr(postContentType);
 
         using (HttpResponseMessage res = await this.Client.SendAsync(r, HttpCompletionOption.ResponseContentRead, cancel))
         {
@@ -886,7 +904,7 @@ public partial class WebApi : IDisposable, IAsyncDisposable
                 throw new ArgumentException("request.UploadStream == null");
 
             r.Content = new StreamContent(request.UploadStream);
-            r.Content.Headers.ContentType = new MediaTypeHeaderValue(request.UploadContentType);
+            r.Content.Headers.ContentType = ParseContentTypeStr(request.UploadContentType);
         }
         else
         {

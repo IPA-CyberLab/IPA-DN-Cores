@@ -55,6 +55,7 @@ using System.Runtime.CompilerServices;
 using IPA.Cores.Basic;
 using IPA.Cores.Basic.DnsLib;
 using IPA.Cores.Basic.Internal;
+using IPA.Cores.Basic.HttpClientCore;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using Microsoft.AspNetCore.Server.IIS.Core;
@@ -71,6 +72,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authentication;
@@ -85,16 +87,134 @@ using IHostApplicationLifetime = Microsoft.AspNetCore.Hosting.IApplicationLifeti
 namespace IPA.Cores.Basic;
 
 
-// リバースプロキシハンドラベースクラス (このクラスを派生して自前のハンドラを実装します)
-public abstract class EasyReverseProxyHandlerBase : AsyncService
+
+public class MultiPartItem
 {
+    public string ContentType = "";
+    public string ContentDisposition = "";
+    public StrDictionary<List<string>> Headers = new StrDictionary<List<string>>(StrCmpi);
+    public Memory<byte> Data;
+}
+
+public class MultiPartBody
+{
+    public string BoundaryString = Str.NewUid("MP", '_');
+    public List<MultiPartItem> ItemList = new List<MultiPartItem>();
+
+    public Memory<byte> Build()
+    {
+        MultipartContent content = new MultipartContent("test", this.BoundaryString);
+
+        foreach (var item in this.ItemList)
+        {
+            ByteArrayContent c = new ByteArrayContent(item.Data.ToArray());
+
+            if (item.ContentDisposition._IsFilled())
+            {
+                c.Headers.Add("Content-Disposition", item.ContentDisposition);
+            }
+            if (item.ContentType._IsFilled())
+            {
+                c.Headers.Add("Content-Type", item.ContentType);
+            }
+            foreach (var kv in item.Headers)
+            {
+                c.Headers.Add(kv.Key, kv.Value);
+            }
+
+            content.Add(c);
+        }
+
+        MemoryStream ms = new MemoryStream();
+
+        content.CopyToAsync(ms);
+
+        return ms.ToArray();
+    }
+
+    public static MultiPartBody TryParse(ReadOnlySpan<byte> data, string boundary)
+    {
+        return TryParse(data._ToMemoryStream(), boundary)._GetResult();
+    }
+
+    public static async Task<MultiPartBody> TryParse(Stream st, string boundary, CancellationToken cancel = default)
+    {
+        if (boundary._IsEmpty()) throw new CoresException("boundary is empty");
+
+        MultiPartBody ret = new MultiPartBody();
+        ret.BoundaryString = boundary;
+
+        MultipartReader reader = new MultipartReader(boundary, st);
+
+        reader.HeadersCountLimit = int.MaxValue;
+        reader.HeadersLengthLimit = int.MaxValue;
+        reader.BodyLengthLimit = int.MaxValue;
+
+        // hack: bug fix
+        var rw = reader._GetFieldReaderWriter(true);
+        var currentStream = rw.GetValue(reader, "_currentStream");
+        currentStream!._PrivateSet("LengthLimit", (long?)int.MaxValue);
+
+        while (true)
+        {
+            var section = await reader.ReadNextSectionAsync(cancel);
+
+            if (section == null)
+            {
+                break;
+            }
+
+            MultiPartItem item = new MultiPartItem
+            {
+                Data = await section.Body._ReadToEndAsync(cancel: cancel),
+                ContentDisposition = section.ContentDisposition._NonNull(),
+                ContentType = section.ContentType._NonNull(),
+            };
+
+            if (section.Headers != null)
+            {
+                foreach (var kv in section.Headers)
+                {
+                    if (kv.Key._IsSamei("Content-Disposition") || kv.Key._IsSamei("Content-Type")) { }
+                    else
+                    {
+                        foreach (var value in kv.Value)
+                        {
+                            item.Headers._GetOrNew(kv.Key, () => new List<string>()).Add(value);
+                        }
+                    }
+                }
+            }
+
+            ret.ItemList.Add(item);
+        }
+
+        return ret;
+    }
+}
+
+public class EasyReverseProxyFilterContext
+{
+    public HttpRequest Request = null!;
+    public HttpResponse Response = null!;
+    public string Url = "";
+    public WebMethods Method;
+    public Memory<byte> PostData;
+    public string PostDataContentType = "";
+    public MediaTypeHeaderValue ParsedPostDataContentType = null!;
+}
+
+// リバースプロキシハンドラベースクラス (このクラスを派生して自前のハンドラを実装します)
+public class EasyReverseProxyHandler : AsyncService
+{
+    public virtual Task FilterAsync(EasyReverseProxyFilterContext context, CancellationToken cancel = default) => Task.CompletedTask;
 }
 
 // リバースプロキシ用 HTTP サーバービルダ
 public sealed class EasyReverseProxyHttpServerBuilder : HttpServerStartupBase
 {
     EasyReverseProxyHttpServer HttpServer => (EasyReverseProxyHttpServer)this.Param!;
-    EasyReverseProxyHandlerBase Handler => HttpServer.Handler;
+    EasyReverseProxyHandler Handler => HttpServer.Handler;
     EasyReverseProxyHttpServerSettings Settings => HttpServer.Settings;
 
     public static HttpServer<EasyReverseProxyHttpServerBuilder> StartServer(HttpServerOptions httpCfg, EasyReverseProxyHttpServer httpServer, CancellationToken cancel = default)
@@ -110,11 +230,17 @@ public sealed class EasyReverseProxyHttpServerBuilder : HttpServerStartupBase
         {
             var cancel = request._GetRequestCancellationToken();
 
+            if (IPAddress.TryParse(request.Host.Host, out _))
+            {
+                await response._SendStringContentsAsync("Invalid request", statusCode: Consts.HttpStatusCodes.InternalServerError);
+                return;
+            }
+
             WebMethods method = request.Method._ParseEnum(WebMethods.GET);
 
             string url = request.IsHttps ? "https://" : "http://";
 
-            url += request.Host.Value;
+            url += request.Host.Host;
 
             if (request.Host.Port == null || ((request.IsHttps && request.Host.Port == 443) || (request.IsHttps == false && request.Host.Port == 80))) { }
             else
@@ -131,8 +257,6 @@ public sealed class EasyReverseProxyHttpServerBuilder : HttpServerStartupBase
                 postData = await request.Body._ReadToEndAsync(cancel: cancel);
             }
 
-            $"{method.ToString()} {url}"._Print();
-
             await using WebApi api = new WebApi(Settings.WebOptions);
 
             foreach (var header in request.Headers)
@@ -148,13 +272,30 @@ public sealed class EasyReverseProxyHttpServerBuilder : HttpServerStartupBase
 
             WebRet ret;
 
-            if (method == WebMethods.POST || method == WebMethods.PUT)
+            $"{method.ToString()} ({postData.Length._ToString3()} bytes) {url}"._Print();
+
+            string contentTypeStr = request.ContentType._FilledOrDefault(Consts.MimeTypes.OctetStream);
+
+            EasyReverseProxyFilterContext context = new EasyReverseProxyFilterContext
             {
-                ret = await api.SimplePostDataAsync(url, postData, cancel, request.ContentType._FilledOrDefault(Consts.MimeTypes.OctetStream));
+                Method = method,
+                Url = url,
+                PostData = postData,
+                PostDataContentType = contentTypeStr,
+                ParsedPostDataContentType = WebApi.ParseContentTypeStr(contentTypeStr),
+                Request = request,
+                Response = response,
+            };
+
+            await Handler.FilterAsync(context, cancel);
+
+            if (context.Method == WebMethods.POST || context.Method == WebMethods.PUT)
+            {
+                ret = await api.SimplePostDataAsync(context.Url, context.PostData.ToArray(), cancel, context.PostDataContentType);
             }
             else
             {
-                ret = await api.SimpleQueryAsync(method, url, cancel);
+                ret = await api.SimpleQueryAsync(context.Method, context.Url, cancel);
             }
 
             List<KeyValuePair<string, string>> headers = new List<KeyValuePair<string, string>>();
@@ -219,12 +360,12 @@ public class EasyReverseProxyHttpServerSettings
 public sealed class EasyReverseProxyHttpServer : AsyncService
 {
     readonly HttpServer<EasyReverseProxyHttpServerBuilder> HttpSvr;
-    public readonly EasyReverseProxyHandlerBase Handler;
+    public readonly EasyReverseProxyHandler Handler;
     public readonly EasyReverseProxyHttpServerSettings Settings;
 
     readonly bool AutoDisposeHandler;
 
-    public EasyReverseProxyHttpServer(EasyReverseProxyHandlerBase handler, HttpServerOptions options, EasyReverseProxyHttpServerSettings settings, bool autoDisposeHandler = false)
+    public EasyReverseProxyHttpServer(EasyReverseProxyHandler handler, HttpServerOptions options, EasyReverseProxyHttpServerSettings settings, bool autoDisposeHandler = false)
     {
         try
         {
