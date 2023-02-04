@@ -941,20 +941,19 @@ public class ThinControllerSession : IDisposable, IAsyncDisposable
         long serverMask64 = req.Pack["ServerMask64"].SInt64Value;
 
         var machine = this.ClientInfo.AuthedMachine!;
-        if (wolMacList._IsFilled() && machine.WOL_MACLIST._IsSamei(wolMacList) == false)
+
+        if (Controller.Db.IsDatabaseConnected) // MAC アドレス関係の DB 書き込みは DB 接続が成功している場合のみ
         {
-            // WoL MAC アドレスリストが登録されようとしており、かつ、現在の DB の内容と異なる場合は、
-            // 直ちに DB 強制更新する
-            if (Controller.Db.IsDatabaseConnected == false)
+            if (wolMacList._IsFilled() && machine.WOL_MACLIST._IsSamei(wolMacList) == false)
             {
-                // データベースエラー時は処理禁止
-                return NewWpcResult(VpnError.ERR_TEMP_ERROR);
+                // WoL MAC アドレスリストが登録されようとしており、かつ、現在の DB の内容と異なる場合は、
+                // 直ちに DB 強制更新する
+
+                await Controller.Db.UpdateDbForWolMacAsync(ClientInfo.AuthedMachine!.MSID, wolMacList, serverMask64, DtNow, cancel);
+
+                machine.WOL_MACLIST = wolMacList;
+                machine.SERVERMASK64 = serverMask64;
             }
-
-            await Controller.Db.UpdateDbForWolMacAsync(ClientInfo.AuthedMachine!.MSID, wolMacList, serverMask64, DtNow, cancel);
-
-            machine.WOL_MACLIST = wolMacList;
-            machine.SERVERMASK64 = serverMask64;
         }
 
         // DB 更新 (遅延)
