@@ -78,7 +78,7 @@ public static class WildcardCertServerUtil
             if (href._IsFilled())
             {
                 if (href.EndsWith("/")) href = href.Substring(0, href.Length - 1);
-                if (href._IsValidFqdn())
+                if (href._IsValidFqdn() && href.StartsWith(".") == false)
                 {
                     //// test
                     //if (href.EndsWith("sehosts.com") ||
