@@ -83,7 +83,7 @@ public class InboxSlackPerUserAdapter : InboxSlackPerAppAdapter
         {
             this.UserCredential = credential;
 
-            this.Api = new SlackApi("", "", this.AppCredential.ClientSecret);
+            this.Api = new SlackApi("", "", this.AppCredential.ClientSecret, this.AdapterOptions.IgnoreSslCert);
         }
         else
         {
@@ -119,7 +119,7 @@ public class InboxSlackPerAppAdapter : InboxAdapter
         {
             this.UserCredential = credential;
 
-            this.Api = new SlackApi(this.AppCredential.ClientId._NullCheck(), this.AppCredential.ClientSecret._NullCheck(), this.UserCredential.AccessToken);
+            this.Api = new SlackApi(this.AppCredential.ClientId._NullCheck(), this.AppCredential.ClientSecret._NullCheck(), this.UserCredential.AccessToken, this.AdapterOptions.IgnoreSslCert);
         }
         else
         {
@@ -151,7 +151,7 @@ public class InboxSlackPerAppAdapter : InboxAdapter
 
     public override string AuthStartGetUrl(string redirectUrl, string state = "")
     {
-        using (SlackApi tmpApi = new SlackApi(this.AppCredential.ClientId._NullCheck(), this.AppCredential.ClientSecret._NullCheck()))
+        using (SlackApi tmpApi = new SlackApi(this.AppCredential.ClientId._NullCheck(), this.AppCredential.ClientSecret._NullCheck(), ignoreSslCert: this.AdapterOptions.IgnoreSslCert))
         {
             return tmpApi.AuthGenerateAuthorizeUrl(Consts.OAuthScopes.Slack_Client, redirectUrl, state);
         }
@@ -159,7 +159,7 @@ public class InboxSlackPerAppAdapter : InboxAdapter
 
     public override async Task<InboxAdapterUserCredential> AuthGetCredentialAsync(string code, string redirectUrl, CancellationToken cancel = default)
     {
-        using (SlackApi tmpApi = new SlackApi(this.AppCredential.ClientId._NullCheck(), this.AppCredential.ClientSecret._NullCheck()))
+        using (SlackApi tmpApi = new SlackApi(this.AppCredential.ClientId._NullCheck(), this.AppCredential.ClientSecret._NullCheck(), ignoreSslCert: this.AdapterOptions.IgnoreSslCert))
         {
             SlackApi.AccessToken token = await tmpApi.AuthGetAccessTokenAsync(code, redirectUrl, cancel);
 

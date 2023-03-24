@@ -141,7 +141,7 @@ public class SlackApi : WebApi
     public string ClientSecret { get; }
     public string? AccessTokenStr { get; }
 
-    public SlackApi(string clientId, string clientSecret, string? accessToken = "") : base()
+    public SlackApi(string clientId, string clientSecret, string? accessToken = "", bool ignoreSslCert = false) : base(new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = ignoreSslCert }))
     {
         this.ClientId = clientId;
         this.ClientSecret = clientSecret;
