@@ -1303,6 +1303,30 @@ public static class BasicHelper
         await h.PostHttpAsync(stream, packData, cancel);
     }
 
+    [return: MaybeNull]
+    public static async Task<T> _RecvJsonAsync<T>(this Stream stream, CancellationToken cancel = default)
+    {
+        int sz = await stream.ReceiveSInt16Async(cancel);
+
+        var data = await stream._ReadAllAsync(sz, cancel);
+        string jsonStr = data._GetString_UTF8(true);
+
+        return jsonStr._JsonToObject<T>()!;
+    }
+
+    public static async Task _SendJsonAsync<T>(this Stream stream, T obj, CancellationToken cancel = default)
+    {
+        var jsonStr = obj._ObjectToJson(compact: true);
+        var jsonData = jsonStr._GetBytes_UTF8();
+        ushort size = (ushort)jsonData.Length;
+
+        MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
+        buf.WriteUInt16(size);
+        buf.Write(jsonData);
+
+        await stream.WriteAsync(buf, cancel);
+    }
+
     public static async Task<Pack> _RecvPackAsync(this Stream stream, CancellationToken cancel = default)
     {
         int sz = await stream.ReceiveSInt32Async(cancel);
