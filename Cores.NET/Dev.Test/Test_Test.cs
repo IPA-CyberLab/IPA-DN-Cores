@@ -4164,6 +4164,7 @@ cccadmin
         public string LocalIp_str = null!;
         public int LocalPort_u32;
         public string TargetFqdnReverse_str = null!;
+        public byte[] TargetSslCert_bin = null!;
     }
 
     public static async Task Test_230323_Zttp()
@@ -4174,9 +4175,9 @@ cccadmin
 
         ZttpConnectRequest req = new()
         {
-            Flags_u64 = 1234,
+            Flags_u64 = 1,
             TargetFqdn_str = "www.google.com",
-            TargetPort_u32 = 801,
+            TargetPort_u32 = 443,
         };
 
         await st._SendJsonAsync(req);
