@@ -1076,8 +1076,24 @@ public class HttpErrorResult : HttpStringResult
 // 指定されたファイルを HTTP 応答するクラス
 public class HttpFileResult : HttpResult
 {
+    static IReadOnlyList<KeyValuePair<string, string>>? Util_AddFilenameToHeadersList(IReadOnlyList<KeyValuePair<string, string>>? original, string? filename = null)
+    {
+        if (filename._IsEmpty()) return original;
+        if (original == null) original = new List<KeyValuePair<string, string>>();
+
+        var newList = original._CloneListFast();
+
+        if (newList._HasKey(Consts.HttpHeaders.ContentDisposition, StrCmpi) == false)
+        {
+            newList.Add(new KeyValuePair<string, string>(Consts.HttpHeaders.ContentDisposition, $"attachment; filename=\"{filename}\""));
+        }
+
+        return newList;
+    }
+
     public HttpFileResult(FileBase file, long offset, long? length, string contentType = Consts.MimeTypes.OctetStream, int statusCode = Consts.HttpStatusCodes.Ok, bool disposeFile = true,
-        ReadOnlyMemory<byte> preData = default, ReadOnlyMemory<byte> postData = default, IReadOnlyList<KeyValuePair<string, string>>? additionalHeaders = null)
-        : base(file.GetStream(disposeFile), offset, length, contentType, statusCode, true, preData, postData, additionalHeaders) { }
+        ReadOnlyMemory<byte> preData = default, ReadOnlyMemory<byte> postData = default, IReadOnlyList<KeyValuePair<string, string>>? additionalHeaders = null, string? filename = null)
+        : base(file.GetStream(disposeFile), offset, length, contentType, statusCode, true, preData, postData, Util_AddFilenameToHeadersList(additionalHeaders, filename)) { }
 }
+
 
