@@ -929,7 +929,7 @@ public class EasyDnsResponderRecord
     public EasyDnsResponderRecordSettings? Settings { get; set; } = null;
 
     [JsonIgnore]
-    public object? Param = null;
+    public object? Param = null; // 注意！ 複雑なオブジェクトを設定すると動作がおかしくなる。内部的 Clone やシリアライズが原因。
 
     public static EasyDnsResponderRecordType StrToRecordType(string typeStr)
     {

@@ -42,6 +42,7 @@ using System.Diagnostics;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Net;
 
 #pragma warning disable CS0162
 #pragma warning disable CS0219
@@ -52,6 +53,84 @@ class IpaDnsServerDaemon : Daemon
 {
     IpaDnsService? SvcInstance = null;
     EasyJsonRpcServer<IpaDnsService.IRpc>? RpcInstance = null;
+
+    public class MyHook : IpaDnsServiceHook
+    {
+        public class DNSP01_Responder : IpaDnsServiceDynamicResponderBase
+        {
+            List<IPAddress> IpList = new List<IPAddress>();
+
+            public DNSP01_Responder(IpaDnsServiceDynamicResponderInitParam initParam) : base(initParam)
+            {
+                HashSet<IPAddress> ipDict = new HashSet<IPAddress>(IpComparer.ComparerWithIgnoreScopeId);
+
+                var vars = initParam.CustomRecordDef.DynamicRecordParamsList!._GetFirstValueOrDefault("iplist")._ParseQueryString(splitChar: ',', trimKeyAndValue: true);
+
+                foreach (var kv in vars)
+                {
+                    var ip = kv.Key._ToIPAddress(AllowedIPVersions.IPv4, true);
+                    if (ip != null)
+                    {
+                        ipDict.Add(ip);
+                    }
+                }
+
+                this.IpList = ipDict.OrderBy(x => x, IpComparer.ComparerWithIgnoreScopeId).ToList();
+            }
+
+            public override bool ResolveImpl(IpaDnsServiceDynamicResponderCallParam param)
+            {
+                var e = param.EditMe;
+
+                int count = this.IpList.Count;
+
+                if (count >= 1)
+                {
+                    bool ok = false;
+                    uint hash = 0;
+
+                    string label = param.Request.RequestHostName;
+                    string[] labels = label.Split(".", StringSplitOptions.RemoveEmptyEntries);
+
+                    if (labels.Length >= 4 && labels[0].StartsWith("x") && labels[1].StartsWith("x") && labels[2].StartsWith("x") && labels[3].StartsWith("x"))
+                    {
+                        // x1.x2.x3.x4.aaa.bbb 形式
+                        string hashSeed = labels[0] + "." + labels[1] + "." + labels[2] + "." + labels[3];
+                        hash = (uint)Secure.HashSHA1AsSInt31(hashSeed._GetBytes_Ascii());
+                        ok = true;
+                    }
+                    else if (labels.Length >= 1)
+                    {
+                        // num.aaa.bbb 形式
+                        if (int.TryParse(labels[0], out int intValue))
+                        {
+                            if (intValue < count)
+                            {
+                                hash = (uint)intValue;
+                                ok = true;
+                            }
+                        }
+                    }
+
+                    if (ok)
+                    {
+                        var ip = this.IpList[(int)(hash % count)];
+
+                        e.IPAddressList = ip._SingleList();
+
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+        }
+
+        public override void InitDynamicResponderFactoryList(Dictionary<string, IpaDnsServiceDynamicResponderFactory> list)
+        {
+            list.Add("DNSP01", p => new DNSP01_Responder(p));
+        }
+    }
 
     public IpaDnsServerDaemon() : base(new DaemonOptions("IpaDnsServer", "IPA DNS Server Service", true))
     {
@@ -78,7 +157,7 @@ class IpaDnsServerDaemon : Daemon
         {
         };
 
-        this.SvcInstance = new IpaDnsService(startup, new IpaDnsServiceHook());
+        this.SvcInstance = new IpaDnsService(startup, new MyHook());
 
         JsonRpcServerConfig rpcConfig = new JsonRpcServerConfig
         {

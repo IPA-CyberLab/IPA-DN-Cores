@@ -4169,7 +4169,7 @@ cccadmin
 
     public static async Task Test_230323_Zttp()
     {
-        await using var ws = await WebSocket.ConnectAsync("wss://127.0.0.1/tunnel_test/", new WebSocketConnectOptions(sslOptions: new PalSslClientAuthenticationOptions { AllowAnyServerCert = true }));
+        await using var ws = await WebSocket.ConnectAsync("wss://ws-103-41-61-177.websocket.cyber.ipa.go.jp/tunnel_test/", new WebSocketConnectOptions(sslOptions: new PalSslClientAuthenticationOptions { AllowAnyServerCert = true }));
 
         await using var st = ws.GetStream();
 

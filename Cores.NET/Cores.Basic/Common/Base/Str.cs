@@ -7941,9 +7941,9 @@ namespace IPA.Cores.Basic
         }
 
         // QueryString をパースする
-        public static QueryStringList ParseQueryString(string src, Encoding? encoding = null)
+        public static QueryStringList ParseQueryString(string src, Encoding? encoding = null, char splitChar = '&', bool trimKeyAndValue = false)
         {
-            return new QueryStringList(src, encoding);
+            return new QueryStringList(src, encoding, splitChar, trimKeyAndValue);
         }
 
         // 文字列から URL と QueryString を分離する

@@ -5265,6 +5265,8 @@ namespace IPA.Cores.Basic
         public volatile static object? ObjectVolatileSlow = null;
 
         public static readonly object EmptyObject = new object();
+
+        public static readonly ConcurrentBag<object?> Bag = new ConcurrentBag<object?>();
     }
 
     public static class GlobalMicroBenchmark
