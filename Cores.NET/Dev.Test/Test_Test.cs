@@ -4208,8 +4208,46 @@ HOST: www.google.com
 
     }
 
+    public class TestClass230328
+    {
+        public TestClass230328()
+        {
+            Where();
+        }
+    }
+
+    public class TestClass230328Ex : TestClass230328
+    {
+        public TestClass230328Ex() : base()
+        {
+            Where();
+        }
+    }
+
+    class Derived : Base
+    {
+        public Derived() : base() // 基本クラスのコンストラクタを呼び出す
+        {
+            Console.WriteLine("Hello2");
+        }
+    }
+
+    class Base
+    {
+        public Base()
+        {
+            Console.WriteLine("Hello1");
+        }
+    }
+
     public static void Test_Generic()
     {
+        if (true)
+        {
+            Derived c = new Derived();
+            return;
+        }
+
         if (true)
         {
             Test_230323_Zttp()._GetResult();
