@@ -58,11 +58,13 @@ class IpaDnsServerDaemon : Daemon
     {
         public class DNSP01_Responder : IpaDnsServiceDynamicResponderBase
         {
-            List<IPAddress> IpList = new List<IPAddress>();
+            List<IPAddress> IPv4List = new List<IPAddress>();
+            List<IPAddress> IPv6List = new List<IPAddress>();
 
             public DNSP01_Responder(IpaDnsServiceDynamicResponderInitParam initParam) : base(initParam)
             {
-                HashSet<IPAddress> ipDict = new HashSet<IPAddress>(IpComparer.ComparerWithIgnoreScopeId);
+                HashSet<IPAddress> ipv4Dict = new HashSet<IPAddress>(IpComparer.ComparerWithIgnoreScopeId);
+                HashSet<IPAddress> ipv6Dict = new HashSet<IPAddress>(IpComparer.ComparerWithIgnoreScopeId);
 
                 var vars = initParam.CustomRecordDef.DynamicRecordParamsList!._GetFirstValueOrDefault("iplist")._ParseQueryString(splitChar: ',', trimKeyAndValue: true);
 
@@ -71,20 +73,31 @@ class IpaDnsServerDaemon : Daemon
                     var ip = kv.Key._ToIPAddress(AllowedIPVersions.IPv4, true);
                     if (ip != null)
                     {
-                        ipDict.Add(ip);
+                        ipv4Dict.Add(ip);
                     }
                 }
 
-                this.IpList = ipDict.OrderBy(x => x, IpComparer.ComparerWithIgnoreScopeId).ToList();
+                this.IPv4List = ipv4Dict.OrderBy(x => x, IpComparer.ComparerWithIgnoreScopeId).ToList();
+
+                foreach (var kv in vars)
+                {
+                    var ip = kv.Key._ToIPAddress(AllowedIPVersions.IPv6, true);
+                    if (ip != null)
+                    {
+                        ipv6Dict.Add(ip);
+                    }
+                }
+
+                this.IPv6List = ipv6Dict.OrderBy(x => x, IpComparer.ComparerWithIgnoreScopeId).ToList();
             }
 
             public override bool ResolveImpl(IpaDnsServiceDynamicResponderCallParam param)
             {
                 var e = param.EditMe;
 
-                int count = this.IpList.Count;
+                int ipv4Count = this.IPv4List.Count;
 
-                if (count >= 1)
+                if (ipv4Count >= 1)
                 {
                     bool ok = false;
                     uint hash = 0;
@@ -104,7 +117,7 @@ class IpaDnsServerDaemon : Daemon
                         // num.aaa.bbb 形式
                         if (int.TryParse(labels[0], out int intValue))
                         {
-                            if (intValue < count)
+                            if (intValue < ipv4Count)
                             {
                                 hash = (uint)intValue;
                                 ok = true;
@@ -114,21 +127,59 @@ class IpaDnsServerDaemon : Daemon
 
                     if (ok)
                     {
-                        var ip = this.IpList[(int)(hash % count)];
+                        var ip = this.IPv4List[(int)(hash % ipv4Count)];
 
-                        e.IPAddressList = ip._SingleList();
-
-                        return true;
+                        e.IPAddressList!.Add(ip);
                     }
                 }
 
-                return false;
+
+                int ipv6Count = this.IPv6List.Count;
+
+                if (ipv6Count >= 1)
+                {
+                    bool ok = false;
+                    uint hash = 0;
+
+                    string label = param.Request.RequestHostName;
+                    string[] labels = label.Split(".", StringSplitOptions.RemoveEmptyEntries);
+
+                    if (labels.Length >= 4 && labels[0].StartsWith("x") && labels[1].StartsWith("x") && labels[2].StartsWith("x") && labels[3].StartsWith("x"))
+                    {
+                        // x1.x2.x3.x4.aaa.bbb 形式
+                        string hashSeed = labels[0] + "." + labels[1] + "." + labels[2] + "." + labels[3];
+                        hash = (uint)Secure.HashSHA1AsSInt31(hashSeed._GetBytes_Ascii());
+                        ok = true;
+                    }
+                    else if (labels.Length >= 1)
+                    {
+                        // num.aaa.bbb 形式
+                        if (int.TryParse(labels[0], out int intValue))
+                        {
+                            if (intValue < ipv6Count)
+                            {
+                                hash = (uint)intValue;
+                                ok = true;
+                            }
+                        }
+                    }
+
+                    if (ok)
+                    {
+                        var ip = this.IPv6List[(int)(hash % ipv6Count)];
+
+                        e.IPAddressList!.Add(ip);
+                    }
+                }
+
+                return e.IPAddressList!.Any();
             }
         }
 
         public override void InitDynamicResponderFactoryList(Dictionary<string, IpaDnsServiceDynamicResponderFactory> list)
         {
             list.Add("DNSP01", p => new DNSP01_Responder(p));
+            list.Add("DNSP02", p => new DNSP01_Responder(p));
         }
     }
 
@@ -155,6 +206,7 @@ class IpaDnsServerDaemon : Daemon
 
         IpaDnsServiceStartupParam startup = new IpaDnsServiceStartupParam
         {
+            HadbSystemName = "IPA_DNS",
         };
 
         this.SvcInstance = new IpaDnsService(startup, new MyHook());

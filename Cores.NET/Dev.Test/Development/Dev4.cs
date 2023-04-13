@@ -164,7 +164,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
 
     public class Vars
     {
-        public StrDictionary<string> VarsList = new StrDictionary<string>(StrCmpi);
+        public StrDictionary<List<string>> VarsList = new StrDictionary<List<string>>(StrCmpi);
 
         public void Set(string name, string value)
         {
@@ -173,14 +173,12 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
 
             if (name._IsEmpty()) return;
 
-            if (value._IsFilled())
+            if (this.VarsList.ContainsKey(name) == false)
             {
-                this.VarsList[name] = value;
+                this.VarsList.Add(name, new List<string>());
             }
-            else
-            {
-                this.VarsList.Remove(name);
-            }
+
+            this.VarsList[name].Add(value);
         }
 
         public void Unset(string name)
@@ -208,26 +206,32 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
         {
             var o = vars.VarsList;
 
-            string[] nsList = o._GetOrEmpty("Ns")._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.None, " ", "\t", "　", ",", ";");
+            string[] nsList = (o._GetOrDefault("Ns")?.FirstOrDefault())._NonNull()._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.None, " ", "\t", "　", ",", ";");
 
             nsList._DoForEach(x => this.NameServersFqdnList.Add(x));
 
-            this.Responsible = o._GetOrEmpty("Responsible");
-            this.NegativeCacheTtl = o._GetOrEmpty("NegativeCacheTtl")._ToInt();
-            this.RefreshInterval = o._GetOrEmpty("RefreshInterval")._ToInt();
-            this.RetryInterval = o._GetOrEmpty("RetryInterval")._ToInt();
-            this.ExpireInterval = o._GetOrEmpty("ExpireInterval")._ToInt();
-            this.DefaultTtl = o._GetOrEmpty("DefaultTtl")._ToInt();
-            this.TcpAxfrAllowedAcl = o._GetOrEmpty("TcpAxfrAllowedAcl");
-            this.NotifyServers = o._GetOrEmpty("NotifyServers");
+            this.Responsible = (o._GetOrDefault("Responsible")?.FirstOrDefault())._NonNull();
+            this.NegativeCacheTtl = (o._GetOrDefault("NegativeCacheTtl")?.FirstOrDefault())._NonNull()._ToInt();
+            this.RefreshInterval = (o._GetOrDefault("RefreshInterval")?.FirstOrDefault())._NonNull()._ToInt();
+            this.RetryInterval = (o._GetOrDefault("RetryInterval")?.FirstOrDefault())._NonNull()._ToInt();
+            this.ExpireInterval = (o._GetOrDefault("ExpireInterval")?.FirstOrDefault())._NonNull()._ToInt();
+            this.DefaultTtl = (o._GetOrDefault("DefaultTtl")?.FirstOrDefault())._NonNull()._ToInt();
+            this.TcpAxfrAllowedAcl = (o._GetOrDefault("TcpAxfrAllowedAcl")?.FirstOrDefault())._NonNull();
+            this.NotifyServers = (o._GetOrDefault("NotifyServers")?.FirstOrDefault())._NonNull();
 
-            string variablesSrcStr = o._GetOrEmpty("Vars");
+            List<string>? variablesSrcStrList = o._GetOrDefault("Vars");
 
-            if (variablesSrcStr._IsFilled())
+            if (variablesSrcStrList != null)
             {
-                if (variablesSrcStr._GetKeyAndValue(out string key, out string value))
+                foreach (string variablesSrcStr in variablesSrcStrList)
                 {
-                    this.VarsList[key] = value;
+                    if (variablesSrcStr._IsFilled())
+                    {
+                        if (variablesSrcStr._GetKeyAndValue(out string key, out string value))
+                        {
+                            this.VarsList[key] = value;
+                        }
+                    }
                 }
             }
 
@@ -547,7 +551,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                         }
 
                                         QueryStringList paramsList = new QueryStringList(paramsStr, splitChar: ',', trimKeyAndValue: true);
-
+                                        
                                         EasyDnsResponderRecordSettings? settings = null;
                                         string ttlStr = paramsList._GetFirstValueOrDefault("ttl");
                                         if (ttlStr._IsFilled())
@@ -558,24 +562,6 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                             };
                                         }
 
-                                        //if (str1._IsSamei("Dynamic"))
-                                        //{
-                                        //    // ダイナミックレコード
-                                        //    if (str2._GetKeyAndValue(out string fqdnOrIpSubnet, out string id, " \t"))
-                                        //    {
-                                        //        string fqdn;
-                                        //        if (str1._InStr(":") == false && str1._InStr(".") == false && str1._InStr("/") == false)
-                                        //        {
-                                        //            fqdn = fqdnOrIpSubnet._NormalizeFqdn();
-                                        //        }
-                                        //        else
-                                        //        {
-                                        //            IPUtil.ParseIPAndSubnetMask(fqdnOrIpSubnet, out IPAddress ipOrSubnet, out IPAddress mask);
-                                        //            int subnetLength = IPUtil.SubnetMaskToInt(mask);
-                                        //            bool isHostAddress = IPUtil.IsSubnetLenHostAddress(ipOrSubnet.AddressFamily, subnetLength);
-                                        //        }
-                                        //    }
-                                        //} else
                                         if (str1._InStr(":") == false && str1._InStr(".") == false && str1._InStr("/") == false)
                                         {
                                             string recordTypeStr = str1; // "MX" とか
@@ -616,6 +602,12 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                                 {
                                                     // 手動指定できない特殊なレコードタイプである
                                                     throw new CoresException($"Specified manual DNS record type '{recordType}' cannot be specified here");
+                                                }
+
+                                                if (isDynamic && recordType == EasyDnsResponderRecordType.PTR)
+                                                {
+                                                    // ダイナミックレコードでは PTR に対応していない
+                                                    throw new CoresException($"Specified dynamic DNS record type '{recordType}' cannot be specified here");
                                                 }
 
                                                 // FQDN 部の検査
