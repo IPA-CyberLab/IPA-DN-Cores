@@ -105,10 +105,10 @@ class IpaDnsServerDaemon : Daemon
                     string label = param.Request.RequestHostName;
                     string[] labels = label.Split(".", StringSplitOptions.RemoveEmptyEntries);
 
-                    if (labels.Length >= 4 && labels[0].StartsWith("x") && labels[1].StartsWith("x") && labels[2].StartsWith("x") && labels[3].StartsWith("x"))
+                    if (labels.Length >= 2 && labels[0].StartsWith("x") && labels[1].StartsWith("x"))
                     {
-                        // x1.x2.x3.x4.aaa.bbb 形式
-                        string hashSeed = labels[0] + "." + labels[1] + "." + labels[2] + "." + labels[3];
+                        // x1.x2.aaa.bbb 形式
+                        string hashSeed = labels[0] + "." + labels[1];
                         hash = (uint)Secure.HashSHA1AsSInt31(hashSeed._GetBytes_Ascii());
                         ok = true;
                     }
@@ -144,10 +144,10 @@ class IpaDnsServerDaemon : Daemon
                     string label = param.Request.RequestHostName;
                     string[] labels = label.Split(".", StringSplitOptions.RemoveEmptyEntries);
 
-                    if (labels.Length >= 4 && labels[0].StartsWith("x") && labels[1].StartsWith("x") && labels[2].StartsWith("x") && labels[3].StartsWith("x"))
+                    if (labels.Length >= 2 && labels[0].StartsWith("x") && labels[1].StartsWith("x"))
                     {
-                        // x1.x2.x3.x4.aaa.bbb 形式
-                        string hashSeed = labels[0] + "." + labels[1] + "." + labels[2] + "." + labels[3];
+                        // x1.x2.aaa.bbb 形式
+                        string hashSeed = labels[0] + "." + labels[1];
                         hash = (uint)Secure.HashSHA1AsSInt31(hashSeed._GetBytes_Ascii());
                         ok = true;
                     }
