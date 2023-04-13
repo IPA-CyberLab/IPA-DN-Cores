@@ -117,7 +117,7 @@ class IpaDnsServerDaemon : Daemon
                         // num.aaa.bbb 形式
                         if (int.TryParse(labels[0], out int intValue))
                         {
-                            if (intValue < ipv4Count)
+                            if (intValue >= 0 && intValue < ipv4Count)
                             {
                                 hash = (uint)intValue;
                                 ok = true;
@@ -156,7 +156,7 @@ class IpaDnsServerDaemon : Daemon
                         // num.aaa.bbb 形式
                         if (int.TryParse(labels[0], out int intValue))
                         {
-                            if (intValue < ipv6Count)
+                            if (intValue >= 0 && intValue < ipv6Count)
                             {
                                 hash = (uint)intValue;
                                 ok = true;
