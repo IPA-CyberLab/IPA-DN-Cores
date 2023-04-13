@@ -56,12 +56,12 @@ class IpaDnsServerDaemon : Daemon
 
     public class MyHook : IpaDnsServiceHook
     {
-        public class DNSP01_Responder : IpaDnsServiceDynamicResponderBase
+        public class DN_Plugin_LB1_Responder : IpaDnsServiceDynamicResponderBase
         {
             List<IPAddress> IPv4List = new List<IPAddress>();
             List<IPAddress> IPv6List = new List<IPAddress>();
 
-            public DNSP01_Responder(IpaDnsServiceDynamicResponderInitParam initParam) : base(initParam)
+            public DN_Plugin_LB1_Responder(IpaDnsServiceDynamicResponderInitParam initParam) : base(initParam)
             {
                 HashSet<IPAddress> ipv4Dict = new HashSet<IPAddress>(IpComparer.ComparerWithIgnoreScopeId);
                 HashSet<IPAddress> ipv6Dict = new HashSet<IPAddress>(IpComparer.ComparerWithIgnoreScopeId);
@@ -178,8 +178,7 @@ class IpaDnsServerDaemon : Daemon
 
         public override void InitDynamicResponderFactoryList(Dictionary<string, IpaDnsServiceDynamicResponderFactory> list)
         {
-            list.Add("DNSP01", p => new DNSP01_Responder(p));
-            list.Add("DNSP02", p => new DNSP01_Responder(p));
+            list.Add("DN_Plugin_LB1", p => new DN_Plugin_LB1_Responder(p));
         }
     }
 
