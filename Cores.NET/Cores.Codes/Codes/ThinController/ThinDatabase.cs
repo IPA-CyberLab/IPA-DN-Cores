@@ -486,7 +486,7 @@ public class ThinDatabase : AsyncServiceWithMainLoop
 
             // 最近このサーバーで PCID 変更がなされた履歴のほうが新しい場合はダウンロードしたデータ中における PCID の変更を行なう
             // この処理は PCID 変更処理と排他である
-            using (await RenamePcidAsyncLock.LockWithAwait(cancel))
+            using (await RegisterOrRenamePcidAsyncLock.LockWithAwait(cancel))
             {
                 // PCID 変更履歴ヒストリを取得
                 IEnumerable<ThinDatabasePcidChangeHistory?> historyItems = PcidChangeHistoryCache.GetValues();
@@ -695,7 +695,7 @@ public class ThinDatabase : AsyncServiceWithMainLoop
         }
     }
 
-    readonly AsyncLock RenamePcidAsyncLock = new AsyncLock();
+    readonly AsyncLock RegisterOrRenamePcidAsyncLock = new AsyncLock();
     readonly AsyncLock PaidApiAsyncLock = new AsyncLock();
 
     // WoL MAC の即時更新
@@ -758,7 +758,7 @@ public class ThinDatabase : AsyncServiceWithMainLoop
     {
         // この関数は同時に 1 ユーザーからしか実行されないようにする
         // (ローカルメモリデータベースをいじるため)
-        using var asyncLock = await RenamePcidAsyncLock.LockWithAwait(cancel);
+        using var asyncLock = await RegisterOrRenamePcidAsyncLock.LockWithAwait(cancel);
 
         msid = msid._NonNullTrim();
         newPcid = newPcid._NonNullTrim();
@@ -880,7 +880,7 @@ public class ThinDatabase : AsyncServiceWithMainLoop
         await using var db = await OpenDatabaseForWriteAsync(cancel);
 
         // この関数は同時に 1 ユーザーからしか実行されないようにする (高負荷防止のため)
-        using var asyncLock = await RenamePcidAsyncLock.LockWithAwait(cancel);
+        using var asyncLock = await RegisterOrRenamePcidAsyncLock.LockWithAwait(cancel);
 
         ThinControllerRpcServerObjectInfo? ret = null;
 
@@ -979,6 +979,10 @@ public class ThinDatabase : AsyncServiceWithMainLoop
         VpnError err = VpnError.ERR_INTERNAL_ERROR;
 
         await using var db = await OpenDatabaseForWriteAsync(cancel);
+
+        // この関数は同時に 1 ユーザーからしか実行されないようにする
+        // (ローカルメモリデータベースをいじるため)
+        using var asyncLock = await RegisterOrRenamePcidAsyncLock.LockWithAwait(cancel);
 
         Controller.Throughput_DatabaseWrite.Add(1);
 
