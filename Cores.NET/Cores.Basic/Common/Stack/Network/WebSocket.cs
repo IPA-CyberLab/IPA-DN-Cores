@@ -124,7 +124,7 @@ public class NetWebSocketProtocolStack : NetMiddleProtocolStackBase
         req.Headers.Add("Sec-WebSocket-Version", "13");
         req.Headers.Add("Origin", "null");
         req.Headers.Add("Sec-WebSocket-Key", requestKey);
-        req.Headers.Add("Connection", "keep-alive, Upgrade");
+        req.Headers.Add("Connection", "Upgrade");
         req.Headers.Add("Pragma", "no-cache");
         req.Headers.Add("Cache-Control", "no-cache");
         req.Headers.Add("Upgrade", "websocket");

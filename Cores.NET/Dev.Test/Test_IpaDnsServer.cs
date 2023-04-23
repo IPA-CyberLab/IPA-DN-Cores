@@ -42,6 +42,7 @@ using System.Diagnostics;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Net;
 
 #pragma warning disable CS0162
 #pragma warning disable CS0219
@@ -52,6 +53,134 @@ class IpaDnsServerDaemon : Daemon
 {
     IpaDnsService? SvcInstance = null;
     EasyJsonRpcServer<IpaDnsService.IRpc>? RpcInstance = null;
+
+    public class MyHook : IpaDnsServiceHook
+    {
+        public class DN_Plugin_LB1_Responder : IpaDnsServiceDynamicResponderBase
+        {
+            List<IPAddress> IPv4List = new List<IPAddress>();
+            List<IPAddress> IPv6List = new List<IPAddress>();
+
+            public DN_Plugin_LB1_Responder(IpaDnsServiceDynamicResponderInitParam initParam) : base(initParam)
+            {
+                HashSet<IPAddress> ipv4Dict = new HashSet<IPAddress>(IpComparer.ComparerWithIgnoreScopeId);
+                HashSet<IPAddress> ipv6Dict = new HashSet<IPAddress>(IpComparer.ComparerWithIgnoreScopeId);
+
+                var vars = initParam.CustomRecordDef.DynamicRecordParamsList!._GetFirstValueOrDefault("iplist")._ParseQueryString(splitChar: ',', trimKeyAndValue: true);
+
+                foreach (var kv in vars)
+                {
+                    var ip = kv.Key._ToIPAddress(AllowedIPVersions.IPv4, true);
+                    if (ip != null)
+                    {
+                        ipv4Dict.Add(ip);
+                    }
+                }
+
+                this.IPv4List = ipv4Dict.OrderBy(x => x, IpComparer.ComparerWithIgnoreScopeId).ToList();
+
+                foreach (var kv in vars)
+                {
+                    var ip = kv.Key._ToIPAddress(AllowedIPVersions.IPv6, true);
+                    if (ip != null)
+                    {
+                        ipv6Dict.Add(ip);
+                    }
+                }
+
+                this.IPv6List = ipv6Dict.OrderBy(x => x, IpComparer.ComparerWithIgnoreScopeId).ToList();
+            }
+
+            public override bool ResolveImpl(IpaDnsServiceDynamicResponderCallParam param)
+            {
+                var e = param.EditMe;
+
+                int ipv4Count = this.IPv4List.Count;
+
+                if (ipv4Count >= 1)
+                {
+                    bool ok = false;
+                    uint hash = 0;
+
+                    string label = param.Request.RequestHostName;
+                    string[] labels = label.Split(".", StringSplitOptions.RemoveEmptyEntries);
+
+                    if (labels.Length >= 2 && labels[0].StartsWith("x") && labels[1].StartsWith("x"))
+                    {
+                        // x1.x2.aaa.bbb 形式
+                        string hashSeed = labels[0] + "." + labels[1];
+                        hash = (uint)Secure.HashSHA1AsSInt31(hashSeed._GetBytes_Ascii());
+                        ok = true;
+                    }
+                    else if (labels.Length >= 1)
+                    {
+                        // num.aaa.bbb 形式
+                        if (int.TryParse(labels[0], out int intValue))
+                        {
+                            if (intValue >= 0 && intValue < ipv4Count)
+                            {
+                                hash = (uint)intValue;
+                                ok = true;
+                            }
+                        }
+                    }
+
+                    if (ok)
+                    {
+                        var ip = this.IPv4List[(int)(hash % ipv4Count)];
+
+                        e.IPAddressList!.Add(ip);
+                    }
+                }
+
+
+                int ipv6Count = this.IPv6List.Count;
+
+                if (ipv6Count >= 1)
+                {
+                    bool ok = false;
+                    uint hash = 0;
+
+                    string label = param.Request.RequestHostName;
+                    string[] labels = label.Split(".", StringSplitOptions.RemoveEmptyEntries);
+
+                    if (labels.Length >= 2 && labels[0].StartsWith("x") && labels[1].StartsWith("x"))
+                    {
+                        // x1.x2.aaa.bbb 形式
+                        string hashSeed = labels[0] + "." + labels[1];
+                        hash = (uint)Secure.HashSHA1AsSInt31(hashSeed._GetBytes_Ascii());
+                        ok = true;
+                    }
+                    else if (labels.Length >= 1)
+                    {
+                        // num.aaa.bbb 形式
+                        if (int.TryParse(labels[0], out int intValue))
+                        {
+                            if (intValue >= 0 && intValue < ipv6Count)
+                            {
+                                hash = (uint)intValue;
+                                ok = true;
+                            }
+                        }
+                    }
+
+                    if (ok)
+                    {
+                        var ip = this.IPv6List[(int)(hash % ipv6Count)];
+
+                        e.IPAddressList!.Add(ip);
+                    }
+                }
+
+                return e.IPAddressList!.Any();
+            }
+        }
+
+        public override void InitDynamicResponderFactoryList(Dictionary<string, IpaDnsServiceDynamicResponderFactory> list)
+        {
+            list.Add("DN_Plugin_LB1", p => new DN_Plugin_LB1_Responder(p));
+        }
+    }
 
     public IpaDnsServerDaemon() : base(new DaemonOptions("IpaDnsServer", "IPA DNS Server Service", true))
     {
@@ -76,9 +205,10 @@ class IpaDnsServerDaemon : Daemon
 
         IpaDnsServiceStartupParam startup = new IpaDnsServiceStartupParam
         {
+            HadbSystemName = "IPA_DNS",
         };
 
-        this.SvcInstance = new IpaDnsService(startup, new IpaDnsServiceHook());
+        this.SvcInstance = new IpaDnsService(startup, new MyHook());
 
         JsonRpcServerConfig rpcConfig = new JsonRpcServerConfig
         {

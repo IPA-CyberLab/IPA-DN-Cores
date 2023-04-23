@@ -362,8 +362,12 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
     readonly List<Datagram> DelayedReplyUdpPacketsList = new List<Datagram>();
     readonly AsyncAutoResetEvent UdpRecvCancelEvent = new AsyncAutoResetEvent();
 
+    long lastTcpProtocolErrorWriteTick = 0;
+
     async Task TcpListenerAcceptProcAsync(NetTcpListenerPort listener, ConnSock sock)
     {
+        bool doNotWriteError = false;
+
         try
         {
             var cancel = this.GrandCancel;
@@ -401,6 +405,18 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
                     // AXFR リクエスト以外の普通の要求に対する応答処理を実施
                     if ((firstQuestion?.RecordType ?? RecordType.Unspec) != RecordType.Soa)
                     {
+                        long now = TickNow;
+
+                        if (lastTcpProtocolErrorWriteTick == 0 || (now >= (lastTcpProtocolErrorWriteTick + 600000)))
+                        {
+                            // 10 分に 1 回しかこのエラーをログに記録しないようにする
+                            lastTcpProtocolErrorWriteTick = now;
+                        }
+                        else
+                        {
+                            doNotWriteError = true;
+                        }
+
                         // SOA 以外の要求は拒否する
                         throw new CoresException($"TCP DNS request packet's type must be SOA or AXFR, but the client requested '{(firstQuestion?.RecordType ?? RecordType.Unspec).ToString()}'");
                     }
@@ -439,7 +455,10 @@ public class EasyDnsServer : AsyncServiceWithMainLoop
         {
             if (!(ex is DisconnectedException))
             {
-                ex._Error();
+                if (doNotWriteError == false)
+                {
+                    ex._Error();
+                }
             }
         }
     }
@@ -929,7 +948,7 @@ public class EasyDnsResponderRecord
     public EasyDnsResponderRecordSettings? Settings { get; set; } = null;
 
     [JsonIgnore]
-    public object? Param = null;
+    public object? Param = null; // 注意！ 複雑なオブジェクトを設定すると動作がおかしくなる。内部的 Clone やシリアライズが原因。
 
     public static EasyDnsResponderRecordType StrToRecordType(string typeStr)
     {

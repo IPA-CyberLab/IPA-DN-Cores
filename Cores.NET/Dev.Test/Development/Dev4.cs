@@ -101,8 +101,56 @@ public class IpaDnsServiceStartupParam : HadbBasedServiceStartupParam
     }
 }
 
+public class IpaDnsServiceDynamicResponderInitParam
+{
+    public IpaDnsService Service { get; }
+    public EasyDnsResponderZone Zone { get; }
+    public EasyDnsResponderRecord Record { get; }
+    public IpaDnsService.CustomRecord CustomRecordDef { get; }
+    public string Id { get; }
+
+    public QueryStringList DynamicRecordDefParams => this.CustomRecordDef.DynamicRecordParamsList!;
+    public EasyDnsResponderRecordType RecordType => this.Record.Type;
+
+    public IpaDnsServiceDynamicResponderInitParam(IpaDnsService service, EasyDnsResponderZone zone, EasyDnsResponderRecord record, IpaDnsService.CustomRecord customRecordDef, string id)
+    {
+        Service = service;
+        Zone = zone;
+        Record = record;
+        CustomRecordDef = customRecordDef;
+        Id = id;
+    }
+}
+
+public delegate IpaDnsServiceDynamicResponderBase IpaDnsServiceDynamicResponderFactory(IpaDnsServiceDynamicResponderInitParam initParam);
+
+public class IpaDnsServiceDynamicResponderCallParam
+{
+    public EasyDnsResponderDynamicRecordCallbackResult EditMe { get; }
+    public EasyDnsResponderDynamicRecordCallbackRequest Request { get; }
+
+    public IpaDnsServiceDynamicResponderCallParam(EasyDnsResponderDynamicRecordCallbackResult editMe, EasyDnsResponderDynamicRecordCallbackRequest request)
+    {
+        EditMe = editMe;
+        Request = request;
+    }
+}
+
+public abstract class IpaDnsServiceDynamicResponderBase
+{
+    public IpaDnsServiceDynamicResponderInitParam Param { get; }
+
+    public IpaDnsServiceDynamicResponderBase(IpaDnsServiceDynamicResponderInitParam initParam)
+    {
+        this.Param = initParam;
+    }
+
+    public abstract bool ResolveImpl(IpaDnsServiceDynamicResponderCallParam param);
+}
+
 public class IpaDnsServiceHook : HadbBasedServiceHookBase
 {
+    public virtual void InitDynamicResponderFactoryList(Dictionary<string, IpaDnsServiceDynamicResponderFactory> list) { }
 }
 
 public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, IpaDnsService.DynConfig, IpaDnsService.HiveSettings, IpaDnsServiceHook>, IpaDnsService.IRpc
@@ -116,7 +164,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
 
     public class Vars
     {
-        public StrDictionary<string> VarsList = new StrDictionary<string>(StrCmpi);
+        public StrDictionary<List<string>> VarsList = new StrDictionary<List<string>>(StrCmpi);
 
         public void Set(string name, string value)
         {
@@ -125,14 +173,12 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
 
             if (name._IsEmpty()) return;
 
-            if (value._IsFilled())
+            if (this.VarsList.ContainsKey(name) == false)
             {
-                this.VarsList[name] = value;
+                this.VarsList.Add(name, new List<string>());
             }
-            else
-            {
-                this.VarsList.Remove(name);
-            }
+
+            this.VarsList[name].Add(value);
         }
 
         public void Unset(string name)
@@ -152,6 +198,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
         public int DefaultTtl;
         public string TcpAxfrAllowedAcl = "";
         public string NotifyServers = "";
+        public Dictionary<string, string> VarsList = new Dictionary<string, string>(StrCmpi);
 
         public ZoneDefOptions() { }
 
@@ -159,18 +206,34 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
         {
             var o = vars.VarsList;
 
-            string[] nsList = o._GetOrEmpty("Ns")._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.None, " ", "\t", "　", ",", ";");
+            string[] nsList = (o._GetOrDefault("Ns")?.FirstOrDefault())._NonNull()._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.None, " ", "\t", "　", ",", ";");
 
             nsList._DoForEach(x => this.NameServersFqdnList.Add(x));
 
-            this.Responsible = o._GetOrEmpty("Responsible");
-            this.NegativeCacheTtl = o._GetOrEmpty("NegativeCacheTtl")._ToInt();
-            this.RefreshInterval = o._GetOrEmpty("RefreshInterval")._ToInt();
-            this.RetryInterval = o._GetOrEmpty("RetryInterval")._ToInt();
-            this.ExpireInterval = o._GetOrEmpty("ExpireInterval")._ToInt();
-            this.DefaultTtl = o._GetOrEmpty("DefaultTtl")._ToInt();
-            this.TcpAxfrAllowedAcl = o._GetOrEmpty("TcpAxfrAllowedAcl");
-            this.NotifyServers = o._GetOrEmpty("NotifyServers");
+            this.Responsible = (o._GetOrDefault("Responsible")?.FirstOrDefault())._NonNull();
+            this.NegativeCacheTtl = (o._GetOrDefault("NegativeCacheTtl")?.FirstOrDefault())._NonNull()._ToInt();
+            this.RefreshInterval = (o._GetOrDefault("RefreshInterval")?.FirstOrDefault())._NonNull()._ToInt();
+            this.RetryInterval = (o._GetOrDefault("RetryInterval")?.FirstOrDefault())._NonNull()._ToInt();
+            this.ExpireInterval = (o._GetOrDefault("ExpireInterval")?.FirstOrDefault())._NonNull()._ToInt();
+            this.DefaultTtl = (o._GetOrDefault("DefaultTtl")?.FirstOrDefault())._NonNull()._ToInt();
+            this.TcpAxfrAllowedAcl = (o._GetOrDefault("TcpAxfrAllowedAcl")?.FirstOrDefault())._NonNull();
+            this.NotifyServers = (o._GetOrDefault("NotifyServers")?.FirstOrDefault())._NonNull();
+
+            List<string>? variablesSrcStrList = o._GetOrDefault("Vars");
+
+            if (variablesSrcStrList != null)
+            {
+                foreach (string variablesSrcStr in variablesSrcStrList)
+                {
+                    if (variablesSrcStr._IsFilled())
+                    {
+                        if (variablesSrcStr._GetKeyAndValue(out string key, out string value))
+                        {
+                            this.VarsList[key] = value;
+                        }
+                    }
+                }
+            }
 
             this.Normalize();
         }
@@ -215,8 +278,10 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
     {
         public string Label = "";
         public string Data = "";
+        public bool IsDynamicRecord;
         public EasyDnsResponderRecordType Type = EasyDnsResponderRecordType.None;
         public EasyDnsResponderRecordSettings? Settings;
+        public QueryStringList? DynamicRecordParamsList;
     }
 
     [Flags]
@@ -340,6 +405,8 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
         public List<ForwarderDef> ForwarderList = new List<ForwarderDef>();
         public FullRoute46<StandardRecord> ReverseRadixTrie = new FullRoute46<StandardRecord>();
         public List<StandardRecord> ReverseRecordsList = new List<StandardRecord>();
+        public Dictionary<string, IpaDnsServiceDynamicResponderFactory> DynamicResponderFactoryDict = new Dictionary<string, IpaDnsServiceDynamicResponderFactory>(StrCmpi);
+        public Dictionary<string, IpaDnsServiceDynamicResponderBase> DynamicResponderDict = new Dictionary<string, IpaDnsServiceDynamicResponderBase>();
 
         public Config() { }
 
@@ -484,7 +551,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                         }
 
                                         QueryStringList paramsList = new QueryStringList(paramsStr, splitChar: ',', trimKeyAndValue: true);
-
+                                        
                                         EasyDnsResponderRecordSettings? settings = null;
                                         string ttlStr = paramsList._GetFirstValueOrDefault("ttl");
                                         if (ttlStr._IsFilled())
@@ -500,126 +567,188 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                             string recordTypeStr = str1; // "MX" とか
                                             string fqdnAndData = str2;
 
-                                            // MX とかの手動レコード設定である。
-                                            var recordType = EasyDnsResponderRecord.StrToRecordType(recordTypeStr);
-                                            if (recordType == EasyDnsResponderRecordType.None)
-                                            {
-                                                // レコードタイプ文字列が不正である
-                                                throw new CoresException($"Specified manual DNS record type '{recordTypeStr}' is invalid");
-                                            }
-                                            if (recordType.EqualsAny(EasyDnsResponderRecordType.Any, EasyDnsResponderRecordType.SOA))
-                                            {
-                                                // 手動指定できない特殊なレコードタイプである
-                                                throw new CoresException($"Specified manual DNS record type '{recordType}' cannot be specified here");
-                                            }
-
                                             // FQDN 部分とデータ部分に分ける
                                             if (fqdnAndData._GetKeysListAndValue(1, out var tmp1, out string data) == false)
                                             {
                                                 throw new CoresException($"DNS Record String: Invalid Format. Str = '{fqdnAndData}'");
                                             }
-
-                                            // FQDN 部の検査
-                                            if (recordType == EasyDnsResponderRecordType.PTR)
+                                            else
                                             {
-                                                // PTR は特別処理を行なう (ゾーンが /24 の広さで、PTR のワイルドカード指定が /22 の広さ、というようなことが起こり得るので、ゾーンとは直接関連付けない)
-                                                // PTR の場合、FQDN 部は IP アドレスまたは IP サブネット、または in-addr.arpa または ip6.arpa 形式でなければならない
-                                                string ipOrSubnetStr = tmp1[0]._NonNullTrim();
-                                                string fqdn = data._NormalizeFqdn();
-                                                int subnetLength;
-                                                IPAddress ipOrSubnet;
-
-                                                if (ipOrSubnetStr == "in-addr.arpa" || ipOrSubnetStr.EndsWith(".in-addr.arpa") || ipOrSubnetStr == "ip6.addr" || ipOrSubnetStr.EndsWith(".ip6.addr"))
+                                                bool isDynamic = false;
+                                                if (recordTypeStr._IsSamei("Dynamic"))
                                                 {
-                                                    var tmp = IPUtil.PtrZoneOrFqdnToIpAddressAndSubnet(ipOrSubnetStr);
-                                                    ipOrSubnet = tmp.Item1;
-                                                    subnetLength = tmp.Item2;
+                                                    recordTypeStr = tmp1[0];
+                                                    // ダイナミックレコード
+                                                    if (data._GetKeysListAndValue(1, out tmp1, out data) == false)
+                                                    {
+                                                        throw new CoresException($"DNS Record String: Invalid Format. Str = '{fqdnAndData}'");
+                                                    }
+
+                                                    isDynamic = true;
+                                                }
+
+                                                data = data.Trim();
+
+                                                EasyDnsResponderRecordType recordType = EasyDnsResponderRecordType.None;
+
+                                                // MX とかの手動レコード設定である。
+                                                recordType = EasyDnsResponderRecord.StrToRecordType(recordTypeStr);
+                                                if (recordType == EasyDnsResponderRecordType.None)
+                                                {
+                                                    // レコードタイプ文字列が不正である
+                                                    throw new CoresException($"Specified manual DNS record type '{recordTypeStr}' is invalid");
+                                                }
+                                                if (recordType.EqualsAny(EasyDnsResponderRecordType.Any, EasyDnsResponderRecordType.SOA))
+                                                {
+                                                    // 手動指定できない特殊なレコードタイプである
+                                                    throw new CoresException($"Specified manual DNS record type '{recordType}' cannot be specified here");
+                                                }
+
+                                                if (isDynamic && recordType == EasyDnsResponderRecordType.PTR)
+                                                {
+                                                    // ダイナミックレコードでは PTR に対応していない
+                                                    throw new CoresException($"Specified dynamic DNS record type '{recordType}' cannot be specified here");
+                                                }
+
+                                                // FQDN 部の検査
+                                                if (recordType == EasyDnsResponderRecordType.PTR)
+                                                {
+                                                    // PTR は特別処理を行なう (ゾーンが /24 の広さで、PTR のワイルドカード指定が /22 の広さ、というようなことが起こり得るので、ゾーンとは直接関連付けない)
+                                                    // PTR の場合、FQDN 部は IP アドレスまたは IP サブネット、または in-addr.arpa または ip6.arpa 形式でなければならない
+                                                    string ipOrSubnetStr = tmp1[0]._NonNullTrim();
+                                                    string fqdn = data._NormalizeFqdn();
+                                                    int subnetLength;
+                                                    IPAddress ipOrSubnet;
+
+                                                    if (ipOrSubnetStr == "in-addr.arpa" || ipOrSubnetStr.EndsWith(".in-addr.arpa") || ipOrSubnetStr == "ip6.addr" || ipOrSubnetStr.EndsWith(".ip6.addr"))
+                                                    {
+                                                        var tmp = IPUtil.PtrZoneOrFqdnToIpAddressAndSubnet(ipOrSubnetStr);
+                                                        ipOrSubnet = tmp.Item1;
+                                                        subnetLength = tmp.Item2;
+                                                    }
+                                                    else
+                                                    {
+                                                        IPUtil.ParseIPAndMask(ipOrSubnetStr, out ipOrSubnet, out IPAddress subnetMask);
+                                                        subnetLength = IPUtil.SubnetMaskToInt(subnetMask);
+                                                    }
+
+                                                    bool isHostAddress = IPUtil.IsSubnetLenHostAddress(ipOrSubnet.AddressFamily, subnetLength);
+
+                                                    // 1.0.0.0/24 -> aaa*bbb.aaa.example.org のようなホストアドレスが指定される場合は、FQDN は Wildcard 可である。
+                                                    if (fqdn._IsValidFqdn(true, false) == false)
+                                                    {
+                                                        throw new CoresException("PTR record's target hostname must be a valid single host FQDN or wildcard FQDN");
+                                                    }
+
+                                                    (string beforeOfFirst, string afterOfFirst, string suffix) wildcardInfo = ("", "", "");
+
+                                                    if (fqdn._InStr("*"))
+                                                    {
+                                                        // ワイルドカード FQDN の場合、aa*bb のようなものも許容する。
+                                                        if (Str.TryParseFirstWildcardFqdnSandwitched(fqdn, out wildcardInfo) == false)
+                                                        {
+                                                            // おかしな FQDN である
+                                                            throw new CoresException($"FQDN '{fqdn}''s wildcard form style must be like '*', 'abc*' or '*abc'");
+                                                        }
+                                                    }
+
+                                                    string fqdn2 = fqdn;
+                                                    if (fqdn._InStr("*"))
+                                                    {
+                                                        // abc*def.example.org -> StandardRecord 上は、*.example.org が指定されたとみなして登録する。
+                                                        fqdn2 = "*" + wildcardInfo.suffix;
+                                                    }
+
+                                                    StandardRecord r = new StandardRecord
+                                                    {
+                                                        Type = isHostAddress ? StandardRecordType.ReverseSingle : StandardRecordType.ReverseSubnet,
+                                                        Fqdn = fqdn2,
+                                                        IpNetwork = ipOrSubnet,
+                                                        IpSubnetMask = IPUtil.IntToSubnetMask(ipOrSubnet.AddressFamily, subnetLength),
+                                                        SubnetLength = subnetLength,
+                                                        FirstTokenWildcardBefore = wildcardInfo.beforeOfFirst,
+                                                        FirstTokenWildcardAfter = wildcardInfo.afterOfFirst,
+                                                        Settings = settings,
+                                                    };
+
+                                                    if (IsReverseFqdnAllowedByLimitList(r.IpNetwork, r.IpSubnetMask))
+                                                    {
+                                                        this.ReverseRecordsList.Add(r);
+                                                    }
                                                 }
                                                 else
                                                 {
-                                                    IPUtil.ParseIPAndMask(ipOrSubnetStr, out ipOrSubnet, out IPAddress subnetMask);
-                                                    subnetLength = IPUtil.SubnetMaskToInt(subnetMask);
-                                                }
-
-                                                bool isHostAddress = IPUtil.IsSubnetLenHostAddress(ipOrSubnet.AddressFamily, subnetLength);
-
-                                                // 1.0.0.0/24 -> aaa*bbb.aaa.example.org のようなホストアドレスが指定される場合は、FQDN は Wildcard 可である。
-                                                if (fqdn._IsValidFqdn(true, false) == false)
-                                                {
-                                                    throw new CoresException("PTR record's target hostname must be a valid single host FQDN or wildcard FQDN");
-                                                }
-
-                                                (string beforeOfFirst, string afterOfFirst, string suffix) wildcardInfo = ("", "", "");
-
-                                                if (fqdn._InStr("*"))
-                                                {
-                                                    // ワイルドカード FQDN の場合、aa*bb のようなものも許容する。
-                                                    if (Str.TryParseFirstWildcardFqdnSandwitched(fqdn, out wildcardInfo) == false)
+                                                    // パースの試行 (ここでは、単に文法チェックためにパースを試行するだけであり、結果は不要である)
+                                                    if (isDynamic == false)
                                                     {
-                                                        // おかしな FQDN である
-                                                        throw new CoresException($"FQDN '{fqdn}''s wildcard form style must be like '*', 'abc*' or '*abc'");
+                                                        EasyDnsResponderRecord.TryParseFromString(recordTypeStr + " " + fqdnAndData);
                                                     }
-                                                }
 
-                                                string fqdn2 = fqdn;
-                                                if (fqdn._InStr("*"))
-                                                {
-                                                    // abc*def.example.org -> StandardRecord 上は、*.example.org が指定されたとみなして登録する。
-                                                    fqdn2 = "*" + wildcardInfo.suffix;
-                                                }
+                                                    string fqdn = tmp1[0]._NormalizeFqdn();
 
-                                                StandardRecord r = new StandardRecord
-                                                {
-                                                    Type = isHostAddress ? StandardRecordType.ReverseSingle : StandardRecordType.ReverseSubnet,
-                                                    Fqdn = fqdn2,
-                                                    IpNetwork = ipOrSubnet,
-                                                    IpSubnetMask = IPUtil.IntToSubnetMask(ipOrSubnet.AddressFamily, subnetLength),
-                                                    SubnetLength = subnetLength,
-                                                    FirstTokenWildcardBefore = wildcardInfo.beforeOfFirst,
-                                                    FirstTokenWildcardAfter = wildcardInfo.afterOfFirst,
-                                                    Settings = settings,
-                                                };
-
-                                                if (IsReverseFqdnAllowedByLimitList(r.IpNetwork, r.IpSubnetMask))
-                                                {
-                                                    this.ReverseRecordsList.Add(r);
-                                                }
-                                            }
-                                            else
-                                            {
-                                                // パースの試行 (ここでは、単に文法チェックためにパースを試行するだけであり、結果は不要である)
-                                                EasyDnsResponderRecord.TryParseFromString(recordTypeStr + " " + fqdnAndData);
-
-                                                string fqdn = tmp1[0]._NormalizeFqdn();
-
-                                                if (fqdn._IsValidFqdn(recordType != EasyDnsResponderRecordType.NS) == false) // NS レコードではワイルドカードは使用できない
-                                                {
-                                                    throw new CoresException($"DNS Record String: Invalid FQDN: '{fqdn}'");
-                                                }
-
-                                                // FQDN 部分を元に、DefineZone 済みのゾーンのいずれに一致するか検索する (最長一致)
-                                                var zone = DnsUtil.SearchLongestMatchDnsZone<ZoneDef>(this.ZoneList, fqdn, out string hostLabel, out _);
-
-                                                if (zone == null)
-                                                {
-                                                    // 対応するゾーンがない
-                                                    throw new CoresException($"Specified DNS record doesn't match any DefineZone zones");
-                                                }
-
-                                                if (recordType == EasyDnsResponderRecordType.NS)
-                                                {
-                                                    // NS レコードの場合は、必ず、定義済み Zone レコードの FQDN よりも長くなければならない (サブドメインでなければならない)。
-                                                    // (つまり、定義済み Zone レコードの FQDN と完全一致してはならない。)
-                                                    if (zone.Fqdn._NormalizeFqdn() == fqdn._NormalizeFqdn())
+                                                    if (fqdn._IsValidFqdn(recordType != EasyDnsResponderRecordType.NS) == false) // NS レコードではワイルドカードは使用できない
                                                     {
-                                                        throw new CoresException($"NS record's target FQDN must be a subdomain of the parent domain (meaning that it must not be exact match to the parent domain)");
+                                                        throw new CoresException($"DNS Record String: Invalid FQDN: '{fqdn}'");
                                                     }
-                                                }
 
-                                                if (IsForwardFqdnAllowedByLimitList(fqdn))
-                                                {
-                                                    // ゾーンのカスタムレコードとして追加
-                                                    zone.CustomRecordList.Add(new CustomRecord { Label = hostLabel, Data = data, Type = recordType, Settings = settings, });
+                                                    // FQDN 部分を元に、DefineZone 済みのゾーンのいずれに一致するか検索する (最長一致)
+                                                    var zone = DnsUtil.SearchLongestMatchDnsZone<ZoneDef>(this.ZoneList, fqdn, out string hostLabel, out _);
+
+                                                    if (zone == null)
+                                                    {
+                                                        // 対応するゾーンがない
+                                                        throw new CoresException($"Specified DNS record doesn't match any DefineZone zones");
+                                                    }
+
+                                                    if (recordType == EasyDnsResponderRecordType.NS)
+                                                    {
+                                                        // NS レコードの場合は、必ず、定義済み Zone レコードの FQDN よりも長くなければならない (サブドメインでなければならない)。
+                                                        // (つまり、定義済み Zone レコードの FQDN と完全一致してはならない。)
+                                                        if (zone.Fqdn._NormalizeFqdn() == fqdn._NormalizeFqdn())
+                                                        {
+                                                            throw new CoresException($"NS record's target FQDN must be a subdomain of the parent domain (meaning that it must not be exact match to the parent domain)");
+                                                        }
+                                                    }
+
+                                                    QueryStringList? dynamicRecordQsList = null;
+
+                                                    if (isDynamic)
+                                                    {
+                                                        // ダイナミックレコードの場合の変数処理
+                                                        dynamicRecordQsList = new QueryStringList();
+                                                        foreach (var kv in paramsList)
+                                                        {
+                                                            if (kv.Value.StartsWith("$"))
+                                                            {
+                                                                if (zone.Options.VarsList.TryGetValue(kv.Value.Substring(1), out string? valueTmp))
+                                                                {
+                                                                    dynamicRecordQsList.Add(kv.Key, valueTmp);
+                                                                }
+                                                                else
+                                                                {
+                                                                    throw new CoresException($"Specified variable '{kv.Value.Substring(1)}' is not found on the 'Vars' variables list in zone '{zone.Fqdn}'.");
+                                                                }
+                                                            }
+                                                            else
+                                                            {
+                                                                dynamicRecordQsList.Add(kv.Key, kv.Value);
+                                                            }
+                                                        }
+                                                    }
+
+                                                    if (IsForwardFqdnAllowedByLimitList(fqdn))
+                                                    {
+                                                        // ゾーンのカスタムレコードとして追加
+                                                        zone.CustomRecordList.Add(new CustomRecord
+                                                        {
+                                                            Label = hostLabel,
+                                                            Data = data,
+                                                            Type = recordType,
+                                                            Settings = settings,
+                                                            IsDynamicRecord = isDynamic,
+                                                            DynamicRecordParamsList = dynamicRecordQsList
+                                                        });
+                                                    }
                                                 }
                                             }
                                         }
@@ -1026,6 +1155,8 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
 
         Config cfg = new Config(body, err);
 
+        this.Hook.InitDynamicResponderFactoryList(cfg.DynamicResponderFactoryDict);
+
         // ゾーンの定義
         foreach (var zoneDef in cfg.ZoneList.Values)
         {
@@ -1060,7 +1191,32 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
             // カスタムレコードを登録
             foreach (var customDef in zoneDef.CustomRecordList)
             {
-                zone.RecordList.Add(EasyDnsResponderRecord.FromString(customDef.Type.ToString() + " " + customDef.Label._FilledOrDefault("@") + " " + customDef.Data, settings: customDef.Settings));
+                if (customDef.IsDynamicRecord == false)
+                {
+                    // 普通のカスタムレコード
+                    zone.RecordList.Add(EasyDnsResponderRecord.FromString(customDef.Type.ToString() + " " + customDef.Label._FilledOrDefault("@") + " " + customDef.Data, settings: customDef.Settings));
+                }
+                else
+                {
+                    // ダイナミックレコード
+                    var record = new EasyDnsResponderRecord
+                    {
+                        Type = customDef.Type,
+                        Name = customDef.Label,
+                        Settings = customDef.Settings,
+                        Contents = "_this_is_custom_dynamic_record:" + Str.GenRandStr(),
+                        Attribute = EasyDnsResponderRecordAttribute.DynamicRecord,
+                    };
+
+                    if (cfg.DynamicResponderFactoryDict.TryGetValue(customDef.Data, out var factory))
+                    {
+                        IpaDnsServiceDynamicResponderBase responder = factory(new IpaDnsServiceDynamicResponderInitParam(this, zone, record, customDef, customDef.Data));
+
+                        cfg.DynamicResponderDict[record.Contents] = responder;
+                    }
+
+                    zone.RecordList.Add(record);
+                }
             }
 
             if (zoneDef.Type == ZoneDefType.Forward)
@@ -1528,7 +1684,23 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
 
                 string targetLabel = req.RequestHostName;
 
-                if (req.CallbackId == "_this_is_ptr_record_refer_ReverseRecordsList")
+                if (req.CallbackId.StartsWith("_this_is_custom_dynamic_record:"))
+                {
+                    var responder = cfg.DynamicResponderDict._GetOrDefault(req.CallbackId);
+                    if (responder != null)
+                    {
+                        var callParam = new IpaDnsServiceDynamicResponderCallParam(ret, req);
+                        if (responder.ResolveImpl(callParam) == false)
+                        {
+                            ret.NotFound = true;
+                        }
+                    }
+                    else
+                    {
+                        throw new CoresException($"Callback ID '{req.CallbackId}' not found");
+                    }
+                }
+                else if (req.CallbackId == "_this_is_ptr_record_refer_ReverseRecordsList")
                 {
                     try
                     {

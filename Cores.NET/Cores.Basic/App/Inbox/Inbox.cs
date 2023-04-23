@@ -340,14 +340,16 @@ public sealed class InboxOptions
     public int MaxMessagesPerAdapter { get; }
     public int MaxMessagesTotal { get; }
     public bool RecordRealtimeTextLog { get; }
+    public bool IgnoreSslCert { get; }
 
-    public InboxOptions(TcpIpSystem? tcpIp = null, int maxMessagesPerAdapter = DefaultSize, int maxMessagesTotal = DefaultSize, bool recordRealtimeTextLog = false)
+    public InboxOptions(TcpIpSystem? tcpIp = null, int maxMessagesPerAdapter = DefaultSize, int maxMessagesTotal = DefaultSize, bool recordRealtimeTextLog = false, bool ignoreSslCert = false)
     {
         this.TcpIp = tcpIp ?? LocalNet;
 
         this.MaxMessagesPerAdapter = maxMessagesPerAdapter._DefaultSize(CoresConfig.InboxSettings.DefaultMaxMessagesPerAdapter);
         this.MaxMessagesTotal = maxMessagesTotal._DefaultSize(CoresConfig.InboxSettings.DefaultMaxMessagesTotal);
         this.RecordRealtimeTextLog = recordRealtimeTextLog;
+        this.IgnoreSslCert = ignoreSslCert;
     }
 }
 

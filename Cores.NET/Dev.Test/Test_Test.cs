@@ -4147,8 +4147,113 @@ cccadmin
         Con.ReadLine();
     }
 
+    public class ZttpConnectRequest
+    {
+        public ulong Flags_u64;
+        public string TargetFqdn_str = null!;
+        public int TargetPort_u32;
+    }
+
+    public class ZttpConnectResponse
+    {
+        public int ErrorCode_u32;
+        public string ErrorMessage_utf = null!;
+        public long Flags_u64;
+        public string TargetIp_str = null!;
+        public int TargetPort_u32;
+        public string LocalIp_str = null!;
+        public int LocalPort_u32;
+        public string TargetFqdnReverse_str = null!;
+        public byte[] TargetSslCert_bin = null!;
+    }
+
+    public static async Task Test_230323_Zttp()
+    {
+        await using var ws = await WebSocket.ConnectAsync("wss://ws-103-41-61-177.websocket.cyber.ipa.go.jp/tunnel_test/", new WebSocketConnectOptions(sslOptions: new PalSslClientAuthenticationOptions { AllowAnyServerCert = true }));
+
+        await using var st = ws.GetStream();
+
+        ZttpConnectRequest req = new()
+        {
+            Flags_u64 = 1,
+            TargetFqdn_str = "www.google.com",
+            TargetPort_u32 = 443,
+        };
+
+        await st._SendJsonAsync(req);
+
+        var response = await st._RecvJsonAsync<ZttpConnectResponse>()!;
+
+        response._Debug();
+
+        string request_str = @"
+GET / HTTP/1.1
+HOST: www.google.com
+
+"._NormalizeCrlf(CrlfStyle.CrLf);
+
+        await st.SendAsync(request_str._GetBytes_UTF8());
+
+        while (true)
+        {
+            var data = await st.ReceiveAsync();
+
+            if (data.IsEmpty)
+            {
+                break;
+            }
+
+            data._GetString_UTF8()._Print();
+        }
+
+    }
+
+    public class TestClass230328
+    {
+        public TestClass230328()
+        {
+            Where();
+        }
+    }
+
+    public class TestClass230328Ex : TestClass230328
+    {
+        public TestClass230328Ex() : base()
+        {
+            Where();
+        }
+    }
+
+    class Derived : Base
+    {
+        public Derived() : base() // 基本クラスのコンストラクタを呼び出す
+        {
+            Console.WriteLine("Hello2");
+        }
+    }
+
+    class Base
+    {
+        public Base()
+        {
+            Console.WriteLine("Hello1");
+        }
+    }
+
     public static void Test_Generic()
     {
+        if (true)
+        {
+            Derived c = new Derived();
+            return;
+        }
+
+        if (true)
+        {
+            Test_230323_Zttp()._GetResult();
+            return;
+        }
+
         if (false)
         {
             var x = MultiPartBody.TryParse(Lfs.ReadDataFromFile(@"C:\TMP\230122\20230122121509.dat").Span, "----WebKitFormBoundaryoU3WgSXQuiVOKFwB");

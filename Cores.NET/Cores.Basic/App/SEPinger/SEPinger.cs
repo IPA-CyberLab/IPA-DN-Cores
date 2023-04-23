@@ -938,7 +938,7 @@ public class Pinger
     public Pinger()
     {
         res = new PingerResults();
-        lastHash = new byte[0];
+        lastHash = new byte[1];
 
         try
         {

@@ -19,7 +19,7 @@ jobs:
         # Windows の再起動が必要なようであり、GitHub Actions ではうまく利用できなかった。
         #
         # メモ https://github.com/actions/virtual-environments/
-        operating-system: [ubuntu-18.04, ubuntu-20.04, ubuntu-22.04, windows-2019, windows-2022]
+        operating-system: [ubuntu-20.04, ubuntu-22.04, windows-2019, windows-2022]
         dotnet-version: ["6.0"]
 
     steps:

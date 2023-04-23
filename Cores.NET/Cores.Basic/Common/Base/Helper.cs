@@ -1016,7 +1016,7 @@ public static class BasicHelper
     }
     public static Uri _ParseUrl(this string urlString, Encoding? encoding = null) => _ParseUrl(urlString, out _, encoding);
     public static bool _TryParseUrl(this string urlString, out Uri uri, out QueryStringList queryString, Encoding? encoding = null) => Str.TryParseUrl(urlString, out uri, out queryString, encoding);
-    public static QueryStringList _ParseQueryString(this string src, Encoding? encoding = null) => Str.ParseQueryString(src, encoding);
+    public static QueryStringList _ParseQueryString(this string src, Encoding? encoding = null, char splitChar = '&', bool trimKeyAndValue = false) => Str.ParseQueryString(src, encoding, splitChar, trimKeyAndValue);
 
     public static Uri _CombineUrl(this string uri, string relativeUriOrAbsolutePath) => new Uri(uri._ParseUrl(), relativeUriOrAbsolutePath);
     public static Uri _CombineUrl(this string uri, Uri relativeUri) => new Uri(uri._ParseUrl(), relativeUri);
@@ -1301,6 +1301,30 @@ public static class BasicHelper
         h.ValueList.Add("Content-Type", "application/octet-stream");
 
         await h.PostHttpAsync(stream, packData, cancel);
+    }
+
+    [return: MaybeNull]
+    public static async Task<T> _RecvJsonAsync<T>(this Stream stream, CancellationToken cancel = default)
+    {
+        int sz = await stream.ReceiveSInt16Async(cancel);
+
+        var data = await stream._ReadAllAsync(sz, cancel);
+        string jsonStr = data._GetString_UTF8(true);
+
+        return jsonStr._JsonToObject<T>()!;
+    }
+
+    public static async Task _SendJsonAsync<T>(this Stream stream, T obj, CancellationToken cancel = default)
+    {
+        var jsonStr = obj._ObjectToJson(compact: true);
+        var jsonData = jsonStr._GetBytes_UTF8();
+        ushort size = (ushort)jsonData.Length;
+
+        MemoryBuffer<byte> buf = new MemoryBuffer<byte>();
+        buf.WriteUInt16(size);
+        buf.Write(jsonData);
+
+        await stream.WriteAsync(buf, cancel);
     }
 
     public static async Task<Pack> _RecvPackAsync(this Stream stream, CancellationToken cancel = default)

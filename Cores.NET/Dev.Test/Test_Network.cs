@@ -80,6 +80,128 @@ partial class TestDevCommands
         public string TcpPortList = "";
     }
 
+
+
+    // SNMP Worker CGI ハンドラ
+    public class FakeHttpServer_CgiHandler : CgiHandlerBase
+    {
+        public FakeHttpServer_CgiHandler()
+        {
+        }
+
+        protected override void InitActionListImpl(CgiActionList noAuth, CgiActionList reqAuth)
+        {
+            try
+            {
+                noAuth.AddAction("/", WebMethodBits.GET | WebMethodBits.HEAD, async (ctx) =>
+                {
+                    await Task.CompletedTask;
+
+                    StringWriter w = new StringWriter();
+                    w.WriteLine(DtOffsetNow._ToDtStr(true));
+                    w.WriteLine();
+                    for (int i = 0; i < 10; i++)
+                    {
+                        w.WriteLine($"Hello World Neko Neko Neko {i}");
+                    }
+
+                    return new HttpStringResult(w.ToString()._NormalizeCrlf(CrlfStyle.Lf, true));
+                });
+
+                noAuth.AddAction("/push/", WebMethodBits.GET | WebMethodBits.HEAD, async (ctx) =>
+                {
+                    await Task.CompletedTask;
+
+                    PipeStreamPairWithSubTask streamPair = new PipeStreamPairWithSubTask(async (writeMe) =>
+                    {
+                        StreamWriter w = new StreamWriter(writeMe);
+                        w.AutoFlush = true;
+
+                        w.WriteLine(DtOffsetNow._ToDtStr(true));
+                        w.WriteLine();
+                        for (int i = 0; ; i++)
+                        {
+                            w.WriteLine($"Hello World Neko Neko Neko {i}");
+
+                            await w.FlushAsync();
+                            await writeMe.FlushAsync();
+
+                            await Task.Delay(100);
+                        }
+                    });
+
+                    List<KeyValuePair<string, string>> headers = new List<KeyValuePair<string, string>>();
+
+                    return new HttpResult(streamPair.StreamA, 0, null, Consts.MimeTypes.TextUtf8, additionalHeaders: headers, onDisposeAsync: () => streamPair._DisposeSafeAsync2());
+                });
+
+
+                noAuth.AddAction("/exe/", WebMethodBits.GET | WebMethodBits.HEAD, async (ctx) =>
+                {
+                    await Task.CompletedTask;
+
+                    string srcFileName = Env.Win32_SystemDir._CombinePath("ca.exe");
+
+                    var file = Lfs.Open(srcFileName, cancel: ctx.Cancel);
+
+                    return new HttpFileResult(file, 0, await file.GetFileSizeAsync(cancel: ctx.Cancel), filename: PP.GetFileName(srcFileName));
+                });
+            }
+            catch
+            {
+                this._DisposeSafe();
+                throw;
+            }
+        }
+    }
+
+    [ConsoleCommand(
+    "HTTPS Fake Cert Server",
+    "HttpsFakeCertServer [commonName]",
+    "HTTPS Fake Cert Server")]
+    static int HttpsFakeCertServer(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
+        };
+
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        var ca = DevTools.CoresDebugCACert_20221125;
+
+        var certSingleton = new Singleton<string, PalX509Certificate>(hostname =>
+        {
+            PkiUtil.GenerateRsaKeyPair(2048, out PrivKey newKey, out _);
+
+            Certificate newCert = new Certificate(newKey, ca, new CertificateOptions(PkiAlgorithm.RSA, cn: hostname, c: "US", type: CertificateOptionsType.ServerCertificate, expires: DtOffsetNow.AddDays(30)));
+            CertificateStore newCertStore = new CertificateStore(newCert, newKey);
+
+            var cert = newCertStore.X509Certificate;
+
+            return cert;
+        });
+
+        // HTTP サーバーを立ち上げる
+        using var cgi = new CgiHttpServer(new FakeHttpServer_CgiHandler(), new HttpServerOptions()
+        {
+            AutomaticRedirectToHttpsIfPossible = false,
+            DisableHiveBasedSetting = true,
+            DenyRobots = false,
+            UseGlobalCertVault = false,
+            LocalHostOnly = false,
+            HttpPortsList = new int[] { 80 }.ToList(),
+            HttpsPortsList = new int[] { 443 }.ToList(),
+            UseKestrelWithIPACoreStack = true,
+            ServerCertSelector = (p, hostname) => certSingleton[hostname._NormalizeFqdn()],
+        },
+        true);
+
+        Con.ReadLine("Enter to Stop>");
+
+        return 0;
+    }
+
+
     [ConsoleCommand(
     "DNS FQDN Scanner",
     "FqdnScan [subnets] [/servers:8.8.8.8,8.8.4.4] [/threads:64] [/interval:100] [/try:1] [/shuffle:yes] [/fqdnorder:yes] [/dest:csv]",
