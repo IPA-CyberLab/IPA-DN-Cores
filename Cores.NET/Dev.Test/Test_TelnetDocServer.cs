@@ -69,13 +69,36 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
         }
     }
 
+    readonly HiveData<HiveKeyValue> Settings = Hive.LocalAppSettingsEx["TelnetDocServerAccessCounter"];
+
     async Task MainLoopAsync(CancellationToken cancel = default)
     {
         await Task.CompletedTask;
 
         this.Listener = LocalNet.CreateTcpListener(new TcpListenParam(async (listener, sock) =>
         {
+            long access_counter = 0;
+            await Settings.AccessDataAsync(true, async k =>
+            {
+                long c = k.GetSInt64("Counter");
+
+                c++;
+
+                k.SetSInt64("Counter", c);
+
+                access_counter = c;
+
+                await Task.CompletedTask;
+            });
+
+            string counter2 = access_counter.ToString()._Normalize(false, false, true);
+
+            string counter1 = access_counter.ToString("D4")._Normalize(false, false, true);
+
             string body = Lfs.ReadStringFromFile(Env.AppRootDir._CombinePath("TelnetBody.txt"));
+
+            body = body._ReplaceStr("_COUNTER2_", counter2);
+            body = body._ReplaceStr("_COUNTER1_", counter1);
 
             StringWriter tmp1 = new StringWriter();
 
@@ -101,7 +124,7 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
             foreach (char c in body)
             {
                 await w.WriteAsync(c);
-                await Task.Delay(Util.RandSInt15() % 100);
+                //await Task.Delay(Util.RandSInt15() % 100);
             }
 
             Memory<byte> recvBuf = new byte[1];
