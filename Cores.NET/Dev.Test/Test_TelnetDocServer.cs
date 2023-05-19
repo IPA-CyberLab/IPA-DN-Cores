@@ -90,6 +90,8 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
 
             await using var st = sock.GetStream();
 
+            st.ReadTimeout = st.WriteTimeout = 5 * 60 * 1000;
+
             StreamWriter w = new StreamWriter(st, Str.ShiftJisEncoding);
             w.NewLine = Str.CrLf_Str;
             w.AutoFlush = true;
