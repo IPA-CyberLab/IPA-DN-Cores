@@ -98,6 +98,8 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
 
             foreach (char c in body)
             {
+                ((int)c)._Print();
+
                 await w.WriteAsync(c);
                 await Task.Delay(Util.RandSInt15() % 100);
             }
