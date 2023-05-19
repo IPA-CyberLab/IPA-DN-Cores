@@ -124,7 +124,7 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
             foreach (char c in body)
             {
                 await w.WriteAsync(c);
-                //await Task.Delay(Util.RandSInt15() % 100);
+                await Task.Delay(Util.RandSInt15() % 100);
             }
 
             Memory<byte> recvBuf = new byte[1];
