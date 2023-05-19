@@ -79,6 +79,8 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
 
             StringWriter tmp1 = new StringWriter();
 
+            tmp1.NewLine = Str.CrLf_Str;
+
             tmp1.WriteLine();
 
             foreach (var line in body._GetLines())
@@ -89,6 +91,7 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
             await using var st = sock.GetStream();
 
             StreamWriter w = new StreamWriter(st, Str.ShiftJisEncoding);
+            w.NewLine = Str.CrLf_Str;
             w.AutoFlush = true;
 
             body = tmp1.ToString();
