@@ -131,7 +131,10 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
 
             while (true)
             {
-                await st.ReadAsync(recvBuf);
+                if (await st.ReadAsync(recvBuf) <= 0)
+                {
+                    break;
+                }
             }
 
         }, ports: new int[] { 23 }));
