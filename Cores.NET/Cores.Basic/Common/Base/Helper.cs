@@ -2279,14 +2279,25 @@ public static class BasicHelper
         list.ToList().ForEach(action);
     }
 
-    public static void _DoForEach<T>(this IEnumerable<T> list, Action<T, int> action, int taskIndex)
+    public static void _DoForEach<T>(this IEnumerable<T> list, Action<T, int> action)
     {
         list._NullCheck();
         List<T> list2 = list.ToList();
         for (int i = 0; i < list2.Count; i++)
         {
             T t = list2[i];
-            action(t, taskIndex);
+            action(t, i);
+        }
+    }
+
+    public static void _DoForEach<T>(this IEnumerable<T> list, Action<T, int> action, int intParam)
+    {
+        list._NullCheck();
+        List<T> list2 = list.ToList();
+        for (int i = 0; i < list2.Count; i++)
+        {
+            T t = list2[i];
+            action(t, intParam);
         }
     }
 
@@ -2301,14 +2312,25 @@ public static class BasicHelper
         }
     }
 
-    public static async Task _DoForEachAsync<T>(this IEnumerable<T> list, Func<T, int, Task> action, int taskIndex, CancellationToken cancel = default)
+    public static async Task _DoForEachAsync<T>(this IEnumerable<T> list, Func<T, int, Task> action, CancellationToken cancel = default)
     {
         list._NullCheck();
         List<T> list2 = list.ToList();
         for (int i = 0; i < list2.Count; i++)
         {
             T t = list2[i];
-            await action(t, taskIndex);
+            await action(t, i);
+        }
+    }
+
+    public static async Task _DoForEachAsync<T>(this IEnumerable<T> list, Func<T, int, Task> action, int intParam, CancellationToken cancel = default)
+    {
+        list._NullCheck();
+        List<T> list2 = list.ToList();
+        for (int i = 0; i < list2.Count; i++)
+        {
+            T t = list2[i];
+            await action(t, intParam);
         }
     }
 
