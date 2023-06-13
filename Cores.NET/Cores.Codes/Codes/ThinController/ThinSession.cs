@@ -157,7 +157,7 @@ public class ThinGate : IValidatable, INormalizable
     [SimpleTableOrder(5)]
     public long NumComm;
     [SimpleTableOrder(20)]
-    public string UltraCommitId = "";
+    public string ThinLibCommitId = "";
     [SimpleTableOrder(19)]
     public DateTime CurrentTime = Util.ZeroDateTimeValue;
     [SimpleTableOrder(19.5)]
@@ -166,6 +166,9 @@ public class ThinGate : IValidatable, INormalizable
     public TimeSpan BootTick;
     [SimpleTableOrder(18.5)]
     public DateTime BootTime => (BootTick.Ticks != 0 ? LastCommDateTime - BootTick : ZeroDateTimeValue);
+
+    [SimpleTableOrder(17.9)]
+    public string StatusMessage = "";
 
     [SimpleTableOrder(12.1)]
     public int NumClients => this.SessionTable.Values.Sum(x => x.NumClients);
@@ -190,7 +193,8 @@ public class ThinGate : IValidatable, INormalizable
         HostName = HostName._NonNull();
         MacAddress = MacAddress._NonNull();
         OsInfo = OsInfo._NonNull();
-        UltraCommitId = UltraCommitId._NonNull();
+        ThinLibCommitId = ThinLibCommitId._NonNull();
+        StatusMessage = StatusMessage._NonNull();
     }
 
     public void Validate()

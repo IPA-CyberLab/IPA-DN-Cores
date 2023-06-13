@@ -1055,10 +1055,11 @@ public class ThinControllerSession : IDisposable, IAsyncDisposable
             Build = p["Build"].SIntValue,
             MacAddress = p["MacAddress"].StrValueNonNull,
             OsInfo = p["OsInfo"].StrValueNonNull,
-            UltraCommitId = p["UltraCommitId"].StrValueNonNull,
+            ThinLibCommitId = p["UltraCommitId"].StrValueNonNull,
             CurrentTime = p["CurrentTime"].DateTimeValue.ToLocalTime(),
             BootTick = p["BootTick"].Int64Value._ToTimeSpanMSecs(),
             Caps = (ThinGateCaps)p["Caps"].Int64Value,
+            StatusMessage = p["StatMsg"].StrValueNonNull,
         };
 
         if (gate.Performance == 0) gate.Performance = 100;
@@ -1191,9 +1192,10 @@ public class ThinControllerSession : IDisposable, IAsyncDisposable
             Build = p["Build"].SIntValue,
             MacAddress = p["MacAddress"].StrValueNonNull,
             OsInfo = p["OsInfo"].StrValueNonNull,
-            UltraCommitId = p["UltraCommitId"].StrValueNonNull,
+            ThinLibCommitId = p["UltraCommitId"].StrValueNonNull,
             CurrentTime = p["CurrentTime"].DateTimeValue.ToLocalTime(),
             BootTick = p["BootTick"].Int64Value._ToTimeSpanMSecs(),
+            StatusMessage = p["StatMsg"].StrValueNonNull,
         };
 
         if (gate.Performance == 0) gate.Performance = 100;
@@ -1241,9 +1243,10 @@ public class ThinControllerSession : IDisposable, IAsyncDisposable
             Build = p["Build"].SIntValue,
             MacAddress = p["MacAddress"].StrValueNonNull,
             OsInfo = p["OsInfo"].StrValueNonNull,
-            UltraCommitId = p["UltraCommitId"].StrValueNonNull,
+            ThinLibCommitId = p["UltraCommitId"].StrValueNonNull,
             CurrentTime = p["CurrentTime"].DateTimeValue.ToLocalTime(),
             BootTick = p["BootTick"].Int64Value._ToTimeSpanMSecs(),
+            StatusMessage = p["StatMsg"].StrValueNonNull,
         };
 
         if (gate.Performance == 0) gate.Performance = 100;
