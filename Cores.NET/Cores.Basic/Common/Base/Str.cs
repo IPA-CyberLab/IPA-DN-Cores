@@ -7054,7 +7054,7 @@ namespace IPA.Cores.Basic
                 tag = @"\.fff";
 
             if (ts.TotalDays >= 1)
-                return ts.ToString(@"d\.hh\:mm\:ss" + tag);
+                return ts.ToString(@"d\d\+hh\:mm\:ss" + tag);
             else
                 return ts.ToString(@"hh\:mm\:ss" + tag);
         }
