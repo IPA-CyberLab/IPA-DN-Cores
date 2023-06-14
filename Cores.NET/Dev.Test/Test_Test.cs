@@ -1078,6 +1078,65 @@ static class TestClass
         }
     }
 
+    static void Test_MakeDnDDnsRegister11StaticCerts_230614()
+    {
+        string baseDir = @"C:\tmp\230614-ddns-static-certs\";
+        string password = "microsoft";
+
+        var exp = new DateTimeOffset(2099, 12, 31, 0, 0, 0, new TimeSpan(0, 0, 0));
+
+        if (true)
+        {
+            PkiUtil.GenerateRsaKeyPair(4096, out PrivKey priv, out _);
+
+            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.RootCertiticate, "ddns-static-certs-root-ca", c: "JP",
+                expires: exp,
+                shaSize: PkiShaSize.SHA512));
+
+            CertificateStore store = new CertificateStore(cert, priv);
+
+            Lfs.WriteStringToFile(baseDir + @"00_Memo.txt", $"Created by {Env.AppRealProcessExeFileName} {DateTime.Now._ToDtStr()}", FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
+
+            Lfs.WriteDataToFile(baseDir + @"00_Master.pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+            Lfs.WriteDataToFile(baseDir + @"00_Master_Encrypted.pfx", store.ExportPkcs12(password), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteDataToFile(baseDir + @"00_Master.cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteDataToFile(baseDir + @"00_Master.key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteStringToFile(baseDir + @"00_Master.txt", store.ExportCertInfo(), FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
+        }
+
+        if (true)
+        {
+            CertificateStore master = new CertificateStore(Lfs.ReadDataFromFile(baseDir + @"00_Master.pfx").Span);
+
+            IssueCert("ddns-register-1.sehosts.com", baseDir + @"01_2048", "ddns-register-1.sehosts.com", 2048, PkiShaSize.SHA256);
+            IssueCert("ddns-register-1.sehosts.com", baseDir + @"02_3072", "ddns-register-1.sehosts.com", 3072, PkiShaSize.SHA384);
+            IssueCert("ddns-register-1.sehosts.com", baseDir + @"03_4096", "ddns-register-1.sehosts.com", 4096, PkiShaSize.SHA512);
+
+        }
+
+        void IssueCert(string cn, string fileNameBase, string fqdn, int bits, PkiShaSize shaSize)
+        {
+            CertificateStore master = new CertificateStore(Lfs.ReadDataFromFile(baseDir + @"00_Master.pfx").Span);
+
+            PkiUtil.GenerateRsaKeyPair(bits, out PrivKey priv, out _);
+
+            var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.ServerCertificate, cn, c: "JP", expires: exp, shaSize: shaSize));
+
+            var store = new CertificateStore(cert, priv);
+            Lfs.WriteDataToFile(fileNameBase + ".pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+            Lfs.WriteDataToFile(fileNameBase + "_Encrypted.pfx", store.ExportPkcs12(password), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteDataToFile(fileNameBase + ".cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteDataToFile(fileNameBase + ".key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteStringToFile(fileNameBase + ".txt", store.ExportCertInfo(), FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
+        }
+    }
+
 
     static void Test_MakeDnThinFwPolicy1StaticCerts_230610()
     {
@@ -4297,6 +4356,12 @@ HOST: www.google.com
 
     public static void Test_Generic()
     {
+        if (true)
+        {
+            Test_MakeDnDDnsRegister11StaticCerts_230614();
+            return;
+        }
+
         if (true)
         {
             Test_MakeDnThinFwPolicy1StaticCerts_230610();
