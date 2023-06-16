@@ -597,66 +597,74 @@ partial class TestDevCommands
                 // シャッフルされたソースファイルリストを並列的に処理する
                 await shuffledSrcList._DoForEachParallelAsync(async (srcFullPath, taskIndex) =>
                 {
-                    await Task.Yield();
-
-                    int thisFileIndex = fileIndex.Increment();
-
-                    string srcFileNamePart = PP.MakeSafeFileName(relativeFileNameDict[srcFullPath]).ToLowerInvariant();
-
-                    srcFileNamePart = PP.GetFileNameWithoutExtension(srcFileNamePart);
-
-                    srcFileNamePart = Str.MakeVerySafeAsciiOnlyNonSpaceFileName(srcFileNamePart);
-
-                    srcFileNamePart = srcFileNamePart._TruncStr(100);
-
-                    // 1 つのファイルを処理する。
-                    string? alreadyConvertedDestFilePath = alreadyConvertedDict._GetOrDefault(srcFullPath);
-                    if (alreadyConvertedDestFilePath == null)
+                    try
                     {
-                        // 未処理なので、処理をする。
-                        try
-                        {
-                            var fileBody = await Lfs.ReadDataFromFileAsync(srcFullPath);
+                        await Task.Yield();
 
-                            $"G{gIndex}: Thread {taskIndex}: File #{thisFileIndex}/{srcList.Count}: Loading '{srcFullPath}'..."._Print();
-                            var img = Graphics.LoadImage(fileBody);
+                        int thisFileIndex = fileIndex.Increment();
 
-                            $"Thread {taskIndex}: File #{thisFileIndex}/{srcList.Count}: Converting '{srcFullPath}'..."._Print();
-                            var exportBody = img.ExportAsPng();
+                        string srcFileNamePart = PP.MakeSafeFileName(relativeFileNameDict[srcFullPath]).ToLowerInvariant();
 
-                            // 処理結果を保存する。
-                            int thisSIndex = sIndex.Increment();
+                        srcFileNamePart = PP.GetFileNameWithoutExtension(srcFileNamePart);
 
-                            string dstFullPath = PP.Combine(outDir2, $"{timeStampTag}_g{gIndex:D4}_s{thisSIndex:D4}_{srcFileNamePart}.png");
-                            $"G{gIndex}: Thread {taskIndex}: File #{thisFileIndex}/{srcList.Count}: Saving to '{dstFullPath}'..."._Print();
+                        srcFileNamePart = Str.MakeVerySafeAsciiOnlyNonSpaceFileName(srcFileNamePart);
 
-                            await Lfs.WriteDataToFileAsync(dstFullPath, fileBody, FileFlags.AutoCreateDirectory);
+                        srcFileNamePart = srcFileNamePart._TruncStr(100);
 
-                            alreadyConvertedDict[srcFullPath] = dstFullPath;
-                        }
-                        catch (Exception ex)
-                        {
-                            $"G{gIndex}: Thread {taskIndex}: File #{thisFileIndex}/{srcList.Count}: File '{srcFullPath}' error: {ex.Message}"._Print();
-
-                            alreadyConvertedDict[srcFullPath] = "";
-                        }
-                    }
-                    else
-                    {
+                        // 1 つのファイルを処理する。
+                        string? alreadyConvertedDestFilePath = alreadyConvertedDict._GetOrDefault(srcFullPath);
                         if (alreadyConvertedDestFilePath == null)
                         {
-                            // 既に 1 回変換を試行したが、失敗したので、このファイルは不正と考えて無視をする。
+                            // 未処理なので、処理をする。
+                            try
+                            {
+                                var fileBody = await Lfs.ReadDataFromFileAsync(srcFullPath);
+
+                                $"G{gIndex}: Thread {taskIndex}: File #{thisFileIndex}/{srcList.Count}: Loading '{srcFullPath}'..."._Print();
+                                var img = Graphics.LoadImage(fileBody);
+
+                                $"Thread {taskIndex}: File #{thisFileIndex}/{srcList.Count}: Converting '{srcFullPath}'..."._Print();
+                                var exportBody = img.ExportAsPng();
+
+                                // 処理結果を保存する。
+                                int thisSIndex = sIndex.Increment();
+
+                                string dstFullPath = PP.Combine(outDir2, $"{timeStampTag}_g{gIndex:D4}_s{thisSIndex:D4}_{srcFileNamePart}.png");
+                                $"G{gIndex}: Thread {taskIndex}: File #{thisFileIndex}/{srcList.Count}: Saving to '{dstFullPath}'..."._Print();
+
+                                await Lfs.WriteDataToFileAsync(dstFullPath, fileBody, FileFlags.AutoCreateDirectory);
+
+                                alreadyConvertedDict[srcFullPath] = dstFullPath;
+                            }
+                            catch (Exception ex)
+                            {
+                                $"G{gIndex}: Thread {taskIndex}: File #{thisFileIndex}/{srcList.Count}: File '{srcFullPath}' error: {ex.Message}"._Print();
+
+                                alreadyConvertedDict[srcFullPath] = "";
+                            }
                         }
                         else
                         {
-                            // 既に変換されているファイルなので、単にコピーする
-                            int thisSIndex = sIndex.Increment();
+                            if (alreadyConvertedDestFilePath == null)
+                            {
+                                // 既に 1 回変換を試行したが、失敗したので、このファイルは不正と考えて無視をする。
+                            }
+                            else
+                            {
+                                // 既に変換されているファイルなので、単にコピーする
+                                int thisSIndex = sIndex.Increment();
 
-                            string dstFullPath = PP.Combine(outDir2, $"{timeStampTag}_g{gIndex:D4}_s{thisSIndex:D4}_{srcFileNamePart}.png");
+                                string dstFullPath = PP.Combine(outDir2, $"{timeStampTag}_g{gIndex:D4}_s{thisSIndex:D4}_{srcFileNamePart}.png");
 
-                            $"G{gIndex}: Thread {taskIndex}: Copying '{alreadyConvertedDestFilePath}'... to '{dstFullPath}'"._Print();
-                            await Lfs.CopyFileAsync(alreadyConvertedDestFilePath, dstFullPath);
+                                $"G{gIndex}: Thread {taskIndex}: Copying '{alreadyConvertedDestFilePath}'... to '{dstFullPath}'"._Print();
+                                //await Lfs.CopyFileAsync(alreadyConvertedDestFilePath, dstFullPath);
+                                File.Copy(alreadyConvertedDestFilePath, dstFullPath, true); // Use OS file copy API for network file copy faster
+                            }
                         }
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Print();
                     }
                 }, operation: MultitaskDivideOperation.RoundRobin);
             }
