@@ -4356,7 +4356,7 @@ HOST: www.google.com
 
     static async Task GraphicTest230616()
     {
-        string inDir = @"C:\Users\yagi\Desktop\test\in";
+        string inDir = @"P:\OME-0016446;P:\OME-AI\91_tokusen1";
         string outDir = @"C:\Users\yagi\Desktop\test\out";
         int numSets = 3;
 
@@ -4370,29 +4370,49 @@ HOST: www.google.com
         // ソースファイル列挙
         HashSet<long> srcSizeDict = new HashSet<long>();
         List<string> srcList = new List<string>();
-        var entList = await Lfs.EnumDirectoryAsync(inDir, true);
+
+        Dictionary<string, string> relativeFileNameDict = new Dictionary<string, string>();
+
+        var inDirList = inDir._Split(StringSplitOptions.RemoveEmptyEntries, ';');
         long totalSrcSize = 0;
-        foreach (var file in entList.Where(x => x.IsFile))
+
+        foreach (var dirFullPath in inDirList)
         {
-            bool isExtOk = false;
-            string ext = PP.GetExtension(file.FullPath, false).ToLowerInvariant();
-            if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp")
+            try
             {
-                isExtOk = true;
-            }
+                var entList = await Lfs.EnumDirectoryAsync(dirFullPath, true);
 
-            if (isExtOk)
-            {
-                // これは、大変な手抜き実装であるが、処理元の画像ファイルのサイズが異なる場合のみ異なる画像ファイルであるとみなす。
-                // 本来はファイル内容を比較しなければならないが
-                long size = file.Size;
-
-                if (srcSizeDict.Contains(size) == false)
+                foreach (var file in entList.Where(x => x.IsFile))
                 {
-                    srcSizeDict.Add(size);
-                    srcList.Add(file.FullPath);
-                    totalSrcSize++;
+                    bool isExtOk = false;
+                    string ext = PP.GetExtension(file.FullPath, false).ToLowerInvariant();
+                    if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp")
+                    {
+                        isExtOk = true;
+                    }
+
+                    if (isExtOk)
+                    {
+                        // これは、大変な手抜き実装であるが、処理元の画像ファイルのサイズが異なる場合のみ異なる画像ファイルであるとみなす。
+                        // 本来はファイル内容を比較しなければならないが
+                        long size = file.Size;
+
+                        if (srcSizeDict.Contains(size) == false)
+                        {
+                            srcSizeDict.Add(size);
+                            srcList.Add(file.FullPath);
+                            totalSrcSize++;
+
+                            string relativeFileName = PP.GetFileName(dirFullPath) + PP.DirectorySeparator + PP.GetRelativeFileName(file.FullPath, dirFullPath);
+
+                            relativeFileNameDict[file.FullPath] = relativeFileName;
+                        }
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                ex._Print();
             }
         }
 
@@ -4413,13 +4433,20 @@ HOST: www.google.com
             // シャッフルされたソースファイルリストを並列的に処理する
             await shuffledSrcList._DoForEachParallelAsync(async (srcFullPath, taskIndex) =>
             {
+                await Task.Yield();
+
                 int thisFileIndex = fileIndex.Increment();
 
-                string srcFileNamePart = PP.GetFileNameWithoutExtension(srcFullPath, true);
-                srcFileNamePart = PP.MakeSafeFileName(srcFileNamePart);
+                string srcFileNamePart = PP.MakeSafeFileName(relativeFileNameDict[srcFullPath]).ToLowerInvariant();
+
+                srcFileNamePart = PP.GetFileNameWithoutExtension(srcFileNamePart);
+
+                srcFileNamePart = Str.MakeVerySafeAsciiOnlyNonSpaceFileName(srcFileNamePart);
+
+                srcFileNamePart = srcFileNamePart._TruncStr(100);
 
                 // 1 つのファイルを処理する。
-                string? alreadyConvertedDestFilePath = alreadyConvertedDict._GetOrDefault(srcFullPath);
+                string ? alreadyConvertedDestFilePath = alreadyConvertedDict._GetOrDefault(srcFullPath);
                 if (alreadyConvertedDestFilePath == null)
                 {
                     // 未処理なので、処理をする。
@@ -4436,7 +4463,7 @@ HOST: www.google.com
                         // 処理結果を保存する。
                         int thisSIndex = sIndex.Increment();
 
-                        string dstFullPath = PP.Combine(outDir2, $"{timeStampTag}_g{gIndex:D4}_s{thisSIndex:D4}_srcFileNamePart.png");
+                        string dstFullPath = PP.Combine(outDir2, $"{timeStampTag}_g{gIndex:D4}_s{thisSIndex:D4}_{srcFileNamePart}.png");
                         $"G{gIndex}: Thread {taskIndex}: File #{thisFileIndex}/{srcList.Count}: Saving to '{dstFullPath}'..."._Print();
 
                         await Lfs.WriteDataToFileAsync(dstFullPath, fileBody, FileFlags.AutoCreateDirectory);
@@ -4461,13 +4488,13 @@ HOST: www.google.com
                         // 既に変換されているファイルなので、単にコピーする
                         int thisSIndex = sIndex.Increment();
 
-                        string dstFullPath = PP.Combine(outDir2, $"{timeStampTag}_g{gIndex:D4}_s{thisSIndex:D4}_srcFileNamePart.png");
+                        string dstFullPath = PP.Combine(outDir2, $"{timeStampTag}_g{gIndex:D4}_s{thisSIndex:D4}_{srcFileNamePart}.png");
 
                         $"G{gIndex}: Thread {taskIndex}: Copying '{alreadyConvertedDestFilePath}'... to '{dstFullPath}'"._Print();
                         await Lfs.CopyFileAsync(alreadyConvertedDestFilePath, dstFullPath);
                     }
                 }
-            });
+            }, operation: MultitaskDivideOperation.RoundRobin);
         }
 
         "All finished."._Print();
