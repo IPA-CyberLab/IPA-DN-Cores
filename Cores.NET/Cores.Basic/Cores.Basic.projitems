@@ -69,6 +69,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\ProtoApp\ThinTelework.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\ProtoApp\GuaClient.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Util\File\MiscFileUtil.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Util\Graphics\GraphicsLib.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Util\Network\InternetChecker.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Util\Ui\UiAutomation.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\WebApi\ClientApi\AuthenticodeSignClient.cs" />

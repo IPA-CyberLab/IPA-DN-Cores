@@ -4354,8 +4354,133 @@ HOST: www.google.com
         }
     }
 
+    static async Task GraphicTest230616()
+    {
+        string inDir = @"C:\Users\yagi\Desktop\test\in";
+        string outDir = @"C:\Users\yagi\Desktop\test\out";
+        int numSets = 3;
+
+        var now = DateTime.Now;
+        string timeStampTag = now._ToYymmddStr() + "_" + now._ToHhmmssStr();
+
+        string outDir2 = outDir._CombinePath(timeStampTag);
+
+        await Lfs.CreateDirectoryAsync(outDir2);
+
+        // ソースファイル列挙
+        HashSet<long> srcSizeDict = new HashSet<long>();
+        List<string> srcList = new List<string>();
+        var entList = await Lfs.EnumDirectoryAsync(inDir, true);
+        long totalSrcSize = 0;
+        foreach (var file in entList.Where(x => x.IsFile))
+        {
+            bool isExtOk = false;
+            string ext = PP.GetExtension(file.FullPath, false).ToLowerInvariant();
+            if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp")
+            {
+                isExtOk = true;
+            }
+
+            if (isExtOk)
+            {
+                // これは、大変な手抜き実装であるが、処理元の画像ファイルのサイズが異なる場合のみ異なる画像ファイルであるとみなす。
+                // 本来はファイル内容を比較しなければならないが
+                long size = file.Size;
+
+                if (srcSizeDict.Contains(size) == false)
+                {
+                    srcSizeDict.Add(size);
+                    srcList.Add(file.FullPath);
+                    totalSrcSize++;
+                }
+            }
+        }
+
+        $"Total {srcList.Count} files. Total size = {totalSrcSize._ToString3()} bytes"._Print();
+
+        // 一度変換が完了した変換元と変換先の対応表
+        ConcurrentDictionary<string, string> alreadyConvertedDict = new ConcurrentDictionary<string, string>();
+
+        for (int gIndex = 0; gIndex < numSets; gIndex++)
+        {
+            // ソースファイルリストをシャッフルする
+            var shuffledSrcList = srcList._Shuffle();
+
+            RefInt sIndex = new RefInt();
+
+            RefInt fileIndex = new RefInt();
+
+            // シャッフルされたソースファイルリストを並列的に処理する
+            await shuffledSrcList._DoForEachParallelAsync(async (srcFullPath, taskIndex) =>
+            {
+                int thisFileIndex = fileIndex.Increment();
+
+                string srcFileNamePart = PP.GetFileNameWithoutExtension(srcFullPath, true);
+                srcFileNamePart = PP.MakeSafeFileName(srcFileNamePart);
+
+                // 1 つのファイルを処理する。
+                string? alreadyConvertedDestFilePath = alreadyConvertedDict._GetOrDefault(srcFullPath);
+                if (alreadyConvertedDestFilePath == null)
+                {
+                    // 未処理なので、処理をする。
+                    try
+                    {
+                        var fileBody = await Lfs.ReadDataFromFileAsync(srcFullPath);
+
+                        $"G{gIndex}: Thread {taskIndex}: File #{thisFileIndex}/{srcList.Count}: Loading '{srcFullPath}'..."._Print();
+                        var img = Graphics.LoadImage(fileBody);
+
+                        $"Thread {taskIndex}: File #{thisFileIndex}/{srcList.Count}: Converting '{srcFullPath}'..."._Print();
+                        var exportBody = img.ExportAsPng();
+
+                        // 処理結果を保存する。
+                        int thisSIndex = sIndex.Increment();
+
+                        string dstFullPath = PP.Combine(outDir2, $"{timeStampTag}_g{gIndex:D4}_s{thisSIndex:D4}_srcFileNamePart.png");
+                        $"G{gIndex}: Thread {taskIndex}: File #{thisFileIndex}/{srcList.Count}: Saving to '{dstFullPath}'..."._Print();
+
+                        await Lfs.WriteDataToFileAsync(dstFullPath, fileBody, FileFlags.AutoCreateDirectory);
+
+                        alreadyConvertedDict[srcFullPath] = dstFullPath;
+                    }
+                    catch (Exception ex)
+                    {
+                        $"G{gIndex}: Thread {taskIndex}: File #{thisFileIndex}/{srcList.Count}: File '{srcFullPath}' error: {ex.Message}"._Print();
+
+                        alreadyConvertedDict[srcFullPath] = "";
+                    }
+                }
+                else
+                {
+                    if (alreadyConvertedDestFilePath == null)
+                    {
+                        // 既に 1 回変換を試行したが、失敗したので、このファイルは不正と考えて無視をする。
+                    }
+                    else
+                    {
+                        // 既に変換されているファイルなので、単にコピーする
+                        int thisSIndex = sIndex.Increment();
+
+                        string dstFullPath = PP.Combine(outDir2, $"{timeStampTag}_g{gIndex:D4}_s{thisSIndex:D4}_srcFileNamePart.png");
+
+                        $"G{gIndex}: Thread {taskIndex}: Copying '{alreadyConvertedDestFilePath}'... to '{dstFullPath}'"._Print();
+                        await Lfs.CopyFileAsync(alreadyConvertedDestFilePath, dstFullPath);
+                    }
+                }
+            });
+        }
+
+        "All finished."._Print();
+    }
+
     public static void Test_Generic()
     {
+        if (true)
+        {
+            GraphicTest230616()._GetResult();
+            return;
+        }
+
         if (true)
         {
             Test_MakeDnDDnsRegister11StaticCerts_230614();
