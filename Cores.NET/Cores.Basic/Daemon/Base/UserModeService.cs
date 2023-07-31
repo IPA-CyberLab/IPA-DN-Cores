@@ -171,7 +171,7 @@ namespace IPA.Cores.Basic
                     HiveData.ManagedData.EventName = eventName;
                 }
 
-                HiveData.SyncWithStorage(HiveSyncFlags.SaveToFile, true);
+                HiveData.SyncWithStorage(HiveSyncFlags.SaveToFile | HiveSyncFlags.ForceUpdate, true);
 
                 // Save pid
                 string pidFileName = Lfs.PathParser.Combine(CoresConfig.UserModeServiceSettings.GetLocalHiveDirProc.Value(), this.Name + ".pid");
@@ -250,7 +250,7 @@ namespace IPA.Cores.Basic
                     }
                     catch { }
 
-                    HiveData.SyncWithStorage(HiveSyncFlags.SaveToFile, true);
+                    HiveData.SyncWithStorage(HiveSyncFlags.SaveToFile | HiveSyncFlags.ForceUpdate true);
 
                     // Break the freeze state of the ExecMain() function
                     StoppedEvent.Set();
