@@ -631,7 +631,7 @@ public static partial class CoresConfig
             GitCommandTimeout.TrySet(60 * 60 * 1000);
             DaemonDefaultStopTimeout.TrySet(3 * 60 * 60 * 1000);
             DaemonSystemdStartTimeoutSecs.TrySet(3 * 60 * 60);
-            DaemonSystemdStopTimeoutSecs.TrySet(3 * 60 * 60);
+            DaemonSystemdStopTimeoutSecs.TrySet(5 * 60);
         }
     }
 
