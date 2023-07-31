@@ -750,7 +750,15 @@ public class NetPalUdpProtocolStub : NetUdpProtocolStubBase
                             if (s != null)
                             {
                                 //Where();
-                                await s.SendToAsync(sendItem.Data, sendItem.RemoteIPEndPoint!);
+                                try
+                                {
+                                    await s.SendToAsync(sendItem.Data, sendItem.RemoteIPEndPoint!);
+                                }
+                                catch (Exception ex)
+                                {
+                                    // 予期せぬソケット送信エラーを無視する (無視しなければ、1 回でも予期せぬソケットレイヤのエラーが発生したら永久に送信が止まってしまう)
+                                    ex._Debug();
+                                }
                             }
                             else
                             {

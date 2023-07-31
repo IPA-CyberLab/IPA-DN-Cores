@@ -548,6 +548,7 @@ namespace IPA.Cores.Basic
                 case SocketError.InProgress:
                 case SocketError.InvalidArgument:
                 case (SocketError)12: // ENOMEM
+                case (SocketError)13: // EACCES: brodcast packet etc
                 case (SocketError)10068: // WSAEUSERS
                     return true;
             }
