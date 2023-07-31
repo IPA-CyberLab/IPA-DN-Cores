@@ -250,7 +250,7 @@ namespace IPA.Cores.Basic
                     }
                     catch { }
 
-                    HiveData.SyncWithStorage(HiveSyncFlags.SaveToFile | HiveSyncFlags.ForceUpdate true);
+                    HiveData.SyncWithStorage(HiveSyncFlags.SaveToFile | HiveSyncFlags.ForceUpdate, true);
 
                     // Break the freeze state of the ExecMain() function
                     StoppedEvent.Set();
