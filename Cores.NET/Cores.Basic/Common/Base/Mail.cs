@@ -128,12 +128,12 @@ public class SendMail
         this.Password = password;
     }
 
-    public bool Send(string from, string to, string subject, string body)
+    public bool Send(string from, string to, string subject, string body, bool debugError = false)
     {
-        return Send(new MailAddress(from), new MailAddress(to), subject, body);
+        return Send(new MailAddress(from), new MailAddress(to), subject, body, debugError);
     }
 
-    public bool Send(MailAddress from, MailAddress to, string subject, string body)
+    public bool Send(MailAddress from, MailAddress to, string subject, string body, bool debugError = false)
     {
         try
         {
@@ -142,10 +142,18 @@ public class SendMail
                 case SendMailVersion.Ver2_With_NetMail:
                     send2(from, to, subject, body);
                     break;
+
+                default:
+                    throw new CoresLibException($"invalid version: {this.version}");
             }
         }
-        catch
+        catch (Exception ex)
         {
+            if (debugError)
+            {
+                $"Error: from = {from.ToString()}  to = {to.ToString()}"._Debug();
+                ex._Debug();
+            }
             return false;
         }
 

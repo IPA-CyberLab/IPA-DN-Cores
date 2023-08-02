@@ -1110,7 +1110,7 @@ public class Pinger
 
                 sm.SmtpPort = config.SmtpPort;
 
-                if (sm.Send(from, to, subject, body))
+                if (sm.Send(from, to, subject, body, true))
                 {
                     ok = true;
                     break;
@@ -1125,7 +1125,7 @@ public class Pinger
 
                     sm.SmtpPort = config.SmtpPort2;
 
-                    if (sm.Send(from, to, subject, body))
+                    if (sm.Send(from, to, subject, body, true))
                     {
                         break;
                     }
