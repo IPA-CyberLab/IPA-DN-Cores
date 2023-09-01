@@ -68,6 +68,7 @@ public static partial class CoresConfig
     public static partial class GitLabMainteDaemonHost
     {
         public static readonly Copenhagen<string> _Test = "Hello";
+        public static readonly Copenhagen<int> MaxPaging = 50000 - 1;
     }
 }
 
@@ -176,7 +177,7 @@ public class GitLabMainteClient : AsyncService
 
     public async Task<List<Project>> EnumProjectsAsync(CancellationToken cancel = default)
     {
-        string url = this.Settings.GitLabBaseUrl._CombineUrl($"/api/v4/projects?private_token={this.Settings.PrivateToken}&per_page={int.MaxValue}").ToString();
+        string url = this.Settings.GitLabBaseUrl._CombineUrl($"/api/v4/projects?private_token={this.Settings.PrivateToken}&per_page={CoresConfig.GitLabMainteDaemonHost.MaxPaging.Value}").ToString();
 
         var res = await this.Web.SimpleQueryAsync(WebMethods.GET, url, cancel);
 
@@ -185,7 +186,7 @@ public class GitLabMainteClient : AsyncService
 
     public async Task<List<User>> EnumUsersAsync(CancellationToken cancel = default)
     {
-        string url = this.Settings.GitLabBaseUrl._CombineUrl($"/api/v4/users?private_token={this.Settings.PrivateToken}&per_page={int.MaxValue}").ToString();
+        string url = this.Settings.GitLabBaseUrl._CombineUrl($"/api/v4/users?private_token={this.Settings.PrivateToken}&per_page={CoresConfig.GitLabMainteDaemonHost.MaxPaging.Value}").ToString();
 
         var res = await this.Web.SimpleQueryAsync(WebMethods.GET, url, cancel);
 
@@ -194,7 +195,7 @@ public class GitLabMainteClient : AsyncService
 
     public async Task<List<Group>> EnumGroupsAsync(CancellationToken cancel = default)
     {
-        string url = this.Settings.GitLabBaseUrl._CombineUrl($"/api/v4/groups?private_token={this.Settings.PrivateToken}&per_page={int.MaxValue}").ToString();
+        string url = this.Settings.GitLabBaseUrl._CombineUrl($"/api/v4/groups?private_token={this.Settings.PrivateToken}&per_page={CoresConfig.GitLabMainteDaemonHost.MaxPaging.Value}").ToString();
 
         var res = await this.Web.SimpleQueryAsync(WebMethods.GET, url, cancel);
 
@@ -203,7 +204,7 @@ public class GitLabMainteClient : AsyncService
 
     public async Task<List<GroupMember>> EnumGroupMembersAsync(int groupId, CancellationToken cancel = default)
     {
-        string url = this.Settings.GitLabBaseUrl._CombineUrl($"/api/v4/groups/{groupId}/members?private_token={this.Settings.PrivateToken}&per_page={int.MaxValue}").ToString();
+        string url = this.Settings.GitLabBaseUrl._CombineUrl($"/api/v4/groups/{groupId}/members?private_token={this.Settings.PrivateToken}&per_page={CoresConfig.GitLabMainteDaemonHost.MaxPaging.Value}").ToString();
 
         var res = await this.Web.SimpleQueryAsync(WebMethods.GET, url, cancel);
 
