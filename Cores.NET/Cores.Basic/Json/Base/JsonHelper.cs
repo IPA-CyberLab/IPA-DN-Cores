@@ -262,23 +262,42 @@ namespace IPA.Cores.Basic
                 }
             }
 
-            await using var file = await Lfs.CreateAsync(path, flags: flags, doNotOverwrite: doNotOverwrite, cancel: cancel);
+            if (flags.Bit(FileFlags.WriteOnlyIfChanged))
+            {
+                // WriteOnlyIfChanged が設定されている場合: 一度メモリに全部出力してからバイト列として比較して書き出しする (メモリを食うが、仕方無い)
+                HugeMemoryBuffer<byte> mem = new HugeMemoryBuffer<byte>();
 
-            await using var stream = file.GetStream();
+                await using (BufferBasedStream stream = new BufferBasedStream(mem))
+                {
+                    await using (StreamWriter w = new StreamWriter(stream, new UTF8Encoding(true), Consts.Numbers.DefaultVeryLargeBufferSize))
+                    {
+                        obj._ObjectToJsonTextWriter(w, includeNull, escapeHtml, maxDepth, compact, referenceHandling, jsonFlags);
+                    }
+                }
 
-            await using var bufStream = new BufferedStream(stream);
+                return await this.WriteHugeMemoryBufferToFileAsync(path, mem, flags, doNotOverwrite, cancel);
+            }
+            else
+            {
+                // WriteOnlyIfChanged が設定されていない場合: Stream ベースで書き出しをする
+                await using var file = await Lfs.CreateAsync(path, flags: flags, doNotOverwrite: doNotOverwrite, cancel: cancel);
 
-            await using var writer = new StreamWriter(bufStream);
+                await using var stream = file.GetStream();
 
-            obj._ObjectToJsonTextWriter(writer, includeNull, escapeHtml, maxDepth, compact, referenceHandling, jsonFlags);
+                await using var bufStream = new BufferedStream(stream);
 
-            await writer.FlushAsync();
+                await using var writer = new StreamWriter(bufStream);
 
-            await bufStream.FlushAsync(cancel);
+                obj._ObjectToJsonTextWriter(writer, includeNull, escapeHtml, maxDepth, compact, referenceHandling, jsonFlags);
 
-            await stream.FlushAsync(cancel);
+                await writer.FlushAsync();
 
-            return stream.Position;
+                await bufStream.FlushAsync(cancel);
+
+                await stream.FlushAsync(cancel);
+
+                return stream.Position;
+            }
         }
         public long WriteJsonToFile<T>(string path, [AllowNull] T obj, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default,
             bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool withBackup = false, JsonFlags jsonFlags = JsonFlags.None)
