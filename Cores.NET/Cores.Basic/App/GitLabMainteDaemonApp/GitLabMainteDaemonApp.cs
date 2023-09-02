@@ -177,7 +177,7 @@ public class GitLabMainteClient : AsyncService
 
     public async Task<List<Project>> EnumProjectsAsync(CancellationToken cancel = default)
     {
-        string url = this.Settings.GitLabBaseUrl._CombineUrl($"/api/v4/projects?private_token={this.Settings.PrivateToken}&per_page={CoresConfig.GitLabMainteDaemonHost.MaxPaging.Value}").ToString();
+        string url = this.Settings.GitLabBaseUrl._CombineUrl($"/api/v4/projects?private_token={this.Settings.PrivateToken}").ToString();
 
         var res = await this.Web.SimpleQueryAsync(WebMethods.GET, url, cancel);
 
