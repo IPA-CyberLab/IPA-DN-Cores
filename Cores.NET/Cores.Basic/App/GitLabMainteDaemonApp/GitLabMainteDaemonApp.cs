@@ -597,9 +597,13 @@ public class GitLabMainteDaemonApp : AsyncService
 
                     try
                     {
+                        $"Deleting '{d.FullPath}' in existingLocalGitDirs ..."._Error();
                         await Lfs.DeleteDirectoryAsync(d.FullPath, true, cancel, true);
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        ex._Error();
+                    }
                 }
 
                 // GitLab 上に存在せず local に存在する webRoot を列挙して削除する
@@ -610,9 +614,13 @@ public class GitLabMainteDaemonApp : AsyncService
 
                     try
                     {
+                        $"Deleting '{d.FullPath}' in existingLocalWebDirs ..."._Error();
                         await Lfs.DeleteFileAsync(d.FullPath._CombinePath(Consts.FileNames.LogBrowserSecureJson), cancel: cancel);
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        ex._Error();
+                    }
                 }
             }
             catch (Exception ex)
