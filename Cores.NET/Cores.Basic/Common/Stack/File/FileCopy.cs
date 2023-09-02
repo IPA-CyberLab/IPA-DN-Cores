@@ -610,6 +610,7 @@ public static partial class FileUtil
                             {
                                 try
                                 {
+                                    $"Debug: Deleting non-exist file {f.FullPath}"._Error();
                                     await destFileSystem.DeleteFileAsync(f.FullPath, cancel: cancel);
                                 }
                                 catch (Exception ex)
@@ -637,6 +638,7 @@ public static partial class FileUtil
                             {
                                 try
                                 {
+                                    $"Debug: Deleting non-exist dir {f.FullPath}"._Error();
                                     await destFileSystem.DeleteDirectoryAsync(d.FullPath, true, cancel, true);
                                 }
                                 catch (Exception ex)
