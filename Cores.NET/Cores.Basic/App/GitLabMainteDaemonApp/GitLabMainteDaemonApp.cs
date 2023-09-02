@@ -614,7 +614,6 @@ public class GitLabMainteDaemonApp : AsyncService
 
                     try
                     {
-                        $"Deleting '{d.FullPath}' in existingLocalWebDirs ..."._Error();
                         await Lfs.DeleteFileAsync(d.FullPath._CombinePath(Consts.FileNames.LogBrowserSecureJson), cancel: cancel);
                     }
                     catch (Exception ex)
