@@ -367,7 +367,7 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                         }
                         else
                         {
-                            //myHatsugenRecvQueue.Clear();
+                            myHatsugenRecvQueue.Clear();
                         }
                     }
 
@@ -401,7 +401,7 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                     }
                     else
                     {
-                        //myHatsugenRecvQueue.Clear();
+                        myHatsugenRecvQueue.Clear();
                     }
 
                     await Task.Delay(Util.RandSInt15() % 200);
