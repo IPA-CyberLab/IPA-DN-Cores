@@ -305,6 +305,8 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                     tmp1.WriteLine(" " + line);
                 }
 
+                body = tmp1.ToString();
+
                 long recvTimeout = 1000L * 3600 * 24 * 365;// 3 * 60 * 60 * 1000;
 
                 foreach (char c in body)
