@@ -191,6 +191,11 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                             line = line._NormalizeSoftEther(true);
 
                             if (line._IsFilled() &&
+                                line._InStri(": ") == false &&
+                                line._InStri("??") == false &&
+                                line.StartsWith("get", StringComparison.OrdinalIgnoreCase) == false &&
+                                line.StartsWith("post", StringComparison.OrdinalIgnoreCase) == false &&
+                                line.StartsWith("head", StringComparison.OrdinalIgnoreCase) == false &&
                                 line.StartsWith("exit", StringComparison.OrdinalIgnoreCase) == false &&
                                 line.StartsWith("quit", StringComparison.OrdinalIgnoreCase) == false &&
                                 line.StartsWith("logout", StringComparison.OrdinalIgnoreCase) == false)
