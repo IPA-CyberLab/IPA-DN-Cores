@@ -309,7 +309,7 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                         string dtStr = dt.ToString("MM/dd") + " (" + youbi[(int)dt.DayOfWeek] + ") " + dt.ToString("HH:mm:ss");
 
                         w.WriteLine("");
-                        w.WriteLine($">> 『 {item.Line} 』(チャット通信 - {dtStr} by {item.SrcHost} 君) <<");
+                        w.WriteLine($">> 『 {item.Line} 』(チャット放話 - {dtStr} by {item.SrcHost} 君) <<");
                         await w.WriteAsync((char)7);
                         w.WriteLine("");
 
