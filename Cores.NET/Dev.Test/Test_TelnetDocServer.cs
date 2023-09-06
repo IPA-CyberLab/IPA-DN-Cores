@@ -85,6 +85,8 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
 
     async Task ResponseMainAsync(CancellationToken cancel, NetTcpListenerPort listener, Stream st, string replaceStrEncoding, string replaceStrVersion, Encoding encoding, ConnSock sock)
     {
+        long lastRecvTick = 0;
+
         var hatsugenReadQueue = new ConcurrentQueue<Hatsugen>();
 
         HatsugenQueueList.Add(hatsugenReadQueue);
@@ -169,6 +171,8 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                         {
                             break;
                         }
+
+                        lastRecvTick = Time.Tick64;
 
                         string line = "";
 
@@ -273,9 +277,11 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
 
                 Memory<byte> recvBuf = new byte[1];
 
+                lastRecvTick = Time.Tick64;
+
                 while (true)
                 {
-                    if (recvTask.IsCompleted || sock.IsCanceled)
+                    if (recvTask.IsCompleted || sock.IsCanceled || (Time.Tick64 >= (lastRecvTick + 5 * 60 * 1000)))
                     {
                         break;
                     }
