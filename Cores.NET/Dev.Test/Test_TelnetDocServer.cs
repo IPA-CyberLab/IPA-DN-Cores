@@ -79,6 +79,7 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
         public DateTimeOffset Dt;
         public string Ip = "";
         public int Port;
+        public string Fqdn = "";
         public bool FakeFqdn;
     }
 
@@ -177,6 +178,8 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                             {
                                 var fqdn = await LocalNet.DnsResolver.GetHostNameOrIpAsync(clientInfo.RemoteIP, cancel);
 
+                                string originalFqdn = fqdn;
+
                                 bool isFakeFqdn = true;
 
                                 try
@@ -232,6 +235,7 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                                     Ip = clientInfo.RemoteIP?.ToString() ?? "",
                                     Port = clientInfo.RemotePort,
                                     FakeFqdn = isFakeFqdn,
+                                    Fqdn = originalFqdn,
                                 };
 
                                 item._PostAccessLog("Hatsugen");
