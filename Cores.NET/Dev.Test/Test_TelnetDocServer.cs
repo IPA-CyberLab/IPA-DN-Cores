@@ -374,7 +374,7 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                     await Task.Delay(Util.RandSInt15() % 100);
                 }
 
-                long sleepEndTick = Time.Tick64 + 5000;// 1 * 60 * 60 * 1000;
+                long sleepEndTick = Time.Tick64 + 3 * 60 * 1000;
 
                 bool lastNoBody = noBody;
 
