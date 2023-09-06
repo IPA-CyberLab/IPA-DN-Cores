@@ -1,11 +1,13 @@
 ﻿■□■□■□■□■□■□■□■□■□■□■□■□■□■□■□
-■□ You must use Shift_JIS Encoding to view this page  ■□
+■□ You must use _ENCODING_  ■□
 ■□                                                    ■□
 ■□ 一般社団法人サイバー技術・インターネット自由研究会 ■□
 ■□                                                    ■□
 ■□ インターネット公告システム ホームページへようこそ！■□
 ■□               W e l c o m e ! !                    ■□
 ■□■□■□■□■□■□■□■□■□■□■□■□■□■□■□
+
+         _VERSION_
 
          あなたは _COUNTER2_ 番目のアクセス人です！！
 

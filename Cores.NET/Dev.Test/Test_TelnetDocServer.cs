@@ -54,7 +54,8 @@ namespace IPA.TestDev;
 
 public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
 {
-    NetTcpListener? Listener = null;
+    NetTcpListener? RawListener = null;
+    NetTcpListener? SslListener = null;
 
     public TelnetDocServerDaemonApp()
     {
@@ -71,82 +72,104 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
 
     readonly HiveData<HiveKeyValue> Settings = Hive.LocalAppSettingsEx["TelnetDocServerAccessCounter"];
 
+    async Task ResponseMainAsync(NetTcpListenerPort listener, Stream st, string replaceStrEncoding, string replaceStrVersion, Encoding encoding)
+    {
+        long access_counter = 0;
+        await Settings.AccessDataAsync(true, async k =>
+        {
+            long c = k.GetSInt64("Counter");
+
+            c++;
+
+            k.SetSInt64("Counter", c);
+
+            access_counter = c;
+
+            await Task.CompletedTask;
+        });
+
+        string counter2 = access_counter.ToString()._Normalize(false, false, true);
+        string counter1 = access_counter.ToString()._Normalize(false, false, false);
+
+        string body = Lfs.ReadStringFromFile(Env.AppRootDir._CombinePath("TelnetBody.txt"));
+
+        body = body._ReplaceStr("_COUNTER2_", counter2);
+        body = body._ReplaceStr("_COUNTER1_", counter1);
+        body = body._ReplaceStr("_ENCODING_", replaceStrEncoding);
+        body = body._ReplaceStr("_VERSION_", replaceStrVersion);
+
+        StringWriter tmp1 = new StringWriter();
+
+        tmp1.NewLine = Str.CrLf_Str;
+
+        tmp1.WriteLine();
+
+        foreach (var line in body._GetLines())
+        {
+            tmp1.WriteLine(" " + line);
+        }
+
+        st.ReadTimeout = st.WriteTimeout = 5 * 60 * 1000;
+
+        StreamWriter w = new StreamWriter(st, encoding);
+        w.NewLine = Str.CrLf_Str;
+        w.AutoFlush = true;
+
+        body = tmp1.ToString();
+
+        foreach (char c in body)
+        {
+            await w.WriteAsync(c);
+            await Task.Delay(Util.RandSInt15() % 100);
+        }
+
+        Memory<byte> recvBuf = new byte[1];
+
+        while (true)
+        {
+            if (await st.ReadAsync(recvBuf) <= 0)
+            {
+                break;
+            }
+        }
+    }
+
     async Task MainLoopAsync(CancellationToken cancel = default)
     {
         await Task.CompletedTask;
 
-        this.Listener = LocalNet.CreateTcpListener(new TcpListenParam(async (listener, sock) =>
+        this.RawListener = LocalNet.CreateTcpListener(new TcpListenParam(async (listener, sock) =>
         {
-            long access_counter = 0;
-            await Settings.AccessDataAsync(true, async k =>
-            {
-                long c = k.GetSInt64("Counter");
-
-                c++;
-
-                k.SetSInt64("Counter", c);
-
-                access_counter = c;
-
-                await Task.CompletedTask;
-            });
-
-            string counter2 = access_counter.ToString()._Normalize(false, false, true);
-
-            string counter1 = access_counter.ToString("D4")._Normalize(false, false, true);
-
-            string body = Lfs.ReadStringFromFile(Env.AppRootDir._CombinePath("TelnetBody.txt"));
-
-            body = body._ReplaceStr("_COUNTER2_", counter2);
-            body = body._ReplaceStr("_COUNTER1_", counter1);
-
-            StringWriter tmp1 = new StringWriter();
-
-            tmp1.NewLine = Str.CrLf_Str;
-
-            tmp1.WriteLine();
-
-            foreach (var line in body._GetLines())
-            {
-                tmp1.WriteLine(" " + line);
-            }
-
             await using var st = sock.GetStream();
 
-            st.ReadTimeout = st.WriteTimeout = 5 * 60 * 1000;
-
-            StreamWriter w = new StreamWriter(st, Str.ShiftJisEncoding);
-            w.NewLine = Str.CrLf_Str;
-            w.AutoFlush = true;
-
-            body = tmp1.ToString();
-
-            foreach (char c in body)
-            {
-                await w.WriteAsync(c);
-                await Task.Delay(Util.RandSInt15() % 100);
-            }
-
-            Memory<byte> recvBuf = new byte[1];
-
-            while (true)
-            {
-                if (await st.ReadAsync(recvBuf) <= 0)
-                {
-                    break;
-                }
-            }
-
+            await ResponseMainAsync(listener, st, "Shift_JIS Encoding to view this page", "Pure TELNET (TCP Port 23) edition", Str.ShiftJisEncoding);
         }, ports: new int[] { 23 }));
+
+        this.RawListener = LocalNet.CreateTcpListener(new TcpListenParam(async (listener, sock) =>
+        {
+            var cert = GlobalCertVault.GetGlobalCertVault().CertificateStoreSelector("_dummy_", false);
+
+            await using SslSock sslSock = new SslSock(sock);
+
+            await sslSock.StartSslServerAsync(new PalSslServerAuthenticationOptions(cert.X509Certificate, true, null), cancel);
+
+            await using var st = sslSock.GetStream();
+
+            await ResponseMainAsync(listener, st, "UTF-8 Encoding to view this page    ", "TELNET over TLS/SSL (TCP Port 992) secure edition", Str.Utf8Encoding);
+        }, ports: new int[] { 992 }));
     }
 
     protected async override Task CleanupImplAsync(Exception? ex)
     {
         try
         {
-            if (Listener != null)
+            if (RawListener != null)
             {
-                await Listener.DisposeAsync(ex);
+                await RawListener.DisposeAsync(ex);
+            }
+            if (SslListener != null)
+            {
+                await SslListener.DisposeAsync(ex);
             }
         }
         finally

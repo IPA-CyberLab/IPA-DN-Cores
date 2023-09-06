@@ -67,6 +67,10 @@
       "commandName": "Project",
       "commandLineArgs": "/cmd:LogClientTest"
     },
+    "TestDev /Telnet": {
+      "commandName": "Project",
+      "commandLineArgs": "/cmd:Telnet test"
+    },
     "TestDev /LogClientTest pc37": {
       "commandName": "Project",
       "commandLineArgs": "/cmd:LogClientTest pc37.sec.softether.co.jp"
