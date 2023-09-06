@@ -190,8 +190,6 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
 
                             line = sb.ToString().Trim();
 
-                            line = line._NormalizeSoftEther(true);
-
                             if (line._IsFilled() &&
                                 Str.ShiftJisEncoding.GetBytes(line).Length != line.Length &&
                                 line._InStri(": ") == false &&
@@ -204,6 +202,8 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                                 line._InStri("quit") == false &&
                                 line._InStri("logout") == false)
                             {
+                                line = line._NormalizeSoftEther(true);
+
                                 line = line.Replace("「", "『");
                                 line = line.Replace("」", "』");
 
