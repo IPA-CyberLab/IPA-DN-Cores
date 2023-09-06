@@ -90,9 +90,13 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
     {
         long lastRecvTick = 0;
 
-        var hatsugenReadQueue = new ConcurrentQueue<Hatsugen>();
+        RefBool noTalk = false;
+        RefBool noBody = false;
 
-        HatsugenQueueList.Add(hatsugenReadQueue);
+        var myHatsugenRecvQueue = new ConcurrentQueue<Hatsugen>();
+        var myHatsugenSentQueue = new ConcurrentQueue<Hatsugen>();
+
+        HatsugenQueueList.Add(myHatsugenRecvQueue);
 
         var recvTask = TaskUtil.StartAsyncTaskAsync(async () =>
         {
@@ -129,7 +133,24 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
 
                         line = sb.ToString().Trim();
 
-                        if (line._IsFilled() &&
+                        if (line._InStri("nobody"))
+                        {
+                            noBody.Set(true);
+                        }
+                        else if (line._InStri("body"))
+                        {
+                            noBody.Set(false);
+                        }
+                        else if (line._InStri("notalk"))
+                        {
+                            noTalk.Set(true);
+                        }
+                        else if (line._InStri("talk"))
+                        {
+                            noTalk.Set(false);
+                        }
+                        else if (noTalk == false &&
+                            line._IsFilled() &&
                             Str.ShiftJisEncoding.GetBytes(line).Length != line.Length &&
                             line._InStri(": ") == false &&
                             line._InStri("??") == false &&
@@ -147,8 +168,8 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                             //Str.NormalizeString(ref line, true, false, true, true);
                             line = line._NormalizeSoftEther(true);
 
-                            line = line.Replace("『", "「");
-                            line = line.Replace("』", "」");
+                            line = line.Replace("「", "『");
+                            line = line.Replace("」", "』");
 
                             var clientInfo = sock.EndPointInfo;
 
@@ -219,8 +240,17 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
 
                                 foreach (var q in queueArray)
                                 {
-                                    q.Enqueue(item);
+                                    if (q != myHatsugenRecvQueue)
+                                    {
+                                        if (q.Count >= 100)
+                                        {
+                                            q.TryDequeue(out _);
+                                        }
+                                        q.Enqueue(item);
+                                    }
                                 }
+
+                                myHatsugenSentQueue.Enqueue(item);
                             }
 
                             //rateLimitEntry._Debug();
@@ -228,9 +258,9 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                     }
                 }
             }
-            catch (Exception ex)
+            catch// (Exception ex)
             {
-                ex._Debug();
+                //ex._Debug();
             }
         });
 
@@ -265,6 +295,8 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
             bool exit = false;
 
             lastRecvTick = Time.Tick64;
+
+            w.Write((char)0x1b + "[0m");
 
             while (exit == false)
             {
@@ -319,13 +351,32 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                         break;
                     }
 
-                    await SendQueuedLinesIfExistsAsync(w, hatsugenReadQueue);
+                    if (noBody)
+                    {
+                        break;
+                    }
+
+                    await SendQueuedLinesIfExistsAsync(w, myHatsugenSentQueue, false, true);
 
                     await w.WriteAsync(c);
+                    if (c == '\n')
+                    {
+                        if (noTalk == false)
+                        {
+                            await SendQueuedLinesIfExistsAsync(w, myHatsugenRecvQueue, false, false);
+                        }
+                        else
+                        {
+                            //myHatsugenRecvQueue.Clear();
+                        }
+                    }
+
                     await Task.Delay(Util.RandSInt15() % 100);
                 }
 
-                long sleepEndTick = Time.Tick64 + 1 * 60 * 60 * 1000;
+                long sleepEndTick = Time.Tick64 + 5000;// 1 * 60 * 60 * 1000;
+
+                bool lastNoBody = noBody;
 
                 while (Time.Tick64 <= sleepEndTick)
                 {
@@ -337,9 +388,23 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                         break;
                     }
 
-                    await SendQueuedLinesIfExistsAsync(w, hatsugenReadQueue);
+                    if (noBody == false && lastNoBody)
+                    {
+                        break;
+                    }
 
-                    await Task.Delay(Util.RandSInt15() % 384);
+                    await SendQueuedLinesIfExistsAsync(w, myHatsugenSentQueue, true, true);
+
+                    if (noTalk == false)
+                    {
+                        await SendQueuedLinesIfExistsAsync(w, myHatsugenRecvQueue, true, false);
+                    }
+                    else
+                    {
+                        //myHatsugenRecvQueue.Clear();
+                    }
+
+                    await Task.Delay(Util.RandSInt15() % 200);
                 }
 
                 //Memory<byte> recvBuf = new byte[1];
@@ -359,20 +424,25 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                 //}
             }
 
-            async Task SendQueuedLinesIfExistsAsync(StreamWriter dst, ConcurrentQueue<Hatsugen> queue)
+            async Task SendQueuedLinesIfExistsAsync(StreamWriter dst, ConcurrentQueue<Hatsugen> queue, bool isInSilentMode, bool isMyself)
             {
                 while (queue.TryDequeue(out var item))
+                {
+                    await PrintAsync(item);
+                }
+
+                async Task PrintAsync(Hatsugen item)
                 {
                     StringWriter w = new StringWriter();
 
                     w.NewLine = Str.CrLf_Str;
 
-                    w.WriteLine();
+                    //w.WriteLine();
 
                     string[] youbi =
                     {
-                            "日", "月", "火", "水", "木", "金", "土",
-                        };
+                        "日", "月", "火", "水", "木", "金", "土",
+                    };
 
                     string dtStr = item.Dt.ToString("MM/dd") + " (" + youbi[(int)item.Dt.DayOfWeek] + ") " + item.Dt.ToString("HH:mm:ss");
 
@@ -380,13 +450,51 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
 
                     if (item.FakeFqdn)
                     {
-                        fakeStr = " (※ 贋作 DNS 逆引のおそれ) ";
+                        fakeStr = " (※ 贋作 DNS 逆引の疑い) ";
+                    }
+
+                    string anataStr = "";
+
+                    if (isMyself)
+                    {
+                        anataStr = " 〈＊あなた様＊〉";
                     }
 
                     w.WriteLine("");
-                    w.WriteLine($">> 『 {item.Line} 』(チャット放話 - {dtStr} by {item.SrcHost}{fakeStr} 君) <<");
-                    await w.WriteAsync((char)7);
-                    w.WriteLine("");
+
+                    w.Write((char)0x1b + "[0m");
+
+                    w.Write((char)0x1b + "[1m");
+
+                    if (isMyself)
+                    {
+                        w.Write((char)0x1b + "[32m");
+                    }
+                    else
+                    {
+                        w.Write((char)0x1b + "[31m");
+                    }
+
+                    string line = $">> 「 {item.Line} 」(チャット放話 - {dtStr} by {item.SrcHost}{fakeStr} 君{anataStr}) <<";
+
+                    string[] lines = ConsoleService.SeparateStringByWidth(line, 77);
+
+                    foreach (var line2 in lines)
+                    {
+                        w.WriteLine(line2);
+                    }
+
+                    w.Write((char)0x1b + "[0m");
+
+                    if (isMyself == false)
+                    {
+                        await w.WriteAsync((char)7);
+                    }
+
+                    if (isInSilentMode == false)
+                    {
+                        w.WriteLine("");
+                    }
 
                     await dst.WriteAsync(w.ToString());
                 }
@@ -399,7 +507,7 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                 st.Close();
             }
             catch { }
-            HatsugenQueueList.Remove(hatsugenReadQueue);
+            HatsugenQueueList.Remove(myHatsugenRecvQueue);
             await recvTask._TryAwait(true);
         }
     }
