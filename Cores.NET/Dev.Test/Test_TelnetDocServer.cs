@@ -176,6 +176,8 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                         {
                             line = Str.DecodeStringAutoDetect(bytes.Value.Span, out _, true).Trim();
 
+                            line = Str.ShiftJisEncoding.GetBytes(line)._GetString_ShiftJis(true).Trim();
+
                             StringBuilder sb = new StringBuilder();
 
                             foreach (var c in line)
@@ -193,12 +195,13 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                             if (line._IsFilled() &&
                                 line._InStri(": ") == false &&
                                 line._InStri("??") == false &&
+                                line._IsSamei("q") == false &&
                                 line.StartsWith("get", StringComparison.OrdinalIgnoreCase) == false &&
                                 line.StartsWith("post", StringComparison.OrdinalIgnoreCase) == false &&
                                 line.StartsWith("head", StringComparison.OrdinalIgnoreCase) == false &&
-                                line.StartsWith("exit", StringComparison.OrdinalIgnoreCase) == false &&
-                                line.StartsWith("quit", StringComparison.OrdinalIgnoreCase) == false &&
-                                line.StartsWith("logout", StringComparison.OrdinalIgnoreCase) == false)
+                                line._InStri("exit") == false &&
+                                line._InStri("quit") == false &&
+                                line._InStri("logout") == false)
                             {
                                 line = line.Replace("「", "『");
                                 line = line.Replace("」", "』");
@@ -298,7 +301,7 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
 
                         string dtStr = dt.ToString("MM/dd") + " (" + youbi[(int)dt.DayOfWeek] + ") " + dt.ToString("HH:mm:ss");
 
-                        w.WriteLine($">>「 {item.Line} 」(チャット放話 - {dtStr} by {item.SrcHost} 君) <<");
+                        w.WriteLine($">>「 {item.Line} 」(チャット通信 - {dtStr} by {item.SrcHost} 君) <<");
 
                         await dst.WriteAsync(w.ToString());
                     }
