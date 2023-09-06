@@ -495,7 +495,7 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                         w.Write((char)0x1b + "[31m");
                     }
 
-                    string line = $">> 「 {item.Line} 」(チャット放話 ＃{Str.NormalizeString(item.MessageId.ToString(), false, false, true, true)} - {dtStr} by {item.SrcHost}{fakeStr} 君{anataStr}) <<";
+                    string line = $">> 「 {item.Line} 」(チャット放話 - {dtStr} by {item.SrcHost}{fakeStr} 君{anataStr}) <<";
 
                     string[] lines = ConsoleService.SeparateStringByWidth(line, 77);
 
