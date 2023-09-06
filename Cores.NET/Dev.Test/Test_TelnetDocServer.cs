@@ -193,6 +193,7 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                             line = line._NormalizeSoftEther(true);
 
                             if (line._IsFilled() &&
+                                Str.ShiftJisEncoding.GetBytes(line).Length != line.Length &&
                                 line._InStri(": ") == false &&
                                 line._InStri("??") == false &&
                                 line._IsSamei("q") == false &&
