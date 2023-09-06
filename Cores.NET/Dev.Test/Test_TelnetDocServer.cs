@@ -301,7 +301,7 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
             });
 
             string counter2 = access_counter.ToString()._Normalize(false, false, true);
-            string counter1 = access_counter._ToString3().ToString()._Normalize(false, false, false);
+            string counter1 = access_counter.ToString().ToString()._Normalize(false, false, false);
 
             string fn = Env.AppRootDir._CombinePath("TelnetBody.txt");
 
@@ -495,7 +495,7 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                         w.Write((char)0x1b + "[31m");
                     }
 
-                    string line = $">> 「 {item.Line} 」(チャット放話 #{item.MessageId._ToString3()} - {dtStr} by {item.SrcHost}{fakeStr} 君{anataStr}) <<";
+                    string line = $">> 「 {item.Line} 」(チャット放話 ＃{Str.NormalizeString(item.MessageId.ToString(), false, false, true, true)} - {dtStr} by {item.SrcHost}{fakeStr} 君{anataStr}) <<";
 
                     string[] lines = ConsoleService.SeparateStringByWidth(line, 77);
 
