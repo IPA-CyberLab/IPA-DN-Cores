@@ -91,12 +91,33 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
         string counter2 = access_counter.ToString()._Normalize(false, false, true);
         string counter1 = access_counter.ToString()._Normalize(false, false, false);
 
-        string body = Lfs.ReadStringFromFile(Env.AppRootDir._CombinePath("TelnetBody.txt"));
+        string fn = Env.AppRootDir._CombinePath("TelnetBody.txt");
+
+        DateTimeOffset lastUpdate = Util.ZeroDateTimeOffsetValue;
+
+        try
+        {
+            var info = await Lfs.GetFileMetadataAsync(fn);
+            lastUpdate = info.LastWriteTime ?? Util.ZeroDateTimeOffsetValue;
+        }
+        catch { }
+
+        var dt = lastUpdate.LocalDateTime;
+
+        string[] youbi =
+        {
+                "日", "月", "火", "水", "木", "金", "土", 
+        };
+
+        var updateStr = dt.ToString("yyyy/MM/dd") + " (" + youbi[(int)dt.DayOfWeek] + ") " + dt.ToString("HH:mm");
+
+        string body = Lfs.ReadStringFromFile(fn);
 
         body = body._ReplaceStr("_COUNTER2_", counter2);
         body = body._ReplaceStr("_COUNTER1_", counter1);
         body = body._ReplaceStr("_ENCODING_", replaceStrEncoding);
         body = body._ReplaceStr("_VERSION_", replaceStrVersion);
+        body = body._ReplaceStr("_UPDATE_", updateStr);
 
         StringWriter tmp1 = new StringWriter();
 
