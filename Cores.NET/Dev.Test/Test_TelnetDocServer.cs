@@ -79,9 +79,12 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
         public DateTimeOffset Dt;
         public string Ip = "";
         public int Port;
+        public bool FakeFqdn;
     }
 
     readonly ConcurrentHashSet<ConcurrentQueue<Hatsugen>> HatsugenQueueList = new ConcurrentHashSet<ConcurrentQueue<Hatsugen>>();
+
+    readonly RateLimiter<string> hatsugenRateLimiter = new RateLimiter<string>(new RateLimiterOptions(burst: 10.0, limitPerSecond: 0.2, mode: RateLimiterMode.Penalty));
 
     async Task ResponseMainAsync(CancellationToken cancel, NetTcpListenerPort listener, Stream st, string replaceStrEncoding, string replaceStrVersion, Encoding encoding, ConnSock sock)
     {
@@ -91,129 +94,88 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
 
         HatsugenQueueList.Add(hatsugenReadQueue);
 
-        try
+        var recvTask = TaskUtil.StartAsyncTaskAsync(async () =>
         {
-            long access_counter = 0;
-            await Settings.AccessDataAsync(true, async k =>
-            {
-                long c = k.GetSInt64("Counter");
-
-                c++;
-
-                k.SetSInt64("Counter", c);
-
-                access_counter = c;
-
-                await Task.CompletedTask;
-            });
-
-            string counter2 = access_counter.ToString()._Normalize(false, false, true);
-            string counter1 = access_counter.ToString()._Normalize(false, false, false);
-
-            string fn = Env.AppRootDir._CombinePath("TelnetBody.txt");
-
-            DateTimeOffset lastUpdate = Util.ZeroDateTimeOffsetValue;
-
             try
             {
-                var info = await Lfs.GetFileMetadataAsync(fn);
-                lastUpdate = info.LastWriteTime ?? Util.ZeroDateTimeOffsetValue;
-            }
-            catch { }
+                var lineReader = new BinaryLineReader(st);
 
-            var dt = lastUpdate.LocalDateTime;
-
-            string[] youbi =
-            {
-                "日", "月", "火", "水", "木", "金", "土",
-            };
-
-            var updateStr = dt.ToString("yyyy/MM/dd") + " (" + youbi[(int)dt.DayOfWeek] + ") " + dt.ToString("HH:mm");
-
-            string body = Lfs.ReadStringFromFile(fn);
-
-            body = body._ReplaceStr("_COUNTER2_", counter2);
-            body = body._ReplaceStr("_COUNTER1_", counter1);
-            body = body._ReplaceStr("_ENCODING_", replaceStrEncoding);
-            body = body._ReplaceStr("_VERSION_", replaceStrVersion);
-            body = body._ReplaceStr("_UPDATE_", updateStr);
-
-            StringWriter tmp1 = new StringWriter();
-
-            tmp1.NewLine = Str.CrLf_Str;
-
-            tmp1.WriteLine();
-
-            foreach (var line in body._GetLines())
-            {
-                tmp1.WriteLine(" " + line);
-            }
-
-            st.ReadTimeout = st.WriteTimeout = 5 * 60 * 1000;
-
-            StreamWriter w = new StreamWriter(st, encoding);
-            w.NewLine = Str.CrLf_Str;
-            w.AutoFlush = true;
-
-            body = tmp1.ToString();
-
-            var recvTask = TaskUtil.StartAsyncTaskAsync(async () =>
-            {
-                try
+                while (true)
                 {
-                    var lineReader = new BinaryLineReader(st);
+                    var bytes = await lineReader.ReadSingleLineAsync(1000, cancel);
 
-                    while (true)
+                    if (bytes == null)
                     {
-                        var bytes = await lineReader.ReadSingleLineAsync(1000, cancel);
+                        break;
+                    }
 
-                        if (bytes == null)
+                    string line = "";
+
+                    if (bytes.HasValue)
+                    {
+                        line = Str.DecodeStringAutoDetect(bytes.Value.Span, out _, true).Trim();
+
+                        line = Str.ShiftJisEncoding.GetBytes(line)._GetString_ShiftJis(true).Trim();
+
+                        StringBuilder sb = new StringBuilder();
+
+                        foreach (var c in line)
                         {
-                            break;
+                            if (Str.IsPrintable(c))
+                            {
+                                sb.Append(c);
+                            }
                         }
 
-                        lastRecvTick = Time.Tick64;
+                        line = sb.ToString().Trim();
 
-                        string line = "";
-
-                        if (bytes.HasValue)
+                        if (line._IsFilled() &&
+                            Str.ShiftJisEncoding.GetBytes(line).Length != line.Length &&
+                            line._InStri(": ") == false &&
+                            line._InStri("??") == false &&
+                            line._InStri("<script>") == false &&
+                            line._IsSamei("q") == false &&
+                            line.StartsWith("get", StringComparison.OrdinalIgnoreCase) == false &&
+                            line.StartsWith("post", StringComparison.OrdinalIgnoreCase) == false &&
+                            line.StartsWith("head", StringComparison.OrdinalIgnoreCase) == false &&
+                            line._InStri("exit") == false &&
+                            line._InStri("quit") == false &&
+                            line._InStri("logout") == false)
                         {
-                            line = Str.DecodeStringAutoDetect(bytes.Value.Span, out _, true).Trim();
+                            lastRecvTick = Time.Tick64;
 
-                            line = Str.ShiftJisEncoding.GetBytes(line)._GetString_ShiftJis(true).Trim();
+                            //Str.NormalizeString(ref line, true, false, true, true);
+                            line = line._NormalizeSoftEther(true);
 
-                            StringBuilder sb = new StringBuilder();
+                            line = line.Replace("『", "「");
+                            line = line.Replace("』", "」");
 
-                            foreach (var c in line)
+                            var clientInfo = sock.EndPointInfo;
+
+                            if (hatsugenRateLimiter.TryInput(clientInfo.RemoteIP ?? "", out var rateLimitEntry))
                             {
-                                if (Str.IsPrintable(c))
-                                {
-                                    sb.Append(c);
-                                }
-                            }
-
-                            line = sb.ToString().Trim();
-
-                            if (line._IsFilled() &&
-                                Str.ShiftJisEncoding.GetBytes(line).Length != line.Length &&
-                                line._InStri(": ") == false &&
-                                line._InStri("??") == false &&
-                                line._IsSamei("q") == false &&
-                                line.StartsWith("get", StringComparison.OrdinalIgnoreCase) == false &&
-                                line.StartsWith("post", StringComparison.OrdinalIgnoreCase) == false &&
-                                line.StartsWith("head", StringComparison.OrdinalIgnoreCase) == false &&
-                                line._InStri("exit") == false &&
-                                line._InStri("quit") == false &&
-                                line._InStri("logout") == false)
-                            {
-                                line = line._NormalizeSoftEther(true);
-
-                                line = line.Replace("『", "「");
-                                line = line.Replace("』", "」");
-
-                                var clientInfo = sock.EndPointInfo;
-
                                 var fqdn = await LocalNet.DnsResolver.GetHostNameOrIpAsync(clientInfo.RemoteIP, cancel);
+
+                                bool isFakeFqdn = true;
+
+                                try
+                                {
+                                    var ipFromFqdnList = await LocalNet.DnsResolver.GetIpAddressListSingleStackAsync(fqdn, DnsResolverQueryType.A, cancel: cancel);
+
+                                    if (ipFromFqdnList != null)
+                                    {
+                                        foreach (var ip1 in ipFromFqdnList)
+                                        {
+                                            if (ip1.ToString() == clientInfo.RemoteIP?.ToString())
+                                            {
+                                                isFakeFqdn = false;
+                                            }
+                                        }
+                                    }
+                                }
+                                catch
+                                {
+                                }
 
                                 var tokens = fqdn._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, '.');
 
@@ -248,6 +210,7 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                                     SrcHost = Str.CombineFqdn(tokens2.ToArray()),
                                     Ip = clientInfo.RemoteIP?.ToString() ?? "",
                                     Port = clientInfo.RemotePort,
+                                    FakeFqdn = isFakeFqdn,
                                 };
 
                                 item._PostAccessLog("Hatsugen");
@@ -259,72 +222,183 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                                     q.Enqueue(item);
                                 }
                             }
+
+                            //rateLimitEntry._Debug();
                         }
                     }
                 }
-                catch { }
+            }
+            catch (Exception ex)
+            {
+                ex._Debug();
+            }
+        });
+
+        try
+        {
+            long access_counter = 0;
+            await Settings.AccessDataAsync(true, async k =>
+            {
+                long c = k.GetSInt64("Counter");
+
+                c++;
+
+                k.SetSInt64("Counter", c);
+
+                access_counter = c;
+
+                await Task.CompletedTask;
             });
 
-            try
+            string counter2 = access_counter.ToString()._Normalize(false, false, true);
+            string counter1 = access_counter.ToString()._Normalize(false, false, false);
+
+            string fn = Env.AppRootDir._CombinePath("TelnetBody.txt");
+
+            st.WriteTimeout = 60 * 1000;
+            st.ReadTimeout = Timeout.Infinite;
+
+            StreamWriter w = new StreamWriter(st, encoding);
+            w.NewLine = Str.CrLf_Str;
+            w.AutoFlush = true;
+
+            bool exit = false;
+
+            lastRecvTick = Time.Tick64;
+
+            while (exit == false)
             {
+                DateTimeOffset lastUpdate = Util.ZeroDateTimeOffsetValue;
+
+                try
+                {
+                    var info = await Lfs.GetFileMetadataAsync(fn);
+                    lastUpdate = info.LastWriteTime ?? Util.ZeroDateTimeOffsetValue;
+                }
+                catch { }
+
+                var dt = lastUpdate.LocalDateTime;
+
+                string[] youbi =
+                {
+                    "日", "月", "火", "水", "木", "金", "土",
+                };
+
+                var updateStr = dt.ToString("yyyy/MM/dd") + " (" + youbi[(int)dt.DayOfWeek] + ") " + dt.ToString("HH:mm");
+
+                string body = Lfs.ReadStringFromFile(fn);
+
+                body = body._ReplaceStr("_COUNTER2_", counter2);
+                body = body._ReplaceStr("_COUNTER1_", counter1);
+                body = body._ReplaceStr("_ENCODING_", replaceStrEncoding);
+                body = body._ReplaceStr("_VERSION_", replaceStrVersion);
+                body = body._ReplaceStr("_UPDATE_", updateStr);
+
+                StringWriter tmp1 = new StringWriter();
+
+                tmp1.NewLine = Str.CrLf_Str;
+
+                tmp1.WriteLine();
+
+                foreach (var line in body._GetLines())
+                {
+                    tmp1.WriteLine(" " + line);
+                }
+
+                long recvTimeout = 1000L * 3600 * 24 * 365;// 3 * 60 * 60 * 1000;
+
                 foreach (char c in body)
                 {
+                    cancel.ThrowIfCancellationRequested();
+
+                    if (Time.Tick64 >= (lastRecvTick + recvTimeout))
+                    {
+                        exit = true;
+                        break;
+                    }
+
                     await SendQueuedLinesIfExistsAsync(w, hatsugenReadQueue);
 
                     await w.WriteAsync(c);
                     await Task.Delay(Util.RandSInt15() % 100);
                 }
 
-                Memory<byte> recvBuf = new byte[1];
+                long sleepEndTick = Time.Tick64 + 1 * 60 * 60 * 1000;
 
-                lastRecvTick = Time.Tick64;
-
-                while (true)
+                while (Time.Tick64 <= sleepEndTick)
                 {
-                    if (recvTask.IsCompleted || sock.IsCanceled || (Time.Tick64 >= (lastRecvTick + 5 * 60 * 1000)))
+                    cancel.ThrowIfCancellationRequested();
+
+                    if (Time.Tick64 >= (lastRecvTick + recvTimeout) || recvTask.IsCompleted || sock.IsCanceled)
                     {
+                        exit = true;
                         break;
                     }
 
                     await SendQueuedLinesIfExistsAsync(w, hatsugenReadQueue);
 
-                    await Task.Delay(Util.RandSInt15() % 256);
+                    await Task.Delay(Util.RandSInt15() % 384);
                 }
 
-                async Task SendQueuedLinesIfExistsAsync(StreamWriter dst, ConcurrentQueue<Hatsugen> queue)
+                //Memory<byte> recvBuf = new byte[1];
+
+                //lastRecvTick = Time.Tick64;
+
+                //while (true)
+                //{
+                //    if (recvTask.IsCompleted || sock.IsCanceled || (Time.Tick64 >= (lastRecvTick + 5 * 60 * 1000)))
+                //    {
+                //        break;
+                //    }
+
+                //    await SendQueuedLinesIfExistsAsync(w, hatsugenReadQueue);
+
+                //    await Task.Delay(Util.RandSInt15() % 256);
+                //}
+            }
+
+            async Task SendQueuedLinesIfExistsAsync(StreamWriter dst, ConcurrentQueue<Hatsugen> queue)
+            {
+                while (queue.TryDequeue(out var item))
                 {
-                    while (queue.TryDequeue(out var item))
+                    StringWriter w = new StringWriter();
+
+                    w.NewLine = Str.CrLf_Str;
+
+                    w.WriteLine();
+
+                    string[] youbi =
                     {
-                        StringWriter w = new StringWriter();
-
-                        w.NewLine = Str.CrLf_Str;
-
-                        w.WriteLine();
-
-                        string[] youbi =
-                        {
                             "日", "月", "火", "水", "木", "金", "土",
                         };
 
-                        string dtStr = dt.ToString("MM/dd") + " (" + youbi[(int)dt.DayOfWeek] + ") " + dt.ToString("HH:mm:ss");
+                    string dtStr = item.Dt.ToString("MM/dd") + " (" + youbi[(int)item.Dt.DayOfWeek] + ") " + item.Dt.ToString("HH:mm:ss");
 
-                        w.WriteLine("");
-                        w.WriteLine($">> 『 {item.Line} 』(チャット放話 - {dtStr} by {item.SrcHost} 君) <<");
-                        await w.WriteAsync((char)7);
-                        w.WriteLine("");
+                    string fakeStr = "";
 
-                        await dst.WriteAsync(w.ToString());
+                    if (item.FakeFqdn)
+                    {
+                        fakeStr = " (※ 贋作 DNS 逆引のおそれ) ";
                     }
+
+                    w.WriteLine("");
+                    w.WriteLine($">> 『 {item.Line} 』(チャット放話 - {dtStr} by {item.SrcHost}{fakeStr} 君) <<");
+                    await w.WriteAsync((char)7);
+                    w.WriteLine("");
+
+                    await dst.WriteAsync(w.ToString());
                 }
-            }
-            finally
-            {
-                await recvTask._TryAwait(true);
             }
         }
         finally
         {
+            try
+            {
+                st.Close();
+            }
+            catch { }
             HatsugenQueueList.Remove(hatsugenReadQueue);
+            await recvTask._TryAwait(true);
         }
     }
 
@@ -337,7 +411,7 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
             await using var st = sock.GetStream();
 
             await ResponseMainAsync(cancel, listener, st, "Shift_JIS Encoding to view this page", "Pure TELNET (TCP Port 23) edition", Str.ShiftJisEncoding, sock);
-        }, ports: new int[] { 23 }));
+        }, ports: new int[] { 23 }, rateLimiterConfigName: "telnet_raw"));
 
         this.SslListener = LocalNet.CreateTcpListener(new TcpListenParam(async (listener, sock) =>
         {
@@ -350,7 +424,7 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
             await using var st = sslSock.GetStream();
 
             await ResponseMainAsync(cancel, listener, st, "UTF-8 Encoding to view this page    ", "TELNET over TLS/SSL (TCP Port 992) secure edition", Str.Utf8Encoding, sock);
-        }, ports: new int[] { 992 }));
+        }, ports: new int[] { 992 }, rateLimiterConfigName: "telnet_ssl"));
     }
 
     protected async override Task CleanupImplAsync(Exception? ex)
