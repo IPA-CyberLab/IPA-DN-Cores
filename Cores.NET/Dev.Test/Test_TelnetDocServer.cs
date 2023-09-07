@@ -242,7 +242,7 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                                             a._PostAccessLog("AccessPropa");
 
                                             var httpResult = await SimpleHttpDownloader.DownloadAsync(line, WebMethods.GET,
-                                                options: new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true, MaxRecvSize = 100000, AllowAutoRedirect = false, }, doNotUseTcpStack: true),
+                                                options: new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true, MaxRecvSize = 1_000_000, AllowAutoRedirect = false, }, doNotUseTcpStack: true),
                                                 cancel: cancel);
 
                                             if (httpResult.ContentType._InStri("text/plain"))
@@ -261,8 +261,8 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
 
                                                 string[] youbi =
                                                 {
-                                                "日", "月", "火", "水", "木", "金", "土",
-                                            };
+                                                    "日", "月", "火", "水", "木", "金", "土",
+                                                };
 
                                                 string dtStr = $"令和 {(DtNow.Year - 2019 + 1)} 年 {DtNow.Month} 月 {DtNow.Day} 日 " + youbi[(int)DtNow.DayOfWeek] + "曜 " + DtNow.ToString("HH:mm");
 
@@ -288,6 +288,10 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                                                 tmpLinesList.Add(" ＝＝＝ 大演説の開闢 ＝＝＝");
                                                 tmpLinesList.Add("");
 
+                                                bool isPropa = false;
+
+                                                int totalChars = 0;
+
                                                 int numLines = 0;
                                                 foreach (var line2 in downloadedLines)
                                                 {
@@ -298,24 +302,53 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                                                     }
                                                     else
                                                     {
-                                                        line3 = line3._NormalizeSoftEther();
-                                                        string[] sepLines = ConsoleService.SeparateStringByWidth(line3, 76);
-                                                        foreach (var line4 in sepLines)
+                                                        if (isPropa == false && line3.Trim()._IsSamei("propa"))
                                                         {
-                                                            if (lastLineIsEmpty && line4._IsEmpty()) { }
-                                                            else
+                                                            isPropa = true;
+                                                        }
+                                                        else
+                                                        {
+                                                            line3 = line3._NormalizeSoftEther();
+                                                            string[] sepLines = ConsoleService.SeparateStringByWidth(line3, 76);
+                                                            foreach (var line4 in sepLines)
                                                             {
-                                                                numLines++;
-                                                                if (numLines > 50)
+                                                                if (lastLineIsEmpty && line4._IsEmpty()) { }
+                                                                else
                                                                 {
-                                                                    break;
+                                                                    numLines++;
+                                                                    if (numLines > 33)
+                                                                    {
+                                                                        break;
+                                                                    }
+                                                                    totalChars += line4.Length;
+                                                                    if (totalChars > 2000)
+                                                                    {
+                                                                        break;
+                                                                    }
+                                                                    tmpLinesList.Add(" " + line4);
+                                                                    lastLineIsEmpty = line4._IsEmpty();
+                                                                    contentsForHash += "\r\n" + (line4._ReplaceStr(" ", ""));
                                                                 }
-                                                                tmpLinesList.Add(" " + line4);
-                                                                lastLineIsEmpty = line4._IsEmpty();
-                                                                contentsForHash += "\r\n" + (line4._ReplaceStr(" ", ""));
                                                             }
                                                         }
                                                     }
+                                                }
+
+                                                if (isPropa == false)
+                                                {
+                                                    ok = false;
+                                                }
+
+                                                if (downloadedText.Length >= 1)
+                                                {
+                                                    if (((double)downloadedText._GetWidth() / (double)downloadedText.Length) < 1.3)
+                                                    {
+                                                        ok = false;
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    ok = false;
                                                 }
 
                                                 if (lastLineIsEmpty == false)
