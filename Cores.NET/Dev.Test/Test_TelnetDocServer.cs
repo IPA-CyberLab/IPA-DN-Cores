@@ -84,9 +84,38 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
         public long MessageId;
     }
 
+    public class AccessPropa
+    {
+        public string OriginalUrl = "";
+        public string SrcHost = "";
+        public string Ip = "";
+        public int Port;
+        public string Fqdn = "";
+        public bool FakeFqdn;
+    }
+
+    public class Propa
+    {
+        public string OriginalBody = "";
+        public string OriginalUrl = "";
+        public string Body = "";
+        public string SrcHost = "";
+        public string Ip = "";
+        public int Port;
+        public string Fqdn = "";
+        public bool FakeFqdn;
+    }
+
     readonly ConcurrentHashSet<ConcurrentQueue<Hatsugen>> HatsugenQueueList = new ConcurrentHashSet<ConcurrentQueue<Hatsugen>>();
 
+    readonly ConcurrentHashSet<string> propaHistory = new ConcurrentHashSet<string>();
+
+    readonly RateLimiter<string> propaRateLimiter1 = new RateLimiter<string>(new RateLimiterOptions(burst: 1.0, limitPerSecond: 1.0 / 100.0, mode: RateLimiterMode.NoPenalty));
+    readonly RateLimiter<string> propaRateLimiter2 = new RateLimiter<string>(new RateLimiterOptions(burst: 100.0, limitPerSecond: 1.0 / (24.0 * 3600.0), mode: RateLimiterMode.NoPenalty));
+
     readonly RateLimiter<string> hatsugenRateLimiter = new RateLimiter<string>(new RateLimiterOptions(burst: 10.0, limitPerSecond: 0.2, mode: RateLimiterMode.Penalty));
+
+    Propa? CurrentPropa = null;
 
     async Task ResponseMainAsync(CancellationToken cancel, NetTcpListenerPort listener, Stream st, string replaceStrEncoding, string replaceStrVersion, Encoding encoding, ConnSock sock)
     {
@@ -119,6 +148,61 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
 
                     if (bytes.HasValue)
                     {
+                        var clientInfo = sock.EndPointInfo;
+
+                        var maskedFqdn = await LocalNet.DnsResolver.GetHostNameOrIpAsync(clientInfo.RemoteIP, cancel);
+
+                        string originalFqdn = maskedFqdn;
+
+                        var tokens = maskedFqdn._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, '.');
+
+                        List<string> tokens2 = new List<string>();
+
+                        for (int i = 0; i < tokens.Length; i++)
+                        {
+                            string tmp1 = tokens[i];
+                            if (i == 0)
+                            {
+                                StringBuilder sb1 = new StringBuilder();
+                                foreach (char c in tmp1)
+                                {
+                                    if (c == '-' || c == ':')
+                                    {
+                                        sb1.Append(c);
+                                    }
+                                    else
+                                    {
+                                        sb1.Append('*');
+                                    }
+                                }
+                                tmp1 = sb1.ToString();
+                            }
+                            tokens2.Add(tmp1);
+                        }
+
+                        maskedFqdn = Str.CombineFqdn(tokens2.ToArray());
+
+                        bool isFakeFqdn = true;
+
+                        try
+                        {
+                            var ipFromFqdnList = await LocalNet.DnsResolver.GetIpAddressListSingleStackAsync(originalFqdn, DnsResolverQueryType.A, cancel: cancel);
+
+                            if (ipFromFqdnList != null)
+                            {
+                                foreach (var ip1 in ipFromFqdnList)
+                                {
+                                    if (ip1.ToString() == clientInfo.RemoteIP?.ToString())
+                                    {
+                                        isFakeFqdn = false;
+                                    }
+                                }
+                            }
+                        }
+                        catch
+                        {
+                        }
+
                         line = Str.DecodeStringAutoDetect(bytes.Value.Span, out _, true).Trim();
 
                         line = Str.ShiftJisEncoding.GetBytes(line)._GetString_ShiftJis(true).Trim();
@@ -135,7 +219,156 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
 
                         line = sb.ToString().Trim();
 
-                        if (line._InStri("nobody"))
+                        if (line.StartsWith("http://") || line.StartsWith("https://"))
+                        {
+                            try
+                            {
+                                if (line._InStri("?") == false)
+                                {
+                                    if (line._TryParseUrl(out var uri, out var qs))
+                                    {
+                                        if (uri.UserInfo._IsEmpty())
+                                        {
+                                            AccessPropa a = new AccessPropa
+                                            {
+                                                FakeFqdn = isFakeFqdn,
+                                                Fqdn = originalFqdn,
+                                                SrcHost = maskedFqdn,
+                                                Ip = clientInfo!.RemoteIP?.ToString() ?? "",
+                                                Port = clientInfo!.RemotePort,
+                                                OriginalUrl = line,
+                                            };
+
+                                            a._PostAccessLog("AccessPropa");
+
+                                            var httpResult = await SimpleHttpDownloader.DownloadAsync(line, WebMethods.GET,
+                                                options: new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true, MaxRecvSize = 100000, AllowAutoRedirect = false, }, doNotUseTcpStack: true),
+                                                cancel: cancel);
+
+                                            if (httpResult.ContentType._InStri("text/plain"))
+                                            {
+                                                string downloadedText = Str.DecodeStringAutoDetect(httpResult.Data, out _, true);
+
+                                                var downloadedLines = downloadedText._GetLines();
+
+                                                string contentsForHash = "";
+
+                                                bool ok = true;
+
+                                                List<string> tmpLinesList = new List<string>();
+
+                                                bool lastLineIsEmpty = true;
+
+                                                string[] youbi =
+                                                {
+                                                "日", "月", "火", "水", "木", "金", "土",
+                                            };
+
+                                                string dtStr = $"令和 {(DtNow.Year - 2019 + 1)} 年 {DtNow.Month} 月 {DtNow.Day} 日 " + youbi[(int)DtNow.DayOfWeek] + "曜 " + DtNow.ToString("HH:mm");
+
+                                                string fakeStr = "";
+
+                                                if (isFakeFqdn)
+                                                {
+                                                    fakeStr = " (※ 贋作 DNS 逆引の疑い)";
+                                                }
+
+                                                string headerStr = $"{(char)7}★☆★☆ 臨時ニユ{(char)7}ース 緊急放送 ☆★☆★{(char)7} {dtStr}\r\n★ たった今、{maskedFqdn}{fakeStr} 君よりプロパガンダ演説状が発せられましたから満場孜々として謹聴いたしましょう ★";
+
+                                                string[] sepLines2 = ConsoleService.SeparateStringByWidth(headerStr, 76);
+                                                tmpLinesList.Add("");
+                                                tmpLinesList.Add("");
+                                                foreach (var line4 in sepLines2)
+                                                {
+                                                    tmpLinesList.Add(" " + line4);
+                                                }
+
+                                                tmpLinesList.Add("");
+
+                                                tmpLinesList.Add(" ＝＝＝ 大演説の開闢 ＝＝＝");
+                                                tmpLinesList.Add("");
+
+                                                int numLines = 0;
+                                                foreach (var line2 in downloadedLines)
+                                                {
+                                                    string line3 = line2.TrimEnd();
+                                                    if (line3._GetBytes_ShiftJis()._GetString_ShiftJis(true) != line3)
+                                                    {
+                                                        ok = false;
+                                                    }
+                                                    else
+                                                    {
+                                                        line3 = line3._NormalizeSoftEther();
+                                                        string[] sepLines = ConsoleService.SeparateStringByWidth(line3, 76);
+                                                        foreach (var line4 in sepLines)
+                                                        {
+                                                            if (lastLineIsEmpty && line4._IsEmpty()) { }
+                                                            else
+                                                            {
+                                                                numLines++;
+                                                                if (numLines > 50)
+                                                                {
+                                                                    break;
+                                                                }
+                                                                tmpLinesList.Add(" " + line4);
+                                                                lastLineIsEmpty = line4._IsEmpty();
+                                                                contentsForHash += "\r\n" + (line4._ReplaceStr(" ", ""));
+                                                            }
+                                                        }
+                                                    }
+                                                }
+
+                                                if (lastLineIsEmpty == false)
+                                                {
+                                                    tmpLinesList.Add("");
+                                                }
+
+                                                tmpLinesList.Add(" ＝＝＝ 大演説の終焉 ＝＝＝");
+                                                tmpLinesList.Add("");
+                                                tmpLinesList.Add("");
+
+                                                if (ok)
+                                                {
+                                                    string propaBody = tmpLinesList._Combine(Str.NewLine_Str_Windows);
+
+                                                    string propaHash = Str.HashStrSHA1(contentsForHash)._GetHexString();
+
+                                                    if (this.propaHistory.Add(propaHash))
+                                                    {
+                                                        if (propaRateLimiter1.TryInput(clientInfo.RemoteIP!, out _))
+                                                        {
+                                                            if (propaRateLimiter2.TryInput(clientInfo.RemoteIP!, out _))
+                                                            {
+                                                                Propa p = new Propa
+                                                                {
+                                                                    OriginalBody = downloadedText,
+                                                                    FakeFqdn = isFakeFqdn,
+                                                                    Fqdn = originalFqdn,
+                                                                    SrcHost = maskedFqdn,
+                                                                    Ip = clientInfo!.RemoteIP?.ToString() ?? "",
+                                                                    Port = clientInfo!.RemotePort,
+                                                                    Body = propaBody,
+                                                                    OriginalUrl = line,
+                                                                };
+
+                                                                p._PostAccessLog("PostPropa");
+
+                                                                this.CurrentPropa = p;
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                ex._Debug();
+                            }
+                        }
+                        else if (line._InStri("nobody"))
                         {
                             noBody.Set(true);
                         }
@@ -173,60 +406,8 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                             line = line.Replace("「", "『");
                             line = line.Replace("」", "』");
 
-                            var clientInfo = sock.EndPointInfo;
-
                             if (hatsugenRateLimiter.TryInput(clientInfo.RemoteIP ?? "", out var rateLimitEntry))
                             {
-                                var fqdn = await LocalNet.DnsResolver.GetHostNameOrIpAsync(clientInfo.RemoteIP, cancel);
-
-                                string originalFqdn = fqdn;
-
-                                bool isFakeFqdn = true;
-
-                                try
-                                {
-                                    var ipFromFqdnList = await LocalNet.DnsResolver.GetIpAddressListSingleStackAsync(fqdn, DnsResolverQueryType.A, cancel: cancel);
-
-                                    if (ipFromFqdnList != null)
-                                    {
-                                        foreach (var ip1 in ipFromFqdnList)
-                                        {
-                                            if (ip1.ToString() == clientInfo.RemoteIP?.ToString())
-                                            {
-                                                isFakeFqdn = false;
-                                            }
-                                        }
-                                    }
-                                }
-                                catch
-                                {
-                                }
-
-                                var tokens = fqdn._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, '.');
-
-                                List<string> tokens2 = new List<string>();
-
-                                for (int i = 0; i < tokens.Length; i++)
-                                {
-                                    string tmp1 = tokens[i];
-                                    if (i == 0)
-                                    {
-                                        StringBuilder sb1 = new StringBuilder();
-                                        foreach (char c in tmp1)
-                                        {
-                                            if (c == '-' || c == ':')
-                                            {
-                                                sb1.Append(c);
-                                            }
-                                            else
-                                            {
-                                                sb1.Append('*');
-                                            }
-                                        }
-                                        tmp1 = sb1.ToString();
-                                    }
-                                    tokens2.Add(tmp1);
-                                }
 
                                 long messageId = 0;
                                 await Settings.AccessDataAsync(true, async k =>
@@ -246,7 +427,7 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                                 {
                                     Dt = DtOffsetNow,
                                     Line = line,
-                                    SrcHost = Str.CombineFqdn(tokens2.ToArray()),
+                                    SrcHost = maskedFqdn,
                                     Ip = clientInfo.RemoteIP?.ToString() ?? "",
                                     Port = clientInfo.RemotePort,
                                     FakeFqdn = isFakeFqdn,
@@ -278,9 +459,9 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                     }
                 }
             }
-            catch// (Exception ex)
+            catch (Exception ex)
             {
-                //ex._Debug();
+                ex._Debug();
             }
         });
 
@@ -317,6 +498,8 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
             lastRecvTick = Time.Tick64;
 
             w.Write((char)0x1b + "[0m");
+
+            Ref<Propa?> myReadingPropa = new Ref<Propa?>(this.CurrentPropa);
 
             while (exit == false)
             {
@@ -376,14 +559,16 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                         break;
                     }
 
-                    await SendQueuedLinesIfExistsAsync(w, myHatsugenSentQueue, false, true);
+                    await SendQueuedLinesIfExistsAsync(w, myHatsugenSentQueue, false, true, false);
 
                     await w.WriteAsync(c);
                     if (c == '\n')
                     {
                         if (noTalk == false)
                         {
-                            await SendQueuedLinesIfExistsAsync(w, myHatsugenRecvQueue, false, false);
+                            await SendQueuedLinesIfExistsAsync(w, myHatsugenRecvQueue, false, false, false);
+
+                            await SendPropaAsync(w, myHatsugenSentQueue, myHatsugenRecvQueue, recvTimeout);
                         }
                         else
                         {
@@ -413,11 +598,13 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                         break;
                     }
 
-                    await SendQueuedLinesIfExistsAsync(w, myHatsugenSentQueue, true, true);
+                    await SendQueuedLinesIfExistsAsync(w, myHatsugenSentQueue, true, true, noBody);
 
                     if (noTalk == false)
                     {
-                        await SendQueuedLinesIfExistsAsync(w, myHatsugenRecvQueue, true, false);
+                        await SendQueuedLinesIfExistsAsync(w, myHatsugenRecvQueue, true, false, noBody);
+
+                        await SendPropaAsync(w, myHatsugenSentQueue, myHatsugenRecvQueue, recvTimeout);
                     }
                     else
                     {
@@ -444,14 +631,55 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                 //}
             }
 
-            async Task SendQueuedLinesIfExistsAsync(StreamWriter dst, ConcurrentQueue<Hatsugen> queue, bool isInSilentMode, bool isMyself)
+            async Task SendPropaAsync(StreamWriter dst, ConcurrentQueue<Hatsugen> myHatsugenSentQueue, ConcurrentQueue<Hatsugen> myHatsugenRecvQueue, long recvTimeout)
+            {
+                var currentPropa2 = this.CurrentPropa;
+
+                if (myReadingPropa.Value != currentPropa2 && currentPropa2 != null)
+                {
+                    myReadingPropa.Set(currentPropa2);
+
+                    string propaBody = myReadingPropa.Value!.Body;
+
+                    foreach (char c2 in propaBody)
+                    {
+                        cancel.ThrowIfCancellationRequested();
+
+                        if (Time.Tick64 >= (lastRecvTick + recvTimeout))
+                        {
+                            exit = true;
+                            break;
+                        }
+
+                        await SendQueuedLinesIfExistsAsync(w, myHatsugenSentQueue, false, true, false);
+
+                        await w.WriteAsync(c2);
+
+                        if (c2 == '\n')
+                        {
+                            if (noTalk == false)
+                            {
+                                await SendQueuedLinesIfExistsAsync(w, myHatsugenRecvQueue, false, false, false);
+                            }
+                            else
+                            {
+                                myHatsugenRecvQueue.Clear();
+                            }
+                        }
+
+                        await Task.Delay(Util.RandSInt15() % 100);
+                    }
+                }
+            }
+
+            async Task SendQueuedLinesIfExistsAsync(StreamWriter dst, ConcurrentQueue<Hatsugen> queue, bool isInSilentMode, bool isMyself, bool noColor)
             {
                 while (queue.TryDequeue(out var item))
                 {
-                    await PrintAsync(item);
+                    await PrintHatsugenAsync(item);
                 }
 
-                async Task PrintAsync(Hatsugen item)
+                async Task PrintHatsugenAsync(Hatsugen item)
                 {
                     StringWriter w = new StringWriter();
 
@@ -470,7 +698,7 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
 
                     if (item.FakeFqdn)
                     {
-                        fakeStr = " (※ 贋作 DNS 逆引の疑い) ";
+                        fakeStr = " (※ 贋作 DNS 逆引の疑い)";
                     }
 
                     string anataStr = "";
@@ -482,17 +710,20 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
 
                     w.WriteLine("");
 
-                    w.Write((char)0x1b + "[0m");
-
-                    w.Write((char)0x1b + "[1m");
-
-                    if (isMyself)
+                    if (noColor == false)
                     {
-                        w.Write((char)0x1b + "[32m");
-                    }
-                    else
-                    {
-                        w.Write((char)0x1b + "[31m");
+                        w.Write((char)0x1b + "[0m");
+
+                        w.Write((char)0x1b + "[1m");
+
+                        if (isMyself)
+                        {
+                            w.Write((char)0x1b + "[32m");
+                        }
+                        else
+                        {
+                            w.Write((char)0x1b + "[31m");
+                        }
                     }
 
                     string line = $">> 「 {item.Line} 」(チャット放話 - {dtStr} by {item.SrcHost}{fakeStr} 君{anataStr}) <<";
@@ -504,7 +735,10 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                         w.WriteLine(line2);
                     }
 
-                    w.Write((char)0x1b + "[0m");
+                    if (noColor == false)
+                    {
+                        w.Write((char)0x1b + "[0m");
+                    }
 
                     if (isMyself == false)
                     {
