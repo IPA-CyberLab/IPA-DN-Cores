@@ -276,7 +276,7 @@ public class LinuxMainteDaemonApp : AsyncService
                             string currentBody = "";
                             try
                             {
-                                await Lfs.ReadStringFromFileAsync(forwardPath);
+                                currentBody = await Lfs.ReadStringFromFileAsync(forwardPath);
                             }
                             catch { }
 
