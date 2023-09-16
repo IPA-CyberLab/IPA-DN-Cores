@@ -294,8 +294,10 @@ public abstract partial class FileSystem
     public long WriteHugeMemoryBufferToFile(string path, HugeMemoryBuffer<byte> hugeMemoryBuffer, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default)
         => WriteHugeMemoryBufferToFileAsync(path, hugeMemoryBuffer, flags, doNotOverwrite, cancel)._GetResult();
 
-    public async Task<int> WriteDataToFileAsync(string path, ReadOnlyMemory<byte> srcMemory, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default, bool overwriteAndTruncate = false)
+    public async Task<int> WriteDataToFileAsync(string path, ReadOnlyMemory<byte> srcMemory, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default, bool overwriteAndTruncate = false, RefBool? changed = null)
     {
+        changed?.Set(false);
+
         if (flags.Bit(FileFlags.WriteOnlyIfChanged))
         {
             try
@@ -322,6 +324,8 @@ public abstract partial class FileSystem
 
                     long fileSize = await file.GetFileSizeAsync(cancel: cancel);
 
+                    changed?.Set(true);
+
                     await file.WriteAsync(srcMemory, cancel);
 
                     if (fileSize > srcMemory.Length)
@@ -341,6 +345,8 @@ public abstract partial class FileSystem
         {
             await using (var file = await CreateAsync(path, false, flags & ~FileFlags.WriteOnlyIfChanged, doNotOverwrite, cancel))
             {
+                changed?.Set(true);
+
                 try
                 {
                     await file.WriteAsync(srcMemory, cancel);
@@ -353,10 +359,10 @@ public abstract partial class FileSystem
             }
         }
     }
-    public int WriteDataToFile(string path, ReadOnlyMemory<byte> data, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default, bool overwriteAndTruncate = false)
-        => WriteDataToFileAsync(path, data, flags, doNotOverwrite, cancel, overwriteAndTruncate)._GetResult();
+    public int WriteDataToFile(string path, ReadOnlyMemory<byte> data, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default, bool overwriteAndTruncate = false, RefBool? changed = null)
+        => WriteDataToFileAsync(path, data, flags, doNotOverwrite, cancel, overwriteAndTruncate, changed)._GetResult();
 
-    public Task<int> WriteStringToFileAsync(string path, string srcString, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, Encoding? encoding = null, bool writeBom = false, CancellationToken cancel = default, bool overwriteAndTruncate = false)
+    public Task<int> WriteStringToFileAsync(string path, string srcString, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, Encoding? encoding = null, bool writeBom = false, CancellationToken cancel = default, bool overwriteAndTruncate = false, RefBool? changed = null)
     {
         checked
         {
@@ -374,11 +380,11 @@ public abstract partial class FileSystem
             int encodedSize = encoding.GetBytes(srcString, buf.Walk(sizeReserved));
             buf.SetLength(bomSpan.Length + encodedSize);
 
-            return WriteDataToFileAsync(path, buf.Memory, flags, doNotOverwrite, cancel, overwriteAndTruncate);
+            return WriteDataToFileAsync(path, buf.Memory, flags, doNotOverwrite, cancel, overwriteAndTruncate, changed);
         }
     }
-    public int WriteStringToFile(string path, string srcString, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, Encoding? encoding = null, bool writeBom = false, CancellationToken cancel = default, bool overwriteAndTruncate = false)
-        => WriteStringToFileAsync(path, srcString, flags, doNotOverwrite, encoding, writeBom, cancel, overwriteAndTruncate)._GetResult();
+    public int WriteStringToFile(string path, string srcString, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, Encoding? encoding = null, bool writeBom = false, CancellationToken cancel = default, bool overwriteAndTruncate = false, RefBool? changed = null)
+        => WriteStringToFileAsync(path, srcString, flags, doNotOverwrite, encoding, writeBom, cancel, overwriteAndTruncate, changed)._GetResult();
 
 
     public Task<int> WriteStringToFileEncryptedAsync(string path, string srcString, string password, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, Encoding? encoding = null, bool writeBom = false, CancellationToken cancel = default)
@@ -953,12 +959,12 @@ public abstract partial class FileSystem
     public virtual EasyFileAccess this[string name] => GetEasyAccess(name);
 
 
-    public async Task<int> WriteDataToFileEncryptedAsync(string path, ReadOnlyMemory<byte> srcMemory, string password, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default, bool overwriteAndTruncate = false)
+    public async Task<int> WriteDataToFileEncryptedAsync(string path, ReadOnlyMemory<byte> srcMemory, string password, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default, bool overwriteAndTruncate = false, RefBool? changed = null)
     {
-        return await this.WriteDataToFileAsync(path, ChaChaPoly.EasyEncryptWithPassword(srcMemory, password), flags, doNotOverwrite, cancel, overwriteAndTruncate);
+        return await this.WriteDataToFileAsync(path, ChaChaPoly.EasyEncryptWithPassword(srcMemory, password), flags, doNotOverwrite, cancel, overwriteAndTruncate, changed);
     }
-    public int WriteDataToFileEncrypted(string path, ReadOnlyMemory<byte> data, string password, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default, bool overwriteAndTruncate = false)
-        => WriteDataToFileEncryptedAsync(path, data, password, flags, doNotOverwrite, cancel, overwriteAndTruncate)._GetResult();
+    public int WriteDataToFileEncrypted(string path, ReadOnlyMemory<byte> data, string password, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default, bool overwriteAndTruncate = false, RefBool? changed = null)
+        => WriteDataToFileEncryptedAsync(path, data, password, flags, doNotOverwrite, cancel, overwriteAndTruncate, changed)._GetResult();
 
     public async Task<Memory<byte>> ReadDataFromFileEncryptedAsync(string path, string password, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
     {

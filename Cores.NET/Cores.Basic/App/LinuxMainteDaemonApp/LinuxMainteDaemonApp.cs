@@ -266,13 +266,14 @@ public class LinuxMainteDaemonApp : AsyncService
             }
         }
 
-        var newAliasesBody = aliasesWriter.ToString()._GetBytes_UTF8();
+        var newAliasesBody = aliasesWriter.ToString();
 
-        var currentAliasesBody = await Lfs.ReadDataFromFileAsync(Consts.LinuxPaths.Aliases);
+        RefBool changed = new RefBool(false);
 
-        if (Util.MemEquals(currentAliasesBody, newAliasesBody.AsMemory()) == false)
+        await Lfs.WriteStringToFileAsync(Consts.LinuxPaths.Aliases, newAliasesBody, FileFlags.WriteOnlyIfChanged, changed: changed);
+
+        if (changed)
         {
-            await Lfs.WriteDataToFileAsync(Consts.LinuxPaths.Aliases, newAliasesBody);
             await EasyExec.ExecBashAsync($"newaliases", debug: true);
         }
 
@@ -343,10 +344,15 @@ public class LinuxMainteDaemonApp : AsyncService
                         {
                             if (forwardMailList.Any())
                             {
-                                await Lfs.WriteStringToFileAsync(forwardPath, forwardFileBody, FileFlags.WriteOnlyIfChanged);
-                                await EasyExec.ExecBashAsync($"chown {def.Username} {forwardPath}", debug: true);
-                                await EasyExec.ExecBashAsync($"chgrp {def.Username} {forwardPath}", debug: true);
-                                await EasyExec.ExecBashAsync($"chmod 644 {forwardPath}", debug: true);
+                                changed.Set(false);
+                                await Lfs.WriteStringToFileAsync(forwardPath, forwardFileBody, FileFlags.WriteOnlyIfChanged, changed: changed);
+
+                                if (changed)
+                                {
+                                    await EasyExec.ExecBashAsync($"chown {def.Username} {forwardPath}", debug: true);
+                                    await EasyExec.ExecBashAsync($"chgrp {def.Username} {forwardPath}", debug: true);
+                                    await EasyExec.ExecBashAsync($"chmod 644 {forwardPath}", debug: true);
+                                }
                             }
                             else
                             {
