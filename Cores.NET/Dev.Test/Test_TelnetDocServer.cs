@@ -316,12 +316,12 @@ public class TelnetDocServerDaemonApp : AsyncServiceWithMainLoop
                                                                 else
                                                                 {
                                                                     numLines++;
-                                                                    if (numLines > 33)
+                                                                    if (numLines > 30)
                                                                     {
                                                                         break;
                                                                     }
                                                                     totalChars += line4.Length;
-                                                                    if (totalChars > 2000)
+                                                                    if (totalChars > 1200)
                                                                     {
                                                                         break;
                                                                     }

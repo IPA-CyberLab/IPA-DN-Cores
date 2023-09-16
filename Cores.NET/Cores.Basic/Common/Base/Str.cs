@@ -5367,6 +5367,76 @@ namespace IPA.Cores.Basic
             return true;
         }
 
+        // ユーザー名として安全か検査
+        public static bool IsUsernameSafe(char c)
+        {
+            if (c >= '0' && c <= '9')
+            {
+                return true;
+            }
+            if (c >= 'A' && c <= 'Z')
+            {
+                return true;
+            }
+            if (c >= 'a' && c <= 'z')
+            {
+                return true;
+            }
+            if (c == '-' || c == '_')
+            {
+                return true;
+            }
+            return false;
+        }
+        public static bool IsUsernameSafe(string str)
+        {
+            if (str.Length < 3)
+            {
+                return false;
+            }
+
+            char firstChar = str.FirstOrDefault();
+            char lastChar = str.LastOrDefault();
+
+            if (firstChar == '-' || firstChar == '_')
+            {
+                return false;
+            }
+
+            if (lastChar == '-' || lastChar == '_')
+            {
+                return false;
+            }
+
+            if (firstChar >= '0' && firstChar <= '9')
+            {
+                return false;
+            }
+
+            int numSpecialChar = 0;
+
+            foreach (char c in str)
+            {
+                if (IsUsernameSafe(c) == false)
+                {
+                    return false;
+                }
+
+                if (c == '-' || c == '_')
+                {
+                    numSpecialChar++;
+                }
+            }
+
+            if (numSpecialChar >= 2)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+
         // パスを安全にする (ShiftJIS の観点から)
         public static string MakeSafePathNameShiftJis(string name)
         {
@@ -6122,6 +6192,45 @@ namespace IPA.Cores.Basic
             }
             return true;
         }
+
+
+        // 指定された文字が ASCII 文字かどうかチェックする
+        public static bool IsPasswordSafe(char c)
+        {
+            if (c >= '0' && c <= '9')
+            {
+                return true;
+            }
+            if (c >= 'A' && c <= 'Z')
+            {
+                return true;
+            }
+            if (c >= 'a' && c <= 'z')
+            {
+                return true;
+            }
+            if (c == '!' || c == '$' || c == '%' || c == '&' || 
+                c == '(' || c == ')' || c == '-' || c == '=' || c == '~' || c == '^' || c == '_' ||
+                c == '{' || c == '}' || c == '[' || c == ']' || c == '@' ||
+                c == '+' || c == '.' || c == '<' || c == '>' ||
+                c == ',' || c == '?' || c == '^')
+            {
+                return true;
+            }
+            return false;
+        }
+        public static bool IsPasswordSafe(string str)
+        {
+            foreach (char c in str)
+            {
+                if (IsPasswordSafe(c) == false)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
 
         // 通信速度文字列
         public static string GetBpsStr(long size)
