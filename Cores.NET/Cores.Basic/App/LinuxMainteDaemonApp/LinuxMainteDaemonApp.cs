@@ -231,7 +231,10 @@ public class LinuxMainteDaemonApp : AsyncService
             if (def.DeleteMode == false)
             {
                 string forwardPath = $"/home/{def.Username}/.forward";
-                string forwardFileBody = $"# [Caution] Remove this comment line before edit manually! otherwise any change will be lost.\n{def.ForwardMail}\n\\{def.Username}\n";
+
+                var forwardMailList = def.ForwardMail._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ",").Distinct(StrCmpi);
+
+                string forwardFileBody = $"# [Caution] Remove this comment line before edit manually! otherwise any change will be lost.\n\n{forwardMailList._Combine("\n")}\n\\{def.Username}\n";
 
                 if (existingUsersList.Contains(def.Username) == false)
                 {
