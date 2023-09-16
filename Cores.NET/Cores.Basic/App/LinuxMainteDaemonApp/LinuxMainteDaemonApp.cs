@@ -228,27 +228,105 @@ public class LinuxMainteDaemonApp : AsyncService
 
         foreach (var def in userDefList)
         {
-            if (existingUsersList.Contains(def.Username) == false)
+            if (def.DeleteMode == false)
             {
-                if (def.Password._IsFilled())
+                string forwardPath = $"/home/{def.Username}/.forward";
+                string forwardFileBody = $"# [Caution] Remove this comment line before edit manually! otherwise any change will be lost.\n{def.ForwardMail}\n\\{def.Username}\n";
+
+                if (existingUsersList.Contains(def.Username) == false)
                 {
-                    Dbg.Where();
-                    // まだ存在しないユーザーを只今作成します
-                    await EasyExec.ExecBashAsync($"useradd -m -s /bin/bash {def.Username}");
-                    await EasyExec.ExecBashAsync($"edquota -p sys_quota_default {def.Username}");
-                    await EasyExec.ExecBashAsync($"passwd {def.Username}aa", easyInputStr: $"{def.Password}\n{def.Password}\n");
-
-                    string forwardPath = $"/home/{def.Username}/.forward";
-                    string forwardFileBody = $"{def.ForwardMail}\n\\{def.Username}\n";
-
-                    if (def.ForwardMail._IsFilled())
+                    if (def.Password._IsFilled())
                     {
-                        await Lfs.WriteStringToFileAsync(forwardPath, forwardFileBody);
-                        await EasyExec.ExecBashAsync($"chown {def.Username} {forwardPath}");
-                        await EasyExec.ExecBashAsync($"chgrp {def.Username} {forwardPath}");
-                        await EasyExec.ExecBashAsync($"chmod 644 {forwardPath}");
+                        Dbg.Where();
+                        // まだ存在しないユーザーを只今作成します
+                        await EasyExec.ExecBashAsync($"useradd -m -s /bin/bash {def.Username}");
+                        await EasyExec.ExecBashAsync($"edquota -p sys_quota_default {def.Username}");
+                        await EasyExec.ExecBashAsync($"passwd {def.Username}", easyInputStr: $"{def.Password}\n{def.Password}\n");
+
+                        if (def.ForwardMail._IsFilled())
+                        {
+                            await Lfs.WriteStringToFileAsync(forwardPath, forwardFileBody);
+                            await EasyExec.ExecBashAsync($"chown {def.Username} {forwardPath}");
+                            await EasyExec.ExecBashAsync($"chgrp {def.Username} {forwardPath}");
+                            await EasyExec.ExecBashAsync($"chmod 644 {forwardPath}");
+                        }
+                        Dbg.Where();
                     }
-                    Dbg.Where();
+                }
+                else
+                {
+                    if (disabledUsersList.Contains(def.Username))
+                    {
+                        Dbg.Where();
+                        // すでに無効化されている既存ユーザーを只今有効化します
+                        await EasyExec.ExecBashAsync($"passwd -l {def.Username}");
+                    }
+                    else
+                    {
+                        Dbg.Where();
+                        // すでに存在するユーザーの .forward ファイルの内容を検査し、必要に応じて再設定します
+                        bool needToSave = false;
+
+                        if (await Lfs.IsFileExistsAsync(forwardPath) == false)
+                        {
+                            needToSave = true;
+                        }
+                        else
+                        {
+                            string currentBody = "";
+                            try
+                            {
+                                await Lfs.ReadStringFromFileAsync(forwardPath);
+                            }
+                            catch { }
+
+                            if (currentBody._InStri("# [Caution]"))
+                            {
+                                needToSave = true;
+                            }
+                        }
+
+                        if (needToSave)
+                        {
+                            if (def.ForwardMail._IsFilled())
+                            {
+                                await Lfs.WriteStringToFileAsync(forwardPath, forwardFileBody, FileFlags.WriteOnlyIfChanged);
+                                await EasyExec.ExecBashAsync($"chown {def.Username} {forwardPath}");
+                                await EasyExec.ExecBashAsync($"chgrp {def.Username} {forwardPath}");
+                                await EasyExec.ExecBashAsync($"chmod 644 {forwardPath}");
+                            }
+                            else
+                            {
+                                try
+                                {
+                                    if (await Lfs.IsFileExistsAsync(forwardPath))
+                                    {
+                                        await Lfs.DeleteFileAsync(forwardPath);
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    ex._Error();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        foreach (var def in userDefList)
+        {
+            if (def.DeleteMode)
+            {
+                if (existingUsersList.Contains(def.Username))
+                {
+                    if (disabledUsersList.Contains(def.Username) == false)
+                    {
+                        Dbg.Where();
+                        // まだ無効化されていない既存ユーザーを只今無効化します
+                        await EasyExec.ExecBashAsync($"passwd -u {def.Username}");
+                    }
                 }
             }
         }
