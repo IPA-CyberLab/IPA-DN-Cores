@@ -236,14 +236,13 @@ public class LinuxMainteDaemonApp : AsyncService
                     // まだ存在しないユーザーを只今作成します
                     await EasyExec.ExecBashAsync($"useradd -m -s /bin/bash {def.Username}");
                     await EasyExec.ExecBashAsync($"edquota -p sys_quota_default {def.Username}");
-                    await EasyExec.ExecBashAsync($"passwd {def.Username}", easyInputStr: $"{def.Password}\n{def.Password}\n");
+                    await EasyExec.ExecBashAsync($"passwd {def.Username}aa", easyInputStr: $"{def.Password}\n{def.Password}\n");
 
                     string forwardPath = $"/home/{def.Username}/.forward";
+                    string forwardFileBody = $"{def.ForwardMail}\n\\{def.Username}\n";
 
                     if (def.ForwardMail._IsFilled())
                     {
-                        string forwardFileBody = $"{def.ForwardMail}\n\\{def.Username}\n";
-
                         await Lfs.WriteStringToFileAsync(forwardPath, forwardFileBody);
                         await EasyExec.ExecBashAsync($"chown {def.Username} {forwardPath}");
                         await EasyExec.ExecBashAsync($"chgrp {def.Username} {forwardPath}");
