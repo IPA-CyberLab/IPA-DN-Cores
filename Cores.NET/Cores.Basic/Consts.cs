@@ -579,6 +579,9 @@ public static partial class Consts
         public const string SysThermal = "/sys/class/thermal/";
         public const string SockStat = "/proc/net/sockstat";
         public const string FileNr = "/proc/sys/fs/file-nr";
+        public const string Aliases = "/etc/aliases";
+        public const string Passwd = "/etc/passwd";
+        public const string Shadow = "/etc/shadow";
     }
 
     public static partial class StrEncodingAutoDetector
