@@ -259,7 +259,7 @@ public class LinuxMainteDaemonApp : AsyncService
                     {
                         Dbg.Where();
                         // すでに無効化されている既存ユーザーを只今有効化します
-                        await EasyExec.ExecBashAsync($"passwd -l {def.Username}");
+                        await EasyExec.ExecBashAsync($"passwd -u {def.Username}");
                     }
                     else
                     {
@@ -325,7 +325,7 @@ public class LinuxMainteDaemonApp : AsyncService
                     {
                         Dbg.Where();
                         // まだ無効化されていない既存ユーザーを只今無効化します
-                        await EasyExec.ExecBashAsync($"passwd -u {def.Username}");
+                        await EasyExec.ExecBashAsync($"passwd -l {def.Username}");
                     }
                 }
             }
