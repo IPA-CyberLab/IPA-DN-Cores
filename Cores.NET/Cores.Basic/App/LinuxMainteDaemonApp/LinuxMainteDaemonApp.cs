@@ -141,11 +141,6 @@ public class LinuxMainteDaemonApp : AsyncService
                     ForwardMail = tokens.ElementAtOrDefault(3)._NonNullTrim(),
                 };
 
-                if (Str.CheckMailAddress(ret.ForwardMail) == false)
-                {
-                    ret.ForwardMail = "";
-                }
-
                 if (Str.IsPasswordSafe(ret.Password) == false)
                 {
                     ret.Password = "";
@@ -232,7 +227,7 @@ public class LinuxMainteDaemonApp : AsyncService
             {
                 string forwardPath = $"/home/{def.Username}/.forward";
 
-                var forwardMailList = def.ForwardMail._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ",").Distinct(StrCmpi);
+                var forwardMailList = def.ForwardMail._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ",").Distinct(StrCmpi).Where(x => Str.CheckMailAddress(x));
 
                 string forwardFileBody = $"# [Caution] Remove this comment line before edit manually! otherwise any change will be lost.\n\n{forwardMailList._Combine("\n")}\n\\{def.Username}\n";
 
@@ -246,7 +241,7 @@ public class LinuxMainteDaemonApp : AsyncService
                         await EasyExec.ExecBashAsync($"edquota -p sys_quota_default {def.Username}");
                         await EasyExec.ExecBashAsync($"passwd {def.Username}", easyInputStr: $"{def.Password}\n{def.Password}\n");
 
-                        if (def.ForwardMail._IsFilled())
+                        if (forwardMailList.Any())
                         {
                             await Lfs.WriteStringToFileAsync(forwardPath, forwardFileBody);
                             await EasyExec.ExecBashAsync($"chown {def.Username} {forwardPath}");
@@ -291,7 +286,7 @@ public class LinuxMainteDaemonApp : AsyncService
 
                         if (needToSave)
                         {
-                            if (def.ForwardMail._IsFilled())
+                            if (forwardMailList.Any())
                             {
                                 await Lfs.WriteStringToFileAsync(forwardPath, forwardFileBody, FileFlags.WriteOnlyIfChanged);
                                 await EasyExec.ExecBashAsync($"chown {def.Username} {forwardPath}");
