@@ -236,7 +236,10 @@ public class LinuxMainteDaemonApp : AsyncService
                                 {
                                     if (Str.IsUsernameSafe(target))
                                     {
-                                        aliasesList.Add(aliasStr, target.ToLowerInvariant());
+                                        if (existingUsersList.Contains(target))
+                                        {
+                                            aliasesList.Add(aliasStr, target.ToLowerInvariant());
+                                        }
                                     }
                                     else if (Str.CheckMailAddress(target))
                                     {
