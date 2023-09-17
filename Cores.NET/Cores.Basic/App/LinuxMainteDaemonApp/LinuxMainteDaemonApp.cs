@@ -75,6 +75,8 @@ public class LinuxMainteDaemonSettings : INormalizable
     public string ConfigUrl = "";
     public int PollingIntervalMsecs;
 
+    public int MaxUsersCount = 0;
+
     public SmtpClientSettings SmtpSettings = null!;
 
     public SmtpBassicSettings MailSettings = null!;
@@ -99,6 +101,11 @@ public class LinuxMainteDaemonSettings : INormalizable
         if (this.MailFooter._IsEmpty())
         {
             this.MailFooter = "フッター";
+        }
+
+        if (this.MaxUsersCount <= 0)
+        {
+            this.MaxUsersCount = 1000;
         }
 
         SmtpSettings ??= new SmtpClientSettings();
@@ -315,7 +322,10 @@ public class LinuxMainteDaemonApp : AsyncService
                     {
                         if (userDefList.Any(x => x.Username._IsSamei(def.Username)) == false)
                         {
-                            userDefList.Add(def);
+                            if (userDefList.Count <= this.Settings.MaxUsersCount)
+                            {
+                                userDefList.Add(def);
+                            }
                         }
                     }
                 }
