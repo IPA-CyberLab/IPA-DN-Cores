@@ -70,6 +70,7 @@ public static partial class CoresConfig
 public class LinuxMainteDaemonSettings : INormalizable
 {
     public string Title = "";
+    public string MailFooter = "";
 
     public string ConfigUrl = "";
     public int PollingIntervalMsecs;
@@ -93,6 +94,11 @@ public class LinuxMainteDaemonSettings : INormalizable
         if (this.Title._IsEmpty())
         {
             this.Title = "テストサーバーシステム";
+        }
+
+        if (this.MailFooter._IsEmpty())
+        {
+            this.MailFooter = "フッター";
         }
 
         SmtpSettings ??= new SmtpClientSettings();
@@ -137,7 +143,7 @@ public class LinuxMainteDaemonApp : AsyncService
     {
         StringWriter w = new StringWriter();
 
-        w.WriteLine($"{this.Settings.Title} - LinuxMainteDaemon からのお知らせ");
+        w.WriteLine($"LinuxMainteDaemon ({this.Settings.Title}) からのお知らせ");
         w.WriteLine();
         w.WriteLine(subject);
         w.WriteLine();
@@ -145,8 +151,10 @@ public class LinuxMainteDaemonApp : AsyncService
         w.WriteLine();
         w.WriteLine("只今の日時: " +DtOffsetNow._ToLocalDtStr());
         w.WriteLine();
+        w.WriteLine(this.Settings.MailFooter);
+        w.WriteLine();
 
-        await SendMailAsync($"{subject} - {this.Settings.Title} - LinuxMainteDaemon", w.ToString(), cancel);
+        await SendMailAsync($"LinuxMainteDaemon - {subject} ({this.Settings.Title})", w.ToString(), cancel);
     }
 
     public async Task SendMailAsync(string subject, string body, CancellationToken cancel = default)
