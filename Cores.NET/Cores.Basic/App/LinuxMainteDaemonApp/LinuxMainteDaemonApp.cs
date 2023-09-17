@@ -239,8 +239,6 @@ public class LinuxMainteDaemonApp : AsyncService
 
     async Task PerformOneAsync(CancellationToken cancel)
     {
-        Dbg.Where();
-
         var lines = await MiscUtil.ReadIncludesFileLinesAsync(this.Settings.ConfigUrl, cancel: cancel);
 
         List<UserDef> userDefList = new();
@@ -307,8 +305,6 @@ public class LinuxMainteDaemonApp : AsyncService
                 }
             }
         }
-
-        prohibitedUsersList.OrderBy(x => x)._Combine(", ")._Print();
 
         foreach (var line in lines)
         {
@@ -406,7 +402,6 @@ public class LinuxMainteDaemonApp : AsyncService
                 {
                     if (def.Password._IsFilled())
                     {
-                        Dbg.Where();
                         // まだ存在しないユーザーを只今作成します
                         await EasyExec.ExecBashAsync($"useradd -m -s {Consts.LinuxCommands.Bash} {def.Username}", debug: true);
 
@@ -422,15 +417,12 @@ public class LinuxMainteDaemonApp : AsyncService
                             await EasyExec.ExecBashAsync($"chgrp {def.Username} {forwardPath}", debug: true);
                             await EasyExec.ExecBashAsync($"chmod 644 {forwardPath}", debug: true);
                         }
-                        Dbg.Where();
                     }
                 }
                 else
                 {
                     if (disabledUsersList.Contains(def.Username))
                     {
-                        Dbg.Where();
-
                         // すでに無効化されている既存ユーザーを只今有効化します
                         await EasyExec.ExecBashAsync($"passwd -u {def.Username}", debug: true);
 
@@ -438,7 +430,6 @@ public class LinuxMainteDaemonApp : AsyncService
                     }
                     else
                     {
-                        Dbg.Where();
                         // すでに存在するユーザーの .forward ファイルの内容を検査し、必要に応じて再設定します
                         bool needToSave = false;
 
@@ -503,7 +494,6 @@ public class LinuxMainteDaemonApp : AsyncService
                 {
                     if (disabledUsersList.Contains(def.Username) == false)
                     {
-                        Dbg.Where();
                         // まだ無効化されていない既存ユーザーを只今無効化します
                         await EasyExec.ExecBashAsync($"passwd -l {def.Username}", debug: true);
 
