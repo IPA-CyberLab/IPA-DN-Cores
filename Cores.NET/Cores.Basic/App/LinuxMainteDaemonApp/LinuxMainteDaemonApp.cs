@@ -200,7 +200,7 @@ public class LinuxMainteDaemonApp : AsyncService
                     ForwardMail = tokens.ElementAtOrDefault(3)._NonNullTrim(),
                 };
 
-                if (Str.IsPasswordSafe(ret.Password) == false)
+                if (Str.IsPasswordSafe(ret.Password) == false || ret.Password > 64)
                 {
                     ret.Password = "";
                 }
@@ -208,6 +208,11 @@ public class LinuxMainteDaemonApp : AsyncService
                 def = ret;
 
                 if (Str.IsUsernameSafe(ret.Username) == false)
+                {
+                    return false;
+                }
+
+                if (ret.Username.Length < 3 || ret.Username.Length > 31)
                 {
                     return false;
                 }
@@ -334,7 +339,7 @@ public class LinuxMainteDaemonApp : AsyncService
                         {
                             aliasStr = aliasStr.ToLowerInvariant();
 
-                            if (Str.IsUsernameSafe(aliasStr))
+                            if (Str.IsUsernameSafe(aliasStr) && aliasStr.Length >= 3 && aliasStr.Length <= 31)
                             {
                                 var targetsList = targetsListStr._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ",", " ", "\t");
                                 foreach (var target in targetsList)
