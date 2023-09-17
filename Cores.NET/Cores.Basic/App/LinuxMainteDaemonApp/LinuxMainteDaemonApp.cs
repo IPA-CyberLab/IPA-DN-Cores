@@ -200,7 +200,7 @@ public class LinuxMainteDaemonApp : AsyncService
                     ForwardMail = tokens.ElementAtOrDefault(3)._NonNullTrim(),
                 };
 
-                if (Str.IsPasswordSafe(ret.Password) == false || ret.Password > 64)
+                if (Str.IsPasswordSafe(ret.Password) == false || ret.Password.Length > 64)
                 {
                     ret.Password = "";
                 }
