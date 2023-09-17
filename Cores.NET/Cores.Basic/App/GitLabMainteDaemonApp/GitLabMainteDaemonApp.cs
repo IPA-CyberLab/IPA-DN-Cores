@@ -564,7 +564,7 @@ public class GitLabMainteDaemonApp : AsyncService
 
                 // メモ: last_activity_at の値を信用してはならない。これは GitLab がキャッシュしているので、なかなか更新されない。
 
-                var targetProjects = projects.Where(p => p.empty_repo == false && p.path_with_namespace._IsFilled() && p.default_branch._IsFilled() && p.visibility._IsDiffi("private")).OrderByDescending(x => x.last_activity_at).ThenBy(x => x.path_with_namespace, StrCmpi);
+                var targetProjects = projects.Where(p => p.empty_repo == false && p.path_with_namespace._IsFilled() && p.default_branch._IsFilled()).OrderByDescending(x => x.last_activity_at).ThenBy(x => x.path_with_namespace, StrCmpi);
 
                 await TaskUtil.ForEachAsync(8, targetProjects, async (proj, index, cancel) =>
                 {
