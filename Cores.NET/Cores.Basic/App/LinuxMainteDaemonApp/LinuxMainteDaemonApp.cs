@@ -69,8 +69,14 @@ public static partial class CoresConfig
 
 public class LinuxMainteDaemonSettings : INormalizable
 {
+    public string Title = "";
+
     public string ConfigUrl = "";
     public int PollingIntervalMsecs;
+
+    public SmtpClientSettings SmtpSettings = null!;
+
+    public SmtpBassicSettings MailSettings = null!;
 
     public void Normalize()
     {
@@ -83,6 +89,17 @@ public class LinuxMainteDaemonSettings : INormalizable
         {
             this.PollingIntervalMsecs = 1000;
         }
+
+        if (this.Title._IsEmpty())
+        {
+            this.Title = "テストサーバーシステム";
+        }
+
+        SmtpSettings ??= new SmtpClientSettings();
+        SmtpSettings.Normalize();
+
+        MailSettings ??= new SmtpBassicSettings();
+        MailSettings.Normalize();
     }
 }
 
@@ -113,6 +130,33 @@ public class LinuxMainteDaemonApp : AsyncService
         {
             this._DisposeSafe();
             throw;
+        }
+    }
+
+    public async Task SendNoticeAsync(string subject, string body, CancellationToken cancel = default)
+    {
+        StringWriter w = new StringWriter();
+
+        w.WriteLine($"{this.Settings.Title} - LinuxMainteDaemon からのお知らせ");
+        w.WriteLine();
+        w.WriteLine(subject);
+        w.WriteLine();
+        w.WriteLine(body);
+        w.WriteLine();
+        w.WriteLine("只今の日時: " +DtOffsetNow._ToLocalDtStr());
+        w.WriteLine();
+
+        await SendMailAsync($"{subject} - {this.Settings.Title} - LinuxMainteDaemon", w.ToString(), cancel);
+    }
+
+    public async Task SendMailAsync(string subject, string body, CancellationToken cancel = default)
+    {
+        subject = subject._NormalizeCrlf(CrlfStyle.CrLf);
+        body = body._NormalizeCrlf(CrlfStyle.CrLf);
+
+        foreach (var dest in this.Settings.MailSettings.MailToList.Distinct(StrCmpi).OrderBy(x => x, StrCmpi))
+        {
+            await SmtpUtil.SendAsync(this.Settings.SmtpSettings, this.Settings.MailSettings.MailFrom, dest, subject, body, true, cancel);
         }
     }
 
@@ -312,7 +356,10 @@ public class LinuxMainteDaemonApp : AsyncService
         {
             if (existingUsersList.Contains(aliasDef.Key) == false)
             {
-                aliasesWriter.WriteLine($"{aliasDef.Key}: {aliasDef.Value.OrderBy(x => x, StrCmpi)._Combine(",")}");
+                if (prohibitedUsersList.Contains(aliasDef.Key) == false)
+                {
+                    aliasesWriter.WriteLine($"{aliasDef.Key}: {aliasDef.Value.OrderBy(x => x, StrCmpi)._Combine(",")}");
+                }
             }
         }
 
@@ -344,6 +391,9 @@ public class LinuxMainteDaemonApp : AsyncService
                         Dbg.Where();
                         // まだ存在しないユーザーを只今作成します
                         await EasyExec.ExecBashAsync($"useradd -m -s {Consts.LinuxCommands.Bash} {def.Username}", debug: true);
+
+                        await SendNoticeAsync($"新規ユーザー作成: {def.Username}", $"ユーザー {def.Username} をシステムが代行して作成しました。恐ろしいことですね！！");
+
                         await EasyExec.ExecBashAsync($"edquota -p sys_quota_default {def.Username}", debug: true);
                         await EasyExec.ExecBashAsync($"passwd {def.Username}", easyInputStr: $"{def.Password}\n{def.Password}\n", debug: true);
 
@@ -362,8 +412,11 @@ public class LinuxMainteDaemonApp : AsyncService
                     if (disabledUsersList.Contains(def.Username))
                     {
                         Dbg.Where();
+
                         // すでに無効化されている既存ユーザーを只今有効化します
                         await EasyExec.ExecBashAsync($"passwd -u {def.Username}", debug: true);
+
+                        await SendNoticeAsync($"ユーザーの再有効化: {def.Username}", $"すでに無効化されていたユーザー {def.Username} をシステムが復活させました。恐ろしいことですね！！");
                     }
                     else
                     {
@@ -435,6 +488,8 @@ public class LinuxMainteDaemonApp : AsyncService
                         Dbg.Where();
                         // まだ無効化されていない既存ユーザーを只今無効化します
                         await EasyExec.ExecBashAsync($"passwd -l {def.Username}", debug: true);
+
+                        await SendNoticeAsync($"ユーザーの無効化: {def.Username}", $"ユーザー {def.Username} をシステムが無効化しました。なかなかのもんですね！！");
                     }
                 }
             }
