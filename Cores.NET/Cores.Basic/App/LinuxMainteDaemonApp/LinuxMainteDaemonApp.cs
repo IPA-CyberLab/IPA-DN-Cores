@@ -188,10 +188,29 @@ public class LinuxMainteDaemonApp : AsyncService
 
         HashSet<string> existingUsersList = new(StrCmpi);
         HashSet<string> disabledUsersList = new(StrCmpi);
+        HashSet<string> prohibitedUsersList = new(StrCmpi);
+
+        prohibitedUsersList.Add("root");
+        prohibitedUsersList.Add("sys_quota_default");
 
         HashSetDictionary<string, string> aliasesList = new HashSetDictionary<string, string>(StrCmpi, StrCmpi);
 
         string[] shadowLines = (await Lfs.ReadStringFromFileAsync(Consts.LinuxPaths.Shadow))._GetLines(true, true, trim: true);
+
+        bool hasSysQuotaDefault = false;
+
+        foreach (var line in shadowLines)
+        {
+            string[] tokens = line._Split(StringSplitOptions.None, ":");
+            string username = tokens.ElementAtOrDefault(0)._NonNull();
+
+            if (username == "sys_quota_default")
+            {
+                hasSysQuotaDefault = true;
+            }
+        }
+
+        bool flag1 = false;
 
         foreach (var line in shadowLines)
         {
@@ -199,16 +218,38 @@ public class LinuxMainteDaemonApp : AsyncService
             string username = tokens.ElementAtOrDefault(0)._NonNull();
             string passwordHash = tokens.ElementAtOrDefault(1)._NonNull();
 
-            if (username._IsFilled() && passwordHash._IsFilled())
+            if (username._IsFilled())
             {
                 existingUsersList.Add(username);
 
-                if (passwordHash.StartsWith("!"))
+                if (passwordHash.StartsWith("!") && passwordHash.Length >= 2)
                 {
                     disabledUsersList.Add(username);
                 }
+
+                if (passwordHash == "!" || passwordHash == "*" || passwordHash == "")
+                {
+                    prohibitedUsersList.Add(username);
+                }
+
+                if (hasSysQuotaDefault)
+                {
+                    if (username == "sys_quota_default")
+                    {
+                        flag1 = true;
+                    }
+                    else
+                    {
+                        if (flag1 == false)
+                        {
+                            prohibitedUsersList.Add(username);
+                        }
+                    }
+                }
             }
         }
+
+        prohibitedUsersList.OrderBy(x => x)._Combine(", ")._Print();
 
         foreach (var line in lines)
         {
@@ -218,7 +259,13 @@ public class LinuxMainteDaemonApp : AsyncService
             {
                 if (UserDef.TryParse(line2, out var def))
                 {
-                    userDefList.Add(def);
+                    if (prohibitedUsersList.Contains(def.Username) == false)
+                    {
+                        if (userDefList.Any(x => x.Username._IsSamei(def.Username)) == false)
+                        {
+                            userDefList.Add(def);
+                        }
+                    }
                 }
 
                 if (line2._GetKeyAndValue(out string command, out string line3))
@@ -265,7 +312,7 @@ public class LinuxMainteDaemonApp : AsyncService
         {
             if (existingUsersList.Contains(aliasDef.Key) == false)
             {
-                aliasesWriter.WriteLine($"{aliasDef.Key}: {aliasDef.Value.OrderBy(x=>x, StrCmpi)._Combine(",")}");
+                aliasesWriter.WriteLine($"{aliasDef.Key}: {aliasDef.Value.OrderBy(x => x, StrCmpi)._Combine(",")}");
             }
         }
 
