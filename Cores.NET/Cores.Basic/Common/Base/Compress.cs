@@ -53,6 +53,17 @@ public static class DeflateUtil
         return ms.ToArray();
     }
 
+    public static Memory<byte> EasyCompressRetMemoryFast(ReadOnlySpan<byte> src, CompressionLevel level = CompressionLevel.Optimal)
+    {
+        using MemoryStream ms = new MemoryStream();
+        using var d = new DeflateStream(ms, level);
+        d.Write(src);
+        d.Flush();
+
+        return ms.GetBuffer().AsMemory(0, (int)ms.Length);
+    }
+
+
     public static byte[] EasyDecompress(ReadOnlySpan<byte> src, int maxSize = 0)
         => EasyDecompress(src._CloneMemory(), maxSize);
 

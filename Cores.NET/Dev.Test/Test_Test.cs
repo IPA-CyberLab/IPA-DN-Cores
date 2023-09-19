@@ -4358,6 +4358,21 @@ HOST: www.google.com
     {
         if (true)
         {
+            HashCalc calc = new HashCalc(SHA1.Create());
+
+            while (true)
+            {
+                string line = Con.ReadLine()._NonNullTrim();
+
+                calc.Write(line._GetBytes_Ascii());
+
+                calc.GetFinalHash()._GetHexString()._Print();
+            }
+            return;
+        }
+
+        if (true)
+        {
             Test_MakeDnDDnsRegister11StaticCerts_230614();
             return;
         }

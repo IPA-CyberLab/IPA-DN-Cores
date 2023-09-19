@@ -1062,12 +1062,15 @@ public class SequentialWritableBasedRandomAccess<T> : IRandomAccess<T>, IHasErro
     bool IsNotFirst = false;
     long StartVirtualPosition = 0;
 
+    public bool AllowForwardSeek { get; }
+
     long CurrentLength = 0;
 
-    public SequentialWritableBasedRandomAccess(ISequentialWritable<T> baseWritable, Func<Task>? onDispose = null)
+    public SequentialWritableBasedRandomAccess(ISequentialWritable<T> baseWritable, Func<Task>? onDispose = null, bool allowForwardSeek = false)
     {
         this.BaseWritable = baseWritable;
         this.OnDispose = onDispose;
+        this.AllowForwardSeek = allowForwardSeek;
     }
 
     public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
@@ -1113,7 +1116,18 @@ public class SequentialWritableBasedRandomAccess<T> : IRandomAccess<T>, IHasErro
                 // 書き込み場所が移動していないかどうか確認
                 if (CurrentLength != internalPos)
                 {
-                    throw new ArgumentOutOfRangeException(nameof(position), $"CurrentLength != internalPos. CurrentLength: {CurrentLength}, internalPos: {internalPos}, StartVirtualPosition: {StartVirtualPosition}, position: {position}");
+                    if (this.AllowForwardSeek && (internalPos < CurrentLength))
+                    {
+                        long zeroAppendSize = CurrentLength - internalPos;
+
+                        await BaseWritable.AppendZeroAsync(zeroAppendSize, cancel);
+
+                        CurrentLength += zeroAppendSize;
+                    }
+                    else
+                    {
+                        throw new ArgumentOutOfRangeException(nameof(position), $"CurrentLength != internalPos. CurrentLength: {CurrentLength}, internalPos: {internalPos}, StartVirtualPosition: {StartVirtualPosition}, position: {position}");
+                    }
                 }
 
                 await BaseWritable.AppendAsync(data, cancel);
@@ -1813,6 +1827,296 @@ public static class IHasErrorHelper
         => me.LastError != null;
 }
 
+public interface ISequentialReadable<T> : IHasError
+{
+    public long CurrentPosition { get; }
+
+    Task<int> ReadAsync(Memory<T> data, CancellationToken cancel = default);
+}
+
+public static class ISequentialReadableHelper
+{
+    public static int Read<T>(this ISequentialReadable<T> me, Memory<T> data, CancellationToken cancel = default)
+        => me.ReadAsync(data, cancel)._GetResult();
+}
+
+// ISequentialReadable<T> を容易に実装するためのクラス
+public abstract class SequentialReadableImpl<T> : ISequentialReadable<T>
+{
+    protected abstract Task StartImplAsync(CancellationToken cancel = default);
+    protected abstract Task<int> ReadImplAsync(Memory<T> data, long hintCurrentPosition, CancellationToken cancel = default);
+
+    public Exception? LastError { get; private set; }
+
+    bool IsStarted = false;
+
+    bool IsEoF = false;
+
+    public long CurrentPosition { get; private set; }
+
+    public async Task StartAsync(CancellationToken cancel = default)
+    {
+        if (this.LastError != null) throw this.LastError;
+
+        cancel.ThrowIfCancellationRequested();
+
+        if (IsStarted) throw new CoresException("Already started.");
+
+        try
+        {
+            await StartImplAsync(cancel);
+
+            IsStarted = true;
+        }
+        catch (Exception ex)
+        {
+            this.LastError = ex;
+            throw;
+        }
+    }
+
+    public async Task<int> ReadAsync(Memory<T> data, CancellationToken cancel = default)
+    {
+        if (this.LastError != null) throw this.LastError;
+
+        cancel.ThrowIfCancellationRequested();
+
+        if (data.Length == 0)
+            return 0;
+
+        if (IsEoF)
+        {
+            return 0;
+        }
+
+        try
+        {
+            int currentSize = 0;
+
+            while (true)
+            {
+                int remainSize = data.Length - currentSize;
+
+                if (remainSize == 0)
+                {
+                    return currentSize;
+                }
+
+                int readSize = await this.ReadImplAsync(data.Slice(currentSize), this.CurrentPosition, cancel);
+
+                if (readSize > remainSize)
+                {
+                    throw new CoresLibException($"readSize ({readSize}) > remainSize ({remainSize})");
+                }
+
+                if (readSize <= 0)
+                {
+                    IsEoF = true;
+                    return currentSize;
+                }
+
+                this.CurrentPosition += readSize;
+                currentSize += readSize;
+            }
+        }
+        catch (Exception ex)
+        {
+            this.LastError = ex;
+            throw;
+        }
+    }
+}
+
+// Stream に対して読み込むことができる ISequentialReadable<byte> オブジェクト。Stream に対して決して Seek 操作をしない。
+public class StreamBasedSequentialReadable : SequentialReadableImpl<byte>, IDisposable, IAsyncDisposable
+{
+    readonly IHolder Leak;
+
+    public Stream BaseStream { get; }
+    public bool AutoDispose { get; }
+
+    public StreamBasedSequentialReadable(Stream baseStream, bool autoDispose = false)
+    {
+        try
+        {
+            this.BaseStream = baseStream;
+            this.AutoDispose = autoDispose;
+
+            this.Leak = LeakChecker.Enter(LeakCounterKind.StreamBasedSequentialReadable);
+
+            this.StartAsync()._GetResult();
+        }
+        catch
+        {
+            this._DisposeSafe();
+            throw;
+        }
+    }
+
+    public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
+    Once DisposeFlag;
+    public async ValueTask DisposeAsync()
+    {
+        if (DisposeFlag.IsFirstCall() == false) return;
+        await DisposeInternalAsync();
+    }
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+        DisposeInternalAsync()._GetResult();
+    }
+    async Task DisposeInternalAsync()
+    {
+        this.Leak._DisposeSafe();
+
+        if (this.AutoDispose)
+        {
+            await BaseStream._DisposeSafeAsync();
+        }
+    }
+
+    protected override async Task<int> ReadImplAsync(Memory<byte> data, long hintCurrentPosition, CancellationToken cancel = default)
+    {
+        return await BaseStream.ReadAsync(data, cancel);
+    }
+
+    protected override Task StartImplAsync(CancellationToken cancel = default)
+    {
+        return Task.CompletedTask;
+    }
+}
+
+// ISequentialReadable<byte> に対して書き込むことができる Stream オブジェクト。シーケンシャルでない操作 (現在の番地以外へのシークなど) を要求すると例外が発生する
+public class SequentialReadableBasedStream : Stream
+{
+    public ISequentialReadable<byte> Target { get; }
+
+    long PositionCache;
+
+    readonly Func<Task>? OnDisposing;
+
+    public SequentialReadableBasedStream(ISequentialReadable<byte> target, Func<Task>? onDisposing = null)
+    {
+        Target = target;
+        this.PositionCache = target.CurrentPosition;
+        this.OnDisposing = onDisposing;
+    }
+
+    Once DisposeFlag;
+    public override async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (DisposeFlag.IsFirstCall() == false) return;
+            await DisposeInternalAsync();
+        }
+        finally
+        {
+            await base.DisposeAsync();
+        }
+    }
+    protected override void Dispose(bool disposing)
+    {
+        try
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            DisposeInternalAsync()._GetResult();
+        }
+        finally { base.Dispose(disposing); }
+    }
+    Task DisposeInternalAsync()
+    {
+        if (OnDisposing != null)
+            OnDisposing();
+
+        return Task.CompletedTask;
+    }
+
+    public override bool CanRead => true;
+    public override bool CanSeek => false;
+    public override bool CanWrite => false;
+    public override long Length => Target.CurrentPosition;
+
+    public override long Position
+    {
+        get => Target.CurrentPosition;
+        set => throw new NotSupportedException();
+    }
+
+    public override void Flush() { }
+
+    public override long Seek(long offset, SeekOrigin origin)
+    {
+        switch (origin)
+        {
+            case SeekOrigin.End:
+                if (offset == 0)
+                {
+                    return PositionCache;
+                }
+                else
+                {
+                    throw new ArgumentOutOfRangeException(nameof(offset), "Seek is not suppoered.");
+                }
+
+            case SeekOrigin.Begin:
+                if (offset == PositionCache)
+                {
+                    return PositionCache;
+                }
+                else
+                {
+                    throw new ArgumentOutOfRangeException(nameof(offset), "Seek is not suppoered.");
+                }
+
+            case SeekOrigin.Current:
+                if (offset == 0)
+                {
+                    return PositionCache;
+                }
+                else
+                {
+                    throw new ArgumentOutOfRangeException(nameof(offset), "Seek is not suppoered.");
+                }
+
+            default:
+                throw new ArgumentOutOfRangeException(nameof(origin));
+        }
+    }
+
+    public override void SetLength(long value)
+        => throw new NotSupportedException();
+
+    public override Task FlushAsync(CancellationToken cancellationToken)
+    {
+        this.Flush();
+        return Task.CompletedTask;
+    }
+
+    public override int Read(byte[] buffer, int offset, int count)
+        => Read(buffer.AsSpan(offset, count));
+
+    public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken = default)
+    {
+        return await Target.ReadAsync(buffer.AsMemory(offset, count), cancellationToken);
+    }
+
+    public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+    {
+        return await Target.ReadAsync(buffer, cancellationToken);
+    }
+
+    public override void Write(byte[] buffer, int offset, int count) => Write(buffer.AsSpan(offset, count));
+
+    public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken = default)
+        => throw new NotSupportedException();
+
+    override public ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+        => throw new NotSupportedException();
+}
+
+
+
 public interface ISequentialWritable<T> : IHasError
 {
     public long CurrentPosition { get; }
@@ -1828,6 +2132,38 @@ public static class ISequentialWritableHelper
         => me.AppendAsync(data, cancel)._GetResult();
     public static long Flush<T>(this ISequentialWritable<T> me, CancellationToken cancel = default)
         => me.FlushAsync(cancel)._GetResult();
+
+    public static async Task<long> AppendZeroAsync<T>(this ISequentialWritable<T> me, long size, CancellationToken cancel = default)
+    {
+        if (size == 0)
+        {
+            return me.CurrentPosition;
+        }
+
+        int bufferSize = Consts.Numbers.DefaultLargeBufferSize;
+
+        var zeroBuffer = Util.GetZeroedSharedBuffer<T>(bufferSize);
+
+        int currentPos = 0;
+
+        while (true)
+        {
+            if (currentPos >= size)
+            {
+                break;
+            }
+
+            long remain = size - currentPos;
+
+            int writeSize = (int)Math.Min(remain, bufferSize);
+
+            await me.AppendAsync(zeroBuffer.Slice(0, writeSize), cancel, false);
+
+            currentPos += writeSize;
+        }
+
+        return me.CurrentPosition;
+    }
 }
 
 public static class ISequentialWritableExtension

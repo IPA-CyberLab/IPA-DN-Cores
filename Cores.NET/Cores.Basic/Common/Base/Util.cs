@@ -501,6 +501,27 @@ namespace IPA.Cores.Basic
         public const int SizeOfInt64 = 8;
         public const int SizeOfInt8 = 1;
 
+        // 内容がゼロクリアされた共有バッファを返す
+        private class ZeroBufferSharedClass<T>
+        {
+            public static ReadOnlyMemory<T> ZeroBufferShared = new T[0];
+        }
+        public static ReadOnlyMemory<T> GetZeroedSharedBuffer<T>(int size)
+        {
+            ReadOnlyMemory<T> current = ZeroBufferSharedClass<T>.ZeroBufferShared;
+
+            if (current.Length >= size)
+            {
+                return current.Slice(0, size);
+            }
+
+            current = new T[size];
+
+            ZeroBufferSharedClass<T>.ZeroBufferShared = current;
+
+            return current.Slice(0, size);
+        }
+
         // 数値処理
         public static byte[] ToByte(ushort i)
         {

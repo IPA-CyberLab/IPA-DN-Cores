@@ -1843,6 +1843,7 @@ namespace IPA.Cores.Basic
         SingleEntry,
         WriteOnlyStreamBasedRandomAccess,
         StreamBasedSequentialWritable,
+        StreamBasedSequentialReadable,
         IpConnectionRateLimiterTryEnterHolder,
         AsyncAwaitScoped,
         AsyncPulseRegisteredEvent,

@@ -755,6 +755,69 @@ namespace IPA.Cores.Basic
         }
     }
 
+
+    public class HashCalc
+    {
+        public HashAlgorithm Algorithm { get; }
+
+        public HashCalc(HashAlgorithm algorithm)
+        {
+            try
+            {
+                this.Algorithm = algorithm;
+
+                this.Algorithm.Initialize();
+            }
+            catch
+            {
+                throw;
+            }
+        }
+
+        public void Write(ReadOnlyMemory<byte> buffer)
+        {
+            var seg = buffer._AsSegment();
+
+            if (seg.Count >= 1)
+            {
+                seg.Array._NullCheck();
+
+                this.Algorithm.TransformBlock(seg.Array, seg.Offset, seg.Count, null, 0);
+            }
+        }
+
+        Once FinalFlag;
+        byte[]? HashResult = null;
+        Exception Error = new CoresException("Unknown error");
+
+        public byte[] GetFinalHash()
+        {
+            if (FinalFlag.IsFirstCall())
+            {
+                try
+                {
+                    this.Algorithm.TransformFinalBlock(new byte[0], 0, 0);
+
+                    this.HashResult = this.Algorithm.Hash;
+                }
+                catch (Exception ex)
+                {
+                    this.Error = ex;
+                    throw;
+                }
+            }
+
+            if (this.HashResult == null)
+            {
+                throw this.Error;
+            }
+            else
+            {
+                return this.HashResult;
+            }
+        }
+    }
+
     public class SeedBasedRandomGenerator
     {
         SHA1 Sha1 = SHA1.Create();
