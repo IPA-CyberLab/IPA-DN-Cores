@@ -4354,8 +4354,31 @@ HOST: www.google.com
         }
     }
 
+    static async Task Test230920()
+    {
+        await using var srcFile = Lfs.Open(@"C:\tmp2\secure_compress_test\1_src\1_nishida.pdf");
+
+        await using var srcStream = srcFile.GetStream();
+
+        SecureCompressOptions opt = new SecureCompressOptions(true, "abc", true);
+
+        await using var dstFile = Lfs.Create(@"C:\tmp2\secure_compress_test\2_dst\1_nishida.pdf", flags: FileFlags.AutoCreateDirectory);
+
+        await using var dstStream = dstFile.GetStream();
+
+        await using var secureWriter = new SecureCompressWriter(dstStream, opt, srcFile.Size, true);
+
+        long sz = await srcStream.CopyBetweenStreamAsync(secureWriter);
+    }
+
     public static void Test_Generic()
     {
+        if (true)
+        {
+            Test230920()._GetResult();
+            return;
+        }
+
         if (true)
         {
             HashCalc calc = new HashCalc(SHA1.Create());

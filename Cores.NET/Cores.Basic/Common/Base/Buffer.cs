@@ -83,6 +83,11 @@ public ref struct SpanBuffer<T>
 
     public SpanBuffer(int initialBufferSize) : this(new T[initialBufferSize]) { }
 
+    public SpanBuffer(EnsureSpecial withReserve, int reversedSized) : this(new T[reversedSized])
+    {
+        this.Length = 0;
+    }
+
     public SpanBuffer(Span<T> baseSpan)
     {
         InternalSpan = baseSpan;
@@ -518,6 +523,11 @@ public ref struct FastMemoryBuffer<T>
     public Span<T> Span { get => InternalBuffer.Slice(0, Length).Span; }
     public Span<T> SpanBefore { get => Memory.Slice(0, CurrentPosition).Span; }
     public Span<T> SpanAfter { get => Memory.Slice(CurrentPosition).Span; }
+
+    public FastMemoryBuffer(EnsureSpecial withReserve, int reversedSized) : this(new T[reversedSized])
+    {
+        this.Length = 0;
+    }
 
     public FastMemoryBuffer(int size = 0) : this(new T[size]) { }
 
@@ -1431,6 +1441,11 @@ public class MemoryBuffer<T> : IBuffer<T>
     {
         [MethodImpl(Inline)]
         get => checked((int)LongRemainLength);
+    }
+
+    public MemoryBuffer(EnsureSpecial withReserve, int reversedSized) : this(new T[reversedSized])
+    {
+        this.Length = 0;
     }
 
     public MemoryBuffer(int size = 0) : this(new T[size]) { }

@@ -12,7 +12,7 @@
 ファイルの先頭に存在する。
 ヘッダは、
 
-\r\n!!__[MetaData:SecureCompressFirstHeader]__!!\r\n
+\r\n\r\n!!__[MetaData:SecureCompressFirstHeader]__!!\r\n
 
 という文字列に続き、JSON 文字列で構成される。
 余った部分は、NULL 文字で埋められる。
@@ -41,7 +41,7 @@ JSON には、以下の情報が記載されている。
 ■ ブロックヘッダ
 1 つのブロックは、
 
-\r\n!!__[MetaData:SecureCompressBlockHeader]__!!\r\n
+\r\n\r\n!!__[MetaData:SecureCompressBlockHeader]__!!\r\n
 
 という文字列に続き、JSON 文字列で構成される。
 JSON 文字列は、4000 bytes を超えてはならない。
@@ -141,7 +141,7 @@ JSON には、以下の情報が記載されている。
 ■ 末尾ヘッダ
 末尾には以下のヘッダを付ける。
 
-\r\n!!__[MetaData:SecureCompressFinalHeader]__!!\r\n
+\r\n\r\n!!__[MetaData:SecureCompressFinalHeader]__!!\r\n
 
 という文字列に続き、JSON 文字列で構成される。
 JSON 文字列は、4000 bytes を超えてはならない。
