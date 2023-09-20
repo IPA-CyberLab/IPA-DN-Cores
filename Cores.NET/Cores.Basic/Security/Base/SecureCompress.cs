@@ -148,7 +148,7 @@ public class SecureCompressOptions
     }
 }
 
-public class SecureCompressWriter : StreamImplBase
+public class SecureCompressEncoder : StreamImplBase
 {
     public bool AutoDispose { get; }
     public Stream DestStream { get; }
@@ -183,7 +183,7 @@ public class SecureCompressWriter : StreamImplBase
     HashCalc DestHash_Sha1 = new HashCalc(SHA1.Create());
     HashCalc DestHash_Md5 = new HashCalc(MD5.Create());
 
-    public SecureCompressWriter(Stream destStream, SecureCompressOptions options, long srcDataSizeHint = -1, bool autoDispose = false)
+    public SecureCompressEncoder(Stream destStream, SecureCompressOptions options, long srcDataSizeHint = -1, bool autoDispose = false)
         : base(new StreamImplBaseOptions(false, true, false))
     {
         try

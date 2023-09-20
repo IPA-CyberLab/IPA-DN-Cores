@@ -4366,7 +4366,7 @@ HOST: www.google.com
 
         await using var dstStream = dstFile.GetStream();
 
-        await using var secureWriter = new SecureCompressWriter(dstStream, opt, srcFile.Size, true);
+        await using var secureWriter = new SecureCompressEncoder(dstStream, opt, srcFile.Size, true);
 
         long sz = await srcStream.CopyBetweenStreamAsync(secureWriter);
     }
