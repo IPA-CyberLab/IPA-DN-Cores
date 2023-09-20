@@ -67,6 +67,7 @@ public static partial class Consts
 {
     public static partial class SecureCompress
     {
+        // Header Str はいずれも長さが同一でなければならない
         public const string SecureCompressFirstHeader_Str = "\r\n\r\n!!__[MetaData:SecureCompressFirstHeader]__!!\r\n";
         public static readonly ReadOnlyMemory<byte> SecureCompressFirstHeader_Data = SecureCompressFirstHeader_Str._GetBytes_Ascii();
 
@@ -94,7 +95,7 @@ public class SecureCompressFinalHeader
     public SecureCompressFirstHeader? CopyOfFirstHeader;
 }
 
-public class SecureCompressBlockHeader
+public class SecureCompressBlockHeader : IValidatable
 {
     public long ChunkIndex;
     public int DestDataSize;
@@ -103,6 +104,14 @@ public class SecureCompressBlockHeader
     public int SrcDataLength;
     public string SrcSha1 = "", SrcMd5 = "";
     public string DestSha1 = "", DestMd5 = "";
+
+    public void Validate()
+    {
+        if (DestDataSize < 0) throw new CoresLibException($"DestDataSize ({DestDataSize}) < 0");
+        if (DestDataSizeWithoutPadding < 0) throw new CoresLibException($"DestDataSizeWithoutPadding ({DestDataSizeWithoutPadding}) < 0");
+        if (SrcDataPosition < 0) throw new CoresLibException($"SrcDataPosition ({SrcDataPosition}) < 0");
+        if (SrcDataLength < 0) throw new CoresLibException($"SrcDataLength ({SrcDataLength}) < 0");
+    }
 }
 
 public class SecureCompressFirstHeader
@@ -148,12 +157,393 @@ public class SecureCompressOptions
     }
 }
 
-public class SecureCompressEncoder : StreamImplBase
+public class SecureCompressDecoder : StreamImplBase
 {
     public bool AutoDispose { get; }
     public Stream DestStream { get; }
 
-    readonly StreamBasedSequentialWritable DestWriter;
+    readonly StreamBasedSequentialWritable DestWritable;
+    readonly SequentialWritableBasedRandomAccess<byte> DestRandomWriter;
+
+    public override bool DataAvailable => throw new NotImplementedException();
+
+    public SecureCompressOptions Options { get; }
+
+    int CurrentSrcDataBufferMaxSize => Consts.SecureCompress.DataBlockSrcSize * Options.NumCpu * 2;
+    readonly FastStreamBuffer CurrentSrcDataBuffer;
+
+
+    Xts CurrentXts = null!;
+    XtsCryptoTransform CurrentDecrypter = null!;
+
+    HashCalc SrcHash_Sha1 = new HashCalc(SHA1.Create());
+    HashCalc SrcHash_Md5 = new HashCalc(MD5.Create());
+
+    HashCalc DestHash_Sha1 = new HashCalc(SHA1.Create());
+    HashCalc DestHash_Md5 = new HashCalc(MD5.Create());
+
+    Exception? LastException = null;
+
+    public SecureCompressDecoder(Stream destStream, SecureCompressOptions options, long srcDataSizeHint = -1, bool autoDispose = false)
+        : base(new StreamImplBaseOptions(false, true, false))
+    {
+        try
+        {
+            this.AutoDispose = autoDispose;
+            this.DestStream = destStream;
+            this.Options = options;
+
+            this.DestWritable = new StreamBasedSequentialWritable(this.DestStream, autoDispose);
+            this.DestRandomWriter = new SequentialWritableBasedRandomAccess<byte>(this.DestWritable, allowForwardSeek: true);
+
+            this.CurrentSrcDataBuffer = new FastStreamBuffer();
+        }
+        catch
+        {
+            this._DisposeSafeSync();
+            throw;
+        }
+    }
+
+    SecureCompressFirstHeader? FirstHeader = null;
+    SecureCompressFinalHeader? FinalHeader = null;
+
+    public class Chunk
+    {
+        public SecureCompressBlockHeader Header = null!;
+        public Memory<byte> SrcData;
+        public long SrcOffset;
+
+        public string? Warning;
+        public string? Error;
+    }
+
+    async Task ProcessAndSendBufferedDataAsync(CancellationToken cancel = default)
+    {
+        if (LastException != null)
+        {
+            throw LastException;
+        }
+
+        try
+        {
+            List<Chunk> chunkList = new List<Chunk>();
+
+            while (this.CurrentSrcDataBuffer.Length >= Consts.SecureCompress.BlockSize)
+            {
+                // 次の 1 ブロックのヘッダ部分の読み出しを実施する
+                var headerMemory = this.CurrentSrcDataBuffer.GetContiguous(this.CurrentSrcDataBuffer.PinHead, Consts.SecureCompress.BlockSize, false);
+
+                if (this.CurrentSrcDataBuffer.PinHead == 0)
+                {
+                    if (!(ParseHeader(headerMemory, this.CurrentSrcDataBuffer.PinHead) is SecureCompressFirstHeader))
+                    {
+                        // ファイルの先頭にヘッダが付いていない
+                        throw new CoresException($"This file has no SecureCompressFirstHeader at the beginning");
+                    }
+                }
+
+                try
+                {
+                    object? header = ParseHeader(headerMemory, this.CurrentSrcDataBuffer.PinHead);
+
+                    int forwardSize = Consts.SecureCompress.BlockSize;
+
+                    if (header != null)
+                    {
+                        if (header is SecureCompressFirstHeader firstHeader)
+                        {
+                            if (this.FirstHeader == null)
+                            {
+                                this.FirstHeader = firstHeader;
+                            }
+                            else
+                            {
+                                if (this.FirstHeader._ObjectToJson() != firstHeader._ObjectToJson())
+                                {
+                                    throw new CoresException($"Duplicate different FirstHeader. Previous = {this.FirstHeader._ObjectToJson(compact: true)}, This = {firstHeader._ObjectToJson(compact: true)}");
+                                }
+                            }
+                        }
+                        else if (header is SecureCompressBlockHeader blockHeader)
+                        {
+                            blockHeader.Validate();
+
+                            if (this.CurrentSrcDataBuffer.Length >= (Consts.SecureCompress.BlockSize + blockHeader.DestDataSize))
+                            {
+                                var srcData = this.CurrentSrcDataBuffer.GetContiguous(this.CurrentSrcDataBuffer.PinHead + Consts.SecureCompress.BlockSize, blockHeader.DestDataSize, false);
+
+                                forwardSize += srcData.Length;
+
+                                Chunk c = new Chunk
+                                {
+                                    Header = blockHeader,
+                                    SrcData = srcData.ToArray(),
+                                    SrcOffset = this.CurrentSrcDataBuffer.PinHead + Consts.SecureCompress.BlockSize,
+                                };
+
+                                chunkList.Add(c);
+                            }
+                        }
+                        else if (header is SecureCompressFinalHeader finalHeader)
+                        {
+                            this.FinalHeader = finalHeader;
+                        }
+                    }
+
+                    this.CurrentSrcDataBuffer.Dequeue(forwardSize, out _, true);
+                }
+                catch (Exception ex)
+                {
+                    $"Offset = {this.CurrentSrcDataBuffer.PinHead}. Error = {ex.ToString()}"._Error();
+
+                    this.CurrentSrcDataBuffer.Dequeue(Consts.SecureCompress.BlockSize, out _, true);
+                }
+            }
+
+            if (this.FirstHeader != null)
+            {
+                if (this.FirstHeader.Encrypted)
+                {
+                    if (this.CurrentXts != null)
+                    {
+                        if (Secure.VeritySaltedPassword(FirstHeader.SaltedPassword, this.Options.Password) == false)
+                        {
+                            throw new CoresException("Invalid decrypt password");
+                        }
+
+                        var masterKey = ChaChaPoly.EasyDecryptWithPassword(this.FirstHeader.MasterKeyEncryptedByPassword._GetHexBytes(), this.Options.Password);
+
+                        this.CurrentXts = XtsAes256.Create(masterKey.Value.ToArray());
+                        this.CurrentDecrypter = this.CurrentXts.CreateDecryptor();
+                    }
+                }
+            }
+
+            // 溜まったチャンクデータのデコード
+            await TaskUtil.ForEachAsync(int.MaxValue, chunkList, (chunk, index, cancel) =>
+            {
+                try
+                {
+                    var tmp1 = chunk.SrcData;
+
+                    // ハッシュ比較
+                    var md5 = Secure.HashMD5(tmp1.Span);
+                    if (md5._GetHexString()._CompareHex(chunk.Header.DestMd5) != 0)
+                    {
+                        chunk.Warning = $"DestMd5 is different. Header: {chunk.Header.DestMd5}, Real: {md5._GetHexString()}";
+                    }
+
+                    if (this.Options.Encrypt)
+                    {
+                        // 解読の実施
+                        var srcSeg = tmp1._AsSegment();
+
+                        Memory<byte> destMemory = new byte[tmp1.Length];
+
+                        var destSeg = destMemory._AsSegment();
+
+                        this.CurrentDecrypter.TransformBlock(srcSeg.Array!, srcSeg.Offset, srcSeg.Count, destSeg.Array!, destSeg.Offset, (ulong)chunk.Header.SrcDataPosition);
+
+                        tmp1 = destMemory;
+                    }
+
+                    if (chunk.Header.DestDataSizeWithoutPadding != tmp1.Length)
+                    {
+                        if (chunk.Header.DestDataSizeWithoutPadding > tmp1.Length)
+                        {
+                            // おかしな値
+                            throw new CoresException($"chunk.Header.DestDataSizeWithoutPadding ({chunk.Header.DestDataSizeWithoutPadding}) > tmp1.Length ({tmp1.Length})");
+                        }
+                        else if (chunk.Header.DestDataSizeWithoutPadding < 0)
+                        {
+                            // おかしな値
+                            throw new CoresException($"chunk.Header.DestDataSizeWithoutPadding ({chunk.Header.DestDataSizeWithoutPadding}) < 0");
+                        }
+                        else
+                        {
+                            // パディング解除
+                            tmp1 = tmp1.Slice(0, chunk.Header.DestDataSizeWithoutPadding);
+                        }
+                    }
+
+                    if (this.Options.Compress)
+                    {
+                        // 圧縮解除の実施
+                        tmp1 = DeflateUtil.EasyDecompress(tmp1, Consts.SecureCompress.DataBlockSrcSize);
+                    }
+
+                    // ハッシュ比較
+                    md5 = Secure.HashMD5(tmp1.Span);
+                    if (md5._GetHexString()._CompareHex(chunk.Header.SrcMd5) != 0)
+                    {
+                        chunk.Warning = $"SrcMd5 is different. Header: {chunk.Header.SrcMd5}, Real: {md5._GetHexString()}";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    chunk.Error = ex.Message;
+                }
+
+                return TR();
+            },
+            cancel);
+
+        }
+        catch (Exception ex)
+        {
+            this.LastException = ex;
+            throw;
+        }
+    }
+
+    static object? ParseHeader(ReadOnlyMemory<byte> data, long offsetHint)
+    {
+        try
+        {
+            if (data.Length != Consts.SecureCompress.BlockSize)
+            {
+                throw new CoresLibException($"Offset {offsetHint}: data.Length ({data.Length}) != Consts.SecureCompress.BlockSize ({Consts.SecureCompress.BlockSize})");
+            }
+
+            int headerStrSize = Consts.SecureCompress.SecureCompressFirstHeader_Data.Length;
+
+            var headOfData = data.Slice(0, headerStrSize);
+
+            data._Walk(headerStrSize);
+
+            if (headOfData._MemEquals(Consts.SecureCompress.SecureCompressFirstHeader_Data))
+            {
+                string jsonStr = data._GetString_UTF8(true);
+
+                return jsonStr._JsonToObject<SecureCompressFirstHeader>();
+            }
+            else if (headOfData._MemEquals(Consts.SecureCompress.SecureCompressBlockHeader_Data))
+            {
+                string jsonStr = data._GetString_UTF8(true);
+
+                return jsonStr._JsonToObject<SecureCompressBlockHeader>();
+            }
+            else if (headOfData._MemEquals(Consts.SecureCompress.SecureCompressFinalHeader_Data))
+            {
+                string jsonStr = data._GetString_UTF8(true);
+
+                return jsonStr._JsonToObject<SecureCompressFinalHeader>();
+            }
+        }
+        catch (Exception ex)
+        {
+            $"ParseHeader error: Offset {offsetHint}"._Error();
+            ex._Error();
+        }
+
+        return null;
+    }
+
+    protected override async ValueTask WriteImplAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancel = default)
+    {
+        if (buffer.IsEmpty)
+        {
+            return;
+        }
+
+        while (buffer.Length >= 1)
+        {
+            long remainBufSize = this.CurrentSrcDataBufferMaxSize - this.CurrentSrcDataBuffer.Length;
+
+            if (remainBufSize >= 1)
+            {
+                int sz = Math.Min(buffer.Length, (int)remainBufSize);
+
+                var part = buffer._WalkRead(sz);
+
+                this.CurrentSrcDataBuffer.Enqueue(part.ToArray());
+
+                this.SrcHash_Md5.Write(part);
+                this.SrcHash_Sha1.Write(part);
+            }
+
+            if (this.CurrentSrcDataBuffer.Length >= this.CurrentSrcDataBufferMaxSize)
+            {
+                await ProcessAndSendBufferedDataAsync(cancel);
+            }
+        }
+    }
+
+    protected override Task FlushImplAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.CompletedTask;
+    }
+
+    Once DisposeFlag;
+    public override async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (DisposeFlag.IsFirstCall() == false) return;
+            await DisposeInternalAsync();
+        }
+        finally
+        {
+            await base.DisposeAsync();
+        }
+    }
+    protected override void Dispose(bool disposing)
+    {
+        try
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            DisposeInternalAsync()._GetResult();
+        }
+        finally { base.Dispose(disposing); }
+    }
+    async Task DisposeInternalAsync()
+    {
+        if (this.AutoDispose)
+        {
+            await this.DestRandomWriter._DisposeSafeAsync();
+
+            await this.DestWritable._DisposeSafeAsync();
+
+            await this.DestStream._DisposeSafeAsync();
+        }
+    }
+
+    protected override long GetLengthImpl()
+    {
+        throw new NotImplementedException();
+    }
+
+    protected override void SetLengthImpl(long length)
+    {
+        throw new NotImplementedException();
+    }
+
+    protected override long GetPositionImpl()
+    {
+        throw new NotImplementedException();
+    }
+
+    protected override void SetPositionImpl(long position)
+    {
+        throw new NotImplementedException();
+    }
+
+    protected override long SeekImpl(long offset, SeekOrigin origin)
+    {
+        throw new NotImplementedException();
+    }
+
+    protected override ValueTask<int> ReadImplAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException();
+    }
+}
+
+public class SecureCompressEncoder : StreamImplBase
+{
+    public bool AutoDispose { get; }
+    public Stream DestStream { get; }
 
     public override bool DataAvailable => throw new NotImplementedException();
 
@@ -192,8 +582,6 @@ public class SecureCompressEncoder : StreamImplBase
             this.DestStream = destStream;
             this.Options = options;
 
-            this.DestWriter = new StreamBasedSequentialWritable(this.DestStream, autoDispose);
-
             CurrentMasterKey = Secure.Rand(XtsAesRandomAccess.XtsAesKeySize);
 
             FirstHeader = new SecureCompressFirstHeader
@@ -217,7 +605,7 @@ public class SecureCompressEncoder : StreamImplBase
                 this.CurrentEncrypter = this.CurrentXts.CreateEncryptor();
             }
 
-            this.CurrentSrcDataBuffer = new MemoryBuffer<byte>(EnsureSpecial.Yes, Consts.SecureCompress.DataBlockSrcSize * this.Options.NumCpu);
+            this.CurrentSrcDataBuffer = new MemoryBuffer<byte>(EnsureSpecial.Yes, CurrentSrcDataBufferMaxSize);
         }
         catch
         {
@@ -449,14 +837,14 @@ public class SecureCompressEncoder : StreamImplBase
         }
     }
 
-    public async Task<long> AppendToDestBufferAsync(ReadOnlyMemory<byte> data, CancellationToken cancel = default)
+    public async Task AppendToDestBufferAsync(ReadOnlyMemory<byte> data, CancellationToken cancel = default)
     {
         this.DestHash_Sha1.Write(data);
         this.DestHash_Md5.Write(data);
 
         CurrentFinalHeader.DestPhysicalSize += data.Length;
 
-        return await this.DestWriter.AppendAsync(data, cancel);
+        await this.DestStream.WriteAsync(data, cancel);
     }
 
     // 本クラスの呼び出し元が書き込み要求をしたときに、このメソッドが呼ばれる
@@ -567,8 +955,6 @@ public class SecureCompressEncoder : StreamImplBase
     async Task DisposeInternalAsync()
     {
         await this.FinalizeAsync();
-
-        await this.DestWriter._DisposeSafeAsync();
 
         if (this.AutoDispose)
         {

@@ -1049,6 +1049,117 @@ public class WriteOnlyStreamBasedRandomAccess : SequentialWritableBasedRandomAcc
     }
 }
 
+public class SequentialReadableBasedRandomAccess<T> : IRandomAccess<T>, IHasError
+{
+    public ISequentialReadable<T> BaseReadable { get; }
+
+    public AsyncLock SharedAsyncLock { get; set; } = new AsyncLock();
+
+    public Exception? LastError { get; private set; }
+
+    readonly Func<Task>? OnDispose = null;
+
+    bool IsNotFirst = false;
+    long StartVirtualPosition = 0;
+
+    public bool AllowForwardSeek { get; }
+
+    long CurrentLength = 0;
+
+    public SequentialReadableBasedRandomAccess(ISequentialReadable<T> baseReadable, Func<Task>? onDispose = null, bool allowForwardSeek = false)
+    {
+        this.BaseReadable = baseReadable;
+        this.OnDispose = onDispose;
+        this.AllowForwardSeek = allowForwardSeek;
+    }
+
+    public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
+    Once DisposeFlag;
+    public virtual async ValueTask DisposeAsync()
+    {
+        if (DisposeFlag.IsFirstCall() == false) return;
+        await DisposeInternalAsync();
+    }
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+        DisposeInternalAsync()._GetResult();
+    }
+    async Task DisposeInternalAsync()
+    {
+        if (this.OnDispose != null)
+        {
+            await this.OnDispose();
+        }
+    }
+
+    public async Task<int> ReadRandomAsync(long position, Memory<T> data, CancellationToken cancel = default)
+    {
+        if (IsNotFirst == false)
+        {
+            StartVirtualPosition = position;
+            IsNotFirst = true;
+        }
+
+        ((IHasError)this).ThrowIfError();
+
+        try
+        {
+            checked
+            {
+                // 内部 position に変換する
+                long internalPos = position - StartVirtualPosition;
+
+                // 場所が移動していないかどうか確認
+                if (CurrentLength != internalPos)
+                {
+                    if (this.AllowForwardSeek && (internalPos < CurrentLength))
+                    {
+                        long skipSize = CurrentLength - internalPos;
+
+                        long skippedSize = await BaseReadable.ReadForSkipAsync(skipSize, cancel);
+
+                        CurrentLength += skipSize;
+                    }
+                    else
+                    {
+                        throw new ArgumentOutOfRangeException(nameof(position), $"CurrentLength != internalPos. CurrentLength: {CurrentLength}, internalPos: {internalPos}, StartVirtualPosition: {StartVirtualPosition}, position: {position}");
+                    }
+                }
+
+                int ret = await BaseReadable.ReadAsync(data, cancel);
+
+                CurrentLength += data.Length;
+
+                return ret;
+            }
+        }
+        catch (Exception ex)
+        {
+            this.LastError = ex;
+            throw;
+        }
+    }
+
+    public Task WriteRandomAsync(long position, ReadOnlyMemory<T> data, CancellationToken cancel = default)
+        => throw new NotImplementedException();
+
+    public Task AppendAsync(ReadOnlyMemory<T> data, CancellationToken cancel = default)
+        => WriteRandomAsync(this.CurrentLength, data, cancel);
+
+    public Task<long> GetFileSizeAsync(bool refresh = false, CancellationToken cancel = default)
+        => throw new NotImplementedException();
+
+    public Task<long> GetPhysicalSizeAsync(CancellationToken cancel = default)
+        => throw new NotImplementedException();
+
+    public Task SetFileSizeAsync(long size, CancellationToken cancel = default)
+        => throw new NotImplementedException();
+
+    public Task FlushAsync(CancellationToken cancel = default)
+        => throw new NotImplementedException();
+}
+
 public class SequentialWritableBasedRandomAccess<T> : IRandomAccess<T>, IHasError
 {
     public ISequentialWritable<T> BaseWritable { get; }
@@ -1923,6 +2034,59 @@ public abstract class SequentialReadableImpl<T> : ISequentialReadable<T>
         {
             this.LastError = ex;
             throw;
+        }
+    }
+
+    public async Task<long> ReadForSkipAsync(long skipSize, int tmpBufferSize = Consts.Numbers.DefaultLargeBufferSize, CancellationToken cancel = default)
+    {
+        if (tmpBufferSize <= 0) tmpBufferSize = Consts.Numbers.DefaultLargeBufferSize;
+
+        if (skipSize < 0) throw new CoresLibException($"skipSize ({skipSize}) < 0");
+
+        if (this.LastError != null) throw this.LastError;
+
+        cancel.ThrowIfCancellationRequested();
+
+        if (IsEoF)
+        {
+            return 0;
+        }
+
+        if (skipSize == 0) return 0;
+
+        T[] tmpBuffer = ArrayPool<T>.Shared.Rent(tmpBufferSize);
+
+        var tmpBufferMemory = tmpBuffer.AsMemory();
+
+        long ret = 0;
+
+        try
+        {
+            while (skipSize >= 1)
+            {
+                int thisTimeBufferSize = (int)Math.Min(skipSize, tmpBufferSize);
+
+                int sz = await this.ReadAsync(tmpBufferMemory.Slice(0, thisTimeBufferSize), cancel);
+
+                if (sz <= 0)
+                {
+                    break;
+                }
+
+                ret += sz;
+                skipSize -= sz;
+            }
+
+            return ret;
+        }
+        catch (Exception ex)
+        {
+            this.LastError = ex;
+            throw;
+        }
+        finally
+        {
+            ArrayPool<T>.Shared.Return(tmpBuffer);
         }
     }
 }
