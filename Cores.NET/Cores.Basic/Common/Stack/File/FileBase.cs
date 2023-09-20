@@ -1117,7 +1117,7 @@ public class SequentialReadableBasedRandomAccess<T> : IRandomAccess<T>, IHasErro
                     {
                         long skipSize = CurrentLength - internalPos;
 
-                        long skippedSize = await BaseReadable.ReadForSkipAsync(skipSize, cancel);
+                        long skippedSize = await BaseReadable.ReadForSkipAsync((long)skipSize, Consts.Numbers.DefaultLargeBufferSize, cancel: cancel);
 
                         CurrentLength += skipSize;
                     }
@@ -1949,6 +1949,49 @@ public static class ISequentialReadableHelper
 {
     public static int Read<T>(this ISequentialReadable<T> me, Memory<T> data, CancellationToken cancel = default)
         => me.ReadAsync(data, cancel)._GetResult();
+
+    public static async Task<long> ReadForSkipAsync<T>(this ISequentialReadable<T> me, long skipSize, int tmpBufferSize = Consts.Numbers.DefaultLargeBufferSize, CancellationToken cancel = default)
+    {
+        if (tmpBufferSize <= 0) tmpBufferSize = Consts.Numbers.DefaultLargeBufferSize;
+
+        if (skipSize < 0) throw new CoresLibException($"skipSize ({skipSize}) < 0");
+
+        if (me.LastError != null) throw me.LastError;
+
+        cancel.ThrowIfCancellationRequested();
+
+        if (skipSize == 0) return 0;
+
+        T[] tmpBuffer = ArrayPool<T>.Shared.Rent(tmpBufferSize);
+
+        var tmpBufferMemory = tmpBuffer.AsMemory();
+
+        long ret = 0;
+
+        try
+        {
+            while (skipSize >= 1)
+            {
+                int thisTimeBufferSize = (int)Math.Min(skipSize, tmpBufferSize);
+
+                int sz = await me.ReadAsync(tmpBufferMemory.Slice(0, thisTimeBufferSize), cancel);
+
+                if (sz <= 0)
+                {
+                    break;
+                }
+
+                ret += sz;
+                skipSize -= sz;
+            }
+
+            return ret;
+        }
+        finally
+        {
+            ArrayPool<T>.Shared.Return(tmpBuffer);
+        }
+    }
 }
 
 // ISequentialReadable<T> を容易に実装するためのクラス
@@ -2034,59 +2077,6 @@ public abstract class SequentialReadableImpl<T> : ISequentialReadable<T>
         {
             this.LastError = ex;
             throw;
-        }
-    }
-
-    public async Task<long> ReadForSkipAsync(long skipSize, int tmpBufferSize = Consts.Numbers.DefaultLargeBufferSize, CancellationToken cancel = default)
-    {
-        if (tmpBufferSize <= 0) tmpBufferSize = Consts.Numbers.DefaultLargeBufferSize;
-
-        if (skipSize < 0) throw new CoresLibException($"skipSize ({skipSize}) < 0");
-
-        if (this.LastError != null) throw this.LastError;
-
-        cancel.ThrowIfCancellationRequested();
-
-        if (IsEoF)
-        {
-            return 0;
-        }
-
-        if (skipSize == 0) return 0;
-
-        T[] tmpBuffer = ArrayPool<T>.Shared.Rent(tmpBufferSize);
-
-        var tmpBufferMemory = tmpBuffer.AsMemory();
-
-        long ret = 0;
-
-        try
-        {
-            while (skipSize >= 1)
-            {
-                int thisTimeBufferSize = (int)Math.Min(skipSize, tmpBufferSize);
-
-                int sz = await this.ReadAsync(tmpBufferMemory.Slice(0, thisTimeBufferSize), cancel);
-
-                if (sz <= 0)
-                {
-                    break;
-                }
-
-                ret += sz;
-                skipSize -= sz;
-            }
-
-            return ret;
-        }
-        catch (Exception ex)
-        {
-            this.LastError = ex;
-            throw;
-        }
-        finally
-        {
-            ArrayPool<T>.Shared.Return(tmpBuffer);
         }
     }
 }
