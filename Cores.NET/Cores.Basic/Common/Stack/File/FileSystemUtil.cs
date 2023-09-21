@@ -471,7 +471,7 @@ public abstract partial class FileSystem
 
             T ret = parseProc(initialData);
 
-            await this.WriteDataToFileAsync(path, initialData, flags, false, cancel);
+            await this.WriteDataToFileAsync(path, initialData, flags | FileFlags.WriteOnlyIfChanged, false, cancel);
 
             return ret;
         }
@@ -487,7 +487,7 @@ public abstract partial class FileSystem
                 {
                     try
                     {
-                        await this.WriteDataToFileAsync(path, serializeProc(ret), flags, false, cancel);
+                        await this.WriteDataToFileAsync(path, serializeProc(ret), flags | FileFlags.WriteOnlyIfChanged, false, cancel);
                     }
                     catch { }
                 }
