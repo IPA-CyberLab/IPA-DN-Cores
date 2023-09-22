@@ -609,7 +609,9 @@ public static class BasicHelper
     //public static string _NormalizePath(this string str) => BasicFile.NormalizePath(str);
     //public static string _InnerFilePath(this string str) => BasicFile.InnerFilePath(str);
     //public static string _RemoteLastEnMark(this string str) => BasicFile.RemoteLastEnMark(str);
+    [return: NotNullIfNotNull("str")]
     public static string? _GetDirectoryName(this string? str) => Path.GetDirectoryName(str);
+    [return: NotNullIfNotNull("str")]
     public static string? _GetFileName(this string? str) => Path.GetFileName(str);
     public static bool _IsExtensionMatch(this string str, string extensionsList) => IPA.Cores.Basic.Legacy.IO.IsExtensionsMatch(str, extensionsList);
     public static bool _IsExtensionMatch(this string str, IEnumerable<string> extensionsList) => IPA.Cores.Basic.Legacy.IO.IsExtensionsMatch(str, extensionsList);

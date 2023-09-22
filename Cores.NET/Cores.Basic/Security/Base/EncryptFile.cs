@@ -299,6 +299,35 @@ namespace IPA.Cores.Basic
         }
     }
 
+    public static class XtsAes256Util
+    {
+        public static void Encrypt(Memory<byte> dest, ReadOnlyMemory<byte> src, ReadOnlyMemory<byte> key, ulong sectorNumber)
+        {
+            var xts = XtsAes256.Create(key.ToArray());
+
+            var encrypter = xts.CreateEncryptor();
+
+            var srcSeg = src._AsSegment();
+
+            var destSeg = dest._AsSegment();
+
+            encrypter.TransformBlock(srcSeg.Array!, srcSeg.Offset, srcSeg.Count, destSeg.Array!, destSeg.Offset, sectorNumber);
+        }
+
+        public static void Decrypt(Memory<byte> dest, ReadOnlyMemory<byte> src, ReadOnlyMemory<byte> key, ulong sectorNumber)
+        {
+            var xts = XtsAes256.Create(key.ToArray());
+
+            var encrypter = xts.CreateDecryptor();
+
+            var srcSeg = src._AsSegment();
+
+            var destSeg = dest._AsSegment();
+
+            encrypter.TransformBlock(srcSeg.Array!, srcSeg.Offset, srcSeg.Count, destSeg.Array!, destSeg.Offset, sectorNumber);
+        }
+    }
+
     namespace Internal
     {
         /// <summary>

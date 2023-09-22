@@ -1113,9 +1113,9 @@ public class SequentialReadableBasedRandomAccess<T> : IRandomAccess<T>, IHasErro
                 // 場所が移動していないかどうか確認
                 if (CurrentLength != internalPos)
                 {
-                    if (this.AllowForwardSeek && (internalPos < CurrentLength))
+                    if (this.AllowForwardSeek && (internalPos > CurrentLength))
                     {
-                        long skipSize = CurrentLength - internalPos;
+                        long skipSize = internalPos - CurrentLength;
 
                         long skippedSize = await BaseReadable.ReadForSkipAsync((long)skipSize, Consts.Numbers.DefaultLargeBufferSize, cancel: cancel);
 
@@ -1227,13 +1227,15 @@ public class SequentialWritableBasedRandomAccess<T> : IRandomAccess<T>, IHasErro
                 // 書き込み場所が移動していないかどうか確認
                 if (CurrentLength != internalPos)
                 {
-                    if (this.AllowForwardSeek && (internalPos < CurrentLength))
+                    if (this.AllowForwardSeek && (internalPos > CurrentLength))
                     {
-                        long zeroAppendSize = CurrentLength - internalPos;
+                        long zeroAppendSize = internalPos - CurrentLength;
 
                         await BaseWritable.AppendZeroAsync(zeroAppendSize, cancel);
 
                         CurrentLength += zeroAppendSize;
+
+                        //Dbg.Where($"zeroAppendSize = {zeroAppendSize}");
                     }
                     else
                     {

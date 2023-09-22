@@ -4356,19 +4356,64 @@ HOST: www.google.com
 
     static async Task Test230920()
     {
-        await using var srcFile = Lfs.Open(@"C:\tmp2\secure_compress_test\1_src\1_nishida.pdf");
+        string fn1 = @"C:\tmp2\secure_compress_test\1_src\1_nishida.pdf";
 
-        await using var srcStream = srcFile.GetStream();
+        string fn2 = @"C:\tmp2\secure_compress_test\2_dst\1_nishida.pdf";
 
-        SecureCompressOptions opt = new SecureCompressOptions(true, "abc", true);
+        string fn3 = @"C:\tmp2\secure_compress_test\3_restore\1_nishida.pdf";
+        
+        SecureCompressOptions opt = new SecureCompressOptions(fn1._GetFileName(), true, "abc", true);
 
-        await using var dstFile = Lfs.Create(@"C:\tmp2\secure_compress_test\2_dst\1_nishida.pdf", flags: FileFlags.AutoCreateDirectory);
+        if (true)
+        {
+            Con.WriteLine("Start encoding...");
+            await using var srcFile = Lfs.Open(fn1);
 
-        await using var dstStream = dstFile.GetStream();
+            await using var srcStream = srcFile.GetStream();
 
-        await using var secureWriter = new SecureCompressEncoder(dstStream, opt, srcFile.Size, true);
+            await using var dstFile = Lfs.Create(fn2, flags: FileFlags.AutoCreateDirectory);
 
-        long sz = await srcStream.CopyBetweenStreamAsync(secureWriter);
+            await using var dstStream = dstFile.GetStream();
+
+            await using var secureWriter = new SecureCompressEncoder(dstStream, opt, srcFile.Size, true);
+
+            long sz = await srcStream.CopyBetweenStreamAsync(secureWriter);
+
+            await secureWriter.FinalizeAsync();
+
+            Con.WriteLine("Done.");
+        }
+
+        opt = new SecureCompressOptions(fn1._GetFileName(), true, "abc", true);
+
+        if (true)
+        {
+            Con.WriteLine("Start decoding...");
+            await using var srcFile = Lfs.Open(fn2);
+
+            await using var srcStream = srcFile.GetStream();
+
+            await using var dstFile = Lfs.Create(fn3, flags: FileFlags.AutoCreateDirectory);
+
+            await using var dstStream = dstFile.GetStream();
+
+            await using var secureWriter = new SecureCompressDecoder(dstStream, opt, srcFile.Size, true);
+
+            long sz = await srcStream.CopyBetweenStreamAsync(secureWriter);
+
+            await secureWriter.FinalizeAsync();
+
+            Con.WriteLine("Done.");
+        }
+
+        if (true)
+        {
+            Con.WriteLine("Comparing...");
+            var srcFileData = Lfs.ReadDataFromFile(fn1);
+            var restoreFileData = Lfs.ReadDataFromFile(fn3);
+
+            $"Compare = {srcFileData.Span._MemEquals(restoreFileData.Span)}"._Print();
+        }
     }
 
     public static void Test_Generic()
