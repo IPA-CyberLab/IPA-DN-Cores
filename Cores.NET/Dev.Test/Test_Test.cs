@@ -4353,74 +4353,117 @@ HOST: www.google.com
             Console.WriteLine("Hello1");
         }
     }
-
-    static async Task Test230920()
+    
+    static async Task Test230922_SecureCompress_Test(string fn1, string fn2, string fn3, bool encrypt, bool compress, int numCpu1, int numCpu2)
     {
-        string fn1 = @"C:\tmp2\secure_compress_test\1_src\1_nishida.pdf";
-
-        string fn2 = @"C:\tmp2\secure_compress_test\2_dst\1_nishida.pdf";
-
-        string fn3 = @"C:\tmp2\secure_compress_test\3_restore\1_nishida.pdf";
-        
-        SecureCompressOptions opt = new SecureCompressOptions(fn1._GetFileName(), true, "abc", true);
+        SecureCompressOptions opt = new SecureCompressOptions(fn1._GetFileName(), encrypt, "abc", compress, numCpu1);
 
         if (true)
         {
-            Con.WriteLine("Start encoding...");
+            Con.WriteLine($"Start encoding {fn1}...");
             await using var srcFile = Lfs.Open(fn1);
 
             await using var srcStream = srcFile.GetStream();
 
-            await using var dstFile = Lfs.Create(fn2, flags: FileFlags.AutoCreateDirectory);
+            await using var dstFile = await Lfs.CreateAsync(fn2, flags: FileFlags.AutoCreateDirectory);
 
             await using var dstStream = dstFile.GetStream();
 
             await using var secureWriter = new SecureCompressEncoder(dstStream, opt, srcFile.Size, true);
 
-            long sz = await srcStream.CopyBetweenStreamAsync(secureWriter);
+            using ProgressReporter p = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, fileSizeStr: true, title: "Encoding " + fn1._GetFileName()._TruncStrEx(16)));
+            
+            long sz = await srcStream.CopyBetweenStreamAsync(secureWriter, reporter: p, estimatedSize: srcFile.Size);
 
             await secureWriter.FinalizeAsync();
 
             Con.WriteLine("Done.");
         }
 
-        opt = new SecureCompressOptions(fn1._GetFileName(), true, "abc", true);
+        opt = new SecureCompressOptions(fn1._GetFileName(), encrypt, "abc", compress, numCpu2);
 
         if (true)
         {
-            Con.WriteLine("Start decoding...");
+            Con.WriteLine($"Start decoding {fn2}...");
             await using var srcFile = Lfs.Open(fn2);
 
             await using var srcStream = srcFile.GetStream();
 
-            await using var dstFile = Lfs.Create(fn3, flags: FileFlags.AutoCreateDirectory);
+            await using var dstFile = await Lfs.CreateAsync(fn3, flags: FileFlags.AutoCreateDirectory);
 
             await using var dstStream = dstFile.GetStream();
 
             await using var secureWriter = new SecureCompressDecoder(dstStream, opt, srcFile.Size, true);
 
-            long sz = await srcStream.CopyBetweenStreamAsync(secureWriter);
+            using ProgressReporter p = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, fileSizeStr: true, title: "Decoding " + fn1._GetFileName()._TruncStrEx(16)));
+
+            long sz = await srcStream.CopyBetweenStreamAsync(secureWriter, reporter: p, estimatedSize: srcFile.Size);
 
             await secureWriter.FinalizeAsync();
 
             Con.WriteLine("Done.");
+
+            if (secureWriter.NumError != 0 || secureWriter.NumWarning != 0)
+            {
+                throw new CoresException($"Error!");
+            }
         }
 
         if (true)
         {
             Con.WriteLine("Comparing...");
-            var srcFileData = Lfs.ReadDataFromFile(fn1);
-            var restoreFileData = Lfs.ReadDataFromFile(fn3);
+            var srcHash = await Lfs.CalcFileHashAsync(fn1);
+            var restoredHash = await Lfs.CalcFileHashAsync(fn3);
 
-            $"Compare = {srcFileData.Span._MemEquals(restoreFileData.Span)}"._Print();
+            bool compared = srcHash._MemEquals(restoredHash);
+            $"Compare = {compared}"._Print();
+
+            if (compared == false)
+            {
+                throw new CoresException($"Error!");
+            }
         }
+    }
+
+    static async Task Test230920()
+    {
+        string fn1 = @"C:\TMP2\secure_compress_test\1_src\1_nishida.pdf";
+        string fn2 = @"C:\tmp2\secure_compress_test\2_dst\1_nishida.pdf";
+        string fn3 = @"C:\tmp2\secure_compress_test\3_restore\1_nishida.pdf";
+
+        await Test230922_SecureCompress_Test(fn1, fn2, fn3, true, true, -1, -1);
+    }
+
+    static async Task Test230922_SecureCompress_DirTest()
+    {
+        RefInt currentNumFiles = 0;
+
+        await Lfs.DirectoryWalker.WalkDirectoryAsync(@"C:\sec", async (dir, files, cancel) =>
+        {
+            foreach (var file in files.Where(x => x.IsFile))
+            {
+                string fn1 = file.FullPath;
+                string fn2 = @"c:\tmp2\secure_compress_test\tmp1.dat";
+                string fn3 = @"c:\tmp2\secure_compress_test\tmp2.dat";
+
+                int num = currentNumFiles.Increment();
+
+                $"--- Current num = {num}"._Print();
+
+                await Test230922_SecureCompress_Test(fn1, fn2, fn3, true, true, -1, -1);
+            }
+            return true;
+        });
     }
 
     public static void Test_Generic()
     {
         if (true)
         {
-            Test230920()._GetResult();
+            while (true)
+            {
+                Test230922_SecureCompress_DirTest()._GetResult();
+            }
             return;
         }
 

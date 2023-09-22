@@ -89,8 +89,8 @@ public class SecureCompressFinalHeader
     public long DestContentSize;
     public long DestPhysicalSize;
 
-    public string SrcSha1 = "", SrcMd5 = "";
-    public string DestSha1 = "", DestMd5 = "";
+    public string SrcSha1 = "";
+    public string DestSha1 = "";
 
     public SecureCompressFirstHeader? CopyOfFirstHeader;
 }
@@ -102,8 +102,8 @@ public class SecureCompressBlockHeader : IValidatable
     public int DestDataSizeWithoutPadding;
     public long SrcDataPosition;
     public int SrcDataLength;
-    public string SrcSha1 = "", SrcMd5 = "";
-    public string DestSha1 = "", DestMd5 = "";
+    public string SrcSha1 = "";
+    public string DestSha1 = "";
 
     public void Validate()
     {
@@ -136,7 +136,7 @@ public class SecureCompressOptions
     {
         if (encrypt == false && compress == false)
         {
-            throw new CoresLibException("encrypt == false && compress == false");
+            //throw new CoresLibException("encrypt == false && compress == false");
         }
 
         this.FileNameHint = fileNameHint;
@@ -178,7 +178,6 @@ public class SecureCompressDecoder : StreamImplBase
     ReadOnlyMemory<byte> MasterSecret;
 
     HashCalc DestHash_Sha1 = new HashCalc(SHA1.Create());
-    HashCalc DestHash_Md5 = new HashCalc(MD5.Create());
 
     Exception? LastException = null;
 
@@ -372,10 +371,10 @@ public class SecureCompressDecoder : StreamImplBase
                         var tmp1 = chunk.SrcData;
 
                         // ハッシュ比較
-                        var md5 = Secure.HashMD5(tmp1.Span);
-                        if (md5._GetHexString()._CompareHex(chunk.Header.DestMd5) != 0)
+                        var sha1 = Secure.HashSHA1(tmp1.Span);
+                        if (sha1._GetHexString()._CompareHex(chunk.Header.DestSha1) != 0)
                         {
-                            chunk.Warning = $"DestMd5 is different. Header: {chunk.Header.DestMd5}, Real: {md5._GetHexString()}";
+                            chunk.Warning = $"DestSha1 is different. Header: {chunk.Header.DestSha1}, Real: {sha1._GetHexString()}";
                         }
 
                         if (this.Options.Encrypt)
@@ -417,10 +416,10 @@ public class SecureCompressDecoder : StreamImplBase
                         }
 
                         // ハッシュ比較
-                        md5 = Secure.HashMD5(tmp1.Span);
-                        if (md5._GetHexString()._CompareHex(chunk.Header.SrcMd5) != 0)
+                        sha1 = Secure.HashSHA1(tmp1.Span);
+                        if (sha1._GetHexString()._CompareHex(chunk.Header.SrcSha1) != 0)
                         {
-                            chunk.Warning = $"SrcMd5 is different. Header: {chunk.Header.SrcMd5}, Real: {md5._GetHexString()}";
+                            chunk.Warning = $"SrcSha1 is different. Header: {chunk.Header.SrcSha1}, Real: {sha1._GetHexString()}";
                         }
 
                         chunk.DstData = tmp1;
@@ -462,7 +461,6 @@ public class SecureCompressDecoder : StreamImplBase
 
                         await this.DestRandomWriter.WriteRandomAsync(chunk.Header.SrcDataPosition, chunk.DstData, cancel);
 
-                        DestHash_Md5.Write(chunk.DstData);
                         DestHash_Sha1.Write(chunk.DstData);
                         //lastPos = chunk.Header.SrcDataPosition + chunk.DstData.Length;
                     }
@@ -570,9 +568,9 @@ public class SecureCompressDecoder : StreamImplBase
                 }
                 else
                 {
-                    if (this.FinalHeader.SrcMd5._CompareHex(this.DestHash_Md5.GetFinalHash()._GetHexString()) != 0)
+                    if (this.FinalHeader.SrcSha1._CompareHex(this.DestHash_Sha1.GetFinalHash()._GetHexString()) != 0)
                     {
-                        $"{this.Options.FileNameHint}: FinalHeader's SrcMd5 is different. Header: {this.FinalHeader.SrcMd5}, Real: {this.DestHash_Md5.GetFinalHash()._GetHexString()}"._Error();
+                        $"{this.Options.FileNameHint}: FinalHeader's SrcSha1 is different. Header: {this.FinalHeader.SrcSha1}, Real: {this.DestHash_Sha1.GetFinalHash()._GetHexString()}"._Error();
                         this.NumError++;
                     }
                 }
@@ -687,10 +685,8 @@ public class SecureCompressEncoder : StreamImplBase
     bool FirstWriteFlag = false;
 
     HashCalc SrcHash_Sha1 = new HashCalc(SHA1.Create());
-    HashCalc SrcHash_Md5 = new HashCalc(MD5.Create());
 
     HashCalc DestHash_Sha1 = new HashCalc(SHA1.Create());
-    HashCalc DestHash_Md5 = new HashCalc(MD5.Create());
 
     public SecureCompressEncoder(Stream destStream, SecureCompressOptions options, long srcDataSizeHint = -1, bool autoDispose = false)
         : base(new StreamImplBaseOptions(false, true, false))
@@ -770,8 +766,8 @@ public class SecureCompressEncoder : StreamImplBase
         public int DestWithoutPaddingSize;
         public Memory<byte> SrcData;
         public Memory<byte> DestData;
-        public string SrcSha1 = "", SrcMd5 = "";
-        public string DestSha1 = "", DestMd5 = "";
+        public string SrcSha1 = "";
+        public string DestSha1 = "";
     }
 
     Exception? LastException = null;
@@ -823,7 +819,6 @@ public class SecureCompressEncoder : StreamImplBase
                 }
 
                 chunk.SrcSha1 = Secure.HashSHA1(tmp.Span)._GetHexString();
-                chunk.SrcMd5 = Secure.HashMD5(tmp.Span)._GetHexString();
 
                 if (this.Options.Compress)
                 {
@@ -887,7 +882,6 @@ public class SecureCompressEncoder : StreamImplBase
                 chunk.DestData = tmp3;
 
                 chunk.DestSha1 = Secure.HashSHA1(tmp3.Span)._GetHexString();
-                chunk.DestMd5 = Secure.HashMD5(tmp3.Span)._GetHexString();
 
                 return TR();
             },
@@ -930,9 +924,7 @@ public class SecureCompressEncoder : StreamImplBase
                     SrcDataPosition = chunk.SrcPosition,
                     SrcDataLength = chunk.SrcData.Length,
                     SrcSha1 = chunk.SrcSha1,
-                    SrcMd5 = chunk.SrcMd5,
                     DestSha1 = chunk.DestSha1,
-                    DestMd5 = chunk.DestMd5,
                     ChunkIndex = CurrentNumChunks,
                 };
 
@@ -962,7 +954,6 @@ public class SecureCompressEncoder : StreamImplBase
     public async Task AppendToDestBufferAsync(ReadOnlyMemory<byte> data, CancellationToken cancel = default)
     {
         this.DestHash_Sha1.Write(data);
-        this.DestHash_Md5.Write(data);
 
         CurrentFinalHeader.DestPhysicalSize += data.Length;
 
@@ -991,7 +982,6 @@ public class SecureCompressEncoder : StreamImplBase
 
                 this.CurrentSrcDataBuffer.Write(part);
 
-                this.SrcHash_Md5.Write(part);
                 this.SrcHash_Sha1.Write(part);
             }
 
@@ -1028,10 +1018,8 @@ public class SecureCompressEncoder : StreamImplBase
                 h.CopyOfFirstHeader = this.FirstHeader;
 
                 h.SrcSha1 = this.SrcHash_Sha1.GetFinalHash()._GetHexString();
-                h.SrcMd5 = this.SrcHash_Md5.GetFinalHash()._GetHexString();
 
                 h.DestSha1 = this.DestHash_Sha1.GetFinalHash()._GetHexString();
-                h.DestMd5 = this.DestHash_Md5.GetFinalHash()._GetHexString();
 
                 var headerData = HeaderToData(Consts.SecureCompress.SecureCompressFinalHeader_Str, h);
 

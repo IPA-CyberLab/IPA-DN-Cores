@@ -38,6 +38,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Buffers;
 using System.Diagnostics;
+using System.Security.Cryptography;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -664,6 +665,25 @@ public abstract partial class FileSystem
         where T : notnull, new()
     {
         return new CsvWriter<T>(path, printToConsole, writeHeader, this, bufferSize, flags, encoding, writeBom);
+    }
+
+    public async Task<byte[]> CalcFileHashAsync(string path, HashAlgorithm? hash = null, FileFlags flags = FileFlags.None, long truncateSize = long.MaxValue,
+        int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? totalReadSize = null, CancellationToken cancel = default,
+        ProgressReporterBase? progressReporter = null, string? progressReporterAdditionalInfo = null, long progressReporterCurrentSizeOffset = 0, long? progressReporterTotalSizeHint = null,
+        bool progressReporterFinalize = true,
+        ThroughputMeasuse? measure = null)
+    {
+        if (hash == null)
+        {
+            hash = MD5.Create();
+        }
+
+        await using var file = await this.OpenAsync(path, flags: flags, cancel: cancel);
+
+        await using var stream = file.GetStream(true);
+
+        return await Secure.CalcStreamHashAsync(stream, hash, truncateSize, bufferSize, totalReadSize, cancel, progressReporter, progressReporterAdditionalInfo,
+            progressReporterCurrentSizeOffset, progressReporterTotalSizeHint, progressReporterFinalize, measure);
     }
 
     public async Task ReadTextLinesFromFileAsync(string path, Func<List<string>, long, long, bool> proc, Encoding? encoding = null, long startPosition = 0, FileFlags flags = FileFlags.None, int maxBytesPerLine = Consts.Numbers.DefaultMaxBytesPerLine, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, CancellationToken cancel = default)
