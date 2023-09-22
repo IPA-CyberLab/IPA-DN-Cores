@@ -136,7 +136,7 @@ public class SecureCompressOptions
     {
         if (encrypt == false && compress == false)
         {
-            //throw new CoresLibException("encrypt == false && compress == false");
+            throw new CoresLibException("encrypt == false && compress == false");
         }
 
         this.FileNameHint = fileNameHint;

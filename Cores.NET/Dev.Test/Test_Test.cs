@@ -4450,7 +4450,16 @@ HOST: www.google.com
 
                 $"--- Current num = {num}"._Print();
 
-                await Test230922_SecureCompress_Test(fn1, fn2, fn3, true, true, -1, -1);
+                A:
+                bool b1 = Secure.RandBool();
+                bool b2 = Secure.RandBool();
+
+                if (b1 == false || b2 == false)
+                {
+                    goto A;
+                }
+
+                await Test230922_SecureCompress_Test(fn1, fn2, fn3, b1, b2, Secure.RandSInt31() % (Env.NumCpus * 2), Secure.RandSInt31() % (Env.NumCpus * 2));
             }
             return true;
         });
