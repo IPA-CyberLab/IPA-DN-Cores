@@ -135,7 +135,7 @@ public class SecureCompressOptions
     {
         if (encrypt == false && compress == false)
         {
-            throw new CoresLibException("encrypt == false && compress == false");
+//            throw new CoresLibException("encrypt == false && compress == false");
         }
 
         this.Encrypt = encrypt;
@@ -213,6 +213,7 @@ public class SecureCompressDecoder : StreamImplBase
         public SecureCompressBlockHeader Header = null!;
         public Memory<byte> SrcData;
         public long SrcOffset;
+        public Memory<byte> DstData;
 
         public string? Warning;
         public string? Error;
@@ -227,7 +228,7 @@ public class SecureCompressDecoder : StreamImplBase
 
         try
         {
-            List<Chunk> chunkList = new List<Chunk>();
+            List<Chunk> currentChunkList = new List<Chunk>();
 
             while (this.CurrentSrcDataBuffer.Length >= Consts.SecureCompress.BlockSize)
             {
@@ -264,6 +265,27 @@ public class SecureCompressDecoder : StreamImplBase
                                     throw new CoresException($"Duplicate different FirstHeader. Previous = {this.FirstHeader._ObjectToJson(compact: true)}, This = {firstHeader._ObjectToJson(compact: true)}");
                                 }
                             }
+
+                            if (this.FirstHeader != null)
+                            {
+                                if (this.FirstHeader.Encrypted)
+                                {
+                                    if (this.CurrentXts == null)
+                                    {
+                                        if (Secure.VeritySaltedPassword(FirstHeader.SaltedPassword, this.Options.Password) == false)
+                                        {
+                                            throw new CoresException("Invalid decrypt password");
+                                        }
+
+                                        var masterKey = ChaChaPoly.EasyDecryptWithPassword(this.FirstHeader.MasterKeyEncryptedByPassword._GetHexBytes(), this.Options.Password);
+
+                                        //$"Master = {masterKey.Value._GetHexString()}"._Debug();
+
+                                        this.CurrentXts = XtsAes256.Create(masterKey.Value.ToArray());
+                                        this.CurrentDecrypter = this.CurrentXts.CreateDecryptor();
+                                    }
+                                }
+                            }
                         }
                         else if (header is SecureCompressBlockHeader blockHeader)
                         {
@@ -282,13 +304,26 @@ public class SecureCompressDecoder : StreamImplBase
                                     SrcOffset = this.CurrentSrcDataBuffer.PinHead + Consts.SecureCompress.BlockSize,
                                 };
 
-                                chunkList.Add(c);
+                                currentChunkList.Add(c);
+
+                                if (currentChunkList.Count >= this.Options.NumCpu)
+                                {
+                                    await DecodeAndProcessChunkListAsync(currentChunkList);
+                                }
                             }
                         }
                         else if (header is SecureCompressFinalHeader finalHeader)
                         {
                             this.FinalHeader = finalHeader;
                         }
+                        else
+                        {
+                            Dbg.Where();
+                        }
+                    }
+                    else
+                    {
+                        //Dbg.Where();
                     }
 
                     this.CurrentSrcDataBuffer.Dequeue(forwardSize, out _, true);
@@ -301,93 +336,115 @@ public class SecureCompressDecoder : StreamImplBase
                 }
             }
 
-            if (this.FirstHeader != null)
+            await DecodeAndProcessChunkListAsync(currentChunkList);
+
+            // 溜まったチャンクデータのデコードと書き込み処理
+            async Task DecodeAndProcessChunkListAsync(List<Chunk> chunkList)
             {
-                if (this.FirstHeader.Encrypted)
+                var copyOfList = chunkList.ToArray();
+
+                chunkList.Clear();
+
+                if (copyOfList.Length == 0)
                 {
-                    if (this.CurrentXts != null)
+                    return;
+                }
+
+                await TaskUtil.ForEachAsync(int.MaxValue, copyOfList, (chunk, index, cancel) =>
+                {
+                    try
                     {
-                        if (Secure.VeritySaltedPassword(FirstHeader.SaltedPassword, this.Options.Password) == false)
+                        var tmp1 = chunk.SrcData;
+
+                        // ハッシュ比較
+                        var md5 = Secure.HashMD5(tmp1.Span);
+                        if (md5._GetHexString()._CompareHex(chunk.Header.DestMd5) != 0)
                         {
-                            throw new CoresException("Invalid decrypt password");
+                            chunk.Warning = $"DestMd5 is different. Header: {chunk.Header.DestMd5}, Real: {md5._GetHexString()}";
                         }
 
-                        var masterKey = ChaChaPoly.EasyDecryptWithPassword(this.FirstHeader.MasterKeyEncryptedByPassword._GetHexBytes(), this.Options.Password);
+                        if (this.Options.Encrypt)
+                        {
+                            // 解読の実施
+                            var srcSeg = tmp1._AsSegment();
 
-                        this.CurrentXts = XtsAes256.Create(masterKey.Value.ToArray());
-                        this.CurrentDecrypter = this.CurrentXts.CreateDecryptor();
+                            Memory<byte> destMemory = new byte[tmp1.Length];
+
+                            var destSeg = destMemory._AsSegment();
+
+                            this.CurrentDecrypter.TransformBlock(srcSeg.Array!, srcSeg.Offset, srcSeg.Count, destSeg.Array!, destSeg.Offset, (ulong)chunk.Header.SrcDataPosition);
+
+                            chunk.Header.SrcDataPosition._Print();
+
+                            tmp1 = destMemory;
+                        }
+
+                        if (chunk.Header.DestDataSizeWithoutPadding != tmp1.Length)
+                        {
+                            if (chunk.Header.DestDataSizeWithoutPadding > tmp1.Length)
+                            {
+                                // おかしな値
+                                throw new CoresException($"chunk.Header.DestDataSizeWithoutPadding ({chunk.Header.DestDataSizeWithoutPadding}) > tmp1.Length ({tmp1.Length})");
+                            }
+                            else if (chunk.Header.DestDataSizeWithoutPadding < 0)
+                            {
+                                // おかしな値
+                                throw new CoresException($"chunk.Header.DestDataSizeWithoutPadding ({chunk.Header.DestDataSizeWithoutPadding}) < 0");
+                            }
+                            else
+                            {
+                                // パディング解除
+                                tmp1 = tmp1.Slice(0, chunk.Header.DestDataSizeWithoutPadding);
+                            }
+                        }
+
+                        if (this.Options.Compress)
+                        {
+                            //tmp1.Span[Secure.RandSInt31() % tmp1.Length] = Secure.RandUInt8();
+                            // 圧縮解除の実施
+                            tmp1 = DeflateUtil.EasyDecompress(tmp1, Consts.SecureCompress.DataBlockSrcSize);
+                        }
+
+                        // ハッシュ比較
+                        md5 = Secure.HashMD5(tmp1.Span);
+                        if (md5._GetHexString()._CompareHex(chunk.Header.SrcMd5) != 0)
+                        {
+                            chunk.Warning = $"SrcMd5 is different. Header: {chunk.Header.SrcMd5}, Real: {md5._GetHexString()}";
+                        }
+
+                        chunk.DstData = tmp1;
+
+                        // メモリ節約のためソースデータを解放
+                        chunk.SrcData = Memory<byte>.Empty;
+                    }
+                    catch (Exception ex)
+                    {
+                        chunk.Error = ex.Message;
+                    }
+
+                    return TR();
+                },
+                cancel);
+
+                // 結果を書き込み
+                foreach (var chunk in copyOfList)
+                {
+                    if (chunk.Warning._IsFilled())
+                    {
+                        $"Offset: {chunk.SrcOffset} Warning: {chunk.Warning}"._Error();
+                    }
+
+                    if (chunk.Error._IsFilled())
+                    {
+                        $"Offset: {chunk.SrcOffset} Error: {chunk.Error}"._Error();
+                        await this.DestRandomWriter.WriteRandomAsync(chunk.Header.SrcDataPosition, Util.GetZeroedSharedBuffer<byte>(chunk.Header.SrcDataLength), cancel);
+                    }
+                    else
+                    {
+                        await this.DestRandomWriter.WriteRandomAsync(chunk.Header.SrcDataPosition, chunk.DstData, cancel);
                     }
                 }
             }
-
-            // 溜まったチャンクデータのデコード
-            await TaskUtil.ForEachAsync(int.MaxValue, chunkList, (chunk, index, cancel) =>
-            {
-                try
-                {
-                    var tmp1 = chunk.SrcData;
-
-                    // ハッシュ比較
-                    var md5 = Secure.HashMD5(tmp1.Span);
-                    if (md5._GetHexString()._CompareHex(chunk.Header.DestMd5) != 0)
-                    {
-                        chunk.Warning = $"DestMd5 is different. Header: {chunk.Header.DestMd5}, Real: {md5._GetHexString()}";
-                    }
-
-                    if (this.Options.Encrypt)
-                    {
-                        // 解読の実施
-                        var srcSeg = tmp1._AsSegment();
-
-                        Memory<byte> destMemory = new byte[tmp1.Length];
-
-                        var destSeg = destMemory._AsSegment();
-
-                        this.CurrentDecrypter.TransformBlock(srcSeg.Array!, srcSeg.Offset, srcSeg.Count, destSeg.Array!, destSeg.Offset, (ulong)chunk.Header.SrcDataPosition);
-
-                        tmp1 = destMemory;
-                    }
-
-                    if (chunk.Header.DestDataSizeWithoutPadding != tmp1.Length)
-                    {
-                        if (chunk.Header.DestDataSizeWithoutPadding > tmp1.Length)
-                        {
-                            // おかしな値
-                            throw new CoresException($"chunk.Header.DestDataSizeWithoutPadding ({chunk.Header.DestDataSizeWithoutPadding}) > tmp1.Length ({tmp1.Length})");
-                        }
-                        else if (chunk.Header.DestDataSizeWithoutPadding < 0)
-                        {
-                            // おかしな値
-                            throw new CoresException($"chunk.Header.DestDataSizeWithoutPadding ({chunk.Header.DestDataSizeWithoutPadding}) < 0");
-                        }
-                        else
-                        {
-                            // パディング解除
-                            tmp1 = tmp1.Slice(0, chunk.Header.DestDataSizeWithoutPadding);
-                        }
-                    }
-
-                    if (this.Options.Compress)
-                    {
-                        // 圧縮解除の実施
-                        tmp1 = DeflateUtil.EasyDecompress(tmp1, Consts.SecureCompress.DataBlockSrcSize);
-                    }
-
-                    // ハッシュ比較
-                    md5 = Secure.HashMD5(tmp1.Span);
-                    if (md5._GetHexString()._CompareHex(chunk.Header.SrcMd5) != 0)
-                    {
-                        chunk.Warning = $"SrcMd5 is different. Header: {chunk.Header.SrcMd5}, Real: {md5._GetHexString()}";
-                    }
-                }
-                catch (Exception ex)
-                {
-                    chunk.Error = ex.Message;
-                }
-
-                return TR();
-            },
-            cancel);
 
         }
         catch (Exception ex)
@@ -470,6 +527,30 @@ public class SecureCompressDecoder : StreamImplBase
         }
     }
 
+    Once FinalizedFlag;
+
+    public async Task FinalizeAsync(CancellationToken cancel = default)
+    {
+        if (LastException != null)
+        {
+            throw LastException;
+        }
+
+        try
+        {
+            if (FinalizedFlag.IsFirstCall())
+            {
+                // 必ず 1 回は呼び出す
+                await ProcessAndSendBufferedDataAsync(cancel);
+            }
+        }
+        catch (Exception ex)
+        {
+            this.LastException = ex;
+            throw;
+        }
+    }
+
     protected override Task FlushImplAsync(CancellationToken cancellationToken = default)
     {
         return Task.CompletedTask;
@@ -499,6 +580,8 @@ public class SecureCompressDecoder : StreamImplBase
     }
     async Task DisposeInternalAsync()
     {
+        await FinalizeAsync();
+
         if (this.AutoDispose)
         {
             await this.DestRandomWriter._DisposeSafeAsync();
@@ -584,6 +667,8 @@ public class SecureCompressEncoder : StreamImplBase
 
             CurrentMasterKey = Secure.Rand(XtsAesRandomAccess.XtsAesKeySize);
 
+            //$"Master = {this.CurrentMasterKey._GetHexString()}"._Debug();
+
             FirstHeader = new SecureCompressFirstHeader
             {
                 Version = 1,
@@ -591,6 +676,7 @@ public class SecureCompressEncoder : StreamImplBase
                 Compressed = this.Options.Compress,
                 SrcDataSizeHint = srcDataSizeHint,
                 SaltedPassword = Secure.SaltPassword(options.Password),
+
                 MasterKeyEncryptedByPassword = ChaChaPoly.EasyEncryptWithPassword(this.CurrentMasterKey, this.Options.Password)._GetHexString(),
             };
 
@@ -753,11 +839,15 @@ public class SecureCompressEncoder : StreamImplBase
                     // 暗号化の実施
                     var srcSeg = tmp3._AsSegment();
 
+                    //"Hello"._GetBytes_Ascii().CopyTo(tmp3);
+
                     Memory<byte> destMemory = new byte[tmp3.Length];
 
                     var destSeg = destMemory._AsSegment();
 
                     this.CurrentEncrypter.TransformBlock(srcSeg.Array!, srcSeg.Offset, srcSeg.Count, destSeg.Array!, destSeg.Offset, (ulong)chunk.SrcPosition);
+
+                    //chunk.SrcPosition._Print();
 
                     tmp3 = destMemory;
                 }
@@ -787,7 +877,7 @@ public class SecureCompressEncoder : StreamImplBase
 
             if (FirstWriteFlag == false)
             {
-                // 1 個目なのでファイル全体のヘッダを書き込み
+                // 1 個目なのでファイル全体のヘッダ (FirstHeader) を書き込み
                 var headerData = HeaderToData(Consts.SecureCompress.SecureCompressFirstHeader_Str, this.FirstHeader);
 
                 // ヘッダは、万一の破損に備えて 2 回書く
