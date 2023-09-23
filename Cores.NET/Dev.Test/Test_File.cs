@@ -104,7 +104,7 @@ partial class TestDevCommands
 
     [ConsoleCommand(
         "SecureCompressBackup command",
-        "SecureCompressBackup [src] /dst:dst [/password:password] [/numthreads:num]",
+        "SecureCompressBackup [src] /dst:dst [/password:password] [/truncate:size] [/numthreads:num]",
         "SecureCompressBackup command")]
     static async Task<int> SecureCompressBackup(ConsoleService c, string cmdName, string str)
     {
@@ -114,6 +114,7 @@ partial class TestDevCommands
                 new ConsoleParam("dst", ConsoleService.Prompt, "Destination directory path: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("password"),
                 new ConsoleParam("numthreads"),
+                new ConsoleParam("truncate"),
             };
 
         ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
@@ -122,6 +123,12 @@ partial class TestDevCommands
         string dst = vl["dst"].StrValue;
         string password = vl["password"].StrValue;
         string numthreads = vl["numthreads"].StrValue;
+        string truncate = vl["truncate"].StrValue;
+
+        if (truncate._IsEmpty())
+        {
+            truncate = "-1";
+        }
 
         bool err = false;
 
@@ -137,7 +144,7 @@ partial class TestDevCommands
         await SecureCompressUtil.BackupFileAsync(
             new FilePath(src, Lfs, FileFlags.NoCheckFileSize),
             new FilePath(dst, Lfs, FileFlags.NoCheckFileSize | FileFlags.AutoCreateDirectory | FileFlags.SparseFile),
-            new SecureCompressOptions(src._GetFileName(), password._IsFilled(), password, true, CompressionLevel.SmallestSize, numthreads._ToInt()), true);
+            new SecureCompressOptions(src._GetFileName(), password._IsFilled(), password, true, CompressionLevel.SmallestSize, numthreads._ToInt()), truncate._ToLong(), true);
 
         return 0;
     }

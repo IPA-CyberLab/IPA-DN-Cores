@@ -90,7 +90,7 @@ public class SecureCompressUtilRet
 
 public static class SecureCompressUtil
 {
-    public static async Task BackupFileAsync(FilePath srcFilePath, FilePath destFilePath, SecureCompressOptions options, bool writeProgressToConsole = false, CancellationToken cancel = default)
+    public static async Task BackupFileAsync(FilePath srcFilePath, FilePath destFilePath, SecureCompressOptions options, long truncate = -1, bool writeProgressToConsole = false, CancellationToken cancel = default)
     {
         await using var srcFile = await srcFilePath.OpenAsync(cancel: cancel);
 
@@ -100,18 +100,25 @@ public static class SecureCompressUtil
 
         await using var dstStream = dstFile.GetStream();
 
-        await using var secureWriter = new SecureCompressEncoder(dstStream, options, srcFile.Size, true);
+        long sizeHint = srcFile.Size;
+
+        if (truncate >= 0)
+        {
+            sizeHint = Math.Min(truncate, sizeHint);
+        }
+
+        await using var secureWriter = new SecureCompressEncoder(dstStream, options, sizeHint, true);
 
         ProgressReporter? progress = null;
 
         if (writeProgressToConsole)
         {
-            progress = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, fileSizeStr: true, title: "Encoding " + srcFilePath.GetFileName()._TruncStrEx(16)));
+            progress = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, fileSizeStr: true, title: "SecureCompress Backup " + srcFilePath.GetFileName()._TruncStrEx(16)));
         }
 
         using IDisposable progDisp = progress._EmptyDisposableIfNull();
 
-        long sz = await srcStream.CopyBetweenStreamAsync(secureWriter, reporter: progress, estimatedSize: srcFile.Size);
+        long sz = await srcStream.CopyBetweenStreamAsync(secureWriter, reporter: progress, estimatedSize: srcFile.Size, truncateSize: truncate);
 
         await secureWriter.FinalizeAsync();
     }
@@ -132,7 +139,7 @@ public static class SecureCompressUtil
 
         if (writeProgressToConsole)
         {
-            progress = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, fileSizeStr: true, title: "Decoding " + srcFilePath.GetFileName()._TruncStrEx(16)));
+            progress = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, fileSizeStr: true, title: "SecureCompress Restore " + srcFilePath.GetFileName()._TruncStrEx(16)));
         }
 
         using IDisposable progDisp = progress._EmptyDisposableIfNull();
