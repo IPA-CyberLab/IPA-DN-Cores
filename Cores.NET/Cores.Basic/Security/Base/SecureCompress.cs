@@ -104,6 +104,8 @@ public class SecureCompressBlockHeader : IValidatable
     public int SrcDataLength;
     public string SrcSha1 = "";
     public string DestSha1 = "";
+    public bool IsAllZero;
+    public bool IsEoF;
 
     public void Validate()
     {
@@ -124,6 +126,12 @@ public class SecureCompressFirstHeader
     public long SrcDataSizeHint;
 }
 
+[Flags]
+public enum SecureCompressFlags
+{
+    None = 0,
+}
+
 public class SecureCompressOptions
 {
     public string FileNameHint { get; }
@@ -132,8 +140,9 @@ public class SecureCompressOptions
     public string Password { get; }
     public CompressionLevel CompressionLevel { get; }
     public int NumCpu { get; }
+    public SecureCompressFlags Flags { get; }
 
-    public SecureCompressOptions(string fileNameHint, bool encrypt, string password, bool compress, CompressionLevel compressionLevel, int numCpu = -1)
+    public SecureCompressOptions(string fileNameHint, bool encrypt, string password, bool compress, CompressionLevel compressionLevel, int numCpu = -1, SecureCompressFlags flags = SecureCompressFlags.None)
     {
         if (encrypt == false && compress == false)
         {
@@ -165,6 +174,8 @@ public class SecureCompressOptions
         this.NumCpu = numCpu;
 
         this.CompressionLevel = compressionLevel;
+
+        this.Flags = flags;
     }
 }
 
@@ -221,7 +232,7 @@ public class SecureCompressDecoder : StreamImplBase
         public SecureCompressBlockHeader Header = null!;
         public Memory<byte> SrcData;
         public long SrcOffset;
-        public Memory<byte> DstData;
+        public ReadOnlyMemory<byte> DstData;
 
         public string? Warning;
         public string? Error;
@@ -299,7 +310,9 @@ public class SecureCompressDecoder : StreamImplBase
 
                             if (this.CurrentSrcDataBuffer.Length >= (Consts.SecureCompress.BlockSize + blockHeader.DestDataSize))
                             {
-                                var srcData = this.CurrentSrcDataBuffer.GetContiguous(this.CurrentSrcDataBuffer.PinHead + Consts.SecureCompress.BlockSize, blockHeader.DestDataSize, false);
+                                ReadOnlyMemory<byte> srcData = Memory<byte>.Empty;
+
+                                srcData = this.CurrentSrcDataBuffer.GetContiguous(this.CurrentSrcDataBuffer.PinHead + Consts.SecureCompress.BlockSize, blockHeader.DestDataSize, false);
 
                                 forwardSize += srcData.Length;
 
@@ -376,58 +389,73 @@ public class SecureCompressDecoder : StreamImplBase
                 {
                     try
                     {
-                        var tmp1 = chunk.SrcData;
+                        var tmp1 = chunk.SrcData._AsReadOnlyMemory();
+
+                        byte[] sha1;
+
+                        if (chunk.Header.IsEoF)
+                        {
+                        }
+                        else if (chunk.Header.IsAllZero)
+                        {
+                            tmp1 = Util.GetZeroedSharedBuffer<byte>(chunk.Header.SrcDataLength);
+                        }
+                        else
+                        {
+                            // ハッシュ比較
+                            sha1 = Secure.HashSHA1(tmp1.Span);
+                            if (sha1._GetHexString()._CompareHex(chunk.Header.DestSha1) != 0)
+                            {
+                                chunk.Warning = $"DestSha1 is different. Header: {chunk.Header.DestSha1}, Real: {sha1._GetHexString()}";
+                            }
+
+                            if (this.Options.Encrypt)
+                            {
+                                // 解読の実施
+                                Memory<byte> destMemory = new byte[tmp1.Length];
+
+                                XtsAes256Util.Decrypt(destMemory, tmp1, this.MasterSecret, (ulong)chunk.Header.SrcDataPosition);
+
+                                //chunk.Header.SrcDataPosition._Print();
+
+                                tmp1 = destMemory;
+                            }
+
+                            if (chunk.Header.DestDataSizeWithoutPadding != tmp1.Length)
+                            {
+                                if (chunk.Header.DestDataSizeWithoutPadding > tmp1.Length)
+                                {
+                                    // おかしな値
+                                    throw new CoresException($"chunk.Header.DestDataSizeWithoutPadding ({chunk.Header.DestDataSizeWithoutPadding}) > tmp1.Length ({tmp1.Length})");
+                                }
+                                else if (chunk.Header.DestDataSizeWithoutPadding < 0)
+                                {
+                                    // おかしな値
+                                    throw new CoresException($"chunk.Header.DestDataSizeWithoutPadding ({chunk.Header.DestDataSizeWithoutPadding}) < 0");
+                                }
+                                else
+                                {
+                                    // パディング解除
+                                    tmp1 = tmp1.Slice(0, chunk.Header.DestDataSizeWithoutPadding);
+                                }
+                            }
+
+                            if (this.Options.Compress)
+                            {
+                                //tmp1.Span[Secure.RandSInt31() % tmp1.Length] = Secure.RandUInt8();
+                                // 圧縮解除の実施
+                                tmp1 = DeflateUtil.EasyDecompress(tmp1, Consts.SecureCompress.DataBlockSrcSize);
+                            }
+                        }
 
                         // ハッシュ比較
-                        var sha1 = Secure.HashSHA1(tmp1.Span);
-                        if (sha1._GetHexString()._CompareHex(chunk.Header.DestSha1) != 0)
+                        if (chunk.Header.IsEoF == false)
                         {
-                            chunk.Warning = $"DestSha1 is different. Header: {chunk.Header.DestSha1}, Real: {sha1._GetHexString()}";
-                        }
-
-                        if (this.Options.Encrypt)
-                        {
-                            // 解読の実施
-                            Memory<byte> destMemory = new byte[tmp1.Length];
-
-                            XtsAes256Util.Decrypt(destMemory, tmp1, this.MasterSecret, (ulong)chunk.Header.SrcDataPosition);
-
-                            //chunk.Header.SrcDataPosition._Print();
-
-                            tmp1 = destMemory;
-                        }
-
-                        if (chunk.Header.DestDataSizeWithoutPadding != tmp1.Length)
-                        {
-                            if (chunk.Header.DestDataSizeWithoutPadding > tmp1.Length)
+                            sha1 = Secure.HashSHA1(tmp1.Span);
+                            if (sha1._GetHexString()._CompareHex(chunk.Header.SrcSha1) != 0)
                             {
-                                // おかしな値
-                                throw new CoresException($"chunk.Header.DestDataSizeWithoutPadding ({chunk.Header.DestDataSizeWithoutPadding}) > tmp1.Length ({tmp1.Length})");
+                                chunk.Warning = $"SrcSha1 is different. Header: {chunk.Header.SrcSha1}, Real: {sha1._GetHexString()}";
                             }
-                            else if (chunk.Header.DestDataSizeWithoutPadding < 0)
-                            {
-                                // おかしな値
-                                throw new CoresException($"chunk.Header.DestDataSizeWithoutPadding ({chunk.Header.DestDataSizeWithoutPadding}) < 0");
-                            }
-                            else
-                            {
-                                // パディング解除
-                                tmp1 = tmp1.Slice(0, chunk.Header.DestDataSizeWithoutPadding);
-                            }
-                        }
-
-                        if (this.Options.Compress)
-                        {
-                            //tmp1.Span[Secure.RandSInt31() % tmp1.Length] = Secure.RandUInt8();
-                            // 圧縮解除の実施
-                            tmp1 = DeflateUtil.EasyDecompress(tmp1, Consts.SecureCompress.DataBlockSrcSize);
-                        }
-
-                        // ハッシュ比較
-                        sha1 = Secure.HashSHA1(tmp1.Span);
-                        if (sha1._GetHexString()._CompareHex(chunk.Header.SrcSha1) != 0)
-                        {
-                            chunk.Warning = $"SrcSha1 is different. Header: {chunk.Header.SrcSha1}, Real: {sha1._GetHexString()}";
                         }
 
                         chunk.DstData = tmp1;
@@ -467,10 +495,19 @@ public class SecureCompressDecoder : StreamImplBase
 
                         //$"pos = {chunk.Header.SrcDataPosition}, diff = {diff}"._Print();
 
-                        await this.DestRandomWriter.WriteRandomAsync(chunk.Header.SrcDataPosition, chunk.DstData, cancel);
+                        this.DestRandomWriter.HashCalcForWrite = DestHash_Sha1;
 
-                        DestHash_Sha1.Write(chunk.DstData);
-                        //lastPos = chunk.Header.SrcDataPosition + chunk.DstData.Length;
+                        if (chunk.Header.IsEoF == false)
+                        {
+                            await this.DestRandomWriter.WriteRandomAsync(chunk.Header.SrcDataPosition, chunk.DstData, cancel);
+
+                            //DestHash_Sha1.Write(chunk.DstData);
+                            //lastPos = chunk.Header.SrcDataPosition + chunk.DstData.Length;
+                        }
+                        else
+                        {
+                            await this.DestRandomWriter.WriteRandomAsync(chunk.Header.SrcDataPosition, ReadOnlyMemory<byte>.Empty, cancel);
+                        }
                     }
                 }
             }
@@ -776,9 +813,12 @@ public class SecureCompressEncoder : StreamImplBase
         public Memory<byte> DestData;
         public string SrcSha1 = "";
         public string DestSha1 = "";
+        public bool IsAllZero;
     }
 
     Exception? LastException = null;
+
+    bool IsLastChunkAllZero = false;
 
     // メモリ上の CurrentSrcDataBuffer の内容 (これは、1MB * CPU 数のサイズが上限なはずである) を出力ストリームに書き出す
     async Task ProcessAndSendBufferedDataAsync(CancellationToken cancel = default)
@@ -828,68 +868,77 @@ public class SecureCompressEncoder : StreamImplBase
 
                 chunk.SrcSha1 = Secure.HashSHA1(tmp.Span)._GetHexString();
 
-                if (this.Options.Compress)
+                if (Util.IsZeroFast(tmp) == false)
                 {
-                    // 圧縮の実施
-                    tmp = DeflateUtil.EasyCompressRetMemoryFast(tmp.Span, this.Options.CompressionLevel);
-                }
-
-                lock (CurrentFinalHeader)
-                {
-                    CurrentFinalHeader.DestContentSize += tmp.Length;
-                }
-
-                chunk.DestWithoutPaddingSize = tmp.Length;
-
-                int paddingSize = 0;
-
-                // パディングの実施 (4096 の倍数でない場合)
-                if ((tmp.Length % Consts.SecureCompress.BlockSize) != 0)
-                {
-                    paddingSize = Consts.SecureCompress.BlockSize - (tmp.Length % Consts.SecureCompress.BlockSize);
-                }
-
-                int paddedTotalSize = tmp.Length + paddingSize;
-
-                MemoryBuffer<byte> tmp2 = new MemoryBuffer<byte>(EnsureSpecial.Yes, paddedTotalSize);
-                tmp2.Write(tmp);
-
-                if (paddingSize >= 1)
-                {
-                    if (this.Options.Encrypt == false)
+                    if (this.Options.Compress)
                     {
-                        tmp2.Write(Util.GetZeroedSharedBuffer<byte>(paddingSize));
+                        // 圧縮の実施
+                        tmp = DeflateUtil.EasyCompressRetMemoryFast(tmp.Span, this.Options.CompressionLevel);
                     }
-                    else
+
+                    lock (CurrentFinalHeader)
                     {
-                        tmp2.Write(Secure.Rand(paddingSize));
+                        CurrentFinalHeader.DestContentSize += tmp.Length;
                     }
+
+                    chunk.DestWithoutPaddingSize = tmp.Length;
+
+                    int paddingSize = 0;
+
+                    // パディングの実施 (4096 の倍数でない場合)
+                    if ((tmp.Length % Consts.SecureCompress.BlockSize) != 0)
+                    {
+                        paddingSize = Consts.SecureCompress.BlockSize - (tmp.Length % Consts.SecureCompress.BlockSize);
+                    }
+
+                    int paddedTotalSize = tmp.Length + paddingSize;
+
+                    MemoryBuffer<byte> tmp2 = new MemoryBuffer<byte>(EnsureSpecial.Yes, paddedTotalSize);
+                    tmp2.Write(tmp);
+
+                    if (paddingSize >= 1)
+                    {
+                        if (this.Options.Encrypt == false)
+                        {
+                            tmp2.Write(Util.GetZeroedSharedBuffer<byte>(paddingSize));
+                        }
+                        else
+                        {
+                            tmp2.Write(Secure.Rand(paddingSize));
+                        }
+                    }
+
+                    Memory<byte> tmp3 = tmp2.Memory;
+
+                    if (this.Options.Encrypt)
+                    {
+                        // 暗号化の実施
+                        //var srcSeg = tmp3._AsSegment();
+
+                        //"Hello"._GetBytes_Ascii().CopyTo(tmp3);
+
+                        Memory<byte> destMemory = new byte[tmp3.Length];
+
+                        //var destSeg = destMemory._AsSegment();
+
+                        XtsAes256Util.Encrypt(destMemory, tmp3, this.MasterSecret, (ulong)chunk.SrcPosition);
+                        //this.CurrentEncrypter.TransformBlock(srcSeg.Array!, srcSeg.Offset, srcSeg.Count, destSeg.Array!, destSeg.Offset, (ulong)chunk.SrcPosition);
+
+                        //chunk.SrcPosition._Print();
+
+                        tmp3 = destMemory;
+                    }
+
+                    chunk.DestData = tmp3;
+
+                    chunk.DestSha1 = Secure.HashSHA1(tmp3.Span)._GetHexString();
                 }
-
-                Memory<byte> tmp3 = tmp2.Memory;
-
-                if (this.Options.Encrypt)
+                else
                 {
-                    // 暗号化の実施
-                    //var srcSeg = tmp3._AsSegment();
-
-                    //"Hello"._GetBytes_Ascii().CopyTo(tmp3);
-
-                    Memory<byte> destMemory = new byte[tmp3.Length];
-
-                    //var destSeg = destMemory._AsSegment();
-
-                    XtsAes256Util.Encrypt(destMemory, tmp3, this.MasterSecret, (ulong)chunk.SrcPosition);
-                    //this.CurrentEncrypter.TransformBlock(srcSeg.Array!, srcSeg.Offset, srcSeg.Count, destSeg.Array!, destSeg.Offset, (ulong)chunk.SrcPosition);
-
-                    //chunk.SrcPosition._Print();
-
-                    tmp3 = destMemory;
+                    chunk.IsAllZero = true;
+                    chunk.DestData = Memory<byte>.Empty;
+                    chunk.DestSha1 = "0000000000000000000000000000000000000000";
                 }
-
-                chunk.DestData = tmp3;
-
-                chunk.DestSha1 = Secure.HashSHA1(tmp3.Span)._GetHexString();
 
                 return TR();
             },
@@ -934,13 +983,24 @@ public class SecureCompressEncoder : StreamImplBase
                     SrcSha1 = chunk.SrcSha1,
                     DestSha1 = chunk.DestSha1,
                     ChunkIndex = CurrentNumChunks,
+                    IsAllZero = chunk.IsAllZero,
                 };
 
-                var header = HeaderToData(Consts.SecureCompress.SecureCompressBlockHeader_Str, h);
+                bool skip = this.IsLastChunkAllZero && chunk.IsAllZero; // 内容がゼロで、1 つ前の内容もゼロだった場合はスキップする
 
-                tmpBuf.Write(header);
+                this.IsLastChunkAllZero = chunk.IsAllZero;
 
-                tmpBuf.Write(chunk.DestData);
+                if (skip == false)
+                {
+                    var header = HeaderToData(Consts.SecureCompress.SecureCompressBlockHeader_Str, h);
+
+                    tmpBuf.Write(header);
+
+                    if (chunk.IsAllZero == false)
+                    {
+                        tmpBuf.Write(chunk.DestData);
+                    }
+                }
 
                 CurrentNumChunks++;
 
@@ -1021,22 +1081,45 @@ public class SecureCompressEncoder : StreamImplBase
                 // 必ず 1 回は呼び出す
                 await ProcessAndSendBufferedDataAsync(cancel);
 
+                MemoryBuffer<byte> tmpBuf = new MemoryBuffer<byte>();
+
+                // 最後のチャンクヘッダを必ず書き込む
+                SecureCompressBlockHeader lastBlockHeader = new SecureCompressBlockHeader
+                {
+                    DestDataSize = 0,
+                    DestDataSizeWithoutPadding = 0,
+                    SrcDataPosition = this.CurrentSrcDataPosition,
+                    SrcDataLength = 0,
+                    SrcSha1 = "0000000000000000000000000000000000000000",
+                    DestSha1 = "0000000000000000000000000000000000000000",
+                    ChunkIndex = CurrentNumChunks,
+                    IsAllZero = false,
+                    IsEoF = true,
+                };
+
+                var headerData1 = HeaderToData(Consts.SecureCompress.SecureCompressBlockHeader_Str, lastBlockHeader);
+
+                tmpBuf.Write(headerData1);
+
+                CurrentNumChunks++;
+
+                CurrentFinalHeader.ChunkCount++;
+
                 // 末尾ヘッダの作成
-                SecureCompressFinalHeader h = this.CurrentFinalHeader;
-                h.CopyOfFirstHeader = this.FirstHeader;
+                SecureCompressFinalHeader finalHeader = this.CurrentFinalHeader;
+                finalHeader.CopyOfFirstHeader = this.FirstHeader;
 
-                h.SrcSha1 = this.SrcHash_Sha1.GetFinalHash()._GetHexString();
+                finalHeader.SrcSha1 = this.SrcHash_Sha1.GetFinalHash()._GetHexString();
 
-                h.DestSha1 = this.DestHash_Sha1.GetFinalHash()._GetHexString();
+                finalHeader.DestSha1 = this.DestHash_Sha1.GetFinalHash()._GetHexString();
 
-                var headerData = HeaderToData(Consts.SecureCompress.SecureCompressFinalHeader_Str, h);
+                var headerData2 = HeaderToData(Consts.SecureCompress.SecureCompressFinalHeader_Str, finalHeader);
 
                 //h._PrintAsJson();
 
                 // 末尾ヘッダも予備のため 2 回書く
-                MemoryBuffer<byte> tmpBuf = new MemoryBuffer<byte>();
-                tmpBuf.Write(headerData);
-                tmpBuf.Write(headerData);
+                tmpBuf.Write(headerData2);
+                tmpBuf.Write(headerData2);
 
                 await this.AppendToDestBufferAsync(tmpBuf, cancel);
             }

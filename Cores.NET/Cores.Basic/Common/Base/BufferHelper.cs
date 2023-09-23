@@ -1514,6 +1514,20 @@ public static class MemoryExtHelper
         }
     }
 
+    public static ReadOnlyMemory<byte> _AsByteMemoryUnsafe<T>(this ReadOnlyMemory<T> memory)
+    {
+        var seg = memory._AsSegment();
+
+        return new ReadOnlyMemory<byte>(Unsafe.As<byte[]>(seg.Array), seg.Offset, seg.Count);
+    }
+
+    public static Memory<byte> _AsByteMemoryUnsafe<T>(this Memory<T> memory)
+    {
+        var seg = memory._AsSegment();
+
+        return new Memory<byte>(Unsafe.As<byte[]>(seg.Array), seg.Offset, seg.Count);
+    }
+
     public static ArraySegment<T> _AsSegment<T>(this ReadOnlyMemory<T> memory)
     {
         if (Cores.Basic.MemoryHelper._UseFast == false) return _AsSegmentSlow(memory);

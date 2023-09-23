@@ -45,6 +45,7 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 
 #pragma warning disable CS0649
 #pragma warning disable CA2235 // Mark all non-serializable fields
@@ -1177,6 +1178,8 @@ public class SequentialWritableBasedRandomAccess<T> : IRandomAccess<T>, IHasErro
 
     long CurrentLength = 0;
 
+    public HashCalc? HashCalcForWrite { get; set; }
+
     public SequentialWritableBasedRandomAccess(ISequentialWritable<T> baseWritable, Func<Task>? onDispose = null, bool allowForwardSeek = false)
     {
         this.BaseWritable = baseWritable;
@@ -1231,7 +1234,8 @@ public class SequentialWritableBasedRandomAccess<T> : IRandomAccess<T>, IHasErro
                     {
                         long zeroAppendSize = internalPos - CurrentLength;
 
-                        await BaseWritable.AppendZeroAsync(zeroAppendSize, cancel);
+                        //Dbg.Where($"zeroAppendSize = {zeroAppendSize}");
+                        await BaseWritable.AppendZeroAsync(zeroAppendSize, cancel, this.HashCalcForWrite);
 
                         CurrentLength += zeroAppendSize;
 
@@ -1244,6 +1248,11 @@ public class SequentialWritableBasedRandomAccess<T> : IRandomAccess<T>, IHasErro
                 }
 
                 await BaseWritable.AppendAsync(data, cancel);
+
+                if (HashCalcForWrite != null)
+                {
+                    this.HashCalcForWrite.Write(data._AsByteMemoryUnsafe());
+                }
 
                 CurrentLength += data.Length;
             }
@@ -2289,7 +2298,7 @@ public static class ISequentialWritableHelper
     public static long Flush<T>(this ISequentialWritable<T> me, CancellationToken cancel = default)
         => me.FlushAsync(cancel)._GetResult();
 
-    public static async Task<long> AppendZeroAsync<T>(this ISequentialWritable<T> me, long size, CancellationToken cancel = default)
+    public static async Task<long> AppendZeroAsync<T>(this ISequentialWritable<T> me, long size, CancellationToken cancel = default, HashCalc? hashCalc = null)
     {
         if (size == 0)
         {
@@ -2300,7 +2309,7 @@ public static class ISequentialWritableHelper
 
         var zeroBuffer = Util.GetZeroedSharedBuffer<T>(bufferSize);
 
-        int currentPos = 0;
+        long currentPos = 0;
 
         while (true)
         {
@@ -2313,7 +2322,14 @@ public static class ISequentialWritableHelper
 
             int writeSize = (int)Math.Min(remain, bufferSize);
 
-            await me.AppendAsync(zeroBuffer.Slice(0, writeSize), cancel, false);
+            var buf2 = zeroBuffer.Slice(0, writeSize);
+
+            await me.AppendAsync(buf2, cancel, false);
+
+            if (hashCalc != null)
+            {
+                hashCalc.Write(buf2._AsByteMemoryUnsafe());
+            }
 
             currentPos += writeSize;
         }

@@ -4356,7 +4356,7 @@ HOST: www.google.com
 
     static async Task Test230922_SecureCompress_Test(string fn1, string fn2, string fn3, bool encrypt, bool compress, CompressionLevel level, int numCpu1, int numCpu2)
     {
-        SecureCompressOptions opt = new SecureCompressOptions(fn1._GetFileName(), encrypt, "abc", compress, level, numCpu1);
+        SecureCompressOptions opt = new SecureCompressOptions(fn1._GetFileName(), encrypt, "abc", compress, level, numCpu1, SecureCompressFlags.None);
 
         if (true)
         {
@@ -4373,14 +4373,14 @@ HOST: www.google.com
 
             using ProgressReporter p = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, fileSizeStr: true, title: "Encoding " + fn1._GetFileName()._TruncStrEx(16)));
 
-            long sz = await srcStream.CopyBetweenStreamAsync(secureWriter, reporter: p, estimatedSize: srcFile.Size);
+            long sz = await srcStream.CopyBetweenStreamAsync(secureWriter, reporter: p, estimatedSize: srcFile.Size, param: new CopyFileParams(bufferSize: Secure.RandSInt31() % 6000000 + 12345));
 
             await secureWriter.FinalizeAsync();
 
             Con.WriteLine("Done.");
         }
 
-        opt = new SecureCompressOptions(fn1._GetFileName(), encrypt, "abc", compress, level, numCpu2);
+        opt = new SecureCompressOptions(fn1._GetFileName(), encrypt, "abc", compress, level, numCpu2, SecureCompressFlags.None);
 
         if (true)
         {
@@ -4389,7 +4389,7 @@ HOST: www.google.com
 
             await using var srcStream = srcFile.GetStream();
 
-            await using var dstFile = await Lfs.CreateAsync(fn3, flags: FileFlags.AutoCreateDirectory);
+            await using var dstFile = await Lfs.CreateAsync(fn3, flags: FileFlags.AutoCreateDirectory | FileFlags.SparseFile);
 
             await using var dstStream = dstFile.GetStream();
 
@@ -4397,7 +4397,7 @@ HOST: www.google.com
 
             using ProgressReporter p = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, fileSizeStr: true, title: "Decoding " + fn1._GetFileName()._TruncStrEx(16)));
 
-            long sz = await srcStream.CopyBetweenStreamAsync(secureWriter, reporter: p, estimatedSize: srcFile.Size);
+            long sz = await srcStream.CopyBetweenStreamAsync(secureWriter, reporter: p, estimatedSize: srcFile.Size, param: new CopyFileParams(bufferSize: Secure.RandSInt31() % 6000000 + 12345));
 
             await secureWriter.FinalizeAsync();
 
@@ -4437,20 +4437,20 @@ HOST: www.google.com
     static async Task Test230920_02()
     {
         {
-            string fn1 = @"\\rd-bk1\BACKUP\hvadmin\HV10\VM\Hyper-V\opencenter1\wb.20230921-191025.277.ok\WindowsImageBackup\hv10\Backup 2023-09-21 101031\71fa69ca-108e-11e3-93f2-001999eeb523.vhdx";
+            string fn1 = @"C:\tmp2\secure_compress_test\empty.dat";
             string fn2 = @"C:\tmp2\secure_compress_test\01_fastest_vhdx_dst.dat";
             string fn3 = @"C:\tmp2\secure_compress_test\02_fastest_vhdx_restored.dat";
 
             await Test230922_SecureCompress_Test(fn1, fn2, fn3, true, true, CompressionLevel.Fastest, -1, -1);
         }
 
-        {
-            string fn1 = @"\\rd-bk1\BACKUP\hvadmin\HV10\VM\Hyper-V\opencenter1\wb.20230921-191025.277.ok\WindowsImageBackup\hv10\Backup 2023-09-21 101031\71fa69ca-108e-11e3-93f2-001999eeb523.vhdx";
-            string fn2 = @"C:\tmp2\secure_compress_test\11_smallest_vhdx_dst.dat";
-            string fn3 = @"C:\tmp2\secure_compress_test\12_smallest_vhdx_restored.dat";
+        //{
+        //    string fn1 = @"\\rd-bk1\BACKUP\hvadmin\HV10\VM\Hyper-V\opencenter1\wb.20230921-191025.277.ok\WindowsImageBackup\hv10\Backup 2023-09-21 101031\71fa69ca-108e-11e3-93f2-001999eeb523.vhdx";
+        //    string fn2 = @"C:\tmp2\secure_compress_test\11_smallest_vhdx_dst.dat";
+        //    string fn3 = @"C:\tmp2\secure_compress_test\12_smallest_vhdx_restored.dat";
 
-            await Test230922_SecureCompress_Test(fn1, fn2, fn3, true, true, CompressionLevel.SmallestSize, -1, -1);
-        }
+        //    await Test230922_SecureCompress_Test(fn1, fn2, fn3, true, true, CompressionLevel.SmallestSize, -1, -1);
+        //}
     }
 
     static async Task Test230922_SecureCompress_DirTest()
@@ -4486,6 +4486,36 @@ HOST: www.google.com
 
     public static void Test_Generic()
     {
+        if (false)
+        {
+            using var f = Lfs.Open(@"C:\tmp2\secure_compress_test\empty.dat", writeMode: true);
+
+            //for (int i = 0; i < 100; i++)
+            //{
+            //    long pos = Secure.RandSInt31() % f.Size;
+            //    byte[] a = new byte[1];
+            //    a[0] = Secure.RandUInt8();
+
+            //    Dbg.Where();
+
+            //    f.WriteRandom(pos, a);
+            //}
+
+            f.WriteRandom(f.Size - 1, new byte[] { 0 });
+            f.WriteRandom(f.Size - 2, new byte[] { 0 });
+
+            //for (int i = 0; i < 4; i++)
+            //{
+            //    long pos = Secure.RandSInt31() % f.Size;
+            //    byte[] a = new byte[24_123_456];
+            //    Secure.Rand(a);
+
+            //    f.WriteRandom(pos, a);
+            //}
+
+            return;
+        }
+
         if (false)
         {
             Test230920_02()._GetResult();

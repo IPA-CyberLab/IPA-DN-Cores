@@ -52,7 +52,6 @@ namespace IPA.TestDev;
 
 partial class TestDevCommands
 {
-    // 指定したディレクトリにあるすべてのファイルの SHA1 チェックサムを表示する
     [ConsoleCommand(
         "ExpandIncludes command",
         "ExpandIncludes <src> /DST:<dst> [/BOM:true|false]",
