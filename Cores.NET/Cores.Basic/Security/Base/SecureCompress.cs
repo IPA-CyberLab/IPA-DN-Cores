@@ -109,16 +109,16 @@ public static class SecureCompressUtil
 
         await using var secureWriter = new SecureCompressEncoder(dstStream, options, sizeHint, true);
 
-        ProgressReporter? progress = null;
+        ProgressReporter? reporter = null;
 
         if (writeProgressToConsole)
         {
-            progress = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, fileSizeStr: true, title: "SecureCompress Backup " + srcFilePath.GetFileName()._TruncStrEx(16)));
+            reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, fileSizeStr: true, title: "SecureCompress Backup " + srcFilePath.GetFileName()._TruncStrEx(16)));
         }
 
-        using IDisposable progDisp = progress._EmptyDisposableIfNull();
+        using IDisposable progDisp = reporter._EmptyDisposableIfNull();
 
-        long sz = await srcStream.CopyBetweenStreamAsync(secureWriter, reporter: progress, estimatedSize: srcFile.Size, truncateSize: truncate);
+        long sz = await srcStream.CopyBetweenStreamAsync(secureWriter, reporter: reporter, estimatedSize: srcFile.Size, truncateSize: truncate);
 
         await secureWriter.FinalizeAsync();
     }
@@ -133,18 +133,18 @@ public static class SecureCompressUtil
 
         await using var dstStream = dstFile.GetStream();
 
-        await using var secureWriter = new SecureCompressDecoder(dstStream, options, srcFile.Size, true);
-
-        ProgressReporter? progress = null;
+        ProgressReporter? reporter = null;
 
         if (writeProgressToConsole)
         {
-            progress = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, fileSizeStr: true, title: "SecureCompress Restore " + srcFilePath.GetFileName()._TruncStrEx(16)));
+            reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, fileSizeStr: true, title: "SecureCompress Restore " + srcFilePath.GetFileName()._TruncStrEx(16)));
         }
 
-        using IDisposable progDisp = progress._EmptyDisposableIfNull();
+        await using var secureWriter = new SecureCompressDecoder(dstStream, options, srcFile.Size, true, reporter);
 
-        long sz = await srcStream.CopyBetweenStreamAsync(secureWriter, reporter: progress, estimatedSize: srcFile.Size);
+        using IDisposable progDisp = reporter._EmptyDisposableIfNull();
+
+        long sz = await srcStream.CopyBetweenStreamAsync(secureWriter, estimatedSize: srcFile.Size);
 
         await secureWriter.FinalizeAsync();
 
@@ -264,10 +264,12 @@ public class SecureCompressDecoder : StreamImplBase
 
     Exception? LastException = null;
 
+    ProgressReporterBase? Reporter = null;
+
     public int NumError { get; private set; }
     public int NumWarning { get; private set; }
 
-    public SecureCompressDecoder(Stream destStream, SecureCompressOptions options, long srcDataSizeHint = -1, bool autoDispose = false)
+    public SecureCompressDecoder(Stream destStream, SecureCompressOptions options, long srcDataSizeHint = -1, bool autoDispose = false, ProgressReporterBase? reporter = null)
         : base(new StreamImplBaseOptions(false, true, false))
     {
         try
@@ -275,6 +277,7 @@ public class SecureCompressDecoder : StreamImplBase
             this.AutoDispose = autoDispose;
             this.DestStream = destStream;
             this.Options = options;
+            this.Reporter = reporter;
 
             this.DestWritable = new StreamBasedSequentialWritable(this.DestStream, autoDispose);
             this.DestRandomWriter = new SequentialWritableBasedRandomAccess<byte>(this.DestWritable, allowForwardSeek: true);
@@ -535,6 +538,18 @@ public class SecureCompressDecoder : StreamImplBase
                         this.NumWarning++;
                     }
 
+                    this.DestRandomWriter.HashCalcForWrite = DestHash_Sha1;
+                    this.DestRandomWriter.Reporter = this.Reporter;
+
+                    if (this.FirstHeader!.SrcDataSizeHint >= 0)
+                    {
+                        this.DestRandomWriter.Reporter_EstimatedTotalSize = this.FirstHeader!.SrcDataSizeHint;
+                    }
+                    else
+                    {
+                        this.DestRandomWriter.Reporter_EstimatedTotalSize = null;
+                    }
+
                     if (chunk.Error._IsFilled())
                     {
                         $"{this.Options.FileNameHint}: Offset: {chunk.SrcOffset} Error: {chunk.Error}"._Error();
@@ -548,8 +563,6 @@ public class SecureCompressDecoder : StreamImplBase
                         //diff._Print();
 
                         //$"pos = {chunk.Header.SrcDataPosition}, diff = {diff}"._Print();
-
-                        this.DestRandomWriter.HashCalcForWrite = DestHash_Sha1;
 
                         if (chunk.Header.IsEoF == false)
                         {

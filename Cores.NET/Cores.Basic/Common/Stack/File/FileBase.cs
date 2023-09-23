@@ -1180,6 +1180,9 @@ public class SequentialWritableBasedRandomAccess<T> : IRandomAccess<T>, IHasErro
 
     public HashCalc? HashCalcForWrite { get; set; }
 
+    public ProgressReporterBase? Reporter { get; set; }
+    public long? Reporter_EstimatedTotalSize { get; set; }
+
     public SequentialWritableBasedRandomAccess(ISequentialWritable<T> baseWritable, Func<Task>? onDispose = null, bool allowForwardSeek = false)
     {
         this.BaseWritable = baseWritable;
@@ -1235,7 +1238,7 @@ public class SequentialWritableBasedRandomAccess<T> : IRandomAccess<T>, IHasErro
                         long zeroAppendSize = internalPos - CurrentLength;
 
                         //Dbg.Where($"zeroAppendSize = {zeroAppendSize}");
-                        await BaseWritable.AppendZeroAsync(zeroAppendSize, cancel, this.HashCalcForWrite);
+                        await BaseWritable.AppendZeroAsync(zeroAppendSize, cancel, this.HashCalcForWrite, this.Reporter, this.Reporter_EstimatedTotalSize);
 
                         CurrentLength += zeroAppendSize;
 
@@ -1255,6 +1258,11 @@ public class SequentialWritableBasedRandomAccess<T> : IRandomAccess<T>, IHasErro
                 }
 
                 CurrentLength += data.Length;
+
+                if (this.Reporter != null)
+                {
+                    this.Reporter.ReportProgress(new ProgressData(CurrentLength, this.Reporter_EstimatedTotalSize));
+                }
             }
         }
         catch (Exception ex)
@@ -2298,7 +2306,8 @@ public static class ISequentialWritableHelper
     public static long Flush<T>(this ISequentialWritable<T> me, CancellationToken cancel = default)
         => me.FlushAsync(cancel)._GetResult();
 
-    public static async Task<long> AppendZeroAsync<T>(this ISequentialWritable<T> me, long size, CancellationToken cancel = default, HashCalc? hashCalc = null)
+    public static async Task<long> AppendZeroAsync<T>(this ISequentialWritable<T> me, long size, CancellationToken cancel = default,
+        HashCalc? hashCalc = null, ProgressReporterBase? reporter = null, long? reporterEstimatedTotalSize = null)
     {
         if (size == 0)
         {
@@ -2313,6 +2322,11 @@ public static class ISequentialWritableHelper
 
         while (true)
         {
+            if (reporter != null)
+            {
+                reporter.ReportProgress(new ProgressData(me.CurrentPosition, reporterEstimatedTotalSize));
+            }
+
             if (currentPos >= size)
             {
                 break;
