@@ -886,6 +886,8 @@ public class LocalFileObject : FileObject
     long CurrentPosition;
     bool UseAsyncMode = false;
 
+    public long? FixedSize = null;
+
     public static async Task<FileObject> CreateFileAsync(LocalFileSystem fileSystem, FileParameters fileParams, CancellationToken cancel = default)
     {
         cancel.ThrowIfCancellationRequested();
@@ -1022,6 +1024,20 @@ public class LocalFileObject : FileObject
 
             this.CurrentPosition = BaseStream.Position;
 
+            if (Env.IsLinux)
+            {
+                if (physicalFinalPathTmp.StartsWith("/dev/") && BaseStream.Length == 0)
+                {
+                    // Linux のブロックデバイスの実サイズは、blockdev コマンドで取得する
+                    long blockDevSize = await UnixApi.GetBlockDeviceSizeAsync(physicalFinalPathTmp, cancel);
+
+                    if (blockDevSize >= 1)
+                    {
+                        this.FixedSize = blockDevSize;
+                    }
+                }
+            }
+
             InitAndCheckFileSizeAndPosition(this.CurrentPosition, await GetFileSizeImplAsync(cancel), cancel);
         }
         catch
@@ -1053,11 +1069,21 @@ public class LocalFileObject : FileObject
 
     protected override async Task<long> GetFileSizeImplAsync(CancellationToken cancel = default)
     {
-        return BaseStream.Length;
+        return this.FixedSize ?? BaseStream.Length;
     }
 
     protected override async Task SetFileSizeImplAsync(long size, CancellationToken cancel = default)
     {
+        long? fixedSizeCopy = this.FixedSize;
+
+        if (fixedSizeCopy.HasValue)
+        {
+            if (size != fixedSizeCopy.Value)
+            {
+                throw new CoresLibException($"This file object has fixed size ({this.FixedSize}), but SetFileSize({size}) is called");
+            }
+        }
+
         try
         {
             long oldFileSize = BaseStream.Length;

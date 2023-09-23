@@ -563,6 +563,7 @@ public static partial class Consts
         public const string Birdc = "/usr/local/sbin/birdc";
         public const string Birdc6 = "/usr/local/sbin/birdc6";
         public const string Temper = "/usr/bin/temper";
+        public const string BlockDev = "/sbin/blockdev";
     }
 
     public static partial class LinuxPaths

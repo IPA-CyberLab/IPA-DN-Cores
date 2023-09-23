@@ -36,6 +36,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
@@ -422,5 +423,19 @@ public static class UnixApi
 
         SetResourceLimits(RlimitResources.RLIMIT_MEMLOCK, UnixLimitConsts.UNIX_MAX_LOCKS);
         SetResourceLimits(RlimitResources.RLIMIT_NPROC, UnixLimitConsts.UNIX_MAX_CHILD_PROCESSES);
+    }
+
+    public static async Task<long> GetBlockDeviceSizeAsync(string path, CancellationToken cancel = default)
+    {
+        if (Env.IsLinux == false)
+        {
+            throw new NotImplementedException();
+        }
+
+        string line = await EasyExec.ExecRetStrAsync(Consts.LinuxCommands.BlockDev, $"--getsize64 {path}");
+        
+        line = line._GetFirstFilledLineFromLines();
+
+        return line._ToLong();
     }
 }

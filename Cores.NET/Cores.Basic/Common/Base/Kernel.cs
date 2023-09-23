@@ -232,6 +232,40 @@ namespace IPA.Cores.Basic
     // 簡易実行
     public static class EasyExec
     {
+        public static async Task<string> ExecBashRetStrAsync(string command, string? currentDirectory = null,
+            int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null, int? timeout = null,
+            CancellationToken cancel = default, bool debug = false, bool throwOnErrorExitCode = true,
+            StrDictionary<string>? additionalEnvVars = null)
+        {
+            var result = await ExecBashAsync(command, currentDirectory,
+                easyOutputMaxSize: easyOutputMaxSize,
+                easyInputStr: easyInputStr,
+                timeout: timeout,
+                cancel: cancel,
+                debug: debug,
+                throwOnErrorExitCode: throwOnErrorExitCode,
+                additionalEnvVars: additionalEnvVars);
+
+            return result.OutputStr._GetFirstFilledLineFromLines();
+        }
+
+        public static async Task<string> ExecRetStrAsync(string cmdName, string? arguments = null, string? currentDirectory = null,
+            int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null, int? timeout = null,
+            CancellationToken cancel = default, bool debug = false, bool throwOnErrorExitCode = true,
+            StrDictionary<string>? additionalEnvVars = null)
+        {
+            var result = await ExecAsync(cmdName, arguments, currentDirectory,
+                easyOutputMaxSize: easyOutputMaxSize,
+                easyInputStr: easyInputStr,
+                timeout: timeout,
+                cancel: cancel,
+                debug: debug,
+                throwOnErrorExitCode: throwOnErrorExitCode,
+                additionalEnvVars: additionalEnvVars);
+
+            return result.OutputStr._GetFirstFilledLineFromLines();
+        }
+
         public static async Task<EasyExecResult> ExecBashAsync(string command, string? currentDirectory = null,
             ExecFlags flags = ExecFlags.Default | ExecFlags.EasyInputOutputMode,
             int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null, int? timeout = null,
