@@ -82,6 +82,73 @@ public static partial class Consts
     }
 }
 
+public class SecureCompressUtilRet
+{
+    public int NumErrors;
+    public int NumWarnings;
+}
+
+public static class SecureCompressUtil
+{
+    public static async Task BackupFileAsync(FilePath srcFilePath, FilePath destFilePath, SecureCompressOptions options, bool writeProgressToConsole = false, CancellationToken cancel = default)
+    {
+        await using var srcFile = await srcFilePath.OpenAsync(cancel: cancel);
+
+        await using var srcStream = srcFile.GetStream();
+
+        await using var dstFile = await destFilePath.CreateAsync(cancel: cancel);
+
+        await using var dstStream = dstFile.GetStream();
+
+        await using var secureWriter = new SecureCompressEncoder(dstStream, options, srcFile.Size, true);
+
+        ProgressReporter? progress = null;
+
+        if (writeProgressToConsole)
+        {
+            progress = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, fileSizeStr: true, title: "Encoding " + srcFilePath.GetFileName()._TruncStrEx(16)));
+        }
+
+        using IDisposable progDisp = progress._EmptyDisposableIfNull();
+
+        long sz = await srcStream.CopyBetweenStreamAsync(secureWriter, reporter: progress, estimatedSize: srcFile.Size);
+
+        await secureWriter.FinalizeAsync();
+    }
+
+    public static async Task<SecureCompressUtilRet> RestoreFileAsync(FilePath srcFilePath, FilePath destFilePath, SecureCompressOptions options, bool writeProgressToConsole = false, CancellationToken cancel = default)
+    {
+        await using var srcFile = await srcFilePath.OpenAsync(cancel: cancel);
+
+        await using var srcStream = srcFile.GetStream();
+
+        await using var dstFile = await destFilePath.CreateAsync(cancel: cancel);
+
+        await using var dstStream = dstFile.GetStream();
+
+        await using var secureWriter = new SecureCompressDecoder(dstStream, options, srcFile.Size, true);
+
+        ProgressReporter? progress = null;
+
+        if (writeProgressToConsole)
+        {
+            progress = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, fileSizeStr: true, title: "Decoding " + srcFilePath.GetFileName()._TruncStrEx(16)));
+        }
+
+        using IDisposable progDisp = progress._EmptyDisposableIfNull();
+
+        long sz = await srcStream.CopyBetweenStreamAsync(secureWriter, reporter: progress, estimatedSize: srcFile.Size);
+
+        await secureWriter.FinalizeAsync();
+
+        return new SecureCompressUtilRet
+        {
+            NumErrors = secureWriter.NumError,
+            NumWarnings = secureWriter.NumWarning,
+        };
+    }
+}
+
 public class SecureCompressFinalHeader
 {
     public long ChunkCount;
@@ -144,16 +211,6 @@ public class SecureCompressOptions
 
     public SecureCompressOptions(string fileNameHint, bool encrypt, string password, bool compress, CompressionLevel compressionLevel, int numCpu = -1, SecureCompressFlags flags = SecureCompressFlags.None)
     {
-        if (encrypt == false && compress == false)
-        {
-            throw new CoresLibException("encrypt == false && compress == false");
-        }
-
-        if (compress && compressionLevel == CompressionLevel.NoCompression)
-        {
-            throw new CoresLibException("compress == true && compressionLevel == CompressionLevel.NoCompression");
-        }
-
         this.FileNameHint = fileNameHint;
 
         this.Encrypt = encrypt;
@@ -277,16 +334,6 @@ public class SecureCompressDecoder : StreamImplBase
 
                         //$"Master = {masterKey.Value._GetHexString()}"._Debug();
                     }
-
-                    if (this.FirstHeader.Encrypted != this.Options.Encrypt)
-                    {
-                        throw new CoresException($"FirstHeader.Encrypted ({FirstHeader.Encrypted}) != Options.Encrypt ({Options.Encrypt})");
-                    }
-
-                    if (this.FirstHeader.Compressed != this.Options.Compress)
-                    {
-                        throw new CoresException($"FirstHeader.Compressed ({FirstHeader.Compressed}) != Options.Compress ({Options.Compress})");
-                    }
                 }
 
                 try
@@ -409,7 +456,7 @@ public class SecureCompressDecoder : StreamImplBase
                                 chunk.Warning = $"DestSha1 is different. Header: {chunk.Header.DestSha1}, Real: {sha1._GetHexString()}";
                             }
 
-                            if (this.Options.Encrypt)
+                            if (this.FirstHeader!.Encrypted)
                             {
                                 // 解読の実施
                                 Memory<byte> destMemory = new byte[tmp1.Length];
@@ -440,7 +487,7 @@ public class SecureCompressDecoder : StreamImplBase
                                 }
                             }
 
-                            if (this.Options.Compress)
+                            if (this.FirstHeader!.Compressed)
                             {
                                 //tmp1.Span[Secure.RandSInt31() % tmp1.Length] = Secure.RandUInt8();
                                 // 圧縮解除の実施
@@ -741,6 +788,16 @@ public class SecureCompressEncoder : StreamImplBase
             this.AutoDispose = autoDispose;
             this.DestStream = destStream;
             this.Options = options;
+
+            if (options.Encrypt == false && options.Compress == false)
+            {
+                throw new CoresLibException("encrypt == false && compress == false");
+            }
+
+            if (options.Compress && options.CompressionLevel == CompressionLevel.NoCompression)
+            {
+                throw new CoresLibException("compress == true && compressionLevel == CompressionLevel.NoCompression");
+            }
 
             MasterSecret = Secure.Rand(XtsAesRandomAccess.XtsAesKeySize);
 

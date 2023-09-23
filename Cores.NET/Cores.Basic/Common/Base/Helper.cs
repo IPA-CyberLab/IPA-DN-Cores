@@ -3808,6 +3808,11 @@ public static class BasicHelper
             return y;
         }
     }
+
+    public static IDisposable _EmptyDisposableIfNull(this IDisposable? disposable)
+    {
+        return disposable ?? new EmptyDisposable();
+    }
 }
 
 

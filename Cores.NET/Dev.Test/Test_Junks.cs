@@ -473,6 +473,32 @@ __IMG__
 
 partial class TestDevCommands
 {
+    [ConsoleCommand(
+  "Gc",
+  "Gc",
+  "Gc"
+  )]
+    static int Gc(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
+            };
+
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        Con.WriteLine("Calling GC...");
+
+        long start = Time.Tick64;
+
+        Dbg.GcCollect();
+
+        long end = Time.Tick64;
+
+        Con.WriteLine($"GC completed. Took time: {(end - start)._ToString3()} msecs");
+
+        return 0;
+    }
+
 
     [ConsoleCommand(
   "HelloWorld",

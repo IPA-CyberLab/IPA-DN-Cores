@@ -53,6 +53,90 @@ namespace IPA.TestDev;
 partial class TestDevCommands
 {
     [ConsoleCommand(
+        "SecureCompressRestore command",
+        "SecureCompressRestore [src] /dst:dst [/password:password] [/numthreads:num]",
+        "SecureCompressRestore command")]
+    static async Task<int> SecureCompressRestore(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
+                new ConsoleParam("[src]", ConsoleService.Prompt, "Source directory path: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("dst", ConsoleService.Prompt, "Destination directory path: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("password"),
+                new ConsoleParam("numthreads"),
+            };
+
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        string src = vl.DefaultParam.StrValue;
+        string dst = vl["dst"].StrValue;
+        string password = vl["password"].StrValue;
+        string numthreads = vl["numthreads"].StrValue;
+
+        bool err = false;
+
+        try
+        {
+            Lfs.EnableBackupPrivilege();
+        }
+        catch (Exception ex)
+        {
+            Con.WriteError(ex.Message);
+        }
+
+        var ret = await SecureCompressUtil.RestoreFileAsync(src, dst, new SecureCompressOptions(src._GetFileName(), password._IsFilled(), password, true, CompressionLevel.SmallestSize, numthreads._ToInt()), true);
+
+        if (ret.NumErrors >= 1)
+        {
+            throw new CoresException("ret.NumErrors >= 1");
+        }
+
+        if (ret.NumWarnings >= 1)
+        {
+            throw new CoresException("ret.NumWarnings >= 1");
+        }
+
+        return 0;
+    }
+
+    [ConsoleCommand(
+        "SecureCompressBackup command",
+        "SecureCompressBackup [src] /dst:dst [/password:password] [/numthreads:num]",
+        "SecureCompressBackup command")]
+    static async Task<int> SecureCompressBackup(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
+                new ConsoleParam("[src]", ConsoleService.Prompt, "Source directory path: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("dst", ConsoleService.Prompt, "Destination directory path: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("password"),
+                new ConsoleParam("numthreads"),
+            };
+
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        string src = vl.DefaultParam.StrValue;
+        string dst = vl["dst"].StrValue;
+        string password = vl["password"].StrValue;
+        string numthreads = vl["numthreads"].StrValue;
+
+        bool err = false;
+
+        try
+        {
+            Lfs.EnableBackupPrivilege();
+        }
+        catch (Exception ex)
+        {
+            Con.WriteError(ex.Message);
+        }
+
+        await SecureCompressUtil.BackupFileAsync(src, dst, new SecureCompressOptions(src._GetFileName(), password._IsFilled(), password, true, CompressionLevel.SmallestSize, numthreads._ToInt()), true);
+
+        return 0;
+    }
+
+    [ConsoleCommand(
         "ExpandIncludes command",
         "ExpandIncludes <src> /DST:<dst> [/BOM:true|false]",
         "ExpandIncludes command")]
@@ -1194,6 +1278,7 @@ partial class TestDevCommands
         }
     }
 
+
     // 指定されたディレクトリを DirSuperBackup を用いてバックアップする
     // 指定されたディレクトリやサブディレクトリを列挙し結果をファイルに書き出す
     [ConsoleCommand(
@@ -1233,7 +1318,7 @@ partial class TestDevCommands
         }
         catch (Exception ex)
         {
-            Con.WriteError(ex);
+            Con.WriteError(ex.Message);
         }
 
         var optionsValues = options._ParseEnumBits(DirSuperBackupFlags.Default, ',', '|', ' ');
@@ -1302,7 +1387,7 @@ partial class TestDevCommands
         }
         catch (Exception ex)
         {
-            Con.WriteError(ex);
+            Con.WriteError(ex.Message);
         }
 
         var optionsValues = options._ParseEnumBits(DirSuperBackupFlags.Default, ',', '|', ' ');
@@ -1371,7 +1456,7 @@ partial class TestDevCommands
         }
         catch (Exception ex)
         {
-            Con.WriteError(ex);
+            Con.WriteError(ex.Message);
         }
 
         var optionsValues = options._ParseEnumBits(DirSuperBackupFlags.Default, ',', '|', ' ');
@@ -1521,7 +1606,7 @@ partial class TestDevCommands
         }
         catch (Exception ex)
         {
-            Con.WriteError(ex);
+            Con.WriteError(ex.Message);
         }
 
         if (false)
@@ -1789,7 +1874,7 @@ partial class TestDevCommands
         }
         catch (Exception ex)
         {
-            Con.WriteError(ex);
+            Con.WriteError(ex.Message);
         }
 
         Lfs.CreateDirectory(@"D:\TMP\sparse_file_test\large\");
