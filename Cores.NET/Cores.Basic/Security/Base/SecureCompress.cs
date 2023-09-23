@@ -130,13 +130,19 @@ public class SecureCompressOptions
     public bool Encrypt { get; }
     public bool Compress { get; }
     public string Password { get; }
+    public CompressionLevel CompressionLevel { get; }
     public int NumCpu { get; }
 
-    public SecureCompressOptions(string fileNameHint, bool encrypt, string password, bool compress, int numCpu = -1)
+    public SecureCompressOptions(string fileNameHint, bool encrypt, string password, bool compress, CompressionLevel compressionLevel, int numCpu = -1)
     {
         if (encrypt == false && compress == false)
         {
             throw new CoresLibException("encrypt == false && compress == false");
+        }
+
+        if (compress && compressionLevel == CompressionLevel.NoCompression)
+        {
+            throw new CoresLibException("compress == true && compressionLevel == CompressionLevel.NoCompression");
         }
 
         this.FileNameHint = fileNameHint;
@@ -157,6 +163,8 @@ public class SecureCompressOptions
         }
 
         this.NumCpu = numCpu;
+
+        this.CompressionLevel = compressionLevel;
     }
 }
 
@@ -823,7 +831,7 @@ public class SecureCompressEncoder : StreamImplBase
                 if (this.Options.Compress)
                 {
                     // 圧縮の実施
-                    tmp = DeflateUtil.EasyCompressRetMemoryFast(tmp.Span, CompressionLevel.Fastest);
+                    tmp = DeflateUtil.EasyCompressRetMemoryFast(tmp.Span, this.Options.CompressionLevel);
                 }
 
                 lock (CurrentFinalHeader)

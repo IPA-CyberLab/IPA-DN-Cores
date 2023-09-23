@@ -4353,10 +4353,10 @@ HOST: www.google.com
             Console.WriteLine("Hello1");
         }
     }
-    
-    static async Task Test230922_SecureCompress_Test(string fn1, string fn2, string fn3, bool encrypt, bool compress, int numCpu1, int numCpu2)
+
+    static async Task Test230922_SecureCompress_Test(string fn1, string fn2, string fn3, bool encrypt, bool compress, CompressionLevel level, int numCpu1, int numCpu2)
     {
-        SecureCompressOptions opt = new SecureCompressOptions(fn1._GetFileName(), encrypt, "abc", compress, numCpu1);
+        SecureCompressOptions opt = new SecureCompressOptions(fn1._GetFileName(), encrypt, "abc", compress, level, numCpu1);
 
         if (true)
         {
@@ -4372,7 +4372,7 @@ HOST: www.google.com
             await using var secureWriter = new SecureCompressEncoder(dstStream, opt, srcFile.Size, true);
 
             using ProgressReporter p = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, fileSizeStr: true, title: "Encoding " + fn1._GetFileName()._TruncStrEx(16)));
-            
+
             long sz = await srcStream.CopyBetweenStreamAsync(secureWriter, reporter: p, estimatedSize: srcFile.Size);
 
             await secureWriter.FinalizeAsync();
@@ -4380,7 +4380,7 @@ HOST: www.google.com
             Con.WriteLine("Done.");
         }
 
-        opt = new SecureCompressOptions(fn1._GetFileName(), encrypt, "abc", compress, numCpu2);
+        opt = new SecureCompressOptions(fn1._GetFileName(), encrypt, "abc", compress, level, numCpu2);
 
         if (true)
         {
@@ -4427,11 +4427,30 @@ HOST: www.google.com
 
     static async Task Test230920()
     {
-        string fn1 = @"C:\TMP2\secure_compress_test\1_src\1_nishida.pdf";
+        string fn1 = @"\\rd-bk1\BACKUP\hvadmin\HV10\VM\Hyper-V\opencenter1\wb.20230921-191025.277.ok\WindowsImageBackup\hv10\Backup 2023-09-21 101031\71fa69ca-108e-11e3-93f2-001999eeb523.vhdx";
         string fn2 = @"C:\tmp2\secure_compress_test\2_dst\1_nishida.pdf";
         string fn3 = @"C:\tmp2\secure_compress_test\3_restore\1_nishida.pdf";
 
-        await Test230922_SecureCompress_Test(fn1, fn2, fn3, true, true, -1, -1);
+        await Test230922_SecureCompress_Test(fn1, fn2, fn3, true, true, CompressionLevel.Fastest, -1, -1);
+    }
+
+    static async Task Test230920_02()
+    {
+        {
+            string fn1 = @"\\rd-bk1\BACKUP\hvadmin\HV10\VM\Hyper-V\opencenter1\wb.20230921-191025.277.ok\WindowsImageBackup\hv10\Backup 2023-09-21 101031\71fa69ca-108e-11e3-93f2-001999eeb523.vhdx";
+            string fn2 = @"C:\tmp2\secure_compress_test\01_fastest_vhdx_dst.dat";
+            string fn3 = @"C:\tmp2\secure_compress_test\02_fastest_vhdx_restored.dat";
+
+            await Test230922_SecureCompress_Test(fn1, fn2, fn3, true, true, CompressionLevel.Fastest, -1, -1);
+        }
+
+        {
+            string fn1 = @"\\rd-bk1\BACKUP\hvadmin\HV10\VM\Hyper-V\opencenter1\wb.20230921-191025.277.ok\WindowsImageBackup\hv10\Backup 2023-09-21 101031\71fa69ca-108e-11e3-93f2-001999eeb523.vhdx";
+            string fn2 = @"C:\tmp2\secure_compress_test\11_smallest_vhdx_dst.dat";
+            string fn3 = @"C:\tmp2\secure_compress_test\12_smallest_vhdx_restored.dat";
+
+            await Test230922_SecureCompress_Test(fn1, fn2, fn3, true, true, CompressionLevel.SmallestSize, -1, -1);
+        }
     }
 
     static async Task Test230922_SecureCompress_DirTest()
@@ -4459,7 +4478,7 @@ HOST: www.google.com
                     goto A;
                 }
 
-                await Test230922_SecureCompress_Test(fn1, fn2, fn3, b1, b2, Secure.RandSInt31() % (Env.NumCpus * 2), Secure.RandSInt31() % (Env.NumCpus * 2));
+                await Test230922_SecureCompress_Test(fn1, fn2, fn3, b1, b2, Secure.RandBool() ? CompressionLevel.Fastest : CompressionLevel.SmallestSize, Secure.RandSInt31() % (Env.NumCpus * 2), Secure.RandSInt31() % (Env.NumCpus * 2));
             }
             return true;
         });
@@ -4467,9 +4486,15 @@ HOST: www.google.com
 
     public static void Test_Generic()
     {
+        if (false)
+        {
+            Test230920_02()._GetResult();
+            return;
+        }
+
         if (true)
         {
-            while (true)
+            //while (true)
             {
                 Test230922_SecureCompress_DirTest()._GetResult();
             }
