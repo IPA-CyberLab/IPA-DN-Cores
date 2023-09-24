@@ -1809,6 +1809,7 @@ public enum EnumDirectoryFlags
     IncludeCurrentDirectory = 2,
     IncludeParentDirectory = 4,
     SkipTooLongFileName = 8,
+    AllowRelativePath = 16,
 }
 
 [Flags]
@@ -1872,6 +1873,11 @@ public abstract partial class FileSystem : AsyncService
             InitEasyFileAccessSingleton();
         }
         catch { }
+    }
+
+    protected virtual Task<string> GetAbsolutePathFromRelativePathIfSupportedImplAsync(string path, FileFlags flags, CancellationToken cancel)
+    {
+        return path._TR();
     }
 
     internal DisposableFileProvider _CreateFileProviderForWatchInternal(EnsureInternal yes, string root, bool noDispose = false)
@@ -2024,7 +2030,7 @@ public abstract partial class FileSystem : AsyncService
         return currentFullPath;
     }
 
-    public async Task<string> NormalizePathAsync(string path, NormalizePathOption options = NormalizePathOption.None, CancellationToken cancel = default)
+    public async Task<string> NormalizePathAsync(string path, NormalizePathOption options = NormalizePathOption.None, CancellationToken cancel = default, bool normalizeRelativePathIfSupported = false)
     {
         path = path._NonNull();
 
@@ -2033,6 +2039,11 @@ public abstract partial class FileSystem : AsyncService
             using (EnterCriticalCounter())
             {
                 cancel.ThrowIfCancellationRequested();
+
+                if (normalizeRelativePathIfSupported)
+                {
+                    path = await this.GetAbsolutePathFromRelativePathIfSupportedImplAsync(path, FileFlags.AllowRelativePath, cancel);
+                }
 
                 if (options == NormalizePathOption.NormalizeCaseDirectory)
                     path = await NormalizePathWithCaseCorrectionInternalAsync(path, true, cancel);
@@ -2045,8 +2056,8 @@ public abstract partial class FileSystem : AsyncService
             }
         }
     }
-    public string NormalizePath(string path, NormalizePathOption options = NormalizePathOption.None, CancellationToken cancel = default)
-        => NormalizePathAsync(path, options, cancel)._GetResult();
+    public string NormalizePath(string path, NormalizePathOption options = NormalizePathOption.None, CancellationToken cancel = default, bool normalizeRelativePathIfSupported = false)
+        => NormalizePathAsync(path, options, cancel, normalizeRelativePathIfSupported)._GetResult();
 
     public async Task<FileObject> CreateFileAsync(FileParameters option, CancellationToken cancel = default)
     {
@@ -2057,7 +2068,7 @@ public abstract partial class FileSystem : AsyncService
         {
             using (EnterCriticalCounter())
             {
-                await option.NormalizePathAsync(this, opCancel);
+                await option.NormalizePathAsync(this, opCancel, option.Flags.Bit(FileFlags.AllowRelativePath));
 
                 if (option.Mode == FileMode.Append || option.Mode == FileMode.Create || option.Mode == FileMode.CreateNew ||
                     option.Mode == FileMode.OpenOrCreate || option.Mode == FileMode.Truncate)
@@ -2140,7 +2151,7 @@ public abstract partial class FileSystem : AsyncService
         {
             using (EnterCriticalCounter())
             {
-                path = await NormalizePathAsync(path, cancel: opCancel);
+                path = await NormalizePathAsync(path, cancel: opCancel, normalizeRelativePathIfSupported: flags.Bit(FileFlags.AllowRelativePath));
 
                 opCancel.ThrowIfCancellationRequested();
 
@@ -2152,7 +2163,7 @@ public abstract partial class FileSystem : AsyncService
     public void CreateDirectory(string path, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
         => CreateDirectoryAsync(path, flags, cancel)._GetResult();
 
-    public async Task DeleteDirectoryAsync(string path, bool recursive = false, CancellationToken cancel = default, bool forcefulUseInternalRecursiveDelete = false)
+    public async Task DeleteDirectoryAsync(string path, bool recursive = false, CancellationToken cancel = default, bool forcefulUseInternalRecursiveDelete = false, bool normalizeRelativePathIfSupported = false)
     {
         CheckWriteable(path);
 
@@ -2160,7 +2171,7 @@ public abstract partial class FileSystem : AsyncService
         {
             using (EnterCriticalCounter())
             {
-                path = await NormalizePathAsync(path, cancel: opCancel);
+                path = await NormalizePathAsync(path, cancel: opCancel, normalizeRelativePathIfSupported: normalizeRelativePathIfSupported);
 
                 opCancel.ThrowIfCancellationRequested();
 
@@ -2175,8 +2186,8 @@ public abstract partial class FileSystem : AsyncService
             }
         }
     }
-    public void DeleteDirectory(string path, bool recursive = false, CancellationToken cancel = default, bool forcefulUseInternalRecursiveDelete = false)
-        => DeleteDirectoryAsync(path, recursive, cancel, forcefulUseInternalRecursiveDelete)._GetResult();
+    public void DeleteDirectory(string path, bool recursive = false, CancellationToken cancel = default, bool forcefulUseInternalRecursiveDelete = false, bool normalizeRelativePathIfSupported = false)
+        => DeleteDirectoryAsync(path, recursive, cancel, forcefulUseInternalRecursiveDelete, normalizeRelativePathIfSupported)._GetResult();
 
     async Task<FileSystemEntity[]> EnumDirectoryInternalAsync(string directoryPath, EnumDirectoryFlags flags, string wildcard, CancellationToken opCancel)
     {
@@ -2265,7 +2276,7 @@ public abstract partial class FileSystem : AsyncService
         {
             opCancel.ThrowIfCancellationRequested();
 
-            directoryPath = await NormalizePathAsync(directoryPath, cancel: opCancel);
+            directoryPath = await NormalizePathAsync(directoryPath, cancel: opCancel, normalizeRelativePathIfSupported: flags.Bit(EnumDirectoryFlags.AllowRelativePath));
 
             List<FileSystemEntity> currentList = new List<FileSystemEntity>();
 
@@ -2281,13 +2292,18 @@ public abstract partial class FileSystem : AsyncService
     public FileSystemEntity[] EnumDirectory(string directoryPath, bool recursive = false, EnumDirectoryFlags flags = EnumDirectoryFlags.None, string? wildcard = null, CancellationToken cancel = default)
         => EnumDirectoryAsync(directoryPath, recursive, flags, wildcard, cancel)._GetResult();
 
-    public async Task<FileMetadata> GetFileMetadataAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
+    public async Task<FileMetadata> GetFileMetadataAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default, bool normalizeRelativePathIfSupported = false)
     {
         await using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
         {
             using (EnterCriticalCounter())
             {
                 cancel.ThrowIfCancellationRequested();
+
+                if (normalizeRelativePathIfSupported)
+                {
+                    path = await this.GetAbsolutePathFromRelativePathIfSupportedImplAsync(path, FileFlags.AllowRelativePath, cancel);
+                }
 
                 path = await NormalizePathImplAsync(path, opCancel);
 
@@ -2295,16 +2311,21 @@ public abstract partial class FileSystem : AsyncService
             }
         }
     }
-    public FileMetadata GetFileMetadata(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
-        => GetFileMetadataAsync(path, flags, cancel)._GetResult();
+    public FileMetadata GetFileMetadata(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default, bool normalizeRelativePathIfSupported = false)
+        => GetFileMetadataAsync(path, flags, cancel, normalizeRelativePathIfSupported)._GetResult();
 
-    public async Task<FileMetadata> GetDirectoryMetadataAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
+    public async Task<FileMetadata> GetDirectoryMetadataAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default, bool normalizeRelativePathIfSupported = false)
     {
         await using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
         {
             using (EnterCriticalCounter())
             {
                 cancel.ThrowIfCancellationRequested();
+
+                if (normalizeRelativePathIfSupported)
+                {
+                    path = await this.GetAbsolutePathFromRelativePathIfSupportedImplAsync(path, FileFlags.AllowRelativePath, cancel);
+                }
 
                 path = await NormalizePathImplAsync(path, opCancel);
 
@@ -2312,40 +2333,50 @@ public abstract partial class FileSystem : AsyncService
             }
         }
     }
-    public FileMetadata GetDirectoryMetadata(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
-        => GetDirectoryMetadataAsync(path, flags, cancel)._GetResult();
+    public FileMetadata GetDirectoryMetadata(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default, bool normalizeRelativePathIfSupported = false)
+        => GetDirectoryMetadataAsync(path, flags, cancel, normalizeRelativePathIfSupported)._GetResult();
 
-    public async Task<bool> IsFileExistsAsync(string path, CancellationToken cancel = default)
+    public async Task<bool> IsFileExistsAsync(string path, CancellationToken cancel = default, bool normalizeRelativePathIfSupported = false)
     {
         CheckNotCanceled();
 
         try
         {
+            if (normalizeRelativePathIfSupported)
+            {
+                path = await this.GetAbsolutePathFromRelativePathIfSupportedImplAsync(path, FileFlags.AllowRelativePath, cancel);
+            }
+
             return await IsFileExistsImplAsync(path, cancel);
         }
         catch { }
 
         return false;
     }
-    public bool IsFileExists(string path, CancellationToken cancel = default)
-        => IsFileExistsAsync(path, cancel)._GetResult();
+    public bool IsFileExists(string path, CancellationToken cancel = default, bool normalizeRelativePathIfSupported = false)
+        => IsFileExistsAsync(path, cancel, normalizeRelativePathIfSupported)._GetResult();
 
-    public async Task<bool> IsDirectoryExistsAsync(string path, CancellationToken cancel = default)
+    public async Task<bool> IsDirectoryExistsAsync(string path, CancellationToken cancel = default, bool normalizeRelativePathIfSupported = false)
     {
         CheckNotCanceled();
 
         try
         {
+            if (normalizeRelativePathIfSupported)
+            {
+                path = await this.GetAbsolutePathFromRelativePathIfSupportedImplAsync(path, FileFlags.AllowRelativePath, cancel);
+            }
+
             return await IsDirectoryExistsImplAsync(path, cancel);
         }
         catch { }
 
         return false;
     }
-    public bool IsDirectoryExists(string path, CancellationToken cancel = default)
-        => IsDirectoryExistsAsync(path, cancel)._GetResult();
+    public bool IsDirectoryExists(string path, CancellationToken cancel = default, bool normalizeRelativePathIfSupported = false)
+        => IsDirectoryExistsAsync(path, cancel, normalizeRelativePathIfSupported)._GetResult();
 
-    public async Task SetFileMetadataAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
+    public async Task SetFileMetadataAsync(string path, FileMetadata metadata, CancellationToken cancel = default, bool normalizeRelativePathIfSupported = false)
     {
         CheckWriteable(path);
 
@@ -2354,6 +2385,11 @@ public abstract partial class FileSystem : AsyncService
             using (EnterCriticalCounter())
             {
                 cancel.ThrowIfCancellationRequested();
+
+                if (normalizeRelativePathIfSupported)
+                {
+                    path = await this.GetAbsolutePathFromRelativePathIfSupportedImplAsync(path, FileFlags.AllowRelativePath, cancel);
+                }
 
                 path = await NormalizePathImplAsync(path, opCancel);
 
@@ -2361,10 +2397,10 @@ public abstract partial class FileSystem : AsyncService
             }
         }
     }
-    public void SetFileMetadata(string path, FileMetadata metadata, CancellationToken cancel = default)
-        => SetFileMetadataAsync(path, metadata, cancel)._GetResult();
+    public void SetFileMetadata(string path, FileMetadata metadata, CancellationToken cancel = default, bool normalizeRelativePathIfSupported = false)
+        => SetFileMetadataAsync(path, metadata, cancel, normalizeRelativePathIfSupported)._GetResult();
 
-    public async Task SetDirectoryMetadataAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
+    public async Task SetDirectoryMetadataAsync(string path, FileMetadata metadata, CancellationToken cancel = default, bool normalizeRelativePathIfSupported = false)
     {
         CheckWriteable(path);
 
@@ -2374,14 +2410,19 @@ public abstract partial class FileSystem : AsyncService
             {
                 cancel.ThrowIfCancellationRequested();
 
+                if (normalizeRelativePathIfSupported)
+                {
+                    path = await this.GetAbsolutePathFromRelativePathIfSupportedImplAsync(path, FileFlags.AllowRelativePath, cancel);
+                }
+
                 path = await NormalizePathImplAsync(path, opCancel);
 
                 await SetDirectoryMetadataImplAsync(path, metadata, opCancel);
             }
         }
     }
-    public void SetDirectoryMetadata(string path, FileMetadata metadata, CancellationToken cancel = default)
-        => SetDirectoryMetadataAsync(path, metadata, cancel)._GetResult();
+    public void SetDirectoryMetadata(string path, FileMetadata metadata, CancellationToken cancel = default, bool normalizeRelativePathIfSupported = false)
+        => SetDirectoryMetadataAsync(path, metadata, cancel, normalizeRelativePathIfSupported)._GetResult();
 
     public async Task DeleteFileAsync(string path, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
     {
@@ -2393,6 +2434,11 @@ public abstract partial class FileSystem : AsyncService
             {
                 cancel.ThrowIfCancellationRequested();
 
+                if (flags.Bit(FileFlags.AllowRelativePath))
+                {
+                    path = await this.GetAbsolutePathFromRelativePathIfSupportedImplAsync(path, flags, cancel);
+                }
+
                 path = await NormalizePathImplAsync(path, opCancel);
 
                 await DeleteFileImplAsync(path, flags, opCancel);
@@ -2403,7 +2449,7 @@ public abstract partial class FileSystem : AsyncService
     public void DeleteFile(string path, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
         => DeleteFileAsync(path, flags, cancel)._GetResult();
 
-    public async Task MoveFileAsync(string srcPath, string destPath, CancellationToken cancel = default)
+    public async Task MoveFileAsync(string srcPath, string destPath, CancellationToken cancel = default, bool normalizeRelativePathIfSupported = false)
     {
         CheckWriteable(srcPath);
 
@@ -2412,6 +2458,12 @@ public abstract partial class FileSystem : AsyncService
             using (EnterCriticalCounter())
             {
                 cancel.ThrowIfCancellationRequested();
+
+                if (normalizeRelativePathIfSupported)
+                {
+                    srcPath = await this.GetAbsolutePathFromRelativePathIfSupportedImplAsync(srcPath, FileFlags.AllowRelativePath, cancel);
+                    destPath = await this.GetAbsolutePathFromRelativePathIfSupportedImplAsync(destPath, FileFlags.AllowRelativePath, cancel);
+                }
 
                 srcPath = await NormalizePathImplAsync(srcPath, opCancel);
                 destPath = await NormalizePathImplAsync(destPath, opCancel);
@@ -2420,10 +2472,10 @@ public abstract partial class FileSystem : AsyncService
             }
         }
     }
-    public void MoveFile(string srcPath, string destPath, CancellationToken cancel = default)
-        => MoveFileAsync(srcPath, destPath, cancel)._GetResult();
+    public void MoveFile(string srcPath, string destPath, CancellationToken cancel = default, bool normalizeRelativePathIfSupported = false)
+        => MoveFileAsync(srcPath, destPath, cancel, normalizeRelativePathIfSupported)._GetResult();
 
-    public async Task MoveDirectoryAsync(string srcPath, string destPath, CancellationToken cancel = default)
+    public async Task MoveDirectoryAsync(string srcPath, string destPath, CancellationToken cancel = default, bool normalizeRelativePathIfSupported = false)
     {
         CheckWriteable(srcPath);
 
@@ -2433,6 +2485,12 @@ public abstract partial class FileSystem : AsyncService
             {
                 cancel.ThrowIfCancellationRequested();
 
+                if (normalizeRelativePathIfSupported)
+                {
+                    srcPath = await this.GetAbsolutePathFromRelativePathIfSupportedImplAsync(srcPath, FileFlags.AllowRelativePath, cancel);
+                    destPath = await this.GetAbsolutePathFromRelativePathIfSupportedImplAsync(destPath, FileFlags.AllowRelativePath, cancel);
+                }
+
                 srcPath = await NormalizePathImplAsync(srcPath, opCancel);
                 destPath = await NormalizePathImplAsync(destPath, opCancel);
 
@@ -2440,8 +2498,8 @@ public abstract partial class FileSystem : AsyncService
             }
         }
     }
-    public void MoveDirectory(string srcPath, string destPath, CancellationToken cancel = default)
-        => MoveDirectoryAsync(srcPath, destPath, cancel)._GetResult();
+    public void MoveDirectory(string srcPath, string destPath, CancellationToken cancel = default, bool normalizeRelativePathIfSupported = false)
+        => MoveDirectoryAsync(srcPath, destPath, cancel, normalizeRelativePathIfSupported)._GetResult();
 
     public static SpecialFileNameKind GetSpecialFileNameKind(string fileName)
     {

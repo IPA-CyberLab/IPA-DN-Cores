@@ -104,6 +104,22 @@ public partial class LocalFileSystem : FileSystem
     {
     }
 
+    protected override Task<string> GetAbsolutePathFromRelativePathIfSupportedImplAsync(string path, FileFlags flags, CancellationToken cancel)
+    {
+        if (this.PathParser.IsAbsolutePath(path, true))
+        {
+            return path._TR();
+        }
+
+        string cd = this.GetCurrentDirectory();
+
+        cd = this.PathParser.NormalizeDirectorySeparatorAndCheckIfAbsolutePath(cd);
+
+        path = this.PathParser.Combine(cd, path);
+
+        return path._TR();
+    }
+
     protected override Task<FileObject> CreateFileImplAsync(FileParameters fileParams, CancellationToken cancel = default)
         => LocalFileObject.CreateFileAsync(this, fileParams, cancel);
 

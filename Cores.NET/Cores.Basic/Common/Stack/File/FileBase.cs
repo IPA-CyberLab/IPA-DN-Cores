@@ -426,14 +426,14 @@ public sealed class FileParameters
         this.Flags = flags;
     }
 
-    public async Task NormalizePathAsync(FileSystem fileSystem, CancellationToken cancel = default)
+    public async Task NormalizePathAsync(FileSystem fileSystem, CancellationToken cancel = default, bool normalizeRelativePathIfSupported = false)
     {
-        string ret = await fileSystem.NormalizePathAsync(this.Path, cancel: cancel);
+        string ret = await fileSystem.NormalizePathAsync(this.Path, cancel: cancel, normalizeRelativePathIfSupported: normalizeRelativePathIfSupported);
         this.Path = ret;
     }
 
-    public void NormalizePath(FileSystem fileSystem, CancellationToken cancel = default)
-        => NormalizePathAsync(fileSystem, cancel)._GetResult();
+    public void NormalizePath(FileSystem fileSystem, CancellationToken cancel = default, bool normalizeRelativePathIfSupported = false)
+        => NormalizePathAsync(fileSystem, cancel, normalizeRelativePathIfSupported)._GetResult();
 
     public FileParameters MapPathVirtualToPhysical(IRewriteVirtualPhysicalPath rewriter)
     {
@@ -473,6 +473,7 @@ public enum FileFlags : ulong
     NoCheckFileSize = 32768,
     LargeFs_ProhibitWriteWithCrossBorder = 65536,
     ReadStr_ExpandIncludes = 131072,
+    AllowRelativePath = 262144,
 }
 
 
