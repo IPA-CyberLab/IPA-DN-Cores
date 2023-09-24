@@ -79,6 +79,8 @@ public static partial class Consts
 
         public const int BlockSize = 4096;
         public const int DataBlockSrcSize = 1024 * 1024;
+
+        public const int DefaultKeepAliveMsecs = 10 * 1000;
     }
 }
 
@@ -166,6 +168,8 @@ public class SecureCompressFinalHeader
     public string SrcSha1 = "";
     public string DestSha1 = "";
 
+    public DateTimeOffset TimeStamp = Util.ZeroDateTimeOffsetValue;
+
     public SecureCompressFirstHeader? CopyOfFirstHeader;
 }
 
@@ -180,6 +184,7 @@ public class SecureCompressBlockHeader : IValidatable
     public string DestSha1 = "";
     public bool IsAllZero;
     public bool IsEoF;
+    public DateTimeOffset TimeStamp = Util.ZeroDateTimeOffsetValue;
 
     public void Validate()
     {
@@ -198,6 +203,8 @@ public class SecureCompressFirstHeader
     public string SaltedPassword = "";
     public string MasterKeyEncryptedByPassword = "";
     public long SrcDataSizeHint;
+    public DateTimeOffset TimeStamp = Util.ZeroDateTimeOffsetValue;
+    public string Hostname = "";
 }
 
 [Flags]
@@ -215,8 +222,9 @@ public class SecureCompressOptions
     public CompressionLevel CompressionLevel { get; }
     public int NumCpu { get; }
     public SecureCompressFlags Flags { get; }
+    public int KeepAliveMsecs { get; }
 
-    public SecureCompressOptions(string fileNameHint, bool encrypt, string password, bool compress, CompressionLevel compressionLevel, int numCpu = -1, SecureCompressFlags flags = SecureCompressFlags.None)
+    public SecureCompressOptions(string fileNameHint, bool encrypt, string password, bool compress, CompressionLevel compressionLevel, int numCpu = -1, SecureCompressFlags flags = SecureCompressFlags.None, int keepAliveMsecs = -1)
     {
         this.FileNameHint = fileNameHint;
 
@@ -240,6 +248,13 @@ public class SecureCompressOptions
         this.CompressionLevel = compressionLevel;
 
         this.Flags = flags;
+
+        if (keepAliveMsecs < 0)
+        {
+            keepAliveMsecs = Consts.SecureCompress.DefaultKeepAliveMsecs;
+        }
+
+        this.KeepAliveMsecs = keepAliveMsecs;
     }
 }
 
@@ -897,6 +912,8 @@ public class SecureCompressEncoder : StreamImplBase
 
     bool IsLastChunkAllZero = false;
 
+    long LastChunkWrittenTick = 0;
+
     // メモリ上の CurrentSrcDataBuffer の内容 (これは、1MB * CPU 数のサイズが上限なはずである) を出力ストリームに書き出す
     async Task ProcessAndSendBufferedDataAsync(CancellationToken cancel = default)
     {
@@ -1038,6 +1055,9 @@ public class SecureCompressEncoder : StreamImplBase
             if (FirstWriteFlag == false)
             {
                 // 1 個目なのでファイル全体のヘッダ (FirstHeader) を書き込み
+                this.FirstHeader.Hostname = Env.DnsFqdnHostName;
+                this.FirstHeader.TimeStamp = DtOffsetNow;
+
                 var headerData = HeaderToData(Consts.SecureCompress.SecureCompressFirstHeader_Str, this.FirstHeader);
 
                 // ヘッダは、万一の破損に備えて 2 回書く
@@ -1050,6 +1070,8 @@ public class SecureCompressEncoder : StreamImplBase
             // チャンクを書き込み
             foreach (var chunk in chunkList)
             {
+                long now = Time.Tick64;
+
                 // チャンクヘッダを書き込み
                 SecureCompressBlockHeader h = new SecureCompressBlockHeader
                 {
@@ -1061,11 +1083,23 @@ public class SecureCompressEncoder : StreamImplBase
                     DestSha1 = chunk.DestSha1,
                     ChunkIndex = CurrentNumChunks,
                     IsAllZero = chunk.IsAllZero,
+                    IsEoF = false,
+                    TimeStamp = DtOffsetNow,
                 };
 
                 bool skip = this.IsLastChunkAllZero && chunk.IsAllZero; // 内容がゼロで、1 つ前の内容もゼロだった場合はスキップする
 
                 this.IsLastChunkAllZero = chunk.IsAllZero;
+
+                if (skip)
+                {
+                    if (this.LastChunkWrittenTick == 0 || (LastChunkWrittenTick + this.Options.KeepAliveMsecs) <= now)
+                    {
+                        this.LastChunkWrittenTick = now;
+
+                        skip = false;
+                    }
+                }
 
                 if (skip == false)
                 {
@@ -1077,6 +1111,8 @@ public class SecureCompressEncoder : StreamImplBase
                     {
                         tmpBuf.Write(chunk.DestData);
                     }
+
+                    this.LastChunkWrittenTick = now;
                 }
 
                 CurrentNumChunks++;
@@ -1172,6 +1208,7 @@ public class SecureCompressEncoder : StreamImplBase
                     ChunkIndex = CurrentNumChunks,
                     IsAllZero = false,
                     IsEoF = true,
+                    TimeStamp = DtOffsetNow,
                 };
 
                 var headerData1 = HeaderToData(Consts.SecureCompress.SecureCompressBlockHeader_Str, lastBlockHeader);
@@ -1189,6 +1226,8 @@ public class SecureCompressEncoder : StreamImplBase
                 finalHeader.SrcSha1 = this.SrcHash_Sha1.GetFinalHash()._GetHexString();
 
                 finalHeader.DestSha1 = this.DestHash_Sha1.GetFinalHash()._GetHexString();
+
+                finalHeader.TimeStamp = DtOffsetNow;
 
                 var headerData2 = HeaderToData(Consts.SecureCompress.SecureCompressFinalHeader_Str, finalHeader);
 

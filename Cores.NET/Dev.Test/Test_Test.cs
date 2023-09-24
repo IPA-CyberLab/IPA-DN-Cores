@@ -4437,7 +4437,7 @@ HOST: www.google.com
     static async Task Test230920_02()
     {
         {
-            string fn1 = @"C:\tmp2\secure_compress_test\empty.dat";
+            string fn1 = @"C:\tmp2\secure_compress_test\empty2.dat";
             string fn2 = @"C:\tmp2\secure_compress_test\01_fastest_vhdx_dst.dat";
             string fn3 = @"C:\tmp2\secure_compress_test\02_fastest_vhdx_restored.dat";
 
