@@ -874,10 +874,7 @@ public class VirtualFileSystem : FileSystem
                     lastAccessTime: thisDirObject.LastAccessTime
                     );
 
-                if (this.PathParser.WildcardMatch(thisDir.Name, wildcard))
-                {
-                    ret.Add(thisDir);
-                }
+                ret.Add(thisDir);
 
                 foreach (var entity in entities)
                 {

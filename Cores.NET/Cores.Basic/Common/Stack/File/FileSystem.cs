@@ -861,7 +861,7 @@ public class PathParser
             return true;
         }
 
-        return fileName._WildcardMatch(fileName, this.IgnoreCase);
+        return fileName._WildcardMatch(wildcard, this.IgnoreCase);
     }
 
     public bool IsFullPathExcludedByExcludeDirList(string fullPath, IEnumerable<string>? dirList = null)

@@ -4486,7 +4486,9 @@ HOST: www.google.com
 
     static void Test_230924()
     {
-        //var a = Lfs.EnumDirectory(
+        var a = Lfs.EnumDirectory(@"C:\tmp", wildcard: "*.txt");
+
+        a._DoForEach(x => x.Name._Print());
     }
 
     public static void Test_Generic()

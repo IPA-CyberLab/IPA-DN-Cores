@@ -265,7 +265,7 @@ public abstract class RewriteFileSystem : ViewFileSystem, IRewriteVirtualPhysica
                 entry.Attributes.BitRemove(FileAttributes.ReparsePoint);
             }
 
-            if (this.PathParser.WildcardMatch(entry.Name, wildcard))
+            if (entry.IsCurrentDirectory || entry.IsParentDirectory || this.PathParser.WildcardMatch(entry.Name, wildcard))
             {
                 ret.Add(entry);
             }

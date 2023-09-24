@@ -160,10 +160,7 @@ public partial class LocalFileSystem : FileSystem
         FileSystemEntity currentDirectory = ConvertFileSystemInfoToFileSystemEntity(di);
         currentDirectory.Name = ".";
 
-        if (this.PathParser.WildcardMatch(currentDirectory.Name, wildcard))
-        {
-            o.Add(currentDirectory);
-        }
+        o.Add(currentDirectory);
 
         foreach (FileSystemInfo info in di.GetFileSystemInfos().Where(x => x.Exists))
         {
