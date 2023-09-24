@@ -2186,7 +2186,7 @@ public abstract partial class FileSystem : AsyncService
 
             FileSystemEntity[] list = await EnumDirectoryImplAsync(directoryPath, (flags | EnumDirectoryFlags.IncludeCurrentDirectory).BitRemove(EnumDirectoryFlags.IncludeParentDirectory), wildcard, opCancel);
 
-            if (list.Select(x => x.Name).Distinct().Count() != list.Count())
+            if (list.Select(x => x.Name).Distinct(this.PathParser.PathStringComparer).Count() != list.Count())
             {
                 throw new ApplicationException("There are duplicated entities returned by EnumDirectoryImplAsync().");
             }
