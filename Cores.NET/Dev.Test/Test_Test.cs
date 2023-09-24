@@ -4484,8 +4484,19 @@ HOST: www.google.com
         });
     }
 
+    static void Test_230924()
+    {
+        //var a = Lfs.EnumDirectory(
+    }
+
     public static void Test_Generic()
     {
+        if (true)
+        {
+            Test_230924();
+            return;
+        }
+
         if (false)
         {
             using var f = Lfs.Open(@"C:\tmp2\secure_compress_test\empty.dat", writeMode: true);

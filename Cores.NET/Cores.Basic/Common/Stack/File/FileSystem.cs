@@ -2278,8 +2278,8 @@ public abstract partial class FileSystem : AsyncService
         }
     }
 
-    public FileSystemEntity[] EnumDirectory(string directoryPath, bool recursive = false, EnumDirectoryFlags flags = EnumDirectoryFlags.None, CancellationToken cancel = default)
-        => EnumDirectoryAsync(directoryPath, recursive, flags, null, cancel)._GetResult();
+    public FileSystemEntity[] EnumDirectory(string directoryPath, bool recursive = false, EnumDirectoryFlags flags = EnumDirectoryFlags.None, string? wildcard = null, CancellationToken cancel = default)
+        => EnumDirectoryAsync(directoryPath, recursive, flags, wildcard, cancel)._GetResult();
 
     public async Task<FileMetadata> GetFileMetadataAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
     {
