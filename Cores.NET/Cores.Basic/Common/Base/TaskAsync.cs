@@ -4919,7 +4919,7 @@ public abstract class ObjectPoolBase<TObject, TParam> : IDisposable, IAsyncDispo
         }
     }
 
-    public async Task EnumAndCloseHandlesAsync(Func<string, TObject, bool> enumProc, Action? afterClosedProc = null, Comparison<TObject>? sortProc = null, CancellationToken cancel = default)
+    public async Task EnumAndCloseHandlesAsync(Func<string, TObject, Task<bool>> enumProc, Func<Task>? afterClosedProc = null, Comparison<TObject>? sortProc = null, CancellationToken cancel = default)
     {
         await using (TaskUtil.CreateCombinedCancellationToken(out CancellationToken cancelOp, CancelSource.Token, cancel))
         {
@@ -4938,7 +4938,7 @@ public abstract class ObjectPoolBase<TObject, TParam> : IDisposable, IAsyncDispo
 
                     try
                     {
-                        if (enumProc(entry.Key, entry.Object) == true)
+                        if (await enumProc(entry.Key, entry.Object) == true)
                             closeList.Add(entry);
                     }
                     catch { }
@@ -4962,7 +4962,7 @@ public abstract class ObjectPoolBase<TObject, TParam> : IDisposable, IAsyncDispo
 
                 if (afterClosedProc != null)
                 {
-                    afterClosedProc();
+                    await afterClosedProc();
                 }
             }
         }

@@ -238,9 +238,9 @@ public class LargeFileObject : FileObject
                 var parsed = new LargeFileSystem.ParsedPath(LargeFileSystem, key);
                 if (parsed.LogicalFilePath._IsSame(this.FileParams.Path, LargeFileSystem.PathParser.PathStringComparison))
                 {
-                    return true;
+                    return TR(true);
                 }
-                return false;
+                return TR(false);
             });
         }
         else
@@ -250,9 +250,9 @@ public class LargeFileObject : FileObject
                 var parsed = new LargeFileSystem.ParsedPath(LargeFileSystem, key);
                 if (parsed.LogicalFilePath._IsSame(this.FileParams.Path, LargeFileSystem.PathParser.PathStringComparison))
                 {
-                    return true;
+                    return TR(true);
                 }
-                return false;
+                return TR(false);
             });
         }
     }
@@ -505,15 +505,15 @@ public class LargeFileObject : FileObject
             {
                 if (filesToDelete.Where(x => x.PhysicalFilePath._IsSame(file.FileParams.Path, LargeFileSystem.PathParser.PathStringComparison)).Any())
                 {
-                    return true;
+                    return TR(true);
                 }
-                return false;
+                return TR(false);
             },
-            () =>
+            async () =>
             {
                 foreach (LargeFileSystem.ParsedPath deleteFile in filesToDelete.OrderByDescending(x => x.PhysicalFilePath))
                 {
-                    UnderlayFileSystem.DeleteFile(deleteFile.PhysicalFilePath, FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
+                    await UnderlayFileSystem.DeleteFileAsync(deleteFile.PhysicalFilePath, FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
                 }
             },
             (x, y) =>
@@ -526,15 +526,15 @@ public class LargeFileObject : FileObject
             {
                 if (filesToDelete.Where(x => x.PhysicalFilePath._IsSame(file.FileParams.Path, LargeFileSystem.PathParser.PathStringComparison)).Any())
                 {
-                    return true;
+                    return TR(true);
                 }
-                return false;
+                return TR(false);
             },
-            () =>
+            async () =>
             {
                 foreach (LargeFileSystem.ParsedPath deleteFile in filesToDelete.OrderByDescending(x => x.PhysicalFilePath))
                 {
-                    UnderlayFileSystem.DeleteFile(deleteFile.PhysicalFilePath, FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
+                    await UnderlayFileSystem.DeleteFileAsync(deleteFile.PhysicalFilePath, FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
                 }
             },
             (x, y) =>
@@ -970,15 +970,15 @@ public class LargeFileSystem : FileSystem
         {
             if (physicalFiles.Where(x => x.PhysicalFilePath._IsSame(file.FileParams.Path, PathParser.PathStringComparison)).Any())
             {
-                return true;
+                return TR(true);
             }
-            return false;
+            return TR(false);
         },
-        () =>
+        async () =>
         {
             foreach (LargeFileSystem.ParsedPath deleteFile in physicalFiles.OrderByDescending(x => x.PhysicalFilePath))
             {
-                UnderlayFileSystem.DeleteFile(deleteFile.PhysicalFilePath, FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
+                await UnderlayFileSystem.DeleteFileAsync(deleteFile.PhysicalFilePath, FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
             }
         },
         (x, y) =>
@@ -991,15 +991,15 @@ public class LargeFileSystem : FileSystem
         {
             if (physicalFiles.Where(x => x.PhysicalFilePath._IsSame(file.FileParams.Path, PathParser.PathStringComparison)).Any())
             {
-                return true;
+                return TR(true);
             }
-            return false;
+            return TR(false);
         },
-        () =>
+        async () =>
         {
             foreach (LargeFileSystem.ParsedPath deleteFile in physicalFiles.OrderByDescending(x => x.PhysicalFilePath))
             {
-                UnderlayFileSystem.DeleteFile(deleteFile.PhysicalFilePath, FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
+                await UnderlayFileSystem.DeleteFileAsync(deleteFile.PhysicalFilePath, FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
             }
         },
         (x, y) =>
