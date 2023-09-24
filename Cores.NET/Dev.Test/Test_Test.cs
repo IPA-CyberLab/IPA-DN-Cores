@@ -4486,9 +4486,13 @@ HOST: www.google.com
 
     static void Test_230924()
     {
-        var a = Lfs.EnumDirectory(@"../", wildcard: "*", flags: EnumDirectoryFlags.AllowRelativePath);
+        var src = "x"._GetBytes_Ascii();
 
-        a._DoForEach(x => x.FullPath._Print());
+        var dst = ChaChaPoly.EasyEncryptWithPassword(src, "a");
+
+        dst._GetHexString()._Print();
+
+        dst.Length._Print();
     }
 
     public static void Test_Generic()
