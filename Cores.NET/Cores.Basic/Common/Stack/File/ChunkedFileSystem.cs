@@ -58,16 +58,6 @@ public static partial class CoresConfig
     }
 }
 
-public class ChunkedFsWriteWithCrossBorderException : CoresException
-{
-    public long RequiredPaddingSize { get; }
-
-    public ChunkedFsWriteWithCrossBorderException(string? message, long requiredPaddingSize) : base(message)
-    {
-        this.RequiredPaddingSize = requiredPaddingSize;
-    }
-}
-
 public class ChunkedFileObject : FileObject
 {
     public class Cursor
@@ -152,15 +142,12 @@ public class ChunkedFileObject : FileObject
 
         try
         {
-            bool newFille = false;
-
             ChunkedFileSystem.ParsedPath? lastFileParsed = InitialRelatedFiles.OrderBy(x => x.FileNumber).LastOrDefault();
 
             if (lastFileParsed == null)
             {
                 // New file
                 CurrentFileSize = 0;
-                newFille = true;
 
                 if (FileParams.Mode == FileMode.Open || FileParams.Mode == FileMode.Truncate)
                 {
@@ -192,8 +179,6 @@ public class ChunkedFileObject : FileObject
 
                     lastFileParsed = null;
                     CurrentFileSize = 0;
-
-                    newFille = true;
                 }
             }
 
@@ -202,13 +187,6 @@ public class ChunkedFileObject : FileObject
                 currentPosition = this.CurrentFileSize;
 
             InitAndCheckFileSizeAndPosition(currentPosition, await GetFileSizeImplAsync(cancel), cancel);
-
-            if (newFille)
-            {
-                await using (var handle = await GetUnderlayRandomAccessHandle(0, cancel))
-                {
-                }
-            }
         }
         catch
         {
@@ -216,61 +194,65 @@ public class ChunkedFileObject : FileObject
         }
     }
 
-    readonly Cache<string, ChunkedFileSystem.ParsedPath> ParsedPathCache = new Cache<string, ChunkedFileSystem.ParsedPath>(TimeSpan.FromMilliseconds(CoresConfig.FileSystemSettings.PooledHandleLifetime.Value), CacheType.UpdateExpiresWhenAccess);
+    FileObject? InternalCurrentFileObject = null;
+    string InternalCurrentFilePhysicalPath = "";
 
-    async Task<RandomAccessHandle> GetUnderlayRandomAccessHandle(long logicalPosition, CancellationToken cancel)
+    async Task<FileObject> GetUnderlayFileObjectAsyncForLogicalPositionAsync(long logicalPosition, CancellationToken cancel)
     {
         var cursor = new Cursor(this, logicalPosition);
 
-        string cacheKey = $"{this.FileParams.Path}:{cursor.PhysicalFileNumber}";
+        var parsed = new ChunkedFileSystem.ParsedPath(ChunkedFileSystem, this.FileParams.Path, cursor.PhysicalFileNumber);
 
-        var parsed = ParsedPathCache.GetOrCreate(cacheKey, x => new ChunkedFileSystem.ParsedPath(ChunkedFileSystem, this.FileParams.Path, cursor.PhysicalFileNumber));
+        string physicalPath = parsed.PhysicalFilePath;
 
-        return await ChunkedFileSystem.UnderlayFileSystem.GetRandomAccessHandleAsync(parsed.PhysicalFilePath, FileParams.Access.Bit(FileAccess.Write), this.FileParams.Flags, cancel);
+        if (this.InternalCurrentFileObject == null || this.InternalCurrentFilePhysicalPath._IsDiff(physicalPath))
+        {
+            await this.InternalCurrentFileObject._DisposeSafeAsync();
+
+            this.InternalCurrentFileObject = null;
+
+            return await OpenUnderlayFileObjecForLogicalPositionCoreAsync(physicalPath, cancel);
+        }
+        else
+        {
+            return this.InternalCurrentFileObject;
+        }
+    }
+
+    async Task<FileObject> OpenUnderlayFileObjecForLogicalPositionCoreAsync(string physicalPath, CancellationToken cancel)
+    {
+        FileObject underlayFileObj;
+
+        if (FileParams.Access.Bit(FileAccess.Write))
+        {
+            underlayFileObj = await ChunkedFileSystem.UnderlayFileSystem.OpenOrCreateAsync(physicalPath, cancel: cancel, flags: FileFlags.RandomAccessOnly | this.FileParams.Flags);
+        }
+        else
+        {
+            underlayFileObj = await ChunkedFileSystem.UnderlayFileSystem.OpenAsync(physicalPath, cancel: cancel, flags: FileFlags.RandomAccessOnly | this.FileParams.Flags);
+        }
+
+        return underlayFileObj;
     }
 
     protected override async Task CloseImplAsync()
     {
-        if (FileParams.Access.Bit(FileAccess.Write))
-        {
-            await ChunkedFileSystem.UnderlayFileSystemPoolForWrite.EnumAndCloseHandlesAsync((key, file) =>
-            {
-                var parsed = new ChunkedFileSystem.ParsedPath(ChunkedFileSystem, key);
-                if (parsed.LogicalFilePath._IsSame(this.FileParams.Path, ChunkedFileSystem.PathParser.PathStringComparison))
-                {
-                    return TR(true);
-                }
-                return TR(false);
-            });
-        }
-        else
-        {
-            await ChunkedFileSystem.UnderlayFileSystemPoolForRead.EnumAndCloseHandlesAsync((key, file) =>
-            {
-                var parsed = new ChunkedFileSystem.ParsedPath(ChunkedFileSystem, key);
-                if (parsed.LogicalFilePath._IsSame(this.FileParams.Path, ChunkedFileSystem.PathParser.PathStringComparison))
-                {
-                    return TR(true);
-                }
-                return TR(false);
-            });
-        }
+        await this.InternalCurrentFileObject._DisposeSafeAsync();
+        this.InternalCurrentFileObject = null;
+        this.InternalCurrentFilePhysicalPath = null;
     }
 
     protected override async Task FlushImplAsync(CancellationToken cancel = default)
     {
-        await using (var handle = await GetUnderlayRandomAccessHandle(this.CurrentFileSize, cancel))
-        {
-            await handle.FlushAsync(cancel);
-        }
+        var currentFile = await GetUnderlayFileObjectAsyncForLogicalPositionAsync(this.CurrentFileSize, cancel);
+
+        await currentFile.FlushAsync(cancel);
     }
 
-#pragma warning disable CS1998
-    protected override async Task<long> GetFileSizeImplAsync(CancellationToken cancel = default)
+    protected override Task<long> GetFileSizeImplAsync(CancellationToken cancel = default)
     {
-        return this.CurrentFileSize;
+        return this.CurrentFileSize._TR();
     }
-#pragma warning restore CS1998
 
     List<Cursor> GenerateCursorList(long position, long length, bool writeMode)
     {
@@ -325,32 +307,29 @@ public class ChunkedFileObject : FileObject
             {
                 bool isLast = (cursor == cursorList.Last());
 
-                RandomAccessHandle? handle = null;
+                FileObject? currentFile = null;
 
                 try
                 {
-                    handle = await GetUnderlayRandomAccessHandle(cursor.LogicalPosition, cancel);
+                    currentFile = await GetUnderlayFileObjectAsyncForLogicalPositionAsync(cursor.LogicalPosition, cancel);
                 }
                 catch (FileNotFoundException) { }
 
                 var subMemory = data.Slice((int)(cursor.LogicalPosition - position), (int)cursor.PhysicalDataLength);
 
-                if (handle != null)
+                if (currentFile != null)
                 {
-                    await using (handle)
+                    int r = await currentFile.ReadRandomAsync(cursor.PhysicalPosition, subMemory, cancel);
+
+                    Debug.Assert(r <= (int)cursor.PhysicalDataLength);
+
+                    if (r < (int)cursor.PhysicalDataLength)
                     {
-                        int r = await handle.ReadRandomAsync(cursor.PhysicalPosition, subMemory, cancel);
-
-                        Debug.Assert(r <= (int)cursor.PhysicalDataLength);
-
-                        if (r < (int)cursor.PhysicalDataLength)
-                        {
-                            var zeroClearMemory = subMemory.Slice(r);
-                            zeroClearMemory.Span.Fill(0);
-                        }
-
-                        totalLength += (int)cursor.PhysicalDataLength;
+                        var zeroClearMemory = subMemory.Slice(r);
+                        zeroClearMemory.Span.Fill(0);
                     }
+
+                    totalLength += (int)cursor.PhysicalDataLength;
                 }
                 else
                 {
@@ -366,7 +345,6 @@ public class ChunkedFileObject : FileObject
 
     Cursor? lastWriteCursor = null;
 
-#pragma warning disable CS0612 // 型またはメンバーが旧型式です
     protected override async Task WriteRandomImplAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
     {
         checked
@@ -379,178 +357,41 @@ public class ChunkedFileObject : FileObject
             {
                 if (cursorList[0].PhysicalFileNumber != lastWriteCursor.PhysicalFileNumber)
                 {
-                    await using (var handle = await GetUnderlayRandomAccessHandle(lastWriteCursor.LogicalPosition, cancel))
-                    {
-                        await handle.FlushAsync();
-                    }
+                    var currentFile = await GetUnderlayFileObjectAsyncForLogicalPositionAsync(lastWriteCursor.LogicalPosition, cancel);
+
+                    await currentFile.FlushAsync();
 
                     lastWriteCursor = null;
                 }
             }
 
-            if (this.FileParams.Flags.Bit(FileFlags.LargeFs_ProhibitWriteWithCrossBorder) && cursorList.Count >= 2)
+            // Normal write
+            for (int i = 0; i < cursorList.Count; i++)
             {
-                if (cursorList.Count >= 3)
-                {
-                    // Write fails because it beyonds two borders
-                    throw new FileException(this.FileParams.Path, $"ChunkedFileSystemDoNotAppendBeyondBorder error: pos = {position}, data = {data.Length}");
-                }
-                else
-                {
-                    Debug.Assert(data.Length <= this.ChunkedFileSystem.Params.MaxSinglePhysicalFileSize);
+                Cursor cursor = cursorList[i];
+                bool isPastFile = (i != cursorList.Count - 1);
 
-                    var firstCursor = cursorList[0];
-                    var secondCursor = cursorList[1];
+                var currentFile = await GetUnderlayFileObjectAsyncForLogicalPositionAsync(cursor.LogicalPosition, cancel);
+                await currentFile.WriteRandomAsync(cursor.PhysicalPosition, data.Slice((int)(cursor.LogicalPosition - position), (int)cursor.PhysicalDataLength), cancel);
 
-                    Debug.Assert(firstCursor.LogicalPosition == position);
-                    Debug.Assert(secondCursor.LogicalPosition == (firstCursor.LogicalPosition + firstCursor.PhysicalRemainingLength));
+                if (isPastFile)
+                    await currentFile.FlushAsync(cancel);
 
-                    long requiredPaddingSize = firstCursor.PhysicalRemainingLength;
-
-                    throw new ChunkedFsWriteWithCrossBorderException($"ChunkedFs_ProhibitWriteWithCrossBorder. pos = {position}, data = {data.Length}, requiredPaddingSize = {requiredPaddingSize}", requiredPaddingSize);
-                }
+                this.lastWriteCursor = cursor;
             }
 
-            if (this.FileParams.Flags.BitAny(FileFlags.LargeFs_AppendWithoutCrossBorder | FileFlags.LargeFs_AppendNewLineForCrossBorder)
-                && position == this.CurrentFileSize && cursorList.Count >= 2)
-            {
-                // Crossing the border when the ChunkedFileSystemAppendWithCrossBorder flag is set
-                if (cursorList.Count >= 3)
-                {
-                    // Write fails because it beyonds two borders
-                    throw new FileException(this.FileParams.Path, $"ChunkedFileSystemDoNotAppendBeyondBorder error: pos = {position}, data = {data.Length}");
-                }
-                else
-                {
-                    Debug.Assert(data.Length <= this.ChunkedFileSystem.Params.MaxSinglePhysicalFileSize);
-
-                    var firstCursor = cursorList[0];
-                    var secondCursor = cursorList[1];
-
-                    Debug.Assert(firstCursor.LogicalPosition == position);
-                    Debug.Assert(secondCursor.LogicalPosition == (firstCursor.LogicalPosition + firstCursor.PhysicalRemainingLength));
-
-                    await using (var handle = await GetUnderlayRandomAccessHandle(position, cancel))
-                    {
-                        // Write the zero-cleared block toward the end of the first physical file
-                        byte[] appendBytes = new byte[firstCursor.PhysicalRemainingLength];
-                        if (this.FileParams.Flags.Bit(FileFlags.LargeFs_AppendNewLineForCrossBorder))
-                        {
-                            if (appendBytes.Length >= 2)
-                            {
-                                appendBytes[0] = 13;
-                                appendBytes[1] = 10;
-                            }
-                            else if (appendBytes.Length >= 1)
-                            {
-                                appendBytes[0] = 10;
-                            }
-                        }
-
-                        await handle.WriteRandomAsync(firstCursor.PhysicalPosition, appendBytes, cancel);
-                        await handle.FlushAsync(cancel); // Complete write the first file
-                        this.CurrentFileSize += firstCursor.PhysicalRemainingLength;
-                    }
-
-                    await using (var handle = await GetUnderlayRandomAccessHandle(secondCursor.LogicalPosition, cancel))
-                    {
-                        // Write the data from the beginning of the second physical file
-                        await handle.WriteRandomAsync(0, data, cancel);
-                        this.CurrentFileSize += data.Length;
-                    }
-
-                    this.lastWriteCursor = secondCursor;
-                }
-            }
-            else
-            {
-                // Normal write
-                for (int i = 0; i < cursorList.Count; i++)
-                {
-                    Cursor cursor = cursorList[i];
-                    bool isPastFile = (i != cursorList.Count - 1);
-
-                    await using (var handle = await GetUnderlayRandomAccessHandle(cursor.LogicalPosition, cancel))
-                    {
-                        await handle.WriteRandomAsync(cursor.PhysicalPosition, data.Slice((int)(cursor.LogicalPosition - position), (int)cursor.PhysicalDataLength), cancel);
-
-                        if (isPastFile)
-                            await handle.FlushAsync(cancel);
-                    }
-
-                    this.lastWriteCursor = cursor;
-                }
-
-                this.CurrentFileSize = Math.Max(this.CurrentFileSize, position + data.Length);
-            }
+            this.CurrentFileSize = Math.Max(this.CurrentFileSize, position + data.Length);
         }
     }
-#pragma warning restore CS0612 // 型またはメンバーが旧型式です
 
-    protected override async Task SetFileSizeImplAsync(long size, CancellationToken cancel = default)
+    protected override Task SetFileSizeImplAsync(long size, CancellationToken cancel = default)
     {
-        List<Cursor> cursorList = GenerateCursorList(size, 1, true);
-
-        Cursor cursor = cursorList.Single();
-
-        bool shrink = (this.CurrentFileSize > size);
-
-        if (shrink)
+        if (this.CurrentFileSize == size)
         {
-            // Delete oversized files
-            ChunkedFileSystem.ParsedPath[] physicalFiles = await ChunkedFileSystem.GetPhysicalFileStateInternal(this.FileParams.Path, cancel);
-            List<ChunkedFileSystem.ParsedPath> filesToDelete = physicalFiles.Where(x => x.FileNumber > cursor.PhysicalFileNumber).ToList();
-
-            await ChunkedFileSystem.UnderlayFileSystemPoolForWrite.EnumAndCloseHandlesAsync((key, file) =>
-            {
-                if (filesToDelete.Where(x => x.PhysicalFilePath._IsSame(file.FileParams.Path, ChunkedFileSystem.PathParser.PathStringComparison)).Any())
-                {
-                    return TR(true);
-                }
-                return TR(false);
-            },
-            async () =>
-            {
-                foreach (ChunkedFileSystem.ParsedPath deleteFile in filesToDelete.OrderByDescending(x => x.PhysicalFilePath))
-                {
-                    await UnderlayFileSystem.DeleteFileAsync(deleteFile.PhysicalFilePath, FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
-                }
-            },
-            (x, y) =>
-            {
-                return -(x.FileParams.Path.CompareTo(y.FileParams.Path));
-            },
-            cancel);
-
-            await ChunkedFileSystem.UnderlayFileSystemPoolForWrite.EnumAndCloseHandlesAsync((key, file) =>
-            {
-                if (filesToDelete.Where(x => x.PhysicalFilePath._IsSame(file.FileParams.Path, ChunkedFileSystem.PathParser.PathStringComparison)).Any())
-                {
-                    return TR(true);
-                }
-                return TR(false);
-            },
-            async () =>
-            {
-                foreach (ChunkedFileSystem.ParsedPath deleteFile in filesToDelete.OrderByDescending(x => x.PhysicalFilePath))
-                {
-                    await UnderlayFileSystem.DeleteFileAsync(deleteFile.PhysicalFilePath, FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
-                }
-            },
-            (x, y) =>
-            {
-                return -(x.FileParams.Path.CompareTo(y.FileParams.Path));
-            },
-            cancel);
+            return TR();
         }
 
-        await using (var handle = await GetUnderlayRandomAccessHandle(cursor.LogicalPosition, cancel))
-        {
-            await handle.SetFileSizeAsync(cursor.PhysicalPosition, cancel);
-
-            this.CurrentFileSize = size;
-        }
-
+        throw new CoresLibException($"this.CurrentFileSize ({this.CurrentFileSize}) != size ({size})");
     }
 }
 
@@ -731,15 +572,9 @@ public class ChunkedFileSystem : FileSystem
 
     AsyncLock AsyncLockObj = new AsyncLock();
 
-    public FileSystemObjectPool UnderlayFileSystemPoolForRead { get; }
-    public FileSystemObjectPool UnderlayFileSystemPoolForWrite { get; }
-
     public ChunkedFileSystem(ChunkedFileSystemParams param) : base(param)
     {
         this.UnderlayFileSystem = param.UnderlayFileSystem;
-
-        this.UnderlayFileSystemPoolForRead = this.UnderlayFileSystem.ObjectPoolForRead;
-        this.UnderlayFileSystemPoolForWrite = this.UnderlayFileSystem.ObjectPoolForWrite;
     }
 
     protected override Task<string> NormalizePathImplAsync(string path, CancellationToken cancel = default)
@@ -966,47 +801,10 @@ public class ChunkedFileSystem : FileSystem
             return;
         }
 
-        await UnderlayFileSystemPoolForWrite.EnumAndCloseHandlesAsync((key, file) =>
+        foreach (ChunkedFileSystem.ParsedPath deleteFile in physicalFiles.OrderByDescending(x => x.PhysicalFilePath))
         {
-            if (physicalFiles.Where(x => x.PhysicalFilePath._IsSame(file.FileParams.Path, PathParser.PathStringComparison)).Any())
-            {
-                return TR(true);
-            }
-            return TR(false);
-        },
-        async () =>
-        {
-            foreach (ChunkedFileSystem.ParsedPath deleteFile in physicalFiles.OrderByDescending(x => x.PhysicalFilePath))
-            {
-                await UnderlayFileSystem.DeleteFileAsync(deleteFile.PhysicalFilePath, FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
-            }
-        },
-        (x, y) =>
-        {
-            return -(x.FileParams.Path.CompareTo(y.FileParams.Path));
-        },
-        cancel);
-
-        await UnderlayFileSystemPoolForRead.EnumAndCloseHandlesAsync((key, file) =>
-        {
-            if (physicalFiles.Where(x => x.PhysicalFilePath._IsSame(file.FileParams.Path, PathParser.PathStringComparison)).Any())
-            {
-                return TR(true);
-            }
-            return TR(false);
-        },
-        async () =>
-        {
-            foreach (ChunkedFileSystem.ParsedPath deleteFile in physicalFiles.OrderByDescending(x => x.PhysicalFilePath))
-            {
-                await UnderlayFileSystem.DeleteFileAsync(deleteFile.PhysicalFilePath, FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
-            }
-        },
-        (x, y) =>
-        {
-            return -(x.FileParams.Path.CompareTo(y.FileParams.Path));
-        },
-        cancel);
+            await UnderlayFileSystem.DeleteFileAsync(deleteFile.PhysicalFilePath, FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
+        }
     }
 
     protected override async Task SetFileMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default)

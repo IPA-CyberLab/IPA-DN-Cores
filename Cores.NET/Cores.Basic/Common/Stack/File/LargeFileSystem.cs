@@ -152,7 +152,7 @@ public class LargeFileObject : FileObject
 
         try
         {
-            bool newFille = false;
+            bool newFile = false;
 
             LargeFileSystem.ParsedPath? lastFileParsed = InitialRelatedFiles.OrderBy(x => x.FileNumber).LastOrDefault();
 
@@ -160,7 +160,7 @@ public class LargeFileObject : FileObject
             {
                 // New file
                 CurrentFileSize = 0;
-                newFille = true;
+                newFile = true;
 
                 if (FileParams.Mode == FileMode.Open || FileParams.Mode == FileMode.Truncate)
                 {
@@ -193,7 +193,7 @@ public class LargeFileObject : FileObject
                     lastFileParsed = null;
                     CurrentFileSize = 0;
 
-                    newFille = true;
+                    newFile = true;
                 }
             }
 
@@ -203,7 +203,7 @@ public class LargeFileObject : FileObject
 
             InitAndCheckFileSizeAndPosition(currentPosition, await GetFileSizeImplAsync(cancel), cancel);
 
-            if (newFille)
+            if (newFile)
             {
                 await using (var handle = await GetUnderlayRandomAccessHandle(0, cancel))
                 {

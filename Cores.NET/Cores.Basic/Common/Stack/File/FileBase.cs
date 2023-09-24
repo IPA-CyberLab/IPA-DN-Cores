@@ -2842,6 +2842,7 @@ public class RandomAccessHandle : IRandomAccess<byte>, IDisposable, IAsyncDispos
     public Stream GetStream() => this.File.GetStream();
 
     // 限定的利用 (ライブラリが FileBaseStream しか受付けない場合)。新しい利用の場合は FileBaseStream2 を利用すること。 (将来うまく動作しなくなる可能性もあるぞ)
+    [Obsolete]
     public FileStream GetFileStream() => this.File.GetFileStream();
 
     public Task<int> ReadRandomAsync(long position, Memory<byte> data, CancellationToken cancel = default)
