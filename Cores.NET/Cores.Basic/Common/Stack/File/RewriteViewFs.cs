@@ -243,11 +243,13 @@ public abstract class RewriteFileSystem : ViewFileSystem, IRewriteVirtualPhysica
         return base.DeleteFileImplAsync(path, flags, cancel);
     }
 
-    protected override async Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, EnumDirectoryFlags flags, CancellationToken cancel = default)
+    protected override async Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, EnumDirectoryFlags flags, string wildcard, CancellationToken cancel = default)
     {
         directoryPath = MapPathVirtualToPhysical(directoryPath);
 
-        FileSystemEntity[] entries = await base.EnumDirectoryImplAsync(directoryPath, flags, cancel);
+        FileSystemEntity[] entries = await base.EnumDirectoryImplAsync(directoryPath, flags, wildcard, cancel);
+
+        List<FileSystemEntity> ret = new List<FileSystemEntity>();
 
         foreach (FileSystemEntity entry in entries)
         {
@@ -262,9 +264,14 @@ public abstract class RewriteFileSystem : ViewFileSystem, IRewriteVirtualPhysica
                 entry.SymbolicLinkTarget = null;
                 entry.Attributes.BitRemove(FileAttributes.ReparsePoint);
             }
+
+            if (this.PathParser.WildcardMatch(entry.Name, wildcard))
+            {
+                ret.Add(entry);
+            }
         }
 
-        return entries;
+        return ret.ToArray();
     }
 
     protected override Task<FileMetadata> GetDirectoryMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)

@@ -1065,7 +1065,7 @@ public class DirectoryWalker
 
         try
         {
-            entityList = await FileSystem.EnumDirectoryAsync(directoryFullPath, false, this.Flags, opCancel);
+            entityList = await FileSystem.EnumDirectoryAsync(directoryFullPath, false, this.Flags, null, opCancel);
         }
         catch (Exception ex)
         {
@@ -1331,7 +1331,7 @@ public class DirectoryPath : FileSystemPath // CloneDeep 禁止
         => DeleteDirectoryAsync(recursive, cancel)._GetResult();
 
     public Task<FileSystemEntity[]> EnumDirectoryAsync(bool recursive = false, EnumDirectoryFlags flags = EnumDirectoryFlags.None, CancellationToken cancel = default)
-        => this.FileSystem.EnumDirectoryAsync(this.PathString, recursive, flags, cancel);
+        => this.FileSystem.EnumDirectoryAsync(this.PathString, recursive, flags, null, cancel);
     public FileSystemEntity[] EnumDirectory(bool recursive = false, EnumDirectoryFlags flags = EnumDirectoryFlags.None, CancellationToken cancel = default)
         => EnumDirectoryAsync(recursive, flags, cancel)._GetResult();
 

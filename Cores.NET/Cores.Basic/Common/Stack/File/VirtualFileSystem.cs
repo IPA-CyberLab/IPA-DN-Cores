@@ -853,7 +853,7 @@ public class VirtualFileSystem : FileSystem
         }
     }
 
-    protected override async Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, EnumDirectoryFlags flags, CancellationToken cancel = default)
+    protected override async Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, EnumDirectoryFlags flags, string wildcard, CancellationToken cancel = default)
     {
         using (VfsPathParserContext ctx = await ParsePathInternalAsync(directoryPath, cancel))
         {
@@ -874,7 +874,10 @@ public class VirtualFileSystem : FileSystem
                     lastAccessTime: thisDirObject.LastAccessTime
                     );
 
-                ret.Add(thisDir);
+                if (this.PathParser.WildcardMatch(thisDir.Name, wildcard))
+                {
+                    ret.Add(thisDir);
+                }
 
                 foreach (var entity in entities)
                 {
@@ -891,7 +894,10 @@ public class VirtualFileSystem : FileSystem
                             lastAccessTime: meta.LastAccessTime ?? Util.ZeroDateTimeOffsetValue
                             );
 
-                        ret.Add(dir);
+                        if (this.PathParser.WildcardMatch(dir.Name, wildcard))
+                        {
+                            ret.Add(dir);
+                        }
                     }
                     else if (entity is VfsFile fileObject)
                     {
@@ -906,7 +912,11 @@ public class VirtualFileSystem : FileSystem
                             lastWriteTime: meta.LastWriteTime ?? Util.ZeroDateTimeOffsetValue,
                             lastAccessTime: meta.LastAccessTime ?? Util.ZeroDateTimeOffsetValue
                         );
-                        ret.Add(file);
+
+                        if (this.PathParser.WildcardMatch(file.Name, wildcard))
+                        {
+                            ret.Add(file);
+                        }
                     }
                 }
 

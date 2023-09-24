@@ -148,7 +148,7 @@ public partial class LocalFileSystem : FileSystem
         return ret;
     }
 
-    protected override async Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, EnumDirectoryFlags flags, CancellationToken cancel = default)
+    protected override async Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, EnumDirectoryFlags flags, string wildcard, CancellationToken cancel = default)
     {
         if (Env.IsWindows && Win32ApiUtil.IsUncServerRootPath(directoryPath, out string? normalizedUncPath))
             return Win32EnumUncPathSpecialDirectory(normalizedUncPath, flags, cancel).ToArray();
@@ -159,7 +159,11 @@ public partial class LocalFileSystem : FileSystem
 
         FileSystemEntity currentDirectory = ConvertFileSystemInfoToFileSystemEntity(di);
         currentDirectory.Name = ".";
-        o.Add(currentDirectory);
+
+        if (this.PathParser.WildcardMatch(currentDirectory.Name, wildcard))
+        {
+            o.Add(currentDirectory);
+        }
 
         foreach (FileSystemInfo info in di.GetFileSystemInfos().Where(x => x.Exists))
         {
@@ -176,7 +180,10 @@ public partial class LocalFileSystem : FileSystem
                 entity.SymbolicLinkTarget = ReadSymbolicLinkTarget(entity.FullPath);
             }
 
-            o.Add(entity);
+            if (this.PathParser.WildcardMatch(entity.Name, wildcard))
+            {
+                o.Add(entity);
+            }
         }
 
         return o.ToArray();

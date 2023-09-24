@@ -1976,7 +1976,7 @@ static class TestClass
 
                     try
                     {
-                        srcDirEnum = (await Fs.EnumDirectoryAsync(srcDir, false, EnumDirectoryFlags.NoGetPhysicalSize, cancel)).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer).ToArray();
+                        srcDirEnum = (await Fs.EnumDirectoryAsync(srcDir, false, EnumDirectoryFlags.NoGetPhysicalSize, null, cancel)).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer).ToArray();
 
                         // 元ディレクトリに存在するファイルを 1 つずつバックアップする
                         var fileEntries = srcDirEnum.Where(x => x.IsFile);

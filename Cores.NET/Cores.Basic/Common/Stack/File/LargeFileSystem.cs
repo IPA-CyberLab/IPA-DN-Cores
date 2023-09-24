@@ -778,7 +778,7 @@ public class LargeFileSystem : FileSystem
 
         ParsedPath parsed = new ParsedPath(this, logicalFilePath, 0);
 
-        FileSystemEntity[] dirEntities = await UnderlayFileSystem.EnumDirectoryAsync(parsed.DirectoryPath, false, EnumDirectoryFlags.NoGetPhysicalSize, cancel);
+        FileSystemEntity[] dirEntities = await UnderlayFileSystem.EnumDirectoryAsync(parsed.DirectoryPath, false, EnumDirectoryFlags.NoGetPhysicalSize, null, cancel);
 
         var relatedFiles = dirEntities.Where(x => x.IsDirectory == false);
         foreach (var f in relatedFiles)
@@ -802,11 +802,11 @@ public class LargeFileSystem : FileSystem
         return ret.ToArray();
     }
 
-    protected override async Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, EnumDirectoryFlags flags, CancellationToken cancel = default)
+    protected override async Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, EnumDirectoryFlags flags, string wildcard, CancellationToken cancel = default)
     {
         checked
         {
-            FileSystemEntity[] dirEntities = await UnderlayFileSystem.EnumDirectoryAsync(directoryPath, false, flags, cancel);
+            FileSystemEntity[] dirEntities = await UnderlayFileSystem.EnumDirectoryAsync(directoryPath, false, flags, wildcard, cancel);
 
             var relatedFiles = dirEntities.Where(x => x.IsDirectory == false).Where(x => x.Name.IndexOf(Params.SplitStr) != -1);
 

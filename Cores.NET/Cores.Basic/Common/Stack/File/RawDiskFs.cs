@@ -230,11 +230,11 @@ public abstract class RawDiskFileSystem : VirtualFileSystem
         }
     }
 
-    protected override async Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, EnumDirectoryFlags flags, CancellationToken cancel = default)
+    protected override async Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, EnumDirectoryFlags flags, string wildcard, CancellationToken cancel = default)
     {
         await RescanRawDisksInternalAsync(cancel);
 
-        return await base.EnumDirectoryImplAsync(directoryPath, flags, cancel);
+        return await base.EnumDirectoryImplAsync(directoryPath, flags, wildcard, cancel);
     }
 
     protected abstract Task<IEnumerable<RawDiskItemData>> RescanRawDisksImplAsync(CancellationToken cancel = default);
@@ -244,7 +244,7 @@ public abstract class RawDiskFileSystem : VirtualFileSystem
     {
         using (await Lock.LockWithAwait(cancel))
         {
-            FileSystemEntity[] existingFiles = await base.EnumDirectoryImplAsync("/", EnumDirectoryFlags.None, cancel);
+            FileSystemEntity[] existingFiles = await base.EnumDirectoryImplAsync("/", EnumDirectoryFlags.None, "", cancel);
 
             foreach (var existingFile in existingFiles)
             {

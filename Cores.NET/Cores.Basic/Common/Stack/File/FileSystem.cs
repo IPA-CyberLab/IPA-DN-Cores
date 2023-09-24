@@ -791,6 +791,7 @@ public class PathParser
     public char[] PossibleDirectorySeparators { get; }
     public StringComparison PathStringComparison { get; }
     public StrComparer PathStringComparer { get; }
+    public bool IgnoreCase { get; }
 
     readonly char[] InvalidPathChars;
     readonly char[] InvalidFileNameChars;
@@ -827,18 +828,21 @@ public class PathParser
         {
             case FileSystemStyle.Windows:
                 this.DirectorySeparator = '\\';
+                this.IgnoreCase = true;
                 this.PathStringComparison = StringComparison.OrdinalIgnoreCase;
                 this.PossibleDirectorySeparators = new char[] { '\\', '/' };
                 break;
 
             case FileSystemStyle.Mac:
                 this.DirectorySeparator = '/';
+                this.IgnoreCase = true;
                 this.PathStringComparison = StringComparison.OrdinalIgnoreCase;
                 this.PossibleDirectorySeparators = new char[] { '/' };
                 break;
 
             default:
                 this.DirectorySeparator = '/';
+                this.IgnoreCase = false;
                 this.PathStringComparison = StringComparison.Ordinal;
                 this.PossibleDirectorySeparators = new char[] { '/' };
                 break;
@@ -848,6 +852,16 @@ public class PathParser
 
         this.InvalidPathChars = GetInvalidPathChars();
         this.InvalidFileNameChars = GetInvalidFileNameChars();
+    }
+
+    public bool WildcardMatch(string fileName, string wildcard)
+    {
+        if (wildcard._IsEmpty() || wildcard == "*" || wildcard == "*.*")
+        {
+            return true;
+        }
+
+        return fileName._WildcardMatch(fileName, this.IgnoreCase);
     }
 
     public bool IsFullPathExcludedByExcludeDirList(string fullPath, IEnumerable<string>? dirList = null)
@@ -1924,7 +1938,7 @@ public abstract partial class FileSystem : AsyncService
 
     protected abstract Task CreateDirectoryImplAsync(string directoryPath, FileFlags flags = FileFlags.None, CancellationToken cancel = default);
     protected abstract Task DeleteDirectoryImplAsync(string directoryPath, bool recursive, CancellationToken cancel = default);
-    protected abstract Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, EnumDirectoryFlags flags, CancellationToken cancel = default);
+    protected abstract Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, EnumDirectoryFlags flags, string wildcard, CancellationToken cancel = default);
 
     protected abstract Task<FileMetadata> GetFileMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default);
     protected abstract Task SetFileMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default);
@@ -1989,7 +2003,7 @@ public abstract partial class FileSystem : AsyncService
             {
                 try
                 {
-                    FileSystemEntity[] dirItems = await this.EnumDirectoryImplAsync(currentFullPath, EnumDirectoryFlags.NoGetPhysicalSize, cancel);
+                    FileSystemEntity[] dirItems = await this.EnumDirectoryImplAsync(currentFullPath, EnumDirectoryFlags.NoGetPhysicalSize, "", cancel);
                     element2 = dirItems.Where(x => x.IsDirectory == isThisElementDirectory && x.IsCurrentOrParentDirectory == false).Select(x => x.Name).Where(x => x._IsSamei(element)).FirstOrDefault();
                 }
                 catch
@@ -2164,13 +2178,13 @@ public abstract partial class FileSystem : AsyncService
     public void DeleteDirectory(string path, bool recursive = false, CancellationToken cancel = default, bool forcefulUseInternalRecursiveDelete = false)
         => DeleteDirectoryAsync(path, recursive, cancel, forcefulUseInternalRecursiveDelete)._GetResult();
 
-    async Task<FileSystemEntity[]> EnumDirectoryInternalAsync(string directoryPath, EnumDirectoryFlags flags, CancellationToken opCancel)
+    async Task<FileSystemEntity[]> EnumDirectoryInternalAsync(string directoryPath, EnumDirectoryFlags flags, string wildcard, CancellationToken opCancel)
     {
         using (EnterCriticalCounter())
         {
             opCancel.ThrowIfCancellationRequested();
 
-            FileSystemEntity[] list = await EnumDirectoryImplAsync(directoryPath, (flags | EnumDirectoryFlags.IncludeCurrentDirectory).BitRemove(EnumDirectoryFlags.IncludeParentDirectory), opCancel);
+            FileSystemEntity[] list = await EnumDirectoryImplAsync(directoryPath, (flags | EnumDirectoryFlags.IncludeCurrentDirectory).BitRemove(EnumDirectoryFlags.IncludeParentDirectory), wildcard, opCancel);
 
             if (list.Select(x => x.Name).Distinct().Count() != list.Count())
             {
@@ -2213,11 +2227,11 @@ public abstract partial class FileSystem : AsyncService
         }
     }
 
-    async Task<bool> EnumDirectoryRecursiveInternalAsync(int depth, List<FileSystemEntity> currentList, string directoryPath, bool recursive, EnumDirectoryFlags flags, CancellationToken opCancel)
+    async Task<bool> EnumDirectoryRecursiveInternalAsync(int depth, List<FileSystemEntity> currentList, string directoryPath, string wildcard, bool recursive, EnumDirectoryFlags flags, CancellationToken opCancel)
     {
         opCancel.ThrowIfCancellationRequested();
 
-        FileSystemEntity[] entityList = await EnumDirectoryInternalAsync(directoryPath, flags, opCancel);
+        FileSystemEntity[] entityList = await EnumDirectoryInternalAsync(directoryPath, flags, wildcard, opCancel);
 
         foreach (FileSystemEntity entity in entityList)
         {
@@ -2230,7 +2244,7 @@ public abstract partial class FileSystem : AsyncService
             {
                 if (entity.IsDirectory && entity.IsCurrentOrParentDirectory == false)
                 {
-                    if (await EnumDirectoryRecursiveInternalAsync(depth + 1, currentList, entity.FullPath, true, flags, opCancel) == false)
+                    if (await EnumDirectoryRecursiveInternalAsync(depth + 1, currentList, entity.FullPath, wildcard, true, flags, opCancel) == false)
                     {
                         return false;
                     }
@@ -2241,9 +2255,11 @@ public abstract partial class FileSystem : AsyncService
         return true;
     }
 
-    public async Task<FileSystemEntity[]> EnumDirectoryAsync(string directoryPath, bool recursive = false, EnumDirectoryFlags flags = EnumDirectoryFlags.None, CancellationToken cancel = default)
+    public async Task<FileSystemEntity[]> EnumDirectoryAsync(string directoryPath, bool recursive = false, EnumDirectoryFlags flags = EnumDirectoryFlags.None, string? wildcard = null, CancellationToken cancel = default)
     {
         CheckNotCanceled();
+
+        wildcard = wildcard._NonNullTrim();
 
         await using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
         {
@@ -2253,7 +2269,7 @@ public abstract partial class FileSystem : AsyncService
 
             List<FileSystemEntity> currentList = new List<FileSystemEntity>();
 
-            if (await EnumDirectoryRecursiveInternalAsync(0, currentList, directoryPath, recursive, flags, opCancel) == false)
+            if (await EnumDirectoryRecursiveInternalAsync(0, currentList, directoryPath, wildcard, recursive, flags, opCancel) == false)
             {
                 throw new OperationCanceledException();
             }
@@ -2263,7 +2279,7 @@ public abstract partial class FileSystem : AsyncService
     }
 
     public FileSystemEntity[] EnumDirectory(string directoryPath, bool recursive = false, EnumDirectoryFlags flags = EnumDirectoryFlags.None, CancellationToken cancel = default)
-        => EnumDirectoryAsync(directoryPath, recursive, flags, cancel)._GetResult();
+        => EnumDirectoryAsync(directoryPath, recursive, flags, null, cancel)._GetResult();
 
     public async Task<FileMetadata> GetFileMetadataAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
     {
