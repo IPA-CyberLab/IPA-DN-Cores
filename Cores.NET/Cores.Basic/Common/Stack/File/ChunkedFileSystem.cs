@@ -54,7 +54,7 @@ public static partial class CoresConfig
     {
         public static readonly Copenhagen<long> MaxSingleFileSize = 1_000_000_000; // 1GB
         public static readonly Copenhagen<long> LogicalMaxSize = 1_000_000_000_000_000_000; // 1 EB
-        public static readonly Copenhagen<string> SplitStr = "~~~";
+        public static readonly Copenhagen<string> SplitStr = ".part";
     }
 }
 
@@ -239,7 +239,7 @@ public class ChunkedFileObject : FileObject
     {
         await this.InternalCurrentFileObject._DisposeSafeAsync();
         this.InternalCurrentFileObject = null;
-        this.InternalCurrentFilePhysicalPath = null;
+        this.InternalCurrentFilePhysicalPath = "";
     }
 
     protected override async Task FlushImplAsync(CancellationToken cancel = default)
@@ -415,7 +415,7 @@ public class ChunkedFileSystemParams : FileSystemParams
             if (splitStr._IsEmpty()) splitStr = CoresConfig.LocalChunkedFileSystemSettings.SplitStr.Value;
 
             this.UnderlayFileSystem = underlayFileSystem;
-            this.SplitStr = splitStr._NonNullTrim()._FilledOrDefault("~~~");
+            this.SplitStr = splitStr._NonNullTrim()._FilledOrDefault(".part");
             this.MaxSinglePhysicalFileSize = Math.Min(Math.Max(maxSingleFileSize, 1), int.MaxValue);
             this.MaxLogicalFileSize = logicalMaxSize;
 
@@ -436,9 +436,8 @@ public class ChunkedFileSystem : FileSystem
     public class ParsedPath
     {
         public string DirectoryPath { get; }
-        public string OriginalFileNameWithoutExtension { get; }
+        public string OriginalFileName { get; }
         public long FileNumber { get; }
-        public string Extension { get; }
         public string PhysicalFilePath { get; }
         public string LogicalFilePath { get; }
 
@@ -457,30 +456,12 @@ public class ChunkedFileSystem : FileSystem
 
             this.LogicalFilePath = logicalFilePath;
 
-            string fileName = fs.PathParser.GetFileName(logicalFilePath);
-            if (fileName.IndexOf(fs.Params.SplitStr) != -1)
-                throw new ApplicationException($"The original filename '{fileName}' contains '{fs.Params.SplitStr}'.");
-
             string dir = fs.PathParser.GetDirectoryName(logicalFilePath);
             string filename = fs.PathParser.GetFileName(logicalFilePath);
-            string extension;
-            int dotIndex = fileName.IndexOf('.');
-            string filenameWithoutExtension;
-            if (dotIndex != -1)
-            {
-                extension = fileName.Substring(dotIndex);
-                filenameWithoutExtension = fileName.Substring(0, dotIndex);
-            }
-            else
-            {
-                extension = "";
-                filenameWithoutExtension = fileName;
-            }
 
             this.DirectoryPath = dir;
-            this.OriginalFileNameWithoutExtension = filenameWithoutExtension;
+            this.OriginalFileName = filename;
             this.FileNumber = fileNumber;
-            this.Extension = extension;
             this.PhysicalFilePath = GeneratePhysicalPath();
         }
 
@@ -494,42 +475,44 @@ public class ChunkedFileSystem : FileSystem
             string dir = fs.PathParser.GetDirectoryName(physicalFilePath);
             string fn = fs.PathParser.GetFileName(physicalFilePath);
 
-            int[] indexes = fn._FindStringIndexes(fs.Params.SplitStr);
-            if (indexes.Length != 1)
-                throw new ArgumentException($"Filename '{fn}' is not a large file. indexes.Length != 1.");
+            bool isDigitedFile = false;
 
-            string originalFileName = fn.Substring(0, indexes[0]);
-            string afterOriginalFileName = fn.Substring(indexes[0] + fs.Params.SplitStr.Length);
-            if (afterOriginalFileName._IsEmpty())
-                throw new ArgumentException($"Filename '{fn}' is not a large file.");
-
-            string extension;
-            int dotIndex = afterOriginalFileName.IndexOf('.');
-            string digitsStr;
-            if (dotIndex != -1)
+            if (fn.Length >= (fs.Params.SplitStr.Length + fs.Params.NumDigits + 1))
             {
-                extension = afterOriginalFileName.Substring(dotIndex);
-                digitsStr = afterOriginalFileName.Substring(0, dotIndex);
+                // originalname.part000000001
+                string partStr = fn.Substring(fn.Length - (fs.Params.SplitStr.Length + fs.Params.NumDigits));
+
+                string partStr1 = partStr.Substring(0, fs.Params.SplitStr.Length);
+                string partStr2 = partStr.Substring(fs.Params.SplitStr.Length);
+
+                if (partStr1._IsSame(fs.Params.SplitStr, fs.PathParser.PathStringComparison))
+                {
+                    long n = partStr2._ToLong();
+                    if (n >= 1)
+                    {
+                        if (partStr2._IsNumber())
+                        {
+                            this.FileNumber = n;
+
+                            isDigitedFile = true;
+
+                            this.OriginalFileName = fn.Substring(0, fn.Length - (fs.Params.SplitStr.Length + fs.Params.NumDigits));
+                        }
+                    }
+                }
             }
-            else
+
+            if (isDigitedFile == false)
             {
-                extension = "";
-                digitsStr = afterOriginalFileName;
+                this.FileNumber = 0;
+                this.OriginalFileName = fn;
             }
-
-            if (digitsStr._IsNumber() == false)
-                throw new ArgumentException($"Filename '{fn}' is not a large file. digitsStr.IsNumber() == false.");
-
-            if (digitsStr.Length != fs.Params.NumDigits)
-                throw new ArgumentException($"Filename '{fn}' is not a large file. digitsStr.Length != fs.Params.NumDigits.");
 
             this.DirectoryPath = dir;
-            this.OriginalFileNameWithoutExtension = originalFileName;
-            this.FileNumber = digitsStr._ToInt();
-            this.Extension = extension;
 
-            string filename = $"{OriginalFileNameWithoutExtension}{Extension}";
-            this.LogicalFilePath = fs.PathParser.Combine(this.DirectoryPath, filename);
+            this.OriginalFileName._MarkNotNull();
+
+            this.LogicalFilePath = fs.PathParser.Combine(this.DirectoryPath, this.OriginalFileName!);
         }
 
         public string GeneratePhysicalPath(long? fileNumberOverwrite = null)
@@ -538,7 +521,16 @@ public class ChunkedFileSystem : FileSystem
             string fileNumberStr = fileNumber.ToString($"D{ChunkedFileSystem.Params.NumDigits}");
             Debug.Assert(fileNumberStr.Length == ChunkedFileSystem.Params.NumDigits);
 
-            string filename = $"{OriginalFileNameWithoutExtension}{ChunkedFileSystem.Params.SplitStr}{fileNumberStr}{Extension}";
+            string filename;
+
+            if (fileNumber == 0)
+            {
+                filename = OriginalFileName;
+            }
+            else
+            {
+                filename = OriginalFileName + ChunkedFileSystem.Params.SplitStr + fileNumberStr;
+            }
 
             return ChunkedFileSystem.PathParser.Combine(DirectoryPath, filename);
         }
@@ -592,22 +584,14 @@ public class ChunkedFileSystem : FileSystem
             {
                 cancel.ThrowIfCancellationRequested();
 
-                bool isSimplePhysicalFileExists = await UnderlayFileSystem.IsFileExistsAsync(option.Path);
-
-                if (isSimplePhysicalFileExists)
-                {
-                    // If there is a simple physical file, open it.
-                    return await UnderlayFileSystem.CreateFileAsync(option, cancel);
-                }
-
-                ParsedPath[] relatedFiles = await GetPhysicalFileStateInternal(option.Path, operationCancel);
+                ParsedPath[] relatedFiles = await GetPhysicalFileStateInternalAsync(option.Path, operationCancel);
 
                 return await ChunkedFileObject.CreateFileAsync(this, option, relatedFiles, operationCancel);
             }
         }
     }
 
-    public async Task<ParsedPath[]> GetPhysicalFileStateInternal(string logicalFilePath, CancellationToken cancel)
+    public async Task<ParsedPath[]> GetPhysicalFileStateInternalAsync(string logicalFilePath, CancellationToken cancel)
     {
         List<ParsedPath> ret = new List<ParsedPath>();
 
@@ -618,7 +602,7 @@ public class ChunkedFileSystem : FileSystem
         var relatedFiles = dirEntities.Where(x => x.IsDirectory == false);
         foreach (var f in relatedFiles)
         {
-            if (f.Name.StartsWith(parsed.OriginalFileNameWithoutExtension, PathParser.PathStringComparison))
+            if (f.Name._IsSame(parsed.OriginalFileName) || f.Name.StartsWith(parsed.OriginalFileName + this.Params.SplitStr, PathParser.PathStringComparison))
             {
                 try
                 {
@@ -641,18 +625,17 @@ public class ChunkedFileSystem : FileSystem
     {
         checked
         {
-            FileSystemEntity[] dirEntities = await UnderlayFileSystem.EnumDirectoryAsync(directoryPath, false, flags, wildcard, cancel);
+            FileSystemEntity[] dirEntities = await UnderlayFileSystem.EnumDirectoryAsync(directoryPath, false, flags, null, cancel);
 
-            var relatedFiles = dirEntities.Where(x => x.IsDirectory == false).Where(x => x.Name.IndexOf(Params.SplitStr) != -1);
+            var filesList = dirEntities.Where(x => x.IsDirectory == false);
 
-            var sortedRelatedFiles = relatedFiles.ToList();
+            var sortedRelatedFiles = filesList.ToList();
             sortedRelatedFiles.Sort((x, y) => x.Name._Cmp(y.Name, PathParser.PathStringComparison));
             sortedRelatedFiles.Reverse();
 
             Dictionary<string, FileSystemEntity> parsedFileDictionaly = new Dictionary<string, FileSystemEntity>(PathParser.PathStringComparer);
 
-            var normalFiles = dirEntities.Where(x => x.IsDirectory == false).Where(x => x.Name.IndexOf(Params.SplitStr) == -1);
-            var normalFileHashSet = new HashSet<string>(normalFiles.Select(x => x.Name), PathParser.PathStringComparer);
+            List<ParsedPath> parsedList = new List<ParsedPath>();
 
             foreach (FileSystemEntity f in sortedRelatedFiles)
             {
@@ -661,40 +644,51 @@ public class ChunkedFileSystem : FileSystem
                     // Split files
                     ParsedPath parsed = new ParsedPath(this, f.FullPath, f);
 
-                    if (parsedFileDictionaly.ContainsKey(parsed.LogicalFileName) == false)
-                    {
-                        FileSystemEntity newFileEntity = new FileSystemEntity(
-                            fullPath: parsed.LogicalFilePath,
-                            name: PathParser.GetFileName(parsed.LogicalFileName),
-                            size: f.Size + parsed.FileNumber * Params.MaxSinglePhysicalFileSize,
-                            physicalSize: f.PhysicalSize,
-                            attributes: f.Attributes,
-                            creationTime: f.CreationTime,
-                            lastWriteTime: f.LastWriteTime,
-                            lastAccessTime: f.LastAccessTime
-                            );
+                    parsedList.Add(parsed);
 
-                        parsedFileDictionaly.Add(parsed.LogicalFileName, newFileEntity);
-                    }
-                    else
-                    {
-                        var fileEntity = parsedFileDictionaly[parsed.LogicalFileName];
-
-                        fileEntity.PhysicalSize += f.PhysicalSize;
-
-                        if (fileEntity.CreationTime > f.CreationTime) fileEntity.CreationTime = f.CreationTime;
-                        if (fileEntity.LastWriteTime < f.LastWriteTime) fileEntity.LastWriteTime = f.LastWriteTime;
-                        if (fileEntity.LastAccessTime < f.LastAccessTime) fileEntity.LastAccessTime = f.LastAccessTime;
-                    }
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    ex._Error();
+                }
             }
 
-            var logicalFiles = parsedFileDictionaly.Values.Where(x => normalFileHashSet.Contains(x.Name) == false);
+            foreach (var parsed in parsedList.OrderByDescending(x => x.FileNumber))
+            {
+                var f = parsed.PhysicalEntity!;
+
+                if (parsedFileDictionaly.ContainsKey(parsed.LogicalFileName) == false)
+                {
+                    FileSystemEntity newFileEntity = new FileSystemEntity(
+                        fullPath: parsed.LogicalFilePath,
+                        name: PathParser.GetFileName(parsed.LogicalFileName),
+                        size: f.Size + parsed.FileNumber * Params.MaxSinglePhysicalFileSize,
+                        physicalSize: f.PhysicalSize,
+                        attributes: f.Attributes,
+                        creationTime: f.CreationTime,
+                        lastWriteTime: f.LastWriteTime,
+                        lastAccessTime: f.LastAccessTime
+                        );
+
+                    parsedFileDictionaly.Add(parsed.LogicalFileName, newFileEntity);
+                }
+                else
+                {
+                    var fileEntity = parsedFileDictionaly[parsed.LogicalFileName];
+
+                    fileEntity.PhysicalSize += f.PhysicalSize;
+
+                    if (fileEntity.CreationTime > f.CreationTime) fileEntity.CreationTime = f.CreationTime;
+                    if (fileEntity.LastWriteTime < f.LastWriteTime) fileEntity.LastWriteTime = f.LastWriteTime;
+                    if (fileEntity.LastAccessTime < f.LastAccessTime) fileEntity.LastAccessTime = f.LastAccessTime;
+                }
+            }
+
+            var logicalFiles = parsedFileDictionaly.Values;//.Where(x => normalFileHashSet.Contains(x.Name) == false);
 
             var retList = dirEntities.Where(x => x.IsDirectory)
                 .Concat(logicalFiles)
-                .Concat(normalFiles)
+//                .Concat(normalFiles)
                 .OrderByDescending(x => x.IsDirectory)
                 .ThenBy(x => x.Name);
 
@@ -724,15 +718,8 @@ public class ChunkedFileSystem : FileSystem
 
     protected override async Task<bool> IsFileExistsImplAsync(string path, CancellationToken cancel = default)
     {
-        // Try physical file first
-        try
-        {
-            if (await UnderlayFileSystem.IsFileExistsAsync(path, cancel))
-                return true;
-        }
-        catch { }
+        ChunkedFileSystem.ParsedPath[] physicalFiles = await GetPhysicalFileStateInternalAsync(path, cancel);
 
-        ChunkedFileSystem.ParsedPath[] physicalFiles = await GetPhysicalFileStateInternal(path, cancel);
         var lastFileParsed = physicalFiles.OrderBy(x => x.FileNumber).LastOrDefault();
 
         return lastFileParsed != null;
@@ -743,14 +730,8 @@ public class ChunkedFileSystem : FileSystem
 
     protected override async Task<FileMetadata> GetFileMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
     {
-        // Try physical file first
-        try
-        {
-            return await UnderlayFileSystem.GetFileMetadataAsync(path, flags, cancel);
-        }
-        catch { }
+        ChunkedFileSystem.ParsedPath[] physicalFiles = await GetPhysicalFileStateInternalAsync(path, cancel);
 
-        ChunkedFileSystem.ParsedPath[] physicalFiles = await GetPhysicalFileStateInternal(path, cancel);
         var lastFileParsed = physicalFiles.OrderBy(x => x.FileNumber).LastOrDefault();
 
         if (lastFileParsed == null)
@@ -782,18 +763,7 @@ public class ChunkedFileSystem : FileSystem
 
     protected override async Task DeleteFileImplAsync(string path, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
     {
-        // Try physical file first
-        try
-        {
-            if (await UnderlayFileSystem.IsFileExistsAsync(path, cancel))
-            {
-                await UnderlayFileSystem.DeleteFileAsync(path, flags, cancel);
-                return;
-            }
-        }
-        catch { }
-
-        ChunkedFileSystem.ParsedPath[] physicalFiles = await GetPhysicalFileStateInternal(path, cancel);
+        ChunkedFileSystem.ParsedPath[] physicalFiles = await GetPhysicalFileStateInternalAsync(path, cancel);
 
         if (physicalFiles._IsEmpty())
         {
@@ -809,17 +779,7 @@ public class ChunkedFileSystem : FileSystem
 
     protected override async Task SetFileMetadataImplAsync(string path, FileMetadata metadata, CancellationToken cancel = default)
     {
-        // Try physical file first
-        try
-        {
-            if (await UnderlayFileSystem.IsFileExistsAsync(path, cancel))
-            {
-                await UnderlayFileSystem.SetFileMetadataAsync(path, metadata, cancel);
-                return;
-            }
-        }
-        catch { }
-        ChunkedFileSystem.ParsedPath[] physicalFiles = await GetPhysicalFileStateInternal(path, cancel);
+        ChunkedFileSystem.ParsedPath[] physicalFiles = await GetPhysicalFileStateInternalAsync(path, cancel);
 
         if (physicalFiles._IsEmpty())
         {
