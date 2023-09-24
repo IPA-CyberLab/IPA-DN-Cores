@@ -353,7 +353,7 @@ public class FileMetadata
         }
     }
 
-    public FileSystemEntity ToFileSystemEntity(PathParser parser, string fullPath)
+    public FileSystemEntity ToFileSystemEntity(PathParser parser, string fullPath, string name)
     {
         FileSystemEntity ret = new FileSystemEntity(
             attributes: this.Attributes ?? default,
@@ -361,7 +361,7 @@ public class FileMetadata
             lastAccessTime: this.LastAccessTime ?? Util.ZeroDateTimeOffsetValue,
             lastWriteTime: this.LastWriteTime ?? Util.ZeroDateTimeOffsetValue,
             fullPath: fullPath,
-            name: "..",
+            name: name,
             physicalSize: this.PhysicalSize,
             size: this.Size
             );

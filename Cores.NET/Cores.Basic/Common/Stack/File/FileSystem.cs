@@ -2213,7 +2213,7 @@ public abstract partial class FileSystem : AsyncService
                     parentDirectory = this.PathParser.GetDirectoryName(parentDirectory);
 
                     FileMetadata meta = await this.GetDirectoryMetadataImplAsync(parentDirectory, cancel: opCancel);
-                    ret = ret.Prepend(meta.ToFileSystemEntity(this.PathParser, parentDirectory));
+                    ret = ret.Prepend(meta.ToFileSystemEntity(this.PathParser, parentDirectory, ".."));
                 }
             }
 
