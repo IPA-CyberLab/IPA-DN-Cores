@@ -5720,9 +5720,9 @@ namespace IPA.Cores.Basic
         public virtual string GenerateStatusStr(ProgressReporterSettingBase setting, ProgressReport report, ProgressThroughput? throughput = null)
         {
             string statusStr = ":";
-            if (report.Type == ProgressReportType.Start) statusStr = ":Started:";
-            if (report.Type == ProgressReportType.Finish) statusStr = ":Finished:";
-            if (report.Type == ProgressReportType.Abort) statusStr = ":Aborted:";
+            if (report.Type == ProgressReportType.Start) statusStr = ": Started:";
+            if (report.Type == ProgressReportType.Finish) statusStr = ": Finished:";
+            if (report.Type == ProgressReportType.Abort) statusStr = ": Aborted:";
             string etaStr = "";
 
             if (setting.ShowEta)

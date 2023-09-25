@@ -53,25 +53,30 @@ namespace IPA.TestDev;
 partial class TestDevCommands
 {
     [ConsoleCommand(
-        "SecureCompressRestore command",
-        "SecureCompressRestore [src] /dst:dst [/password:password] [/numthreads:num]",
-        "SecureCompressRestore command")]
-    static async Task<int> SecureCompressRestore(ConsoleService c, string cmdName, string str)
+        "SecureCompressVerify command",
+        "SecureCompressVerify [original] /archive:archive [/password:password] [/numthreads:num]",
+        "SecureCompressVerify command")]
+    static async Task<int> SecureCompressVerify(ConsoleService c, string cmdName, string str)
     {
         ConsoleParam[] args =
         {
-                new ConsoleParam("[src]", ConsoleService.Prompt, "Source directory path: ", ConsoleService.EvalNotEmpty, null),
-                new ConsoleParam("dst", ConsoleService.Prompt, "Destination directory path: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("[original]", ConsoleService.Prompt, "Source file path: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("archive", ConsoleService.Prompt, "Archive file path: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("password"),
                 new ConsoleParam("numthreads"),
             };
 
         ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
-        string src = vl.DefaultParam.StrValue;
-        string dst = vl["dst"].StrValue;
+        string original = vl.DefaultParam.StrValue;
+        string archive = vl["archive"].StrValue;
         string password = vl["password"].StrValue;
         string numthreads = vl["numthreads"].StrValue;
+
+        if (original._IsSamei(archive))
+        {
+            throw new CoresException("src == dst");
+        }
 
         bool err = false;
 
@@ -84,10 +89,10 @@ partial class TestDevCommands
             Con.WriteError(ex.Message);
         }
 
-        var ret = await SecureCompressUtil.RestoreFileAsync(
-            new FilePath(src, Lfs, FileFlags.NoCheckFileSize),
-            new FilePath(dst, Lfs, FileFlags.NoCheckFileSize | FileFlags.AutoCreateDirectory | FileFlags.SparseFile),
-            new SecureCompressOptions(src._GetFileName(), password._IsFilled(), password, true, CompressionLevel.SmallestSize, numthreads._ToInt()), true);
+        var ret = await SecureCompressUtil.VerifyFileAsync(
+            new FilePath(original, Lfs, FileFlags.NoCheckFileSize | FileFlags.AllowRelativePath),
+            new FilePath(archive, Lfs, FileFlags.NoCheckFileSize | FileFlags.AllowRelativePath),
+            new SecureCompressOptions(original._GetFileName(), password._IsFilled(), password, true, CompressionLevel.SmallestSize, numthreads._ToInt()), true);
 
         if (ret.NumErrors >= 1)
         {
@@ -103,6 +108,62 @@ partial class TestDevCommands
     }
 
     [ConsoleCommand(
+    "SecureCompressRestore command",
+    "SecureCompressRestore [src] /dst:dst [/password:password] [/numthreads:num]",
+    "SecureCompressRestore command")]
+    static async Task<int> SecureCompressRestore(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
+                new ConsoleParam("[src]", ConsoleService.Prompt, "Source file path: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("dst", ConsoleService.Prompt, "Destination file path: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("password"),
+                new ConsoleParam("numthreads"),
+            };
+
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        string src = vl.DefaultParam.StrValue;
+        string dst = vl["dst"].StrValue;
+        string password = vl["password"].StrValue;
+        string numthreads = vl["numthreads"].StrValue;
+
+        if (src._IsSamei(dst))
+        {
+            throw new CoresException("src == dst");
+        }
+
+        bool err = false;
+
+        try
+        {
+            Lfs.EnableBackupPrivilege();
+        }
+        catch (Exception ex)
+        {
+            Con.WriteError(ex.Message);
+        }
+
+        var ret = await SecureCompressUtil.RestoreFileAsync(
+            new FilePath(src, Lfs, FileFlags.NoCheckFileSize | FileFlags.AllowRelativePath),
+            new FilePath(dst, Lfs, FileFlags.NoCheckFileSize | FileFlags.AutoCreateDirectory | FileFlags.SparseFile | FileFlags.AllowRelativePath),
+            new SecureCompressOptions(src._GetFileName(), password._IsFilled(), password, true, CompressionLevel.SmallestSize, numthreads._ToInt()), true);
+
+        if (ret.NumErrors >= 1)
+        {
+            throw new CoresException("ret.NumErrors >= 1");
+        }
+
+        if (ret.NumWarnings >= 1)
+        {
+            throw new CoresException("ret.NumWarnings >= 1");
+        }
+
+        return 0;
+    }
+
+
+    [ConsoleCommand(
         "SecureCompressBackup command",
         "SecureCompressBackup [src] /dst:dst [/password:password] [/truncate:size] [/numthreads:num]",
         "SecureCompressBackup command")]
@@ -110,8 +171,8 @@ partial class TestDevCommands
     {
         ConsoleParam[] args =
         {
-                new ConsoleParam("[src]", ConsoleService.Prompt, "Source directory path: ", ConsoleService.EvalNotEmpty, null),
-                new ConsoleParam("dst", ConsoleService.Prompt, "Destination directory path: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("[src]", ConsoleService.Prompt, "Source file path: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("dst", ConsoleService.Prompt, "Destination file path: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("password"),
                 new ConsoleParam("numthreads"),
                 new ConsoleParam("truncate"),
@@ -124,6 +185,11 @@ partial class TestDevCommands
         string password = vl["password"].StrValue;
         string numthreads = vl["numthreads"].StrValue;
         string truncate = vl["truncate"].StrValue;
+
+        if (src._IsSamei(dst))
+        {
+            throw new CoresException("src == dst");
+        }
 
         if (truncate._IsEmpty())
         {
@@ -142,8 +208,8 @@ partial class TestDevCommands
         }
 
         await SecureCompressUtil.BackupFileAsync(
-            new FilePath(src, Lfs, FileFlags.NoCheckFileSize),
-            new FilePath(dst, Lfs, FileFlags.NoCheckFileSize | FileFlags.AutoCreateDirectory | FileFlags.SparseFile),
+            new FilePath(src, Lfs, FileFlags.NoCheckFileSize | FileFlags.AllowRelativePath),
+            new FilePath(dst, Lfs, FileFlags.NoCheckFileSize | FileFlags.AutoCreateDirectory | FileFlags.SparseFile | FileFlags.AllowRelativePath),
             new SecureCompressOptions(src._GetFileName(), password._IsFilled(), password, true, CompressionLevel.SmallestSize, numthreads._ToInt()), truncate._ToLong(), true);
 
         return 0;
@@ -1336,7 +1402,7 @@ partial class TestDevCommands
 
         var optionsValues = options._ParseEnumBits(DirSuperBackupFlags.Default, ',', '|', ' ');
 
-        using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog, flags: optionsValues, encryptPassword: password, numThreads: numthreads._ToInt())))
+        using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, Lfs, infolog, errorlog, flags: optionsValues, encryptPassword: password, numThreads: numthreads._ToInt())))
         {
             Async(async () =>
             {
@@ -1405,7 +1471,7 @@ partial class TestDevCommands
 
         var optionsValues = options._ParseEnumBits(DirSuperBackupFlags.Default, ',', '|', ' ');
 
-        using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog, optionsValues, encryptPassword: password, numThreads: numthreads._ToInt())))
+        using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, Lfs, infolog, errorlog, optionsValues, encryptPassword: password, numThreads: numthreads._ToInt())))
         {
             Async(async () =>
             {
@@ -1474,7 +1540,7 @@ partial class TestDevCommands
 
         var optionsValues = options._ParseEnumBits(DirSuperBackupFlags.Default, ',', '|', ' ');
 
-        using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog, optionsValues, encryptPassword: password, numThreads: numthreads._ToInt())))
+        using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, Lfs, infolog, errorlog, optionsValues, encryptPassword: password, numThreads: numthreads._ToInt())))
         {
             Async(async () =>
             {

@@ -1628,7 +1628,7 @@ static class TestClass
             Con.WriteError(ex);
         }
 
-        using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog, encryptPassword: "test")))
+        using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, Lfs, infolog, errorlog, encryptPassword: "test")))
         {
             Async(async () =>
             {
@@ -1681,7 +1681,7 @@ static class TestClass
             }
             catch { }
 
-            using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog, DirSuperBackupFlags.BackupMakeHistory, encryptPassword: "test")))
+            using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, Lfs, infolog, errorlog, DirSuperBackupFlags.BackupMakeHistory, encryptPassword: "test")))
             {
                 Async(async () =>
                 {
@@ -1722,7 +1722,7 @@ static class TestClass
                 Con.WriteError(ex);
             }
 
-            using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog, DirSuperBackupFlags.BackupMakeHistory, encryptPassword: "test")))
+            using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, Lfs, infolog, errorlog, DirSuperBackupFlags.BackupMakeHistory, encryptPassword: "test")))
             {
                 Async(async () =>
                 {
@@ -1765,7 +1765,7 @@ static class TestClass
             Con.WriteError(ex);
         }
 
-        using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, infolog, errorlog, DirSuperBackupFlags.RestoreMakeBackup, encryptPassword: "test")))
+        using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, Lfs, infolog, errorlog, DirSuperBackupFlags.RestoreMakeBackup, encryptPassword: "test")))
         {
             Async(async () =>
             {
@@ -4487,6 +4487,12 @@ HOST: www.google.com
     static async Task Test_230924()
     {
         await using var fs = new ChunkedFileSystem(new ChunkedFileSystemParams(Lfs, 1_000_000, 1_000_000_000_000_000));
+
+        if (true)
+        {
+            //await using bk = new DirSuperBackup(new DirSuperBackupOptions(
+            return;
+        }
 
         if (true)
         {

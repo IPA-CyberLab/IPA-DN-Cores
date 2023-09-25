@@ -100,16 +100,18 @@ public enum DirSuperBackupFlags
 
 public class DirSuperBackupOptions
 {
-    public FileSystem Fs { get; }
+    public FileSystem LocalFs { get; }
+    public FileSystem ArchiveFs { get; }
     public string? InfoLogFileName { get; }
     public string? ErrorLogFileName { get; }
     public DirSuperBackupFlags Flags { get; }
     public string EncryptPassword { get; }
     public int NumThreads { get; }
 
-    public DirSuperBackupOptions(FileSystem? fs = null, string? infoLogFileName = null, string? errorLogFileName = null, DirSuperBackupFlags flags = DirSuperBackupFlags.Default, string encryptPassword = "", int numThreads = 0)
+    public DirSuperBackupOptions(FileSystem? localFs = null, FileSystem? archiveFs = null, string? infoLogFileName = null, string? errorLogFileName = null, DirSuperBackupFlags flags = DirSuperBackupFlags.Default, string encryptPassword = "", int numThreads = 0)
     {
-        Fs = fs ?? Lfs;
+        LocalFs = localFs ?? Lfs;
+        ArchiveFs = archiveFs ?? Lfs;
         InfoLogFileName = infoLogFileName;
         ErrorLogFileName = errorLogFileName;
         Flags = flags;
@@ -160,9 +162,9 @@ public class DirSuperBackupStat
 public class DirSuperBackup : AsyncService
 {
     public DirSuperBackupOptions Options { get; }
-    public FileSystem Fs => Options.Fs;
-    readonly FileSystem Lfs;
-    readonly FileSystem LfsUtf8;
+    public FileSystem LocalFs => Options.LocalFs;
+    readonly FileSystem LogFs;
+    readonly FileSystem LogFsUtf8;
 
     readonly FileObject? InfoLogFileObj;
     readonly Stream? InfoLogFileStream;
@@ -182,19 +184,19 @@ public class DirSuperBackup : AsyncService
         try
         {
             this.Options = options ?? new DirSuperBackupOptions();
-            this.Lfs = new LargeFileSystem(new LargeFileSystemParams(this.Fs));
-            this.LfsUtf8 = new Utf8BomFileSystem(new Utf8BomFileSystemParam(this.Lfs));
+            this.LogFs = new LargeFileSystem(new LargeFileSystemParams(Lfs));
+            this.LogFsUtf8 = new Utf8BomFileSystem(new Utf8BomFileSystemParam(this.LogFs));
 
             if (Options.InfoLogFileName._IsFilled())
             {
-                InfoLogFileObj = this.LfsUtf8.OpenOrCreateAppend(Options.InfoLogFileName, flags: FileFlags.AutoCreateDirectory | FileFlags.BackupMode | FileFlags.LargeFs_ProhibitWriteWithCrossBorder);
+                InfoLogFileObj = this.LogFsUtf8.OpenOrCreateAppend(Options.InfoLogFileName, flags: FileFlags.AutoCreateDirectory | FileFlags.BackupMode | FileFlags.LargeFs_ProhibitWriteWithCrossBorder);
                 InfoLogFileStream = InfoLogFileObj.GetStream(true);
                 InfoLogWriter = new StreamWriter(InfoLogFileStream);
             }
 
             if (Options.ErrorLogFileName._IsFilled())
             {
-                ErrorLogFileObj = this.LfsUtf8.OpenOrCreateAppend(Options.ErrorLogFileName, flags: FileFlags.AutoCreateDirectory | FileFlags.BackupMode | FileFlags.LargeFs_ProhibitWriteWithCrossBorder);
+                ErrorLogFileObj = this.LogFsUtf8.OpenOrCreateAppend(Options.ErrorLogFileName, flags: FileFlags.AutoCreateDirectory | FileFlags.BackupMode | FileFlags.LargeFs_ProhibitWriteWithCrossBorder);
                 ErrorLogFileStream = ErrorLogFileObj.GetStream(true);
                 ErrorLogWriter = new StreamWriter(ErrorLogFileStream);
             }
@@ -236,8 +238,8 @@ public class DirSuperBackup : AsyncService
             await ErrorLogFileStream._DisposeSafeAsync();
             await ErrorLogFileObj._DisposeSafeAsync();
 
-            await this.LfsUtf8._DisposeSafeAsync();
-            await this.Lfs._DisposeSafeAsync();
+            await this.LogFsUtf8._DisposeSafeAsync();
+            await this.LogFs._DisposeSafeAsync();
         }
         finally
         {
@@ -319,19 +321,19 @@ public class DirSuperBackup : AsyncService
             }
 
             // ローカルディレクトリが存在していることを確認する
-            if (await Fs.IsDirectoryExistsAsync(localDir, cancel) == false)
+            if (await LocalFs.IsDirectoryExistsAsync(localDir, cancel) == false)
             {
                 throw new CoresException($"The directory '{localDir}' not found.");
             }
 
             // バックアップ先ディレクトリが存在していることを確認する
-            if (await Fs.IsDirectoryExistsAsync(archivedDir, cancel) == false)
+            if (await LocalFs.IsDirectoryExistsAsync(archivedDir, cancel) == false)
             {
                 throw new CoresException($"The directory '{archivedDir}' not found.");
             }
 
             // バックアップ先ディレクトリを列挙する
-            archivedDirEnum = (await Fs.EnumDirectoryAsync(archivedDir, false, EnumDirectoryFlags.NoGetPhysicalSize, null, cancel)).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer).ToArray();
+            archivedDirEnum = (await LocalFs.EnumDirectoryAsync(archivedDir, false, EnumDirectoryFlags.NoGetPhysicalSize, null, cancel)).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer).ToArray();
 
             // バックアップディレクトリに存在するメタデータファイルのうち最新のファイルを取得する
             // なお、メタデータファイルのパースがエラーになったら、必ずエラーを発生し中断する
@@ -346,7 +348,7 @@ public class DirSuperBackup : AsyncService
             archivedDirMetaData.FileList._DoForEach(x => archivesDirFileMetaDataDic.Add(x.FileName, x));
 
             // ローカルディレクトリに存在するファイルを列挙する
-            localDirEnum = (await Fs.EnumDirectoryAsync(localDir, false, EnumDirectoryFlags.NoGetPhysicalSize | (this.Options.Flags.Bit(DirSuperBackupFlags.NoFileNameLenLimit) ? EnumDirectoryFlags.None : EnumDirectoryFlags.SkipTooLongFileName), null, cancel)).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer).ToArray();
+            localDirEnum = (await LocalFs.EnumDirectoryAsync(localDir, false, EnumDirectoryFlags.NoGetPhysicalSize | (this.Options.Flags.Bit(DirSuperBackupFlags.NoFileNameLenLimit) ? EnumDirectoryFlags.None : EnumDirectoryFlags.SkipTooLongFileName), null, cancel)).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer).ToArray();
 
             // ローカルディレクトリに存在するファイルを 1 つずつ読み出し、バックアップ先ディレクトリに存在するファイルと比較する
             var localFileEntries = localDirEnum.Where(x => x.IsFile);
@@ -360,7 +362,7 @@ public class DirSuperBackup : AsyncService
 
                 await Task.Yield();
 
-                string archivedFilePath = Fs.PathParser.Combine(archivedDir, localFile.Name);
+                string archivedFilePath = LocalFs.PathParser.Combine(archivedDir, localFile.Name);
 
                 FileMetadata? localFileMetadata = null;
 
@@ -378,7 +380,7 @@ public class DirSuperBackup : AsyncService
                     var archivedFileMetaData = archivedFileMetaData2.MetaData;
 
                     // ローカルファイルとバックアップ先ファイルとの主要なメタデータを比較する
-                    localFileMetadata = await Fs.GetFileMetadataAsync(localFile.FullPath, cancel: cancel);
+                    localFileMetadata = await LocalFs.GetFileMetadataAsync(localFile.FullPath, cancel: cancel);
 
                     localFileMetadata.Security = null;
                     archivedFileMetaData.Security = null;
@@ -402,7 +404,7 @@ public class DirSuperBackup : AsyncService
                     if (archivedFileMetaData2.EncrypedFileName._IsNullOrZeroLen() == false)
                     {
                         // 暗号化ファイルである
-                        archivedFilePath = Fs.PathParser.Combine(archivedDir, archivedFileMetaData2.EncrypedFileName);
+                        archivedFilePath = LocalFs.PathParser.Combine(archivedDir, archivedFileMetaData2.EncrypedFileName);
 
                         // 暗号化ファイルである
                         if (Options.EncryptPassword._IsNullOrZeroLen())
@@ -431,13 +433,13 @@ public class DirSuperBackup : AsyncService
                         {
                             // NoCheckFileSize を付けないと、一部の Windows クライアントと一部の Samba サーバーとの間でヘンなエラーが発生する。
                             funcName = "CompareFileHashAsync";
-                            sameRet = await FileUtil.CompareFileHashAsync(new FilePath(localFile.FullPath, Fs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), new FilePath(archivedFilePath, Fs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), cancel: cancel, hashStr1: hashStr1, hashStr2: hashStr2, exception: exception);
+                            sameRet = await FileUtil.CompareFileHashAsync(new FilePath(localFile.FullPath, LocalFs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), new FilePath(archivedFilePath, LocalFs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), cancel: cancel, hashStr1: hashStr1, hashStr2: hashStr2, exception: exception);
                         }
                         else
                         {
                             // NoCheckFileSize を付けないと、一部の Windows クライアントと一部の Samba サーバーとの間でヘンなエラーが発生する。
                             funcName = "CompareEncryptedFileHashAsync";
-                            sameRet = await FileUtil.CompareEncryptedFileHashAsync(encryptPassword, true, new FilePath(localFile.FullPath, Fs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), new FilePath(archivedFilePath, Fs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), cancel: cancel, hashStr1: hashStr1, hashStr2: hashStr2, exception: exception);
+                            sameRet = await FileUtil.CompareEncryptedFileHashAsync(encryptPassword, true, new FilePath(localFile.FullPath, LocalFs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), new FilePath(archivedFilePath, LocalFs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), cancel: cancel, hashStr1: hashStr1, hashStr2: hashStr2, exception: exception);
                         }
 
                         if (sameRet.IsOk == false)
@@ -521,7 +523,7 @@ public class DirSuperBackup : AsyncService
                         // 無視リストのいずれにも合致しない場合のみ
                         if (ignoreDirNamesList.Where(x => x._IsSamei(subDir.Name)).Any() == false)
                         {
-                            await DoSingleDirVerifyAsync(Fs.PathParser.Combine(localDir, subDir.Name), Fs.PathParser.Combine(archivedDir, subDir.Name), cancel, ignoreDirNames);
+                            await DoSingleDirVerifyAsync(LocalFs.PathParser.Combine(localDir, subDir.Name), LocalFs.PathParser.Combine(archivedDir, subDir.Name), cancel, ignoreDirNames);
                         }
                     }
                 }
@@ -572,13 +574,13 @@ public class DirSuperBackup : AsyncService
             }
 
             // 元ディレクトリが存在していることを確認する
-            if (await Fs.IsDirectoryExistsAsync(srcDir, cancel) == false)
+            if (await LocalFs.IsDirectoryExistsAsync(srcDir, cancel) == false)
             {
                 throw new CoresException($"The directory '{srcDir}' not found.");
             }
 
             // 元ディレクトリを列挙する
-            srcDirEnum = (await Fs.EnumDirectoryAsync(srcDir, false, EnumDirectoryFlags.NoGetPhysicalSize, null, cancel)).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer).ToArray();
+            srcDirEnum = (await LocalFs.EnumDirectoryAsync(srcDir, false, EnumDirectoryFlags.NoGetPhysicalSize, null, cancel)).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer).ToArray();
 
             // 元ディレクトリに存在するメタデータファイルのうち最新のファイルを取得する
             // なお、メタデータファイルのパースがエラーになったら、必ずエラーを発生し中断する
@@ -589,7 +591,7 @@ public class DirSuperBackup : AsyncService
             }
 
             // 先ディレクトリがまだ存在していない場合は作成をする
-            if (await Fs.IsDirectoryExistsAsync(destDir, cancel) == false)
+            if (await LocalFs.IsDirectoryExistsAsync(destDir, cancel) == false)
             {
                 FileFlags newDirFlags = FileFlags.None;
 
@@ -605,19 +607,19 @@ public class DirSuperBackup : AsyncService
 
                 try
                 {
-                    await Fs.CreateDirectoryAsync(destDir, newDirFlags, cancel);
+                    await LocalFs.CreateDirectoryAsync(destDir, newDirFlags, cancel);
                 }
                 catch
                 {
                     // ヘンな圧縮フラグの設定に失敗した場合もう一度作成試行する
                     try
                     {
-                        await Fs.CreateDirectoryAsync(destDir, FileFlags.None, cancel);
+                        await LocalFs.CreateDirectoryAsync(destDir, FileFlags.None, cancel);
                     }
                     catch
                     {
                         // ディレクトリ作成コマンドでなぜかエラーになっても、結果としてディレクトリが作成されればそれでよい
-                        if (await Fs.IsDirectoryExistsAsync(destDir, cancel) == false)
+                        if (await LocalFs.IsDirectoryExistsAsync(destDir, cancel) == false)
                         {
                             // やはりディレクトリが存在しないならばここでエラーを発生させる
                             throw;
@@ -636,7 +638,7 @@ public class DirSuperBackup : AsyncService
                     newDirMetadata.Security = null;
                 }
 
-                await Fs.SetDirectoryMetadataAsync(destDir, newDirMetadata, cancel);
+                await LocalFs.SetDirectoryMetadataAsync(destDir, newDirMetadata, cancel);
             }
             catch (Exception ex)
             {
@@ -654,8 +656,8 @@ public class DirSuperBackup : AsyncService
             {
                 await Task.Yield();
 
-                string srcFilePath = Fs.PathParser.Combine(srcDir, srcFile.FileName);
-                string destFilePath = Fs.PathParser.Combine(destDir, srcFile.FileName);
+                string srcFilePath = LocalFs.PathParser.Combine(srcDir, srcFile.FileName);
+                string destFilePath = LocalFs.PathParser.Combine(destDir, srcFile.FileName);
                 FileMetadata? srcFileMetadata = null;
 
                 concurrentNum.Increment();
@@ -667,7 +669,7 @@ public class DirSuperBackup : AsyncService
 
                     if (srcFile.EncrypedFileName._IsNullOrZeroLen() == false)
                     {
-                        srcFilePath = Fs.PathParser.Combine(srcDir, srcFile.EncrypedFileName);
+                        srcFilePath = LocalFs.PathParser.Combine(srcDir, srcFile.EncrypedFileName);
 
                         // 暗号化ファイルである
                         if (Options.EncryptPassword._IsNullOrZeroLen())
@@ -683,14 +685,14 @@ public class DirSuperBackup : AsyncService
                     srcFileMetadata = srcFile.MetaData;
 
                     // このファイルと同一の先ファイル名がすでに宛先ディレクトリに物理的に存在するかどうか確認する
-                    bool exists = await Fs.IsFileExistsAsync(destFilePath, cancel);
+                    bool exists = await LocalFs.IsFileExistsAsync(destFilePath, cancel);
 
                     bool restoreThisFile = false;
 
                     if (exists)
                     {
                         // すでに宛先ディレクトリに存在する物理的なファイルのメタデータを取得する
-                        FileMetadata destExistsMetadata = await Fs.GetFileMetadataAsync(destFilePath, cancel: cancel);
+                        FileMetadata destExistsMetadata = await LocalFs.GetFileMetadataAsync(destFilePath, cancel: cancel);
 
                         if (Options.Flags.Bit(DirSuperBackupFlags.RestoreOnlyNewer) == false)
                         {
@@ -724,12 +726,12 @@ public class DirSuperBackup : AsyncService
                                     if (isEncrypted == false)
                                     {
                                         // NoCheckFileSize を付けないと、一部の Windows クライアントと一部の Samba サーバーとの間でヘンなエラーが発生する。
-                                        sameRet = await FileUtil.CompareFileHashAsync(new FilePath(srcFilePath, Fs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), new FilePath(destFilePath, Fs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), cancel: cancel);
+                                        sameRet = await FileUtil.CompareFileHashAsync(new FilePath(srcFilePath, LocalFs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), new FilePath(destFilePath, LocalFs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), cancel: cancel);
                                     }
                                     else
                                     {
                                         // NoCheckFileSize を付けないと、一部の Windows クライアントと一部の Samba サーバーとの間でヘンなエラーが発生する。
-                                        sameRet = await FileUtil.CompareEncryptedFileHashAsync(encryptPassword, true, new FilePath(destFilePath, Fs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), new FilePath(srcFilePath, Fs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), cancel: cancel);
+                                        sameRet = await FileUtil.CompareEncryptedFileHashAsync(encryptPassword, true, new FilePath(destFilePath, LocalFs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), new FilePath(srcFilePath, LocalFs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), cancel: cancel);
                                     }
 
                                     if (sameRet.IsOk == false || sameRet.Value != 0)
@@ -773,7 +775,7 @@ public class DirSuperBackup : AsyncService
                                     {
                                         string newOldFileNameCandidate = $".original.{srcFile.FileName}.{i:D4}.original";
 
-                                        if (await Fs.IsFileExistsAsync(Fs.PathParser.Combine(destDir, newOldFileNameCandidate), cancel) == false)
+                                        if (await LocalFs.IsFileExistsAsync(LocalFs.PathParser.Combine(destDir, newOldFileNameCandidate), cancel) == false)
                                         {
                                             newOldFileName = newOldFileNameCandidate;
                                             break;
@@ -781,19 +783,19 @@ public class DirSuperBackup : AsyncService
                                     }
 
                                     // 変更されたファイル名を .old ファイルにリネーム実行する
-                                    string newOldFilePath = Fs.PathParser.Combine(destDir, newOldFileName);
+                                    string newOldFilePath = LocalFs.PathParser.Combine(destDir, newOldFileName);
                                     await WriteLogAsync(DirSuperBackupLogType.Info, Str.CombineStringArrayForCsv("FileRename", destFilePath, newOldFilePath));
-                                    await Fs.MoveFileAsync(destFilePath, newOldFilePath, cancel);
+                                    await LocalFs.MoveFileAsync(destFilePath, newOldFilePath, cancel);
 
                                     // 隠しファイルにする
                                     try
                                     {
-                                        var meta = await Fs.GetFileMetadataAsync(newOldFilePath, cancel: cancel);
+                                        var meta = await LocalFs.GetFileMetadataAsync(newOldFilePath, cancel: cancel);
                                         if (meta.Attributes != null)
                                         {
                                             FileMetadata meta2 = new FileMetadata(attributes: meta.Attributes?.BitAdd(FileAttributes.Hidden));
 
-                                            await Fs.SetFileMetadataAsync(newOldFilePath, meta2, cancel);
+                                            await LocalFs.SetFileMetadataAsync(newOldFilePath, meta2, cancel);
                                         }
                                     }
                                     catch { }
@@ -827,7 +829,7 @@ public class DirSuperBackup : AsyncService
                         // ファイルをコピーする
                         await TaskUtil.RetryAsync(async c =>
                         {
-                            await Fs.CopyFileAsync(srcFilePath, destFilePath,
+                            await LocalFs.CopyFileAsync(srcFilePath, destFilePath,
                                 new CopyFileParams(flags: flags,
                                     metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll),
                                     encryptOption: isEncrypted ? EncryptOption.Decrypt | EncryptOption.Compress : EncryptOption.None,
@@ -868,14 +870,14 @@ public class DirSuperBackup : AsyncService
                         {
                             var meta = Options.Flags.Bit(DirSuperBackupFlags.RestoreNoAcl) ? srcFileMetadata.Clone(FileMetadataCopyMode.TimeAll | FileMetadataCopyMode.Attributes | FileMetadataCopyMode.ReplicateArchiveBit | FileMetadataCopyMode.AlternateStream | FileMetadataCopyMode.Author) : srcFileMetadata;
 
-                            await Fs.SetFileMetadataAsync(destFilePath, meta, cancel);
+                            await LocalFs.SetFileMetadataAsync(destFilePath, meta, cancel);
                         }
                         catch (Exception ex)
                         {
                             FileMetadata? existingFileMetadata = null;
                             try
                             {
-                                existingFileMetadata = await Fs.GetFileMetadataAsync(destFilePath, cancel: cancel);
+                                existingFileMetadata = await LocalFs.GetFileMetadataAsync(destFilePath, cancel: cancel);
                             }
                             catch { }
                             if ((existingFileMetadata?.Attributes?.Bit(FileAttributes.ReadOnly) ?? true) == false)
@@ -911,7 +913,7 @@ public class DirSuperBackup : AsyncService
             // (中のファイルが新しくなったことが原因で、ディレクトリの更新日時が新しくなってしまう可能性があるためである)
             try
             {
-                await Fs.SetFileMetadataAsync(destDir, dirMetaData.DirMetadata.Clone(FileMetadataCopyMode.TimeAll), cancel);
+                await LocalFs.SetFileMetadataAsync(destDir, dirMetaData.DirMetadata.Clone(FileMetadataCopyMode.TimeAll), cancel);
             }
             catch
             {
@@ -926,7 +928,7 @@ public class DirSuperBackup : AsyncService
                     // 無視リストのいずれにも合致しない場合のみ
                     if (ignoreDirNamesList.Where(x => x._IsSamei(subDir)).Any() == false)
                     {
-                        await DoSingleDirRestoreAsync(Fs.PathParser.Combine(srcDir, subDir), Fs.PathParser.Combine(destDir, subDir), cancel, ignoreDirNames);
+                        await DoSingleDirRestoreAsync(LocalFs.PathParser.Combine(srcDir, subDir), LocalFs.PathParser.Combine(destDir, subDir), cancel, ignoreDirNames);
                     }
                 }
             }
@@ -944,7 +946,7 @@ public class DirSuperBackup : AsyncService
             {
                 if (dirMetaData != null)
                 {
-                    await Fs.SetFileMetadataAsync(destDir, dirMetaData.DirMetadata.Clone(FileMetadataCopyMode.TimeAll), cancel);
+                    await LocalFs.SetFileMetadataAsync(destDir, dirMetaData.DirMetadata.Clone(FileMetadataCopyMode.TimeAll), cancel);
                 }
             }
             catch
@@ -981,9 +983,9 @@ public class DirSuperBackup : AsyncService
                 throw new CoresException($"srcDir == destDir. Directory path: '{srcDir}'");
             }
 
-            srcDirMetadata = await Fs.GetDirectoryMetadataAsync(srcDir, cancel: cancel);
+            srcDirMetadata = await LocalFs.GetDirectoryMetadataAsync(srcDir, cancel: cancel);
 
-            srcDirEnum = (await Fs.EnumDirectoryAsync(srcDir, false, EnumDirectoryFlags.NoGetPhysicalSize | (this.Options.Flags.Bit(DirSuperBackupFlags.NoFileNameLenLimit) ? EnumDirectoryFlags.None : EnumDirectoryFlags.SkipTooLongFileName), null, cancel)).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer).ToArray();
+            srcDirEnum = (await LocalFs.EnumDirectoryAsync(srcDir, false, EnumDirectoryFlags.NoGetPhysicalSize | (this.Options.Flags.Bit(DirSuperBackupFlags.NoFileNameLenLimit) ? EnumDirectoryFlags.None : EnumDirectoryFlags.SkipTooLongFileName), null, cancel)).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer).ToArray();
 
             FileSystemEntity[] destDirEnum = new FileSystemEntity[0];
 
@@ -992,9 +994,9 @@ public class DirSuperBackup : AsyncService
             DirSuperBackupMetadata destDirNewMetaData;
 
             // 宛先ディレクトリがすでに存在しているかどうか検査する
-            if (await Fs.IsDirectoryExistsAsync(destDir, cancel))
+            if (await LocalFs.IsDirectoryExistsAsync(destDir, cancel))
             {
-                destDirEnum = await Fs.EnumDirectoryAsync(destDir, false, EnumDirectoryFlags.NoGetPhysicalSize, null, cancel);
+                destDirEnum = await LocalFs.EnumDirectoryAsync(destDir, false, EnumDirectoryFlags.NoGetPhysicalSize, null, cancel);
 
                 // 宛先ディレクトリに存在するメタデータファイルのうち最新のファイルを取得する
                 destDirOldMetaData = await GetLatestMetaDataFileNameAsync(destDir, destDirEnum, cancel);
@@ -1002,13 +1004,13 @@ public class DirSuperBackup : AsyncService
             else
             {
                 // 宛先ディレクトリがまだ存在していない場合は作成する
-                await Fs.CreateDirectoryAsync(destDir, FileFlags.BackupMode | FileFlags.AutoCreateDirectory, cancel);
+                await LocalFs.CreateDirectoryAsync(destDir, FileFlags.BackupMode | FileFlags.AutoCreateDirectory, cancel);
             }
 
             // 宛先ディレクトリの日付情報のみ属性書き込みする
             try
             {
-                await Fs.SetFileMetadataAsync(destDir, srcDirMetadata.Clone(FileMetadataCopyMode.TimeAll), cancel);
+                await LocalFs.SetFileMetadataAsync(destDir, srcDirMetadata.Clone(FileMetadataCopyMode.TimeAll), cancel);
             }
             catch
             {
@@ -1049,7 +1051,7 @@ public class DirSuperBackup : AsyncService
 
                 await Task.Yield();
 
-                string destFilePath = Fs.PathParser.Combine(destDir, srcFile.Name);
+                string destFilePath = LocalFs.PathParser.Combine(destDir, srcFile.Name);
 
                 if (Options.EncryptPassword._IsNullOrZeroLen() == false)
                 {
@@ -1064,17 +1066,17 @@ public class DirSuperBackup : AsyncService
 
                 try
                 {
-                    srcFileMetadata = await Fs.GetFileMetadataAsync(srcFile.FullPath, cancel: cancel);
+                    srcFileMetadata = await LocalFs.GetFileMetadataAsync(srcFile.FullPath, cancel: cancel);
 
                     // このファイルと同一のファイル名がすでに宛先ディレクトリに物理的に存在するかどうか確認する
-                    bool exists = await Fs.IsFileExistsAsync(destFilePath, cancel);
+                    bool exists = await LocalFs.IsFileExistsAsync(destFilePath, cancel);
 
                     bool fileChangedOrNew = false;
 
                     if (exists)
                     {
                         // すでに宛先ディレクトリに存在する物理的なファイルのメタデータを取得する
-                        FileMetadata destExistsMetadata = await Fs.GetFileMetadataAsync(destFilePath, cancel: cancel);
+                        FileMetadata destExistsMetadata = await LocalFs.GetFileMetadataAsync(destFilePath, cancel: cancel);
 
                         if (Options.EncryptPassword._IsNullOrZeroLen())
                         {
@@ -1093,7 +1095,7 @@ public class DirSuperBackup : AsyncService
                             // かつそのメタデータ情報に記載されている EncryptedPhysicalSize が宛先ディレクトリにある物理ファイルと全く同一である
                             // 場合は、宛先ファイルが正しく存在すると仮定する
 
-                            string tmp1 = Fs.PathParser.GetFileName(destFilePath);
+                            string tmp1 = LocalFs.PathParser.GetFileName(destFilePath);
                             if ((destDirOldMetaData?.FileList.Where(x => x.EncrypedFileName._IsSamei(tmp1) && x.EncryptedPhysicalSize == destExistsMetadata.Size && x.MetaData.Size == srcFile.Size).Any() ?? false) == false)
                             {
                                 // ファイルサイズが異なるとみなす
@@ -1149,11 +1151,11 @@ public class DirSuperBackup : AsyncService
                                 // 連番でかつ存在していないファイル名を決定する
                                 for (int i = 0; ; i++)
                                 {
-                                    string newOldFileNameCandidate = $".old.{Fs.PathParser.GetFileName(destFilePath)}.{yymmdd}.{i:D4}{Consts.Extensions.DirSuperBackupHistory}";
+                                    string newOldFileNameCandidate = $".old.{LocalFs.PathParser.GetFileName(destFilePath)}.{yymmdd}.{i:D4}{Consts.Extensions.DirSuperBackupHistory}";
 
                                     if (srcDirEnum.Where(x => x.Name._IsSamei(newOldFileNameCandidate)).Any() == false)
                                     {
-                                        if (await Fs.IsFileExistsAsync(Fs.PathParser.Combine(destDir, newOldFileNameCandidate), cancel) == false)
+                                        if (await LocalFs.IsFileExistsAsync(LocalFs.PathParser.Combine(destDir, newOldFileNameCandidate), cancel) == false)
                                         {
                                             newOldFileName = newOldFileNameCandidate;
                                             break;
@@ -1162,21 +1164,21 @@ public class DirSuperBackup : AsyncService
                                 }
 
                                 // 変更されたファイル名を ._backup_history ファイルにリネーム実行する
-                                string newOldFilePath = Fs.PathParser.Combine(destDir, newOldFileName);
+                                string newOldFilePath = LocalFs.PathParser.Combine(destDir, newOldFileName);
                                 await WriteLogAsync(DirSuperBackupLogType.Info, Str.CombineStringArrayForCsv("FileRename", destFilePath, newOldFilePath));
-                                await Fs.MoveFileAsync(destFilePath, newOldFilePath, cancel);
+                                await LocalFs.MoveFileAsync(destFilePath, newOldFilePath, cancel);
 
                                 oldFilePathToDelete = newOldFilePath;
 
                                 // 隠しファイルにする
                                 try
                                 {
-                                    var meta = await Fs.GetFileMetadataAsync(newOldFilePath, cancel: cancel);
+                                    var meta = await LocalFs.GetFileMetadataAsync(newOldFilePath, cancel: cancel);
                                     if (meta.Attributes != null && meta.Attributes.Bit(FileAttributes.Hidden) == false)
                                     {
                                         FileMetadata meta2 = new FileMetadata(attributes: meta.Attributes.BitAdd(FileAttributes.Hidden));
 
-                                        await Fs.SetFileMetadataAsync(newOldFilePath, meta2, cancel);
+                                        await LocalFs.SetFileMetadataAsync(newOldFilePath, meta2, cancel);
                                     }
                                 }
                                 catch { }
@@ -1196,7 +1198,7 @@ public class DirSuperBackup : AsyncService
 
                         RefBool verifyErrorRecovered = false;
 
-                        await Fs.CopyFileAsync(srcFile.FullPath, destFilePath,
+                        await LocalFs.CopyFileAsync(srcFile.FullPath, destFilePath,
                             new CopyFileParams(flags: flags, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll),
                             encryptOption: Options.EncryptPassword._IsNullOrZeroLen() ? EncryptOption.None : EncryptOption.Encrypt | EncryptOption.Compress,
                             encryptPassword: Options.EncryptPassword, deleteFileIfVerifyFailed: true, calcDigest: this.Options.Flags.Bit(DirSuperBackupFlags.BackupNoMd5) == false),
@@ -1212,7 +1214,7 @@ public class DirSuperBackup : AsyncService
                         {
                             if (Options.EncryptPassword._IsNullOrZeroLen() == false)
                             {
-                                var newFileMetadata = await Fs.GetFileMetadataAsync(destFilePath, FileMetadataGetFlags.NoPhysicalFileSize, cancel);
+                                var newFileMetadata = await LocalFs.GetFileMetadataAsync(destFilePath, FileMetadataGetFlags.NoPhysicalFileSize, cancel);
 
                                 encryptedPhysicalSize = newFileMetadata.Size;
                             }
@@ -1229,7 +1231,7 @@ public class DirSuperBackup : AsyncService
                             {
                                 try
                                 {
-                                    await Fs.DeleteFileAsync(oldFilePathToDelete, flags: FileFlags.BackupMode | FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
+                                    await LocalFs.DeleteFileAsync(oldFilePathToDelete, flags: FileFlags.BackupMode | FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
                                 }
                                 catch
                                 {
@@ -1244,7 +1246,7 @@ public class DirSuperBackup : AsyncService
                     {
                         if (Options.EncryptPassword._IsNullOrZeroLen() == false)
                         {
-                            string tmp1 = Fs.PathParser.GetFileName(destFilePath);
+                            string tmp1 = LocalFs.PathParser.GetFileName(destFilePath);
 
                             var currentFileInfoInMetaData = destDirOldMetaData?.FileList.Where(x => x.EncrypedFileName._IsSame(tmp1) && x.MetaData.Size == srcFile.Size).FirstOrDefault();
 
@@ -1264,7 +1266,7 @@ public class DirSuperBackup : AsyncService
                         // ファイルの日付情報のみ更新する
                         try
                         {
-                            await Fs.SetFileMetadataAsync(destFilePath, srcFileMetadata.Clone(FileMetadataCopyMode.TimeAll), cancel);
+                            await LocalFs.SetFileMetadataAsync(destFilePath, srcFileMetadata.Clone(FileMetadataCopyMode.TimeAll), cancel);
                         }
                         catch
                         {
@@ -1309,9 +1311,9 @@ public class DirSuperBackup : AsyncService
             destDirNewMetaData.DirList = destDirNewMetaData.DirList.OrderBy(x => x, StrComparer.IgnoreCaseComparer).ToList();
 
             // 新しいメタデータを書き込む
-            string newMetadataFilePath = Fs.PathParser.Combine(destDir, $"{PrefixMetadata}{Str.DateTimeToStrShortWithMilliSecs(now.UtcDateTime)}{SuffixMetadata}");
+            string newMetadataFilePath = LocalFs.PathParser.Combine(destDir, $"{PrefixMetadata}{Str.DateTimeToStrShortWithMilliSecs(now.UtcDateTime)}{SuffixMetadata}");
 
-            await Fs.WriteJsonToFileAsync(newMetadataFilePath, destDirNewMetaData, FileFlags.BackupMode | FileFlags.OnCreateSetCompressionFlag, cancel: cancel);
+            await LocalFs.WriteJsonToFileAsync(newMetadataFilePath, destDirNewMetaData, FileFlags.BackupMode | FileFlags.OnCreateSetCompressionFlag, cancel: cancel);
         }
         catch (Exception ex)
         {
@@ -1340,7 +1342,7 @@ public class DirSuperBackup : AsyncService
         {
             if (srcDirMetadata != null)
             {
-                await Fs.SetFileMetadataAsync(destDir, srcDirMetadata.Clone(FileMetadataCopyMode.TimeAll), cancel);
+                await LocalFs.SetFileMetadataAsync(destDir, srcDirMetadata.Clone(FileMetadataCopyMode.TimeAll), cancel);
             }
         }
         catch
@@ -1363,7 +1365,7 @@ public class DirSuperBackup : AsyncService
                         // 無視リストのいずれにも合致しない場合のみ
                         if (ignoreDirNamesList.Where(x => x._IsSamei(subDir.Name)).Any() == false)
                         {
-                            await DoSingleDirBackupAsync(Fs.PathParser.Combine(srcDir, subDir.Name), Fs.PathParser.Combine(destDir, subDir.Name), cancel, ignoreDirNames);
+                            await DoSingleDirBackupAsync(LocalFs.PathParser.Combine(srcDir, subDir.Name), LocalFs.PathParser.Combine(destDir, subDir.Name), cancel, ignoreDirNames);
                         }
                     }
                 }
@@ -1403,8 +1405,8 @@ public class DirSuperBackup : AsyncService
                         try
                         {
                             // 両方のディレクトリを再列挙いたします
-                            var srcDirEnum2 = (await Fs.EnumDirectoryAsync(srcDir, false, EnumDirectoryFlags.NoGetPhysicalSize | (this.Options.Flags.Bit(DirSuperBackupFlags.NoFileNameLenLimit) ? EnumDirectoryFlags.None : EnumDirectoryFlags.SkipTooLongFileName), null, cancel)).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer).ToArray();
-                            var destDirEnum2 = (await Fs.EnumDirectoryAsync(destDir, false, EnumDirectoryFlags.NoGetPhysicalSize, null, cancel)).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer).ToArray();
+                            var srcDirEnum2 = (await LocalFs.EnumDirectoryAsync(srcDir, false, EnumDirectoryFlags.NoGetPhysicalSize | (this.Options.Flags.Bit(DirSuperBackupFlags.NoFileNameLenLimit) ? EnumDirectoryFlags.None : EnumDirectoryFlags.SkipTooLongFileName), null, cancel)).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer).ToArray();
+                            var destDirEnum2 = (await LocalFs.EnumDirectoryAsync(destDir, false, EnumDirectoryFlags.NoGetPhysicalSize, null, cancel)).OrderBy(x => x.Name, StrComparer.IgnoreCaseComparer).ToArray();
 
                             // 余分なファイルを削除いたします
                             var extraFiles = destDirEnum2.Where(x => x.IsFile && x.IsSymbolicLink == false)
@@ -1414,13 +1416,13 @@ public class DirSuperBackup : AsyncService
 
                             foreach (var extraFile in extraFiles)
                             {
-                                string fullPath = Fs.PathParser.Combine(destDir, extraFile.Name);
+                                string fullPath = LocalFs.PathParser.Combine(destDir, extraFile.Name);
 
                                 await WriteLogAsync(DirSuperBackupLogType.Info, Str.CombineStringArrayForCsv("DirSyncDeleteFile", fullPath));
 
                                 try
                                 {
-                                    await Fs.DeleteFileAsync(fullPath, FileFlags.BackupMode | FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
+                                    await LocalFs.DeleteFileAsync(fullPath, FileFlags.BackupMode | FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
 
                                     Stat.SyncDelete_NumFiles++;
                                 }
@@ -1437,13 +1439,13 @@ public class DirSuperBackup : AsyncService
 
                             foreach (var extraSubDir in extraSubDirs)
                             {
-                                string fullPath = Fs.PathParser.Combine(destDir, extraSubDir.Name);
+                                string fullPath = LocalFs.PathParser.Combine(destDir, extraSubDir.Name);
 
                                 await WriteLogAsync(DirSuperBackupLogType.Info, Str.CombineStringArrayForCsv("DirSyncDeleteSubDir", fullPath));
 
                                 try
                                 {
-                                    await Fs.DeleteDirectoryAsync(fullPath, true, cancel);
+                                    await LocalFs.DeleteDirectoryAsync(fullPath, true, cancel);
 
                                     Stat.SyncDelete_NumDirs++;
                                 }
@@ -1485,7 +1487,7 @@ public class DirSuperBackup : AsyncService
         {
             if (srcDirMetadata != null)
             {
-                await Fs.SetFileMetadataAsync(destDir, srcDirMetadata.Clone(FileMetadataCopyMode.TimeAll), cancel);
+                await LocalFs.SetFileMetadataAsync(destDir, srcDirMetadata.Clone(FileMetadataCopyMode.TimeAll), cancel);
             }
         }
         catch
@@ -1514,9 +1516,9 @@ public class DirSuperBackup : AsyncService
 
         foreach (string fileName in fileNameCandidates)
         {
-            string fullPath = Fs.PathParser.Combine(dirPath, fileName);
+            string fullPath = LocalFs.PathParser.Combine(dirPath, fileName);
 
-            DirSuperBackupMetadata? ret = await Fs.ReadJsonFromFileAsync<DirSuperBackupMetadata>(fullPath, nullIfError: !throwJsonParseError, flags: FileFlags.BackupMode);
+            DirSuperBackupMetadata? ret = await LocalFs.ReadJsonFromFileAsync<DirSuperBackupMetadata>(fullPath, nullIfError: !throwJsonParseError, flags: FileFlags.BackupMode);
 
             if (ret != null) return ret;
         }

@@ -156,6 +156,98 @@ public static class SecureCompressUtil
             NumWarnings = secureWriter.NumWarning,
         };
     }
+
+    public static async Task<SecureCompressUtilRet> VerifyFileAsync(FilePath originalFilePath, FilePath archiveFilePath, SecureCompressOptions options, bool writeProgressToConsole = false, CancellationToken cancel = default)
+    {
+        string archiveHashSha1 = "";
+        string originalHashSha1 = "";
+
+        long archiveHashSize = 0;
+        long originalHashSize = 0;
+
+        SecureCompressUtilRet ret;
+
+        {
+            await using var archiveFile = await archiveFilePath.OpenAsync(cancel: cancel);
+
+            await using var archiveStream = archiveFile.GetStream();
+
+            ProgressReporter? reporterReadArchive = null;
+
+            if (writeProgressToConsole)
+            {
+                reporterReadArchive = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, fileSizeStr: true, title: "SecureCompress Verify Read (Archive) " + archiveFilePath.GetFileName()._TruncStrEx(16)));
+            }
+
+            using IDisposable reporterProgDisp = reporterReadArchive._EmptyDisposableIfNull();
+
+            await using var archiveHashStream = new HashCalcStream(SHA1.Create());
+
+            await using var secureWriter = new SecureCompressDecoder(archiveHashStream, options, archiveFile.Size, true, reporterReadArchive);
+
+            long sz = await archiveStream.CopyBetweenStreamAsync(secureWriter, estimatedSize: archiveFile.Size);
+
+            await secureWriter.FinalizeAsync();
+
+            archiveHashSha1 = archiveHashStream.GetFinalHash()._GetHexString();
+
+            archiveHashSize = archiveHashStream.Length;
+
+            $"----------"._Print();
+            $"Archive File Name: {archiveFilePath}"._Print();
+            $"Archive File Size: {archiveHashSize._ToString3()} bytes"._Print();
+            $"Archive File SHA-1 Hash: {archiveHashSha1}"._Print();
+            $"----------"._Print();
+
+            ret = new SecureCompressUtilRet
+            {
+                NumErrors = secureWriter.NumError,
+                NumWarnings = secureWriter.NumWarning,
+            };
+        }
+
+        {
+            await using var originalFile = await originalFilePath.OpenAsync(cancel: cancel);
+
+            await using var originalStream = originalFile.GetStream();
+
+            await using var originalHashStream = new HashCalcStream(SHA1.Create());
+
+            ProgressReporter? reporterReadOriginal = null;
+
+            if (writeProgressToConsole)
+            {
+                reporterReadOriginal = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, fileSizeStr: true, title: "SecureCompress Verify Read (Original) " + originalFilePath.GetFileName()._TruncStrEx(16)));
+            }
+
+            using IDisposable reporterProgDisp = reporterReadOriginal._EmptyDisposableIfNull();
+
+            await originalStream.CopyBetweenStreamAsync(originalHashStream, estimatedSize: originalFile.Size, reporter: reporterReadOriginal);
+
+            originalHashSha1 = originalHashStream.GetFinalHash()._GetHexString();
+
+            originalHashSize = originalHashStream.Length;
+
+            $"----------"._Print();
+            $"Original File Name: {originalFilePath}"._Print();
+            $"Original File Size: {originalHashSize._ToString3()} bytes"._Print();
+            $"Original File SHA-1 Hash: {originalHashSha1}"._Print();
+            $"----------"._Print();
+
+            ""._Print();
+        }
+
+        if (archiveHashSha1 == originalHashSha1)
+        {
+            $"Ok. Both files are exactly same. SHA1 = {archiveHashSha1}, Size = {originalHashSize._ToString3()}"._Print();
+        }
+        else
+        {
+            throw new CoresException($"File hash is different. Archive file size = {archiveHashSize._ToString3()} bytes, Archive file hash = {archiveHashSha1}, Original file size = {originalHashSize._ToString3()} bytes, Original file hash = {originalHashSha1}");
+        }
+
+        return ret;
+    }
 }
 
 public class SecureCompressFinalHeader
@@ -687,6 +779,15 @@ public class SecureCompressDecoder : StreamImplBase
             {
                 // 必ず 1 回は呼び出す
                 await ProcessAndSendBufferedDataAsync(cancel);
+
+                if (this.FirstHeader == null)
+                {
+                    $"{this.Options.FileNameHint}: ParseHeader error: No first header found"._Error();
+
+                    this.NumError++;
+
+                    throw new CoresException($"{this.Options.FileNameHint}: ParseHeader error: No first header found");
+                }
 
                 if (this.FinalHeader == null)
                 {

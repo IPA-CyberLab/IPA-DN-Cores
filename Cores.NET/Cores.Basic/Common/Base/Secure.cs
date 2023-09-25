@@ -622,6 +622,7 @@ namespace IPA.Cores.Basic
     {
         public HashAlgorithm Algorithm { get; }
         public bool AutoDispose { get; }
+        long _CurrentPosition = 0;
 
         public HashCalcStream(HashAlgorithm algorithm, bool autoDispose = true) : base(new StreamImplBaseOptions(false, true, false))
         {
@@ -648,12 +649,12 @@ namespace IPA.Cores.Basic
 
         protected override long GetLengthImpl()
         {
-            throw new NotImplementedException();
+            return this._CurrentPosition;
         }
 
         protected override long GetPositionImpl()
         {
-            throw new NotImplementedException();
+            return this._CurrentPosition;
         }
 
         protected override ValueTask<int> ReadImplAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
@@ -663,16 +664,36 @@ namespace IPA.Cores.Basic
 
         protected override long SeekImpl(long offset, SeekOrigin origin)
         {
+            if (origin == SeekOrigin.Begin && offset == this._CurrentPosition)
+            {
+                return this._CurrentPosition;
+            }
+
+            if (origin == SeekOrigin.Current && offset == 0)
+            {
+                return this._CurrentPosition;
+            }
+
             throw new NotImplementedException();
         }
 
         protected override void SetLengthImpl(long length)
         {
+            if (length == this._CurrentPosition)
+            {
+                return;
+            }
+
             throw new NotImplementedException();
         }
 
         protected override void SetPositionImpl(long position)
         {
+            if (position == this._CurrentPosition)
+            {
+                return;
+            }
+
             throw new NotImplementedException();
         }
 
@@ -687,6 +708,8 @@ namespace IPA.Cores.Basic
                 seg.Array._NullCheck();
 
                 this.Algorithm.TransformBlock(seg.Array, seg.Offset, seg.Count, null, 0);
+
+                this._CurrentPosition += seg.Count;
             }
 
             return ValueTask.CompletedTask;
