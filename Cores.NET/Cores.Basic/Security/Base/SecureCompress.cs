@@ -94,6 +94,9 @@ public static class SecureCompressUtil
 {
     public static async Task BackupFileAsync(FilePath srcFilePath, FilePath destFilePath, SecureCompressOptions options, long truncate = -1, bool writeProgressToConsole = false, CancellationToken cancel = default)
     {
+        srcFilePath = await srcFilePath.GetAbsolutePathFromRelativePathAsync();
+        destFilePath = await destFilePath.GetAbsolutePathFromRelativePathAsync();
+
         await using var srcFile = await srcFilePath.OpenAsync(cancel: cancel);
 
         await using var srcStream = srcFile.GetStream();
@@ -127,6 +130,9 @@ public static class SecureCompressUtil
 
     public static async Task<SecureCompressUtilRet> RestoreFileAsync(FilePath srcFilePath, FilePath destFilePath, SecureCompressOptions options, bool writeProgressToConsole = false, CancellationToken cancel = default)
     {
+        srcFilePath = await srcFilePath.GetAbsolutePathFromRelativePathAsync();
+        destFilePath = await destFilePath.GetAbsolutePathFromRelativePathAsync();
+
         await using var srcFile = await srcFilePath.OpenAsync(cancel: cancel);
 
         await using var srcStream = srcFile.GetStream();
@@ -159,6 +165,9 @@ public static class SecureCompressUtil
 
     public static async Task<SecureCompressUtilRet> VerifyFileAsync(FilePath originalFilePath, FilePath archiveFilePath, SecureCompressOptions options, bool writeProgressToConsole = false, CancellationToken cancel = default)
     {
+        originalFilePath = await originalFilePath.GetAbsolutePathFromRelativePathAsync();
+        archiveFilePath = await archiveFilePath.GetAbsolutePathFromRelativePathAsync();
+
         string archiveHashSha1 = "";
         string originalHashSha1 = "";
 

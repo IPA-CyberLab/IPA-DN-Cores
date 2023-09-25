@@ -90,8 +90,8 @@ partial class TestDevCommands
         }
 
         var ret = await SecureCompressUtil.VerifyFileAsync(
-            new FilePath(original, Lfs, FileFlags.NoCheckFileSize | FileFlags.AllowRelativePath),
-            new FilePath(archive, Lfs, FileFlags.NoCheckFileSize | FileFlags.AllowRelativePath),
+            new FilePath(original, Lfs, FileFlags.NoCheckFileSize),
+            new FilePath(archive, Lfs, FileFlags.NoCheckFileSize),
             new SecureCompressOptions(original._GetFileName(), password._IsFilled(), password, true, CompressionLevel.SmallestSize, numthreads._ToInt()), true);
 
         if (ret.NumErrors >= 1)
@@ -145,8 +145,8 @@ partial class TestDevCommands
         }
 
         var ret = await SecureCompressUtil.RestoreFileAsync(
-            new FilePath(src, Lfs, FileFlags.NoCheckFileSize | FileFlags.AllowRelativePath),
-            new FilePath(dst, Lfs, FileFlags.NoCheckFileSize | FileFlags.AutoCreateDirectory | FileFlags.SparseFile | FileFlags.AllowRelativePath),
+            new FilePath(src, Lfs, FileFlags.NoCheckFileSize),
+            new FilePath(dst, Lfs, FileFlags.NoCheckFileSize | FileFlags.AutoCreateDirectory | FileFlags.SparseFile),
             new SecureCompressOptions(src._GetFileName(), password._IsFilled(), password, true, CompressionLevel.SmallestSize, numthreads._ToInt()), true);
 
         if (ret.NumErrors >= 1)
@@ -208,8 +208,8 @@ partial class TestDevCommands
         }
 
         await SecureCompressUtil.BackupFileAsync(
-            new FilePath(src, Lfs, FileFlags.NoCheckFileSize | FileFlags.AllowRelativePath),
-            new FilePath(dst, Lfs, FileFlags.NoCheckFileSize | FileFlags.AutoCreateDirectory | FileFlags.SparseFile | FileFlags.AllowRelativePath),
+            new FilePath(src, Lfs, FileFlags.NoCheckFileSize),
+            new FilePath(dst, Lfs, FileFlags.NoCheckFileSize | FileFlags.AutoCreateDirectory | FileFlags.SparseFile),
             new SecureCompressOptions(src._GetFileName(), password._IsFilled(), password, true, CompressionLevel.SmallestSize, numthreads._ToInt()), truncate._ToLong(), true);
 
         return 0;

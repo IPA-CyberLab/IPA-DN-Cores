@@ -1875,6 +1875,12 @@ public abstract partial class FileSystem : AsyncService
         catch { }
     }
 
+    public Task<string> GetAbsolutePathFromRelativePathAsync(string path, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
+        => this.GetAbsolutePathFromRelativePathIfSupportedImplAsync(path, flags, cancel);
+
+    public string GetAbsolutePathFromRelativePath(string path, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
+        => this.GetAbsolutePathFromRelativePathAsync(path, flags, cancel)._GetResult();
+
     protected virtual Task<string> GetAbsolutePathFromRelativePathIfSupportedImplAsync(string path, FileFlags flags, CancellationToken cancel)
     {
         return path._TR();

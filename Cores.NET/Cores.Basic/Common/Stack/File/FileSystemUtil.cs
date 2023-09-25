@@ -1348,6 +1348,13 @@ public class DirectoryPath : FileSystemPath // CloneDeep 禁止
     public DirectoryPath[] GetDirectories(EnumDirectoryFlags flags = EnumDirectoryFlags.None, CancellationToken cancel = default)
         => GetDirectoriesAsync(flags, cancel)._GetResult();
 
+
+    public async Task<DirectoryPath> GetAbsolutePathFromRelativePathAsync(CancellationToken cancel = default)
+        => new DirectoryPath(await this.FileSystem.GetAbsolutePathFromRelativePathAsync(this.PathString, this.Flags, cancel), this.FileSystem, this.Flags);
+
+    public DirectoryPath GetAbsolutePathFromRelativePath(CancellationToken cancel = default)
+        => GetAbsolutePathFromRelativePathAsync(cancel)._GetResult();
+
     public async Task<FilePath[]> GetFilesAsync(EnumDirectoryFlags flags = EnumDirectoryFlags.None, CancellationToken cancel = default)
     {
         var ents = await this.FileSystem.EnumDirectoryAsync(this.PathString, cancel: cancel, flags: flags);
@@ -1445,6 +1452,12 @@ public class FilePath : FileSystemPath // CloneDeep 禁止
     }
 
     public static implicit operator FilePath(string fileName) => new FilePath(fileName, flags: FileFlags.AutoCreateDirectory);
+
+    public async Task<FilePath> GetAbsolutePathFromRelativePathAsync(CancellationToken cancel = default)
+        => new FilePath(await this.FileSystem.GetAbsolutePathFromRelativePathAsync(this.PathString, this.Flags, cancel), this.FileSystem, this.Flags);
+
+    public FilePath GetAbsolutePathFromRelativePath(CancellationToken cancel = default)
+        => GetAbsolutePathFromRelativePathAsync(cancel)._GetResult();
 
     public FilePath GetPath(string pathString) => new FilePath(pathString, this.FileSystem, this.Flags);
 
