@@ -2000,11 +2000,14 @@ public static class BasicHelper
     [MethodImpl(Inline)]
     public static bool _IsFilled([NotNullWhen(true)] this string? str) => Str.IsFilledStr(str);
 
-    [MethodImpl(Inline)]
-    public static string _SurroundIfFilled(this string? str, string strBefore = "(", string strAfter = ")") => str._IsEmpty() ? "" : $"{strBefore}{str._NonNullTrim()}{strAfter}";
-
     public static string[] _Split(this string str, StringSplitOptions options, params string[] separators) => str.Split(separators, options);
     public static string[] _Split(this string str, StringSplitOptions options, params char[] separators) => str.Split(separators, options);
+
+    [MethodImpl(Inline)]
+    public static string _SurroundIfFilled(this string? str, string strBefore = "(", string strAfter = ")")
+    {
+        return str._IsEmpty() ? "" : $"{strBefore}{str._NonNullTrim()}{strAfter}";
+    }
 
     [MethodImpl(Inline)]
     [return: NotNullIfNotNull("defaultValue")]
