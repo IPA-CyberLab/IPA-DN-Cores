@@ -4484,22 +4484,86 @@ HOST: www.google.com
         });
     }
 
-    static void Test_230924()
+    static async Task Test_230924()
     {
-        var src = "x"._GetBytes_Ascii();
+        await using var fs = new ChunkedFileSystem(new ChunkedFileSystemParams(Lfs, 1_000_000, 1_000_000_000_000_000));
 
-        var dst = ChaChaPoly.EasyEncryptWithPassword(src, "a");
+        if (true)
+        {
+            MemoryStream ms = new MemoryStream();
+            StreamWriter w = new StreamWriter(ms);
+            w.NewLine = Str.NewLine_Str_Unix;
 
-        dst._GetHexString()._Print();
+            while (ms.Length <= 3_123_456)
+            {
+                w.WriteLine("Hello World 012345678901234567890123456789");
+                w.Flush();
+            }
 
-        dst.Length._Print();
+            MemoryBuffer<byte> buf = ms.ToArray();
+
+            int totalSz = 0;
+
+            await using (var f = await fs.CreateAsync(@"c:\tmp2\230925\test.dat", flags: FileFlags.AutoCreateDirectory))
+            {
+                while (true)
+                {
+                    var read = buf.ReadAsMemory(Secure.RandSInt31() % 1000 + 1, true);
+
+                    if (read.IsEmpty)
+                    {
+                        break;
+                    }
+
+                    await f.WriteAsync(read);
+
+                    totalSz += read.Length;
+                }
+            }
+        }
+
+        if (true)
+        {
+            var list = await fs.EnumDirectoryAsync(@"c:\tmp2\230925\");
+
+            list._PrintAsJson();
+        }
+
+        if (true)
+        {
+            await using (var f = await fs.OpenAsync(@"c:\tmp2\230925\test.dat", flags: FileFlags.AutoCreateDirectory))
+            {
+                for (int i = 0; i < 10000; i++)
+                {
+                    int pos = 43 * (Secure.RandSInt31() % 40000);
+
+                    Memory<byte> tmp = new byte[43];
+
+                    if (await f.ReadRandomAsync(pos, tmp) != 43)
+                    {
+                        throw new CoresLibException();
+                    }
+
+                    if (tmp._GetString_Ascii() != "Hello World 012345678901234567890123456789\n")
+                    {
+                        throw new CoresLibException();
+                    }
+                }
+            }
+        }
+
+        if (true)
+        {
+            await Lfs.DeleteFileAsync(@"C:\tmp2\230925\test.dat.part000000002");
+            await fs.CopyFileAsync(@"c:\tmp2\230925\test.dat", @"c:\tmp2\230925\test_copy.dat", destFileSystem: Lfs);
+        }
     }
 
     public static void Test_Generic()
     {
         if (true)
         {
-            Test_230924();
+            Test_230924()._GetResult();
             return;
         }
 

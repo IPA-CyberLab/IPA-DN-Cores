@@ -54,6 +54,8 @@ public static partial class CoresConfig
     {
         public static readonly Copenhagen<long> MaxSingleFileSize = 1_000_000_000; // 1GB
         public static readonly Copenhagen<long> LogicalMaxSize = 1_000_000_000_000_000_000; // 1 EB
+        //public static readonly Copenhagen<long> MaxSingleFileSize = 1_000_000; // 1MB
+        //public static readonly Copenhagen<long> LogicalMaxSize = 1_000_000_000_000_000; // 1 TB
         public static readonly Copenhagen<string> SplitStr = ".part";
     }
 }
@@ -144,6 +146,8 @@ public class ChunkedFileObject : FileObject
         {
             ChunkedFileSystem.ParsedPath? lastFileParsed = InitialRelatedFiles.OrderBy(x => x.FileNumber).LastOrDefault();
 
+            bool newFile = false;
+
             if (lastFileParsed == null)
             {
                 // New file
@@ -153,6 +157,8 @@ public class ChunkedFileObject : FileObject
                 {
                     throw new IOException($"The file '{FileParams.Path}' not found.");
                 }
+
+                newFile = true;
             }
             else
             {
@@ -180,6 +186,8 @@ public class ChunkedFileObject : FileObject
                     lastFileParsed = null;
                     CurrentFileSize = 0;
                 }
+
+                newFile = true;
             }
 
             long currentPosition = 0;
@@ -187,6 +195,11 @@ public class ChunkedFileObject : FileObject
                 currentPosition = this.CurrentFileSize;
 
             InitAndCheckFileSizeAndPosition(currentPosition, await GetFileSizeImplAsync(cancel), cancel);
+
+            if (newFile)
+            {
+                await GetUnderlayFileObjectAsyncForLogicalPositionAsync(0, cancel);
+            }
         }
         catch
         {
@@ -211,7 +224,12 @@ public class ChunkedFileObject : FileObject
 
             this.InternalCurrentFileObject = null;
 
-            return await OpenUnderlayFileObjecForLogicalPositionCoreAsync(physicalPath, cancel);
+            var ret = await OpenUnderlayFileObjecForLogicalPositionCoreAsync(physicalPath, cancel);
+
+            this.InternalCurrentFilePhysicalPath = physicalPath;
+            this.InternalCurrentFileObject = ret;
+
+            return ret;
         }
         else
         {

@@ -171,6 +171,11 @@ public partial class LocalFileSystem : FileSystem
 
         DirectoryInfo di = new DirectoryInfo(directoryPath);
 
+        if (di.Attributes.Bit(FileAttributes.Directory) == false)
+        {
+            throw new CoresException($"Path '{directoryPath}' is not a directory. This is a file.");
+        }
+
         List<FileSystemEntity> o = new List<FileSystemEntity>();
 
         FileSystemEntity currentDirectory = ConvertFileSystemInfoToFileSystemEntity(di);
