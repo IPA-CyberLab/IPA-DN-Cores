@@ -280,7 +280,7 @@ namespace IPA.Cores.Basic
             else
             {
                 // WriteOnlyIfChanged が設定されていない場合: Stream ベースで書き出しをする
-                await using var file = await Lfs.CreateAsync(path, flags: flags, doNotOverwrite: doNotOverwrite, cancel: cancel);
+                await using var file = await this.CreateAsync(path, flags: flags, doNotOverwrite: doNotOverwrite, cancel: cancel);
 
                 await using var stream = file.GetStream();
 

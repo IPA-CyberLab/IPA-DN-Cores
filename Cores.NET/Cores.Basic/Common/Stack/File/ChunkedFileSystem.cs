@@ -704,13 +704,14 @@ public class ChunkedFileSystem : FileSystem
 
             var logicalFiles = parsedFileDictionaly.Values;//.Where(x => normalFileHashSet.Contains(x.Name) == false);
 
-            var retList = dirEntities.Where(x => x.IsDirectory)
+            var retList = dirEntities
+                .Where(x => x.IsDirectory && x.IsCurrentDirectory == false)
                 .Concat(logicalFiles)
-//                .Concat(normalFiles)
                 .OrderByDescending(x => x.IsDirectory)
                 .ThenBy(x => x.Name);
 
-            return retList._ToArrayList();
+            return dirEntities.Where(x => x.IsCurrentDirectory)
+                .Concat(retList).ToArray();
         }
     }
 

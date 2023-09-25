@@ -4565,8 +4565,161 @@ HOST: www.google.com
         }
     }
 
+
+    static void Test_230925_Backup()
+    {
+        string infolog = @"C:\TMP\230925\log\info.log";
+        string errorlog = @"C:\TMP\230925\log\error.log";
+
+        var localFs = Lfs;
+        string localPath = @"C:\Dropbox\COENET\メモ資料";
+
+        using var chrootFs = new ChrootFileSystem(new ChrootFileSystemParam(Lfs, @"C:\tmp2\230925_backup_test\3_archive_chunked"));
+        using var archiveFs = new ChunkedFileSystem(new ChunkedFileSystemParams(chrootFs, 1_000_000, 1_000_000_000_000_000));
+
+        string archivePath = "/";
+
+        bool err = false;
+
+        try
+        {
+            Lfs.EnableBackupPrivilege();
+        }
+        catch (Exception ex)
+        {
+            Con.WriteError(ex);
+        }
+
+        using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, archiveFs, infolog, errorlog, encryptPassword: "test", flags: DirSuperBackupFlags.BackupSync)))
+        {
+            Async(async () =>
+            {
+                await b.DoSingleDirBackupAsync(localPath, archivePath, default);
+            });
+
+            if (b.Stat.Error_Dir != 0 || b.Stat.Error_NumFiles != 0)
+            {
+                err = true;
+            }
+        }
+
+        if (err)
+        {
+            Con.WriteError("Error occured.");
+        }
+        else
+        {
+            Con.WriteLine("Ok!!");
+        }
+    }
+
+
+    static void Test_230925_Restore()
+    {
+        string infolog = @"C:\TMP\230925\log\info.log";
+        string errorlog = @"C:\TMP\230925\log\error.log";
+
+        var localFs = Lfs;
+        string localPath = @"C:\tmp2\230925_backup_test\4_restored_from_chunk";
+
+        using var chrootFs = new ChrootFileSystem(new ChrootFileSystemParam(Lfs, @"C:\tmp2\230925_backup_test\3_archive_chunked"));
+        using var archiveFs = new ChunkedFileSystem(new ChunkedFileSystemParams(chrootFs, 1_000_000, 1_000_000_000_000_000));
+
+        string archivePath = "/";
+
+        bool err = false;
+
+        try
+        {
+            Lfs.EnableBackupPrivilege();
+        }
+        catch (Exception ex)
+        {
+            Con.WriteError(ex);
+        }
+
+        using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, archiveFs, infolog, errorlog, encryptPassword: "test", flags: DirSuperBackupFlags.RestoreNoAcl)))
+        {
+            Async(async () =>
+            {
+                await b.DoSingleDirRestoreAsync(archivePath, localPath, default);
+            });
+
+            if (b.Stat.Error_Dir != 0 || b.Stat.Error_NumFiles != 0)
+            {
+                err = true;
+            }
+        }
+
+        if (err)
+        {
+            Con.WriteError("Error occured.");
+        }
+        else
+        {
+            Con.WriteLine("Ok!!");
+        }
+    }
+
+
+    static void Test_230925_Verify()
+    {
+        string infolog = @"C:\TMP\230925\log\info.log";
+        string errorlog = @"C:\TMP\230925\log\error.log";
+
+        var localFs = Lfs;
+        string localPath = @"C:\Dropbox\COENET\メモ資料";
+
+
+        using var chrootFs = new ChrootFileSystem(new ChrootFileSystemParam(Lfs, @"C:\tmp2\230925_backup_test\3_archive_chunked"));
+        using var archiveFs = new ChunkedFileSystem(new ChunkedFileSystemParams(chrootFs, 1_000_000, 1_000_000_000_000_000));
+        string archivePath = "/";
+
+        bool err = false;
+
+        try
+        {
+            Lfs.EnableBackupPrivilege();
+        }
+        catch (Exception ex)
+        {
+            Con.WriteError(ex);
+        }
+
+        using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, archiveFs, infolog, errorlog, encryptPassword: "test")))
+        {
+            Async(async () =>
+            {
+                await b.DoSingleDirVerifyAsync(localPath, archivePath, default);
+            });
+
+            if (b.Stat.Error_Dir != 0 || b.Stat.Error_NumFiles != 0)
+            {
+                err = true;
+            }
+        }
+
+        if (err)
+        {
+            Con.WriteError("Error occured.");
+        }
+        else
+        {
+            Con.WriteLine("Ok!!");
+        }
+    }
+
+
     public static void Test_Generic()
     {
+        if (true)
+        {
+            //Test_230925_Backup();
+            //Test_230925_Restore();
+            Test_230925_Verify();
+            return;
+        }
+
         if (true)
         {
             Test_230924()._GetResult();
