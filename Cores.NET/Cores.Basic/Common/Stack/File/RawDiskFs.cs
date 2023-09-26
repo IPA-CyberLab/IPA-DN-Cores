@@ -124,7 +124,7 @@ public class UnixLocalRawDiskVfsFile : RawDiskFileSystemBasedVfsFile
     {
         if (fullPath.StartsWith("/dev/") == false)
         {
-            throw new CoresException($"Disk path must start with '/dev'. Specified path: '{fullPath}'");
+            throw new CoresException($"Disk path must start with '/dev/'. Specified path: '{fullPath}'");
         }
 
         long diskSize = await UnixApi.GetBlockDeviceSizeAsync(this.ItemData.RawPath, cancel);
@@ -223,7 +223,60 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
         }
         else
         {
-            //ret.Add(new RawDiskItemData("dummy", "/tmp/dummy", type, geometry.DiskSize));
+            List<RawDiskItemData> tmpDiskItemList = new List<RawDiskItemData>();
+
+            List<string> diskDirPathList = new();
+
+            diskDirPathList.Add("/dev/disk/by-id/");
+            diskDirPathList.Add("/dev/disk/by-path/");
+
+            HashSet<string> realDiskPathSet = new HashSet<string>();
+
+            foreach (var diskDirPath in diskDirPathList)
+            {
+                var diskObjects = await Lfs.EnumDirectoryAsync(diskDirPath, cancel: cancel);
+
+                foreach (var diskObj in diskObjects)
+                {
+                    if (diskObj.IsSymbolicLink && diskObj.SymbolicLinkTarget._IsFilled())
+                    {
+                        string diskRealPath = Lfs.PathParser.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(Lfs.PathParser.Combine(diskDirPath, diskObj.SymbolicLinkTarget));
+
+                        try
+                        {
+                            long diskSize = await UnixApi.GetBlockDeviceSizeAsync(diskRealPath, cancel);
+
+                            var diskItem = new RawDiskItemData(Lfs.PathParser.GetFileName(diskDirPath) + "-" + diskObj.Name, diskRealPath, RawDiskItemType.FixedMedia, diskSize);
+
+                            tmpDiskItemList.Add(diskItem);
+
+                            realDiskPathSet.Add(diskItem.RawPath);
+                        }
+                        catch
+                        {
+                        }
+                    }
+                }
+            }
+
+            foreach (var diskRealPath in realDiskPathSet)
+            {
+                try
+                {
+                    long diskSize = await UnixApi.GetBlockDeviceSizeAsync(diskRealPath, cancel);
+
+                    var diskItem = new RawDiskItemData("by-devname-" + Lfs.PathParser.GetFileName(diskRealPath), diskRealPath, RawDiskItemType.FixedMedia, diskSize);
+
+                    tmpDiskItemList.Add(diskItem);
+
+                    realDiskPathSet.Add(diskItem.RawPath);
+                }
+                catch
+                {
+                }
+            }
+
+            tmpDiskItemList.OrderBy(x => x.Name)._DoForEach(x => ret.Add(x));
         }
 
         return ret;
