@@ -1366,13 +1366,18 @@ partial class TestDevCommands
         {
             Con.WriteLine();
 
-            var items = rawFs.EnumDirectory("/");
+            var items = rawFs.EnumRawDisksAsync()._GetResult();
 
             int maxWidth = items.Max(x => x.Name._GetWidth());
 
-            foreach (var item in items.Where(x => x.IsFile))
+            foreach (var item in items.Where(x => x.AliasOf._IsEmpty()))
             {
-                Con.WriteLine($"{item.Name}{Str.MakeCharArray(' ', maxWidth - item.Name._GetWidth())}  -  {item.Size._GetFileSizeStr()} ({item.Size._ToString3()} bytes)");
+                Con.WriteLine($"{item.Name}{Str.MakeCharArray(' ', maxWidth - item.Name._GetWidth())}   - {item.Length._GetFileSizeStr()} ({item.Length._ToString3()} bytes)");
+
+                foreach (var item2 in items.Where(x => x.AliasOf._IsFilled() && x.AliasOf == item.Name))
+                {
+                    Con.WriteLine($"  {item.Name}{Str.MakeCharArray(' ', maxWidth - item.Name._GetWidth())} - {item.Length._GetFileSizeStr()} ({item.Length._ToString3()} bytes)");
+                }
             }
 
             Con.WriteLine();

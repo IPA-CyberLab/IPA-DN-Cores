@@ -250,7 +250,9 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
                             {
                                 long diskSize = await UnixApi.GetBlockDeviceSizeAsync(diskRealPath, cancel);
 
-                                var diskItem = new RawDiskItemData(diskDirPath.Split("/", StringSplitOptions.RemoveEmptyEntries).Last() + "-" + diskObj.Name, diskRealPath, RawDiskItemType.FixedMedia, diskSize);
+                                var diskItem = new RawDiskItemData(
+                                    diskDirPath.Split("/", StringSplitOptions.RemoveEmptyEntries).Last() + "-" + diskObj.Name, diskRealPath, RawDiskItemType.FixedMedia, diskSize,
+                                    "by-devname-" + Lfs.PathParser.GetFileName(diskRealPath));
 
                                 tmpDiskItemList.Add(diskItem);
 
@@ -302,13 +304,15 @@ public class RawDiskItemData
     public string RawPath { get; }
     public RawDiskItemType Type { get; }
     public long Length { get; }
+    public string AliasOf { get; }
 
-    public RawDiskItemData(string name, string rawPath, RawDiskItemType type, long length)
+    public RawDiskItemData(string name, string rawPath, RawDiskItemType type, long length, string aliasOf = "")
     {
         Name = name;
         RawPath = rawPath;
         Type = type;
         Length = length;
+        this.AliasOf = aliasOf;
     }
 }
 
@@ -358,6 +362,11 @@ public abstract class RawDiskFileSystem : VirtualFileSystem
 
     protected abstract Task<IEnumerable<RawDiskItemData>> RescanRawDisksImplAsync(CancellationToken cancel = default);
     protected abstract Task<RawDiskFileSystemBasedVfsFile> CreateRawDiskFileImplAsync(RawDiskItemData item, CancellationToken cancel = default);
+
+    public async Task<IEnumerable<RawDiskItemData>> EnumRawDisksAsync(CancellationToken cancel = default)
+    {
+        return await RescanRawDisksImplAsync(cancel);
+    }
 
     async Task RescanRawDisksInternalAsync(CancellationToken cancel = default)
     {
