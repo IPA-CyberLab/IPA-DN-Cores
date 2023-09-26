@@ -359,7 +359,7 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
 
                     if (realDisk != null)
                     {
-                        string byPartUuidName = $"by-partuuid-{GeneratePrintableSafeFileNameFromUnixFullPath(p.Target)}";
+                        string byPartUuidName = $"by-partuuid-{GeneratePrintableSafeFileNameFromUnixFullPath(uuid)}";
 
                         if (tmpDiskItemList.Any(x => x.Name == byPartUuidName) == false)
                         {
