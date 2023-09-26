@@ -244,9 +244,9 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
 
                         try
                         {
-                            if (diskRealPath.Substring(diskRealPath.Length - 6).StartsWith("-part") == false &&
-                                diskRealPath.Substring(diskRealPath.Length - 7).StartsWith("-part") == false &&
-                                diskRealPath.Substring(diskRealPath.Length - 8).StartsWith("-part") == false)
+                            if (diskObj.Name.Substring(diskObj.Name.Length - 6).StartsWith("-part") == false &&
+                                diskObj.Name.Substring(diskObj.Name.Length - 7).StartsWith("-part") == false &&
+                                diskObj.Name.Substring(diskObj.Name.Length - 8).StartsWith("-part") == false)
                             {
                                 long diskSize = await UnixApi.GetBlockDeviceSizeAsync(diskRealPath, cancel);
 
