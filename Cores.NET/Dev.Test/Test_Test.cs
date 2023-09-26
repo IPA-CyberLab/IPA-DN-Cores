@@ -4722,7 +4722,7 @@ HOST: www.google.com
 
         while (true)
         {
-            int sz = await stream._ReadAllAsync(buf, allowPartial: true);
+            int sz = await stream.ReadAsync(buf);
 
             total += sz;
 
