@@ -4718,7 +4718,7 @@ HOST: www.google.com
         {
             if (e.SymbolicLinkTarget._IsFilled())
             {
-                PP.NormalizeRelativePath(PP.Combine(e.SymbolicLinkTarget))._Print();
+                PP.NormalizeRelativePath(PP.Combine(basedir, e.SymbolicLinkTarget))._Print();
             }
         }
     }
