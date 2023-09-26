@@ -250,7 +250,7 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
                             {
                                 long diskSize = await UnixApi.GetBlockDeviceSizeAsync(diskRealPath, cancel);
 
-                                var diskItem = new RawDiskItemData(diskDirPath.Split("/").Last() + "-" + diskObj.Name, diskRealPath, RawDiskItemType.FixedMedia, diskSize);
+                                var diskItem = new RawDiskItemData(diskDirPath.Split("/", StringSplitOptions.RemoveEmptyEntries).Last() + "-" + diskObj.Name, diskRealPath, RawDiskItemType.FixedMedia, diskSize);
 
                                 tmpDiskItemList.Add(diskItem);
 
