@@ -283,6 +283,16 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
                 }
             }
 
+            foreach (var realDisk in tmpDiskItemList.Where(x => x.AliasOf._IsEmpty()).ToArray())
+            {
+                string bySizeName = $"by-volumesize-{realDisk.Length}";
+
+                if (tmpDiskItemList.Any(x => x.Name == bySizeName) == false)
+                {
+                    tmpDiskItemList.Add(new RawDiskItemData(bySizeName, realDisk.RawPath, realDisk.Type, realDisk.Length, realDisk.Name));
+                }
+            }
+
             tmpDiskItemList.OrderBy(x => x.Name)._DoForEach(x => ret.Add(x));
         }
 
