@@ -1372,7 +1372,7 @@ partial class TestDevCommands
 
             foreach (var item in items.Where(x => x.IsFile))
             {
-                Con.WriteLine($"{item.Name}{Str.MakeCharArray(' ', maxWidth - item.Name._GetWidth())}    -  {item.Size._ToString3()} bytes");
+                Con.WriteLine($"{item.Name}{Str.MakeCharArray(' ', maxWidth - item.Name._GetWidth())} - {item.Size._GetFileSizeStr()} ({item.Size._ToString3()})");
             }
 
             Con.WriteLine();

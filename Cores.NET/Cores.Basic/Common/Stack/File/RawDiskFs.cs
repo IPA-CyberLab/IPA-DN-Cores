@@ -244,13 +244,18 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
 
                         try
                         {
-                            long diskSize = await UnixApi.GetBlockDeviceSizeAsync(diskRealPath, cancel);
+                            if (diskRealPath.Substring(diskRealPath.Length - 6).StartsWith("-part") == false &&
+                                diskRealPath.Substring(diskRealPath.Length - 7).StartsWith("-part") == false &&
+                                diskRealPath.Substring(diskRealPath.Length - 8).StartsWith("-part") == false)
+                            {
+                                long diskSize = await UnixApi.GetBlockDeviceSizeAsync(diskRealPath, cancel);
 
-                            var diskItem = new RawDiskItemData(Lfs.PathParser.GetFileName(diskDirPath) + "-" + diskObj.Name, diskRealPath, RawDiskItemType.FixedMedia, diskSize);
+                                var diskItem = new RawDiskItemData(diskDirPath.Split("/").Last() + "-" + diskObj.Name, diskRealPath, RawDiskItemType.FixedMedia, diskSize);
 
-                            tmpDiskItemList.Add(diskItem);
+                                tmpDiskItemList.Add(diskItem);
 
-                            realDiskPathSet.Add(diskItem.RawPath);
+                                realDiskPathSet.Add(diskItem.RawPath);
+                            }
                         }
                         catch
                         {
