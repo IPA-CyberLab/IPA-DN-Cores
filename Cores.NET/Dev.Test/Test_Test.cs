@@ -4721,6 +4721,10 @@ HOST: www.google.com
                 PP.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(PP.Combine(basedir, e.SymbolicLinkTarget))._Print();
             }
         }
+
+        var tmp = LocalRawDiskFileSystem.GetLinuxMountInfoListAsync()._GetResult();
+
+        tmp._PrintAsJson();
     }
 
 

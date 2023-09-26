@@ -158,10 +158,47 @@ public class UnixLocalRawDiskVfsFile : RawDiskFileSystemBasedVfsFile
     }
 }
 
+public class UnixMountInfo
+{
+    public string Target = "";
+    public string Source = "";
+    public string FsType = "";
+    public string Options = "";
+}
+
 public class LocalRawDiskFileSystem : RawDiskFileSystem
 {
     public LocalRawDiskFileSystem(RawDiskFileSystemParams? param = null) : base(param)
     {
+    }
+
+    public static async Task<List<UnixMountInfo>> GetLinuxMountInfoListAsync(CancellationToken cancel = default)
+    {
+        List<UnixMountInfo> ret = new List<UnixMountInfo>();
+
+        string retStr = await EasyExec.ExecRetStrAsync(Consts.LinuxCommands.FindMnt, "--list --submounts", easyOutputMaxSize: 1_000_000, cancel: cancel);
+
+        var lines = retStr._GetLines(true);
+
+        foreach (var line in lines)
+        {
+            var tokens = line._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, " ", "\t");
+
+            if (tokens.Length >= 4)
+            {
+                UnixMountInfo item = new UnixMountInfo
+                {
+                    Target = tokens[0],
+                    Source = tokens[1],
+                    FsType = tokens[2],
+                    Options = tokens[3],
+                };
+
+                ret.Add(item);
+            }
+        }
+
+        return ret;
     }
 
     protected override Task<RawDiskFileSystemBasedVfsFile> CreateRawDiskFileImplAsync(RawDiskItemData item, CancellationToken cancel = default)
@@ -285,7 +322,7 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
 
             foreach (var realDisk in tmpDiskItemList.Where(x => x.AliasOf._IsEmpty()).ToArray())
             {
-                string bySizeName = $"by-volumesize-{realDisk.Length}";
+                string bySizeName = $"by-disksize-{realDisk.Length}";
 
                 if (tmpDiskItemList.Any(x => x.Name == bySizeName) == false)
                 {
@@ -411,6 +448,7 @@ public abstract class RawDiskFileSystem : VirtualFileSystem
     }
 
 }
+
 
 #endif
 
