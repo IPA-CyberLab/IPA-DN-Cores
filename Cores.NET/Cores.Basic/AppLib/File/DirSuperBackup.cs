@@ -96,6 +96,7 @@ public enum DirSuperBackupFlags : long
     RestoreNoMd5 = 2097152,
 
     NoFileNameLenLimit = 4194304,
+    IgnoreBadSector = 8388608,
 }
 
 public class DirSuperBackupOptions
@@ -833,7 +834,13 @@ public class DirSuperBackup : AsyncService
 
                         FileFlags flags = FileFlags.BackupMode | FileFlags.Async;
 
-                        if (this.Options.Flags.Bit(DirSuperBackupFlags.RestoreNoVerify) == false)
+                        bool ignoreReadError = false;
+
+                        if (this.Options.Flags.Bit(DirSuperBackupFlags.IgnoreBadSector) == false)
+                        {
+                            ignoreReadError = true;
+                        }
+                        else if (this.Options.Flags.Bit(DirSuperBackupFlags.RestoreNoVerify) == false)
                         {
                             flags |= FileFlags.CopyFile_Verify;
                         }
@@ -859,7 +866,9 @@ public class DirSuperBackup : AsyncService
                                     metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll),
                                     encryptOption: isEncrypted ? EncryptOption.Decrypt | EncryptOption.Compress : EncryptOption.None,
                                     encryptPassword: encryptPassword,
-                                    calcDigest: checkMd5),
+                                    calcDigest: checkMd5,
+                                    retryCount: 0,
+                                    ignoreReadError: ignoreReadError),
                                 cancel: cancel,
                                 newFileMeatadata: Options.Flags.Bit(DirSuperBackupFlags.RestoreNoAcl) ? null : srcFileMetadata,
                                 digest: actualMd5hash, errorOccuredButRecovered: dstWriteErrorRecovered,
@@ -1229,7 +1238,13 @@ public class DirSuperBackup : AsyncService
 
                         FileFlags flags = FileFlags.BackupMode | FileFlags.Async;
 
-                        if (this.Options.Flags.Bit(DirSuperBackupFlags.BackupNoVerify) == false)
+                        bool ignoreReadError = false;
+
+                        if (this.Options.Flags.Bit(DirSuperBackupFlags.IgnoreBadSector) == false)
+                        {
+                            ignoreReadError = true;
+                        }
+                        else if (this.Options.Flags.Bit(DirSuperBackupFlags.BackupNoVerify) == false)
                         {
                             flags |= FileFlags.CopyFile_Verify;
                         }
@@ -1238,6 +1253,7 @@ public class DirSuperBackup : AsyncService
 
                         await LocalFs.CopyFileAsync(srcFile.FullPath, destFilePath,
                             new CopyFileParams(flags: flags, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll),
+                            ignoreReadError: ignoreReadError,
                             encryptOption: Options.EncryptPassword._IsNullOrZeroLen() ? EncryptOption.None : EncryptOption.Encrypt | EncryptOption.Compress,
                             encryptPassword: Options.EncryptPassword, deleteFileIfVerifyFailed: true, calcDigest: this.Options.Flags.Bit(DirSuperBackupFlags.BackupNoMd5) == false),
                             cancel: cancel, digest: md5hash, errorOccuredButRecovered: verifyErrorRecovered,
