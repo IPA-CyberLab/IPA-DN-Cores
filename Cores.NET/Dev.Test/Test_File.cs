@@ -1125,20 +1125,12 @@ partial class TestDevCommands
         return 0;
     }
 
-    [Flags]
-    public enum RawDiskBackupFiletype
-    {
-        Plain = 0,
-        Gzip,
-        SecureCompress,
-    }
-
     // Backup Physical Disk
     [ConsoleCommand(
         "RawDiskBackup command",
         "RawDiskBackup [diskName] /dst:filename [/truncate:size] [/filetype:plain|gzip|securecompress] [/password:password]",
         "RawDiskBackup command")]
-    static int RawDiskBackup(ConsoleService c, string cmdName, string str)
+    static async Task<int> RawDiskBackup(ConsoleService c, string cmdName, string str)
     {
         ConsoleParam[] args =
         {
@@ -1165,27 +1157,27 @@ partial class TestDevCommands
             truncate = (truncate + 4095L) / 4096L * 4096L;
         }
 
-        RawDiskBackupFiletype filetype = RawDiskBackupFiletype.Plain.ParseAsDefault(filetypeStr, false, true);
+        ArchiveFileType filetype = ArchiveFileType.Plain.ParseAsDefault(filetypeStr, false, true);
 
-        using (var rawFs = new LocalRawDiskFileSystem())
+        await using (var rawFs = new LocalRawDiskFileSystem())
         {
-            using (var disk = rawFs.Open($"/{diskName}"))
+            await using (var disk = await rawFs.OpenAsync($"/{diskName}"))
             {
-                using var diskStream = disk.GetStream(true);
+                await using var diskStream = disk.GetStream(true);
 
-                using (var file = Lfs.Create(dstFileName, flags: FileFlags.AutoCreateDirectory))
+                await using (var file = await Lfs.CreateAsync(dstFileName, flags: FileFlags.AutoCreateDirectory))
                 {
-                    using var archiveFileStream = file.GetStream(true);
+                    await using var archiveFileStream = file.GetStream(true);
 
                     Stream archiveStream;
 
                     switch (filetype)
                     {
-                        case RawDiskBackupFiletype.Gzip:
+                        case ArchiveFileType.Gzip:
                             archiveStream = new GZipStream(archiveFileStream, CompressionLevel.Fastest, false);
                             break;
 
-                        case RawDiskBackupFiletype.SecureCompress:
+                        case ArchiveFileType.SecureCompress:
                             archiveStream = new SecureCompressEncoder(archiveFileStream, new SecureCompressOptions(diskName, password._IsFilled(), password, true, CompressionLevel.SmallestSize), file.Size, true);
                             break;
 
@@ -1194,16 +1186,21 @@ partial class TestDevCommands
                             break;
                     }
 
-                    using (archiveStream)
+                    await using (archiveStream)
                     {
                         using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
                         {
-                            FileUtil.CopyBetweenStreamAsync(diskStream, archiveStream, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024, ensureBufferSize: true, ignoreReadError: true), reporter: reporter)._GetResult();
+                            RefBool readErrorIgnored = new();
 
-                            archiveStream.Flush();
-                            archiveFileStream.Flush();
+                            await FileUtil.CopyBetweenStreamAsync(diskStream, archiveStream, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024, ensureBufferSize: true, ignoreReadError: true), reporter: reporter, readErrorIgnored: readErrorIgnored);
 
-                            archiveStream.Close();
+                            if (readErrorIgnored)
+                            {
+                                $"Warning! There were sector read errors on source disk. Please check the error log."._Error();
+                            }
+
+                            await archiveStream.FlushAsync();
+                            await archiveFileStream.FlushAsync();
                         }
                     }
                 }
@@ -1216,15 +1213,17 @@ partial class TestDevCommands
     // Restore Physical Disk
     [ConsoleCommand(
         "RawDiskRestore command",
-        "RawDiskRestore [diskName] /src:filename [/truncate:size]",
+        "RawDiskRestore [diskName] /src:filename [/truncate:size] [/filetype:plain|gzip|securecompress] [/password:password]",
         "RawDiskRestore command")]
-    static int RawDiskRestore(ConsoleService c, string cmdName, string str)
+    static async Task<int> RawDiskRestore(ConsoleService c, string cmdName, string str)
     {
         ConsoleParam[] args =
         {
             new ConsoleParam("[diskName]", ConsoleService.Prompt, "Physical disk name: ", ConsoleService.EvalNotEmpty, null),
             new ConsoleParam("src", ConsoleService.Prompt, "Source file name: ", ConsoleService.EvalNotEmpty, null),
             new ConsoleParam("truncate"),
+            new ConsoleParam("filetype"),
+            new ConsoleParam("password"),
         };
 
         ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
@@ -1232,6 +1231,8 @@ partial class TestDevCommands
         string diskName = vl.DefaultParam.StrValue;
         string dstFileName = vl["src"].StrValue;
         long truncate = vl["truncate"].StrValue._ToLong();
+        string filetypeStr = vl["filetype"].StrValue;
+        string password = vl["password"].StrValue;
         if (truncate <= 0)
         {
             truncate = -1;
@@ -1241,52 +1242,61 @@ partial class TestDevCommands
             truncate = (truncate + 4095L) / 4096L * 4096L;
         }
 
-        using (var rawFs = new LocalRawDiskFileSystem())
+        ArchiveFileType filetype = ArchiveFileType.Plain.ParseAsDefault(filetypeStr, false, true);
+
+        await using (var rawFs = new LocalRawDiskFileSystem())
         {
-            using (var disk = rawFs.Open($"/{diskName}", writeMode: true))
+            await using (var disk = await rawFs.OpenAsync($"/{diskName}", writeMode: true))
             {
                 bool isGZip = false;
 
-                Con.WriteLine("Determining the source file format...");
-
-                using (var file = Lfs.Open(dstFileName))
+                await using (var file = await Lfs.OpenAsync(dstFileName))
                 {
-                    using var fileStream = file.GetStream(true);
+                    await using var archiveFileStream = file.GetStream(true);
 
-                    isGZip = IPA.Cores.Basic.Legacy.GZipUtil.IsGZipStreamAsync(fileStream)._GetResult();
-                }
-
-                Con.WriteLine($"isGZip = {isGZip._ToBoolStrLower()}");
-
-                if (isGZip == false)
-                {
-                    // Plain
-                    using (var file = Lfs.Open(dstFileName))
+                    if (filetypeStr._IsEmpty()) // filetype is not specified by the command line
                     {
-                        using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
-                        {
-                            FileUtil.CopyBetweenFileBaseAsync(file, disk, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024, ensureBufferSize: true), reporter: reporter)._GetResult();
+                        Con.WriteLine("Determining the source file format...");
 
-                            disk.Flush();
-                        }
+                        filetype = await FileUtil.DetectArchiveFileFormatAsync(archiveFileStream);
+
+                        Con.WriteLine($"Detected file format: {filetype}");
                     }
-                }
-                else
-                {
-                    // GZip
-                    using (var file = Lfs.Open(dstFileName))
-                    {
-                        using var fileStream = file.GetStream(true);
-                        using var gzipStream = new GZipStream(fileStream, CompressionMode.Decompress, false);
 
-                        using var diskStream = disk.GetStream(true);
+                    Stream archiveStream;
+
+                    switch (filetype)
+                    {
+                        case ArchiveFileType.Gzip:
+                            archiveStream = new GZipStream(archiveFileStream, CompressionMode.Decompress, false);
+                            break;
+
+                        case ArchiveFileType.SecureCompress:
+                            archiveStream = new SecureCompressDecoder(archiveFileStream, new SecureCompressOptions(diskName, password._IsFilled(), password, true, CompressionLevel.SmallestSize), file.Size, true);
+                            break;
+
+                        default:
+                            archiveStream = archiveFileStream;
+                            break;
+                    }
+
+                    await using (archiveStream)
+                    {
+                        await using var diskStream = disk.GetStream(true);
 
                         using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
                         {
-                            FileUtil.CopyBetweenStreamAsync(gzipStream, diskStream, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024, ensureBufferSize: true), reporter: reporter)._GetResult();
+                            RefBool readErrorIgnored = new();
 
-                            diskStream.Flush();
-                            disk.Flush();
+                            await FileUtil.CopyBetweenStreamAsync(archiveStream, diskStream, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024, ensureBufferSize: true, ignoreReadError: filetype != ArchiveFileType.Gzip), reporter: reporter, readErrorIgnored: readErrorIgnored);
+
+                            if (readErrorIgnored)
+                            {
+                                $"Warning! There were sector read errors on source archive file. Please check the error log."._Error();
+                            }
+
+                            await diskStream.FlushAsync();
+                            await disk.FlushAsync();
                         }
                     }
                 }

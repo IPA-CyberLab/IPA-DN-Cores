@@ -318,8 +318,52 @@ public abstract partial class FileSystem
         => CopyDirAsync(srcPath, destPath, destFileSystem, param, state, statusObject, cancel)._GetResult();
 }
 
+[Flags]
+public enum ArchiveFileType
+{
+    Plain = 0,
+    Gzip,
+    SecureCompress,
+}
+
 public static partial class FileUtil
 {
+    public static async Task<ArchiveFileType> DetectArchiveFileFormatAsync(Stream stream, CancellationToken cancel = default)
+    {
+        long originalPos = stream.Position;
+
+        try
+        {
+            var scHeader = Consts.SecureCompress.SecureCompressFirstHeader_Data;
+
+            var headerTest = await stream._ReadAllAsync(scHeader.Length, cancel, true);
+
+            if (scHeader._MemEquals(headerTest))
+            {
+                return ArchiveFileType.SecureCompress;
+            }
+
+            stream.Position = originalPos;
+
+            try
+            {
+                bool isGZip = IPA.Cores.Basic.Legacy.GZipUtil.IsGZipStreamAsync(stream)._GetResult();
+
+                if (isGZip)
+                {
+                    return ArchiveFileType.Gzip;
+                }
+            }
+            catch { }
+
+            return ArchiveFileType.Plain;
+        }
+        finally
+        {
+            stream.Position = originalPos;
+        }
+    }
+
     public static async Task<byte[]> CalcFileHashAsync(FilePath file, HashAlgorithm hash, long truncateSize = long.MaxValue, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? fileSize = null, CancellationToken cancel = default)
     {
         using var f = await file.OpenAsync(cancel: cancel);

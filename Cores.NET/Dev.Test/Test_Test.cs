@@ -4709,6 +4709,13 @@ HOST: www.google.com
         }
     }
 
+    static void Test_230926()
+    {
+        using var fs = Lfs.Open(@"C:\git\IPA-DN-Cores\LICENSE");
+
+        FileUtil.DetectArchiveFileFormatAsync(fs.GetStream(true))._GetResult()._Print();
+    }
+
 
     public static void Test_Generic()
     {
@@ -4716,7 +4723,8 @@ HOST: www.google.com
         {
             //Test_230925_Backup();
             //Test_230925_Restore();
-            Test_230925_Verify();
+            //Test_230925_Verify();
+            Test_230926();
             return;
         }
 
