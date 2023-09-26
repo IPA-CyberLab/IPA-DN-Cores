@@ -1539,9 +1539,12 @@ public static partial class FileUtil
 
                             int readSize;
 
+                            bool isSmallSectorReadMode = false;
+
                             // Last time ignored error. Then shrink thisTimeBuffer's size to ignore sector size.
                             if (currentReadPosition < sectorSizeBasedReadOperationEndMarker)
                             {
+                                isSmallSectorReadMode = true;
                                 thisTimeBuffer = thisTimeBuffer.Slice(0, param.IgnoreReadErrorSectorSize);
                             }
 
@@ -1565,14 +1568,23 @@ public static partial class FileUtil
                                 // Ignore read error
                                 cancel.ThrowIfCancellationRequested();
 
+                                sectorSizeBasedReadOperationEndMarker = currentReadPosition + param.BufferSize;
+
+                                long currentSrcPos = basePositionOfSrcStream + currentReadPosition;
+
+                                if (isSmallSectorReadMode == false)
+                                {
+                                    // retry
+                                    src.Seek(currentSrcPos, SeekOrigin.Begin);
+                                    continue;
+                                }
+
                                 if ((totalReadErrorCount % 30) == 0)
                                 {
                                     await Task.Yield();
                                 }
 
                                 sectorSizeBasedReadOperationEndMarker = currentReadPosition + param.BufferSize;
-
-                                long currentSrcPos = basePositionOfSrcStream + currentReadPosition;
 
                                 long currentSrcSector = currentSrcPos / param.IgnoreReadErrorSectorSize;
 
@@ -1685,9 +1697,12 @@ public static partial class FileUtil
 
                                 int readSize;
 
+                                bool isSmallSectorReadMode = false;
+
                                 // Last time ignored error. Then shrink thisTimeBuffer's size to ignore sector size.
                                 if (currentReadPosition < sectorSizeBasedReadOperationEndMarker)
                                 {
+                                    isSmallSectorReadMode = true;
                                     thisTimeBuffer = thisTimeBuffer.Slice(0, param.IgnoreReadErrorSectorSize);
                                 }
 
@@ -1712,14 +1727,21 @@ public static partial class FileUtil
                                     // Ignore read error
                                     cancel.ThrowIfCancellationRequested();
 
+                                    sectorSizeBasedReadOperationEndMarker = currentReadPosition + param.BufferSize;
+
+                                    long currentSrcPos = basePositionOfSrcStream + currentReadPosition;
+
+                                    if (isSmallSectorReadMode == false)
+                                    {
+                                        // retry
+                                        src.Seek(currentSrcPos, SeekOrigin.Begin);
+                                        continue;
+                                    }
+
                                     if ((totalReadErrorCount % 30) == 0)
                                     {
                                         await Task.Yield();
                                     }
-
-                                    sectorSizeBasedReadOperationEndMarker = currentReadPosition + param.BufferSize;
-
-                                    long currentSrcPos = basePositionOfSrcStream + currentReadPosition;
 
                                     long currentSrcSector = currentSrcPos / param.IgnoreReadErrorSectorSize;
 
