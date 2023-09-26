@@ -118,7 +118,7 @@ public static class SecureCompressUtil
 
         if (writeProgressToConsole)
         {
-            reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, fileSizeStr: true, title: "SecureCompress Backup " + srcFilePath.GetFileName()._TruncStrEx(16)));
+            reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, fileSizeStr: true, title: "SecureCompress Backup " + srcFilePath.GetFileName()._TruncStrEx(16), options: ProgressReporterOptions.EnableThroughput));
         }
 
         using IDisposable progDisp = reporter._EmptyDisposableIfNull();
@@ -145,7 +145,7 @@ public static class SecureCompressUtil
 
         if (writeProgressToConsole)
         {
-            reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, fileSizeStr: true, title: "SecureCompress Restore " + srcFilePath.GetFileName()._TruncStrEx(16)));
+            reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, fileSizeStr: true, title: "SecureCompress Restore " + srcFilePath.GetFileName()._TruncStrEx(16), options: ProgressReporterOptions.EnableThroughput));
         }
 
         await using var secureWriter = new SecureCompressDecoder(dstStream, options, srcFile.Size, true, reporter);
@@ -185,7 +185,7 @@ public static class SecureCompressUtil
 
             if (writeProgressToConsole)
             {
-                reporterReadArchive = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, fileSizeStr: true, title: "SecureCompress Verify Read (Archive) " + archiveFilePath.GetFileName()._TruncStrEx(16)));
+                reporterReadArchive = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, fileSizeStr: true, title: "SecureCompress Verify Read (Archive) " + archiveFilePath.GetFileName()._TruncStrEx(16), options: ProgressReporterOptions.EnableThroughput));
             }
 
             using IDisposable reporterProgDisp = reporterReadArchive._EmptyDisposableIfNull();
@@ -226,7 +226,7 @@ public static class SecureCompressUtil
 
             if (writeProgressToConsole)
             {
-                reporterReadOriginal = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, fileSizeStr: true, title: "SecureCompress Verify Read (Original) " + originalFilePath.GetFileName()._TruncStrEx(16)));
+                reporterReadOriginal = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, fileSizeStr: true, title: "SecureCompress Verify Read (Original) " + originalFilePath.GetFileName()._TruncStrEx(16), options: ProgressReporterOptions.EnableThroughput));
             }
 
             using IDisposable reporterProgDisp = reporterReadOriginal._EmptyDisposableIfNull();

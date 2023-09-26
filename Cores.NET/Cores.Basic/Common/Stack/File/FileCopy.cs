@@ -1759,7 +1759,7 @@ public static partial class FileUtil
 
                                     int skipSize = (int)(nextSrcPos - currentSrcPos);
 
-                                    $"Seek nextSrcPos = {nextSrcPos._ToString3()}, length = {src.Length._ToString3()}, skipSize = {skipSize._ToString3()}, basePositionOfSrcStream = {basePositionOfSrcStream._ToString3()}, currentReadPosition = {currentReadPosition._ToString3()}"._Print();
+                                    //$"Seek nextSrcPos = {nextSrcPos._ToString3()}, length = {src.Length._ToString3()}, skipSize = {skipSize._ToString3()}, basePositionOfSrcStream = {basePositionOfSrcStream._ToString3()}, currentReadPosition = {currentReadPosition._ToString3()}"._Print();
                                     src.Seek(nextSrcPos, SeekOrigin.Begin);
 
                                     readSize = skipSize;

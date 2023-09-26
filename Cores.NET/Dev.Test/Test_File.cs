@@ -1165,9 +1165,9 @@ partial class TestDevCommands
             {
                 await using var diskStream = disk.GetStream(true);
 
-                await using (var file = await Lfs.CreateAsync(dstFileName, flags: FileFlags.AutoCreateDirectory))
+                await using (var archiveFile = await Lfs.CreateAsync(dstFileName, flags: FileFlags.AutoCreateDirectory))
                 {
-                    await using var archiveFileStream = file.GetStream(true);
+                    await using var archiveFileStream = archiveFile.GetStream(true);
 
                     Stream archiveStream;
 
@@ -1178,7 +1178,7 @@ partial class TestDevCommands
                             break;
 
                         case ArchiveFileType.SecureCompress:
-                            archiveStream = new SecureCompressEncoder(archiveFileStream, new SecureCompressOptions(diskName, password._IsFilled(), password, true, CompressionLevel.SmallestSize), file.Size, true);
+                            archiveStream = new SecureCompressEncoder(archiveFileStream, new SecureCompressOptions(diskName, password._IsFilled(), password, true, CompressionLevel.SmallestSize), diskStream.Length, true);
                             break;
 
                         default:
@@ -1263,36 +1263,42 @@ partial class TestDevCommands
                         Con.WriteLine($"Detected file format: {filetype}");
                     }
 
-                    Stream srcStream, dstStream;
-
-                    await using var diskStream = disk.GetStream(true);
-
-                    switch (filetype)
+                    using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
                     {
-                        case ArchiveFileType.Gzip:
-                            srcStream = new GZipStream(archiveFileStream, CompressionMode.Decompress, false);
-                            dstStream = diskStream;
-                            break;
+                        Stream srcStream, dstStream;
 
-                        case ArchiveFileType.SecureCompress:
-                            srcStream = archiveFileStream;
-                            dstStream = new SecureCompressDecoder(diskStream, new SecureCompressOptions(Lfs.PathParser.GetFileName(archiveFilePath), password._IsFilled(), password, true, CompressionLevel.SmallestSize), file.Size, true);
-                            break;
+                        await using var diskStream = disk.GetStream(true);
 
-                        default:
-                            srcStream = archiveFileStream;
-                            dstStream = diskStream;
-                            break;
-                    }
+                        bool useReporterInCustomDecoder = false;
 
-                    await using (srcStream)
-                    await using (dstStream)
-                    {
-                        using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
+                        switch (filetype)
+                        {
+                            case ArchiveFileType.Gzip:
+                                srcStream = new GZipStream(archiveFileStream, CompressionMode.Decompress, false);
+                                dstStream = diskStream;
+                                break;
+
+                            case ArchiveFileType.SecureCompress:
+                                srcStream = archiveFileStream;
+                                dstStream = new SecureCompressDecoder(diskStream,
+                                    new SecureCompressOptions(Lfs.PathParser.GetFileName(archiveFilePath), password._IsFilled(), password, true, CompressionLevel.SmallestSize), file.Size, true, reporter: reporter);
+                                useReporterInCustomDecoder = true;
+                                break;
+
+                            default:
+                                srcStream = archiveFileStream;
+                                dstStream = diskStream;
+                                break;
+                        }
+
+                        await using (srcStream)
+                        await using (dstStream)
                         {
                             RefBool readErrorIgnored = new();
 
-                            await FileUtil.CopyBetweenStreamAsync(srcStream, dstStream, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024, ensureBufferSize: true, ignoreReadError: filetype != ArchiveFileType.Gzip), reporter: reporter, readErrorIgnored: readErrorIgnored);
+                            await FileUtil.CopyBetweenStreamAsync(srcStream, dstStream, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024, ensureBufferSize: true, ignoreReadError: filetype != ArchiveFileType.Gzip),
+                                reporter: useReporterInCustomDecoder ? null : reporter,
+                                readErrorIgnored: readErrorIgnored);
 
                             if (readErrorIgnored)
                             {
