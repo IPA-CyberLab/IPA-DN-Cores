@@ -1125,27 +1125,37 @@ partial class TestDevCommands
         return 0;
     }
 
+    [Flags]
+    public enum RawDiskBackupFiletype
+    {
+        Plain = 0,
+        Gzip,
+        SecureCompress,
+    }
+
     // Backup Physical Disk
     [ConsoleCommand(
         "RawDiskBackup command",
-        "RawDiskBackup [diskName] /dst:filename [/truncate:size]",
+        "RawDiskBackup [diskName] /dst:filename [/truncate:size] [/filetype:plain|gzip|securecompress] [/password:password]",
         "RawDiskBackup command")]
     static int RawDiskBackup(ConsoleService c, string cmdName, string str)
     {
         ConsoleParam[] args =
         {
-                new ConsoleParam("[diskName]", ConsoleService.Prompt, "Physical disk name: ", ConsoleService.EvalNotEmpty, null),
-                new ConsoleParam("dst", ConsoleService.Prompt, "Destination file name: ", ConsoleService.EvalNotEmpty, null),
-                new ConsoleParam("truncate"),
-                new ConsoleParam("gzip"),
-            };
+            new ConsoleParam("[diskName]", ConsoleService.Prompt, "Physical disk name: ", ConsoleService.EvalNotEmpty, null),
+            new ConsoleParam("dst", ConsoleService.Prompt, "Destination file name: ", ConsoleService.EvalNotEmpty, null),
+            new ConsoleParam("truncate"),
+            new ConsoleParam("filetype"),
+            new ConsoleParam("password"),
+        };
 
         ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
         string diskName = vl.DefaultParam.StrValue;
         string dstFileName = vl["dst"].StrValue;
         long truncate = vl["truncate"].StrValue._ToLong();
-        bool gzip = vl["gzip"].BoolValue;
+        string filetypeStr = vl["filetype"].StrValue;
+        string password = vl["password"].StrValue;
         if (truncate <= 0)
         {
             truncate = -1;
@@ -1155,45 +1165,45 @@ partial class TestDevCommands
             truncate = (truncate + 4095L) / 4096L * 4096L;
         }
 
-        if (gzip == false)
+        RawDiskBackupFiletype filetype = RawDiskBackupFiletype.Plain.ParseAsDefault(filetypeStr, false, true);
+
+        using (var rawFs = new LocalRawDiskFileSystem())
         {
-            // Plain
-            using (var rawFs = new LocalRawDiskFileSystem())
+            using (var disk = rawFs.Open($"/{diskName}"))
             {
-                using (var disk = rawFs.Open($"/{diskName}"))
+                using var diskStream = disk.GetStream(true);
+
+                using (var file = Lfs.Create(dstFileName, flags: FileFlags.AutoCreateDirectory))
                 {
-                    using (var file = Lfs.Create(dstFileName, flags: FileFlags.AutoCreateDirectory))
+                    using var archiveFileStream = file.GetStream(true);
+
+                    Stream archiveStream;
+
+                    switch (filetype)
                     {
-                        using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
-                        {
-                            FileUtil.CopyBetweenFileBaseAsync(disk, file, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024, ensureBufferSize: true, ignoreReadError: true), reporter: reporter)._GetResult();
-                        }
+                        case RawDiskBackupFiletype.Gzip:
+                            archiveStream = new GZipStream(archiveFileStream, CompressionLevel.Fastest, false);
+                            break;
+
+                        case RawDiskBackupFiletype.SecureCompress:
+                            archiveStream = new SecureCompressEncoder(archiveFileStream, new SecureCompressOptions(diskName, password._IsFilled(), password, true, CompressionLevel.SmallestSize), file.Size, true);
+                            break;
+
+                        default:
+                            archiveStream = archiveFileStream;
+                            break;
                     }
-                }
-            }
-        }
-        else
-        {
-            // Gzip
-            using (var rawFs = new LocalRawDiskFileSystem())
-            {
-                using (var disk = rawFs.Open($"/{diskName}"))
-                {
-                    using var diskStream = disk.GetStream(true);
 
-                    using (var file = Lfs.Create(dstFileName, flags: FileFlags.AutoCreateDirectory))
+                    using (archiveStream)
                     {
-                        using var fileStream = file.GetStream(true);
-                        using var gzipStream = new GZipStream(fileStream, CompressionLevel.Fastest, false);
-
                         using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
                         {
-                            FileUtil.CopyBetweenStreamAsync(diskStream, gzipStream, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024, ensureBufferSize: true, ignoreReadError: true), reporter: reporter)._GetResult();
+                            FileUtil.CopyBetweenStreamAsync(diskStream, archiveStream, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024, ensureBufferSize: true, ignoreReadError: true), reporter: reporter)._GetResult();
 
-                            gzipStream.Flush();
-                            fileStream.Flush();
+                            archiveStream.Flush();
+                            archiveFileStream.Flush();
 
-                            gzipStream.Close();
+                            archiveStream.Close();
                         }
                     }
                 }

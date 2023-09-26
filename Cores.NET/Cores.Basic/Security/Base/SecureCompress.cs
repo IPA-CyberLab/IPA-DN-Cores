@@ -325,7 +325,7 @@ public class SecureCompressOptions
     public SecureCompressFlags Flags { get; }
     public int KeepAliveMsecs { get; }
 
-    public SecureCompressOptions(string fileNameHint, bool encrypt, string password, bool compress, CompressionLevel compressionLevel, int numCpu = -1, SecureCompressFlags flags = SecureCompressFlags.None, int keepAliveMsecs = -1)
+    public SecureCompressOptions(string fileNameHint, bool encrypt = false, string password = "", bool compress = true, CompressionLevel compressionLevel = CompressionLevel.SmallestSize, int numCpu = -1, SecureCompressFlags flags = SecureCompressFlags.None, int keepAliveMsecs = -1)
     {
         this.FileNameHint = fileNameHint;
 
@@ -448,6 +448,11 @@ public class SecureCompressDecoder : StreamImplBase
                     }
 
                     this.FirstHeader = firstHeader;
+
+                    if (this.FirstHeader.Version > 1)
+                    {
+                        throw new CoresException($"Unsupported SecureCompress version: {this.FirstHeader.Version}. You have to upgrade the program version to support it.");
+                    }
 
                     if (this.FirstHeader.Encrypted)
                     {
