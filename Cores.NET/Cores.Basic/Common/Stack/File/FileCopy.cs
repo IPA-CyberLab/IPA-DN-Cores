@@ -321,7 +321,7 @@ public abstract partial class FileSystem
 [Flags]
 public enum ArchiveFileType
 {
-    Plain = 0,
+    Raw = 0,
     Gzip,
     SecureCompress,
 }
@@ -356,7 +356,7 @@ public static partial class FileUtil
             }
             catch { }
 
-            return ArchiveFileType.Plain;
+            return ArchiveFileType.Raw;
         }
         finally
         {
@@ -1759,6 +1759,7 @@ public static partial class FileUtil
 
                                     int skipSize = (int)(nextSrcPos - currentSrcPos);
 
+                                    $"Seek nextSrcPos = {nextSrcPos._ToString3()}, length = {src.Length._ToString3()}, skipSize = {skipSize._ToString3()}, basePositionOfSrcStream = {basePositionOfSrcStream._ToString3()}, currentReadPosition = {currentReadPosition._ToString3()}"._Print();
                                     src.Seek(nextSrcPos, SeekOrigin.Begin);
 
                                     readSize = skipSize;

@@ -1128,7 +1128,7 @@ partial class TestDevCommands
     // Backup Physical Disk
     [ConsoleCommand(
         "RawDiskBackup command",
-        "RawDiskBackup [diskName] /dst:filename [/truncate:size] [/filetype:plain|gzip|securecompress] [/password:password]",
+        "RawDiskBackup [diskName] /dst:filename [/truncate:size] [/filetype:raw|gzip|securecompress] [/password:password]",
         "RawDiskBackup command")]
     static async Task<int> RawDiskBackup(ConsoleService c, string cmdName, string str)
     {
@@ -1157,7 +1157,7 @@ partial class TestDevCommands
             truncate = (truncate + 4095L) / 4096L * 4096L;
         }
 
-        ArchiveFileType filetype = ArchiveFileType.Plain.ParseAsDefault(filetypeStr, false, true);
+        ArchiveFileType filetype = ArchiveFileType.Raw.ParseAsDefault(filetypeStr, false, true);
 
         await using (var rawFs = new LocalRawDiskFileSystem())
         {
@@ -1213,7 +1213,7 @@ partial class TestDevCommands
     // Restore Physical Disk
     [ConsoleCommand(
         "RawDiskRestore command",
-        "RawDiskRestore [diskName] /src:filename [/truncate:size] [/filetype:plain|gzip|securecompress] [/password:password]",
+        "RawDiskRestore [diskName] /src:filename [/truncate:size] [/filetype:raw|gzip|securecompress] [/password:password]",
         "RawDiskRestore command")]
     static async Task<int> RawDiskRestore(ConsoleService c, string cmdName, string str)
     {
@@ -1229,7 +1229,7 @@ partial class TestDevCommands
         ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
         string diskName = vl.DefaultParam.StrValue;
-        string dstFileName = vl["src"].StrValue;
+        string archiveFilePath = vl["src"].StrValue;
         long truncate = vl["truncate"].StrValue._ToLong();
         string filetypeStr = vl["filetype"].StrValue;
         string password = vl["password"].StrValue;
@@ -1242,7 +1242,7 @@ partial class TestDevCommands
             truncate = (truncate + 4095L) / 4096L * 4096L;
         }
 
-        ArchiveFileType filetype = ArchiveFileType.Plain.ParseAsDefault(filetypeStr, false, true);
+        ArchiveFileType filetype = ArchiveFileType.Raw.ParseAsDefault(filetypeStr, false, true);
 
         await using (var rawFs = new LocalRawDiskFileSystem())
         {
@@ -1250,7 +1250,7 @@ partial class TestDevCommands
             {
                 bool isGZip = false;
 
-                await using (var file = await Lfs.OpenAsync(dstFileName))
+                await using (var file = await Lfs.OpenAsync(archiveFilePath))
                 {
                     await using var archiveFileStream = file.GetStream(true);
 
@@ -1263,40 +1263,41 @@ partial class TestDevCommands
                         Con.WriteLine($"Detected file format: {filetype}");
                     }
 
-                    Stream archiveStream;
+                    Stream srcStream, dstStream;
+
+                    await using var diskStream = disk.GetStream(true);
 
                     switch (filetype)
                     {
                         case ArchiveFileType.Gzip:
-                            archiveStream = new GZipStream(archiveFileStream, CompressionMode.Decompress, false);
+                            srcStream = new GZipStream(archiveFileStream, CompressionMode.Decompress, false);
+                            dstStream = diskStream;
                             break;
 
                         case ArchiveFileType.SecureCompress:
-                            archiveStream = new SecureCompressDecoder(archiveFileStream, new SecureCompressOptions(diskName, password._IsFilled(), password, true, CompressionLevel.SmallestSize), file.Size, true);
+                            srcStream = archiveFileStream;
+                            dstStream = new SecureCompressDecoder(diskStream, new SecureCompressOptions(Lfs.PathParser.GetFileName(archiveFilePath), password._IsFilled(), password, true, CompressionLevel.SmallestSize), file.Size, true);
                             break;
 
                         default:
-                            archiveStream = archiveFileStream;
+                            srcStream = archiveFileStream;
+                            dstStream = diskStream;
                             break;
                     }
 
-                    await using (archiveStream)
+                    await using (srcStream)
+                    await using (dstStream)
                     {
-                        await using var diskStream = disk.GetStream(true);
-
                         using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
                         {
                             RefBool readErrorIgnored = new();
 
-                            await FileUtil.CopyBetweenStreamAsync(archiveStream, diskStream, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024, ensureBufferSize: true, ignoreReadError: filetype != ArchiveFileType.Gzip), reporter: reporter, readErrorIgnored: readErrorIgnored);
+                            await FileUtil.CopyBetweenStreamAsync(srcStream, dstStream, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024, ensureBufferSize: true, ignoreReadError: filetype != ArchiveFileType.Gzip), reporter: reporter, readErrorIgnored: readErrorIgnored);
 
                             if (readErrorIgnored)
                             {
                                 $"Warning! There were sector read errors on source archive file. Please check the error log."._Error();
                             }
-
-                            await diskStream.FlushAsync();
-                            await disk.FlushAsync();
                         }
                     }
                 }
@@ -1378,6 +1379,8 @@ partial class TestDevCommands
                 {
                     Con.WriteLine($"  {item2.Name}{Str.MakeCharArray(' ', maxWidth - item2.Name._GetWidth())}  -  {item2.Length._GetFileSizeStr()} ({item2.Length._ToString3()} bytes)");
                 }
+
+                Con.WriteLine();
             }
 
             Con.WriteLine();

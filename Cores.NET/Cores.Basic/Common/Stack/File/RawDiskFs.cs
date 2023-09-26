@@ -122,11 +122,6 @@ public class UnixLocalRawDiskVfsFile : RawDiskFileSystemBasedVfsFile
 
     public override async Task<FileObject> OpenAsync(FileParameters option, string fullPath, CancellationToken cancel = default)
     {
-        if (fullPath.StartsWith("/dev/") == false)
-        {
-            throw new CoresException($"Disk path must start with '/dev/'. Specified path: '{fullPath}'");
-        }
-
         long diskSize = await UnixApi.GetBlockDeviceSizeAsync(this.ItemData.RawPath, cancel);
 
         FileStream fs = new FileStream(this.ItemData.RawPath, option.Mode, option.Access, option.Share, 4096, FileOptions.None);
@@ -359,7 +354,7 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
 
                     if (realDisk != null)
                     {
-                        string byPartUuidName = $"by-partuuid-{Str.MakeVerySafeAsciiOnlyNonSpaceFileName(uuid, true)}";
+                        string byPartUuidName = $"have-partuuid-{Str.MakeVerySafeAsciiOnlyNonSpaceFileName(uuid, true)}";
 
                         if (tmpDiskItemList.Any(x => x.Name == byPartUuidName) == false)
                         {
@@ -391,7 +386,7 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
 
                         if (realDisk != null)
                         {
-                            string byMountName = $"by-mountpoint-{GeneratePrintableSafeFileNameFromUnixFullPath(p.Target)}";
+                            string byMountName = $"have-mountpoint-{GeneratePrintableSafeFileNameFromUnixFullPath(p.Target)}";
 
                             if (tmpDiskItemList.Any(x => x.Name == byMountName) == false)
                             {
