@@ -1178,7 +1178,7 @@ partial class TestDevCommands
                             break;
 
                         case ArchiveFileType.SecureCompress:
-                            archiveStream = new SecureCompressEncoder(archiveFileStream, new SecureCompressOptions(diskName, password._IsFilled(), password, true, CompressionLevel.SmallestSize), diskStream.Length, true);
+                            archiveStream = new SecureCompressEncoder(archiveFileStream, new SecureCompressOptions(diskName, password._IsFilled(), password, true, CompressionLevel.SmallestSize), Math.Min(diskStream.Length, truncate), true);
                             break;
 
                         default:
