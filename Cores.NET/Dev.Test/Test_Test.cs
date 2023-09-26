@@ -4711,9 +4711,9 @@ HOST: www.google.com
 
     static void Test_230926()
     {
-        using var fs = Lfs.Open(@"C:\git\IPA-DN-Cores\LICENSE");
+        var list = Lfs.EnumDirectory("/dev/disk/by-id/");
 
-        FileUtil.DetectArchiveFileFormatAsync(fs.GetStream(true))._GetResult()._Print();
+        list._PrintAsJson();
     }
 
 

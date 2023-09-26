@@ -106,6 +106,58 @@ public class Win32LocalRawDiskVfsFile : RawDiskFileSystemBasedVfsFile
     }
 }
 
+public class UnixLocalRawDiskVfsFile : RawDiskFileSystemBasedVfsFile
+{
+    public UnixLocalRawDiskVfsFile(LocalRawDiskFileSystem fileSystem, RawDiskItemData itemData) : base(fileSystem, itemData)
+    {
+    }
+
+    public override long Size { get => this.ItemData.Length; protected set => throw new NotImplementedException(); }
+    public override long PhysicalSize { get => this.ItemData.Length; protected set => throw new NotImplementedException(); }
+    public override string Name { get => this.ItemData.Name; protected set => throw new NotImplementedException(); }
+    public override FileAttributes Attributes { get => FileAttributes.Normal; protected set => throw new NotImplementedException(); }
+    public override DateTimeOffset CreationTime { get => DateTimeOffset.Now; protected set => throw new NotImplementedException(); }
+    public override DateTimeOffset LastWriteTime { get => DateTimeOffset.Now; protected set => throw new NotImplementedException(); }
+    public override DateTimeOffset LastAccessTime { get => DateTimeOffset.Now; protected set => throw new NotImplementedException(); }
+
+    public override async Task<FileObject> OpenAsync(FileParameters option, string fullPath, CancellationToken cancel = default)
+    {
+        if (fullPath.StartsWith("/dev/") == false)
+        {
+            throw new CoresException($"Disk path must start with '/dev'. Specified path: '{fullPath}'");
+        }
+
+        long diskSize = await UnixApi.GetBlockDeviceSizeAsync(this.ItemData.RawPath, cancel);
+
+        FileStream fs = new FileStream(this.ItemData.RawPath, option.Mode, option.Access, option.Share, 4096, FileOptions.None);
+
+        try
+        {
+            var randomAccess = new SeekableStreamBasedRandomAccess(fs, autoDisposeBase: true, fixedFileSize: diskSize);
+
+            try
+            {
+                return new RandomAccessFileObject(this.FileSystem, option, randomAccess);
+            }
+            catch
+            {
+                randomAccess._DisposeSafe();
+                throw;
+            }
+        }
+        catch
+        {
+            fs._DisposeSafe();
+            throw;
+        }
+    }
+
+    protected override Task ReleaseLinkImplAsync()
+    {
+        return Task.CompletedTask;
+    }
+}
+
 public class LocalRawDiskFileSystem : RawDiskFileSystem
 {
     public LocalRawDiskFileSystem(RawDiskFileSystemParams? param = null) : base(param)
@@ -114,7 +166,16 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
 
     protected override Task<RawDiskFileSystemBasedVfsFile> CreateRawDiskFileImplAsync(RawDiskItemData item, CancellationToken cancel = default)
     {
-        var f = new Win32LocalRawDiskVfsFile(this, item);
+        RawDiskFileSystemBasedVfsFile f;
+
+        if (Env.IsWindows)
+        {
+            f = new Win32LocalRawDiskVfsFile(this, item);
+        }
+        else
+        {
+            f = new UnixLocalRawDiskVfsFile(this, item);
+        }
 
         return TR<RawDiskFileSystemBasedVfsFile>(f);
     }
@@ -162,7 +223,7 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
         }
         else
         {
-            throw new PlatformNotSupportedException();
+            //ret.Add(new RawDiskItemData("dummy", "/tmp/dummy", type, geometry.DiskSize));
         }
 
         return ret;
