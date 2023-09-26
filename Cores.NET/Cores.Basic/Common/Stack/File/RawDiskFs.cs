@@ -314,7 +314,7 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
                                 long diskSize = await UnixApi.GetBlockDeviceSizeAsync(diskRealPath, cancel);
 
                                 var diskItem = new RawDiskItemData(
-                                    diskDirPath.Split("/", StringSplitOptions.RemoveEmptyEntries).Last() + "-" + diskObj.Name, diskRealPath, RawDiskItemType.FixedMedia, diskSize,
+                                    diskDirPath.Split("/", StringSplitOptions.RemoveEmptyEntries).Last() + "-" + Str.MakeVerySafeAsciiOnlyNonSpaceFileName(diskObj.Name.Replace(":", "_"), true).ToLowerInvariant(), diskRealPath, RawDiskItemType.FixedMedia, diskSize,
                                     "by-devname-" + Lfs.PathParser.GetFileName(diskRealPath));
 
                                 tmpDiskItemList.Add(diskItem);
@@ -335,7 +335,7 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
                 {
                     long diskSize = await UnixApi.GetBlockDeviceSizeAsync(diskRealPath, cancel);
 
-                    var diskItem = new RawDiskItemData("by-devname-" + Lfs.PathParser.GetFileName(diskRealPath), diskRealPath, RawDiskItemType.FixedMedia, diskSize);
+                    var diskItem = new RawDiskItemData("by-devname-" + Lfs.PathParser.GetFileName(diskRealPath).ToLowerInvariant(), diskRealPath, RawDiskItemType.FixedMedia, diskSize);
 
                     tmpDiskItemList.Add(diskItem);
 
@@ -359,7 +359,7 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
 
                     if (realDisk != null)
                     {
-                        string byPartUuidName = $"by-partuuid-{Str.MakeVerySafeAsciiOnlyNonSpaceFileName(uuid, true)}";
+                        string byPartUuidName = $"by-partuuid-{Str.MakeVerySafeAsciiOnlyNonSpaceFileName(uuid, true)}".ToLowerInvariant();
 
                         if (tmpDiskItemList.Any(x => x.Name == byPartUuidName) == false)
                         {
@@ -371,7 +371,7 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
 
             foreach (var realDisk in tmpDiskItemList.Where(x => x.AliasOf._IsEmpty()).OrderBy(x => x.RawPath).ToArray())
             {
-                string bySizeName = $"by-disksize-{realDisk.Length}";
+                string bySizeName = $"by-disksize-{realDisk.Length}".ToLowerInvariant();
 
                 if (tmpDiskItemList.Any(x => x.Name == bySizeName) == false)
                 {
@@ -391,7 +391,7 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
 
                         if (realDisk != null)
                         {
-                            string byMountName = $"by-mountpoint-{GeneratePrintableSafeFileNameFromUnixFullPath(p.Target)}";
+                            string byMountName = $"by-mountpoint-{GeneratePrintableSafeFileNameFromUnixFullPath(p.Target)}".ToLowerInvariant();
 
                             if (tmpDiskItemList.Any(x => x.Name == byMountName) == false)
                             {
