@@ -432,7 +432,7 @@ public static class UnixApi
             throw new NotImplementedException();
         }
 
-        string line = await EasyExec.ExecRetStrAsync(Consts.LinuxCommands.BlockDev, $"--getsize64 {path}");
+        string line = await EasyExec.ExecRetFirstLineAsync(Consts.LinuxCommands.BlockDev, $"--getsize64 {path}");
         
         line = line._GetFirstFilledLineFromLines();
 

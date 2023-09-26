@@ -232,7 +232,7 @@ namespace IPA.Cores.Basic
     // 簡易実行
     public static class EasyExec
     {
-        public static async Task<string> ExecBashRetStrAsync(string command, string? currentDirectory = null,
+        public static async Task<string> ExecBashRetFirstLineAsync(string command, string? currentDirectory = null,
             int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null, int? timeout = null,
             CancellationToken cancel = default, bool debug = false, bool throwOnErrorExitCode = true,
             StrDictionary<string>? additionalEnvVars = null)
@@ -249,7 +249,7 @@ namespace IPA.Cores.Basic
             return result.OutputStr._GetFirstFilledLineFromLines();
         }
 
-        public static async Task<string> ExecRetStrAsync(string cmdName, string? arguments = null, string? currentDirectory = null,
+        public static async Task<string> ExecRetFirstLineAsync(string cmdName, string? arguments = null, string? currentDirectory = null,
             int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null, int? timeout = null,
             CancellationToken cancel = default, bool debug = false, bool throwOnErrorExitCode = true,
             StrDictionary<string>? additionalEnvVars = null)

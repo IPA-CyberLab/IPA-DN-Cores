@@ -176,9 +176,11 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
     {
         List<UnixMountInfo> ret = new List<UnixMountInfo>();
 
-        string retStr = await EasyExec.ExecRetStrAsync(Consts.LinuxCommands.FindMnt, "--list --submounts", easyOutputMaxSize: 1_000_000, cancel: cancel);
+        string retStr = (await EasyExec.ExecAsync(Consts.LinuxCommands.FindMnt, "--list --submounts", easyOutputMaxSize: 1_000_000, cancel: cancel)).OutputStr;
 
         var lines = retStr._GetLines(true);
+
+        int num = 0;
 
         foreach (var line in lines)
         {
@@ -194,7 +196,13 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
                     Options = tokens[3],
                 };
 
-                ret.Add(item);
+
+                num++;
+
+                if (num >= 2) // Skip first line
+                {
+                    ret.Add(item);
+                }
             }
         }
 
