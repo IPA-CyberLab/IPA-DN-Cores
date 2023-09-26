@@ -5594,7 +5594,7 @@ namespace IPA.Cores.Basic
         }
 
         // 任意のファイルパスを安全な Ascii 文字のみを含む、かつ、空白文字を含まないファイル名に変換する
-        public static string MakeVerySafeAsciiOnlyNonSpaceFileName(string? fullPath)
+        public static string MakeVerySafeAsciiOnlyNonSpaceFileName(string? fullPath, bool allowDot = false)
         {
             if (fullPath._IsEmpty()) return "";
             fullPath = fullPath._NonNullTrim();
@@ -5604,6 +5604,11 @@ namespace IPA.Cores.Basic
             Str.NormalizeString(ref fn, true, true, false, false);
 
             string okChars = "0123456789-_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+            if (allowDot)
+            {
+                okChars += ".";
+            }
 
             StringBuilder sb = new StringBuilder();
 

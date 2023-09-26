@@ -209,6 +209,24 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
         return ret;
     }
 
+    public static string GeneratePrintableSafeFileNameFromUnixFullPath(string path, string combineStr = "-")
+    {
+        var pathList = PPLinux.SplitAbsolutePathToElementsUnixStyle(path, true);
+
+        List<string> tmp = new List<string>();
+
+        tmp.Add("rootdir");
+
+        foreach (var element in pathList)
+        {
+            string a = Str.MakeVerySafeAsciiOnlyNonSpaceFileName(element, true).ToLowerInvariant();
+
+            tmp.Add(a);
+        }
+
+        return tmp._Combine(combineStr);
+    }
+
     protected override Task<RawDiskFileSystemBasedVfsFile> CreateRawDiskFileImplAsync(RawDiskItemData item, CancellationToken cancel = default)
     {
         RawDiskFileSystemBasedVfsFile f;
@@ -335,6 +353,26 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
                 if (tmpDiskItemList.Any(x => x.Name == bySizeName) == false)
                 {
                     tmpDiskItemList.Add(new RawDiskItemData(bySizeName, realDisk.RawPath, realDisk.Type, realDisk.Length, realDisk.Name));
+                }
+            }
+
+            var mountPoints = await GetLinuxMountInfoListAsync(cancel);
+
+            foreach (var p in mountPoints.OrderBy(x => x.Target).ThenBy(x => x.Source))
+            {
+                if (p.Target.StartsWith("/") && p.Source.StartsWith("/"))
+                {
+                    var realDisk = tmpDiskItemList.Where(x => x.AliasOf._IsEmpty() && p.Source.StartsWith(x.RawPath)).OrderByDescending(x => x.RawPath.Length).ThenBy(x => x.RawPath).FirstOrDefault();
+
+                    if (realDisk != null)
+                    {
+                        string byMountName = $"by-mountpoint-{GeneratePrintableSafeFileNameFromUnixFullPath(p.Target)}";
+
+                        if (tmpDiskItemList.Any(x => x.Name == byMountName) == false)
+                        {
+                            tmpDiskItemList.Add(new RawDiskItemData(byMountName, realDisk.RawPath, realDisk.Type, realDisk.Length, realDisk.Name));
+                        }
+                    }
                 }
             }
 
