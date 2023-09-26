@@ -4709,22 +4709,29 @@ HOST: www.google.com
         }
     }
 
-    static void Test_230926()
+    static async Task Test_230926()
     {
-        string basedir = "/dev/disk/by-id/";
-        var list = Lfs.EnumDirectory(basedir);
+        await using var file = await Lfs.OpenAsync("/bktmp1/230926_ltshv1_3_c_backup/lts-hv1.securecompress");
+        await using var stream = file.GetStream(true);
 
-        foreach (var e in list)
+        long total = 0;
+
+        Memory<byte> buf = new byte[16 * 1024 * 1024];
+
+        while (true)
         {
-            if (e.SymbolicLinkTarget._IsFilled())
+            int sz = await stream._ReadAllAsync(buf, allowPartial: true);
+
+            total += sz;
+
+            total._ToString3()._Print();
+
+            if (sz <= 0)
             {
-                PP.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(PP.Combine(basedir, e.SymbolicLinkTarget))._Print();
+                Dbg.Where();
+                break;
             }
         }
-
-        var tmp = LocalRawDiskFileSystem.GetLinuxMountInfoListAsync()._GetResult();
-
-        tmp._PrintAsJson();
     }
 
 
@@ -4735,7 +4742,7 @@ HOST: www.google.com
             //Test_230925_Backup();
             //Test_230925_Restore();
             //Test_230925_Verify();
-            Test_230926();
+            Test_230926()._GetResult();
             return;
         }
 
