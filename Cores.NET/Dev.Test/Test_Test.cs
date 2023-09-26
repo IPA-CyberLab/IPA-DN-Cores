@@ -4711,9 +4711,16 @@ HOST: www.google.com
 
     static void Test_230926()
     {
-        var list = Lfs.EnumDirectory("/dev/disk/by-id/");
+        string basedir = "/dev/disk/by-id/";
+        var list = Lfs.EnumDirectory(basedir);
 
-        list._PrintAsJson();
+        foreach (var e in list)
+        {
+            if (e.SymbolicLinkTarget._IsFilled())
+            {
+                PP.NormalizeRelativePath(PP.Combine(e.SymbolicLinkTarget))._Print();
+            }
+        }
     }
 
 
