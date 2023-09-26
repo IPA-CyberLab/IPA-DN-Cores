@@ -1372,11 +1372,11 @@ partial class TestDevCommands
 
             foreach (var item in items.Where(x => x.AliasOf._IsEmpty()))
             {
-                Con.WriteLine($"{item.Name}{Str.MakeCharArray(' ', maxWidth - item.Name._GetWidth())}   -  {item.Length._GetFileSizeStr()} ({item.Length._ToString3()} bytes)");
+                Con.WriteLine($"{item.Name}{Str.MakeCharArray(' ', maxWidth - item.Name._GetWidth())}    -  {item.Length._GetFileSizeStr()} ({item.Length._ToString3()} bytes)");
 
                 foreach (var item2 in items.Where(x => x.AliasOf._IsFilled() && x.AliasOf == item.Name))
                 {
-                    Con.WriteLine($"  {item2.Name}{Str.MakeCharArray(' ', maxWidth - item2.Name._GetWidth())} -  {item2.Length._GetFileSizeStr()} ({item2.Length._ToString3()} bytes)");
+                    Con.WriteLine($"  {item2.Name}{Str.MakeCharArray(' ', maxWidth - item2.Name._GetWidth())}  -  {item2.Length._GetFileSizeStr()} ({item2.Length._ToString3()} bytes)");
                 }
             }
 

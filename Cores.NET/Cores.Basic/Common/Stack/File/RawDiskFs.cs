@@ -299,7 +299,7 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
             {
                 var diskObjects = await Lfs.EnumDirectoryAsync(diskDirPath, cancel: cancel);
 
-                foreach (var diskObj in diskObjects)
+                foreach (var diskObj in diskObjects.OrderBy(x => x.Name))
                 {
                     if (diskObj.IsSymbolicLink && diskObj.SymbolicLinkTarget._IsFilled())
                     {
@@ -346,7 +346,30 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
                 }
             }
 
-            foreach (var realDisk in tmpDiskItemList.Where(x => x.AliasOf._IsEmpty()).ToArray())
+            var partUuidObjects = await Lfs.EnumDirectoryAsync("/dev/disk/by-partuuid/", cancel: cancel);
+
+            foreach (var partUuidObj in partUuidObjects.OrderBy(x => x.Name))
+            {
+                if (partUuidObj.IsSymbolicLink && partUuidObj.SymbolicLinkTarget._IsFilled())
+                {
+                    string partRealPath = Lfs.PathParser.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(Lfs.PathParser.Combine("/dev/disk/by-partuuid/", partUuidObj.SymbolicLinkTarget));
+                    string uuid = partUuidObj.Name;
+
+                    var realDisk = tmpDiskItemList.Where(x => x.AliasOf._IsEmpty() && partRealPath.StartsWith(x.RawPath)).OrderByDescending(x => x.RawPath.Length).ThenBy(x => x.RawPath).FirstOrDefault();
+
+                    if (realDisk != null)
+                    {
+                        string byPartUuidName = $"by-partuuid-{GeneratePrintableSafeFileNameFromUnixFullPath(p.Target)}";
+
+                        if (tmpDiskItemList.Any(x => x.Name == byPartUuidName) == false)
+                        {
+                            tmpDiskItemList.Add(new RawDiskItemData(byPartUuidName, realDisk.RawPath, realDisk.Type, realDisk.Length, realDisk.Name));
+                        }
+                    }
+                }
+            }
+
+            foreach (var realDisk in tmpDiskItemList.Where(x => x.AliasOf._IsEmpty()).OrderBy(x => x.RawPath).ToArray())
             {
                 string bySizeName = $"by-disksize-{realDisk.Length}";
 
@@ -356,25 +379,29 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
                 }
             }
 
-            var mountPoints = await GetLinuxMountInfoListAsync(cancel);
-
-            foreach (var p in mountPoints.OrderBy(x => x.Target).ThenBy(x => x.Source))
+            try
             {
-                if (p.Target.StartsWith("/") && p.Source.StartsWith("/"))
+                var mountPoints = await GetLinuxMountInfoListAsync(cancel);
+
+                foreach (var p in mountPoints.OrderBy(x => x.Target).ThenBy(x => x.Source))
                 {
-                    var realDisk = tmpDiskItemList.Where(x => x.AliasOf._IsEmpty() && p.Source.StartsWith(x.RawPath)).OrderByDescending(x => x.RawPath.Length).ThenBy(x => x.RawPath).FirstOrDefault();
-
-                    if (realDisk != null)
+                    if (p.Target.StartsWith("/") && p.Source.StartsWith("/"))
                     {
-                        string byMountName = $"by-mountpoint-{GeneratePrintableSafeFileNameFromUnixFullPath(p.Target)}";
+                        var realDisk = tmpDiskItemList.Where(x => x.AliasOf._IsEmpty() && p.Source.StartsWith(x.RawPath)).OrderByDescending(x => x.RawPath.Length).ThenBy(x => x.RawPath).FirstOrDefault();
 
-                        if (tmpDiskItemList.Any(x => x.Name == byMountName) == false)
+                        if (realDisk != null)
                         {
-                            tmpDiskItemList.Add(new RawDiskItemData(byMountName, realDisk.RawPath, realDisk.Type, realDisk.Length, realDisk.Name));
+                            string byMountName = $"by-mountpoint-{GeneratePrintableSafeFileNameFromUnixFullPath(p.Target)}";
+
+                            if (tmpDiskItemList.Any(x => x.Name == byMountName) == false)
+                            {
+                                tmpDiskItemList.Add(new RawDiskItemData(byMountName, realDisk.RawPath, realDisk.Type, realDisk.Length, realDisk.Name));
+                            }
                         }
                     }
                 }
             }
+            catch { }
 
             tmpDiskItemList.OrderBy(x => x.Name)._DoForEach(x => ret.Add(x));
         }
