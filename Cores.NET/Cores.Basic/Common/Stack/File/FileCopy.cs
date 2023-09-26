@@ -36,6 +36,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
@@ -207,12 +208,19 @@ public class CopyDirectoryParams
 }
 
 [Flags]
-public enum EncryptOption
+public enum EncryptOption : long
 {
     None = 0,
+
     Encrypt = 1,
-    Decrypt = 2,
-    Compress = 4,
+    Encrypt_v1_XtsLts = Encrypt,
+    Encrypt_v2_SecureCompress = Encrypt | 2,
+
+    Decrypt = 256,
+    Decrypt_v1_XtsLts = Decrypt,
+    Decrypt_v2_SecureCompress = Decrypt | 512,
+
+    Compress = 65536,
 }
 
 public class CopyFileParams
@@ -249,6 +257,24 @@ public class CopyFileParams
         if (reporterFactory == null) reporterFactory = NullReporterFactory;
         if (ignoreReadErrorSectorSize <= 0) ignoreReadErrorSectorSize = CoresConfig.FileUtilSettings.DefaultSectorSize;
         if (retryCount < 0) retryCount = 0;
+
+        if (encryptOption.Bit(EncryptOption.Encrypt) && encryptOption.Bit(EncryptOption.Decrypt))
+        {
+            throw new CoresLibException("encryptOption has both Encrypt and Decrypt");
+        }
+
+        if (encryptOption.Bit(EncryptOption.Compress))
+        {
+            if (encryptOption.Bit(EncryptOption.Encrypt) == false && encryptOption.Bit(EncryptOption.Decrypt) == false)
+            {
+                throw new CoresLibException("Compress is enabled while Encrypt and Decrypt are disabled");
+            }
+        }
+
+        if (ignoreReadError && ensureBufferSize && ((bufferSize % ignoreReadErrorSectorSize) != 0))
+        {
+            throw new CoresLibException($"ignoreReadError == true && ensureBufferSize == true && ((bufferSize ({bufferSize}) % ignoreReadErrorSectorSize ({ignoreReadErrorSectorSize})) != 0)");
+        }
 
         this.Overwrite = overwrite;
         this.Flags = flags;
@@ -807,23 +833,47 @@ public static partial class FileUtil
                                 Stream? srcStream = null;
                                 Stream? destStream = null;
                                 XtsAesRandomAccess? xts = null;
+                                SecureCompressEncoder? secureCompressEncoder = null;
 
                                 try
                                 {
                                     if (param.EncryptOption.Bit(EncryptOption.Encrypt))
                                     {
-                                        // Encryption
                                         srcStream = srcFile.GetStream(disposeTarget: true);
 
-                                        xts = new XtsAesRandomAccess(destFile, param.EncryptPassword, disposeObject: true);
-
-                                        if (param.EncryptOption.Bit(EncryptOption.Compress) == false)
+                                        // Encryption
+                                        if (param.EncryptOption.Bit(EncryptOption.Encrypt_v2_SecureCompress))
                                         {
-                                            destStream = xts.GetStream(disposeTarget: true);
+                                            // Encryption (SecureCompress, 2023/09 ～)
+                                            Stream destFileStream = destFile.GetStream(disposeTarget: true);
+
+                                            try
+                                            {
+                                                destStream = new SecureCompressEncoder(destFileStream,
+                                                    new SecureCompressOptions(srcFileSystem.PathParser.GetFileName(srcPath), true, param.EncryptPassword, param.EncryptOption.Bit(EncryptOption.Compress),
+                                                    System.IO.Compression.CompressionLevel.SmallestSize),
+                                                    await srcFile.GetFileSizeAsync(cancel: cancel),
+                                                    true);
+                                            }
+                                            catch
+                                            {
+                                                await destFileStream._DisposeSafeAsync();
+                                                throw;
+                                            }
                                         }
                                         else
                                         {
-                                            destStream = await xts.GetCompressStreamAsync();
+                                            // Encryption (Legacy XTS, ～ 2023/09)
+                                            xts = new XtsAesRandomAccess(destFile, param.EncryptPassword, disposeObject: true);
+
+                                            if (param.EncryptOption.Bit(EncryptOption.Compress) == false)
+                                            {
+                                                destStream = xts.GetStream(disposeTarget: true);
+                                            }
+                                            else
+                                            {
+                                                destStream = await xts.GetCompressStreamAsync();
+                                            }
                                         }
                                     }
                                     else
@@ -831,24 +881,58 @@ public static partial class FileUtil
                                         // Decryption
                                         destStream = destFile.GetStream(disposeTarget: true);
 
-                                        xts = new XtsAesRandomAccess(srcFile, param.EncryptPassword, disposeObject: true);
-
-                                        if (param.EncryptOption.Bit(EncryptOption.Compress) == false)
+                                        if (param.EncryptOption.Bit(EncryptOption.Encrypt_v2_SecureCompress))
                                         {
-                                            srcStream = xts.GetStream(disposeTarget: true);
+                                            // Decryption (SecureCompress, 2023/09 ～)
+                                            Stream srcFileStream = srcFile.GetStream(disposeObject: true);
+
+                                            try
+                                            {
+                                                srcStream = new SecureCompressDecoder(srcFileStream,
+                                                    new SecureCompressOptions(srcFileSystem.PathParser.GetFileName(srcPath), true, param.EncryptPassword, false,
+                                                    System.IO.Compression.CompressionLevel.SmallestSize),
+                                                    await srcFile.GetFileSizeAsync(cancel: cancel),
+                                                    true);
+                                            }
+                                            catch
+                                            {
+                                                await srcFileStream._DisposeSafeAsync();
+                                                throw;
+                                            }
                                         }
                                         else
                                         {
-                                            srcStream = await xts.GetDecompressStreamAsync();
+                                            // Decryption (Legacy XTS, ～ 2023/09)
+                                            xts = new XtsAesRandomAccess(srcFile, param.EncryptPassword, disposeObject: true);
+
+                                            if (param.EncryptOption.Bit(EncryptOption.Compress) == false)
+                                            {
+                                                srcStream = xts.GetStream(disposeTarget: true);
+                                            }
+                                            else
+                                            {
+                                                srcStream = await xts.GetDecompressStreamAsync();
+                                            }
                                         }
                                     }
 
                                     copiedSize2 = await CopyBetweenStreamAsync(srcStream, destStream, param, reporter, srcFileMetadata.Size, cancel, readErrorIgnored, srcZipCrc, hash: hash);
+
+                                    if (destStream is SecureCompressEncoder encoder)
+                                    {
+                                        await encoder.FinalizeAsync(cancel);
+                                    }
+
+                                    if (srcStream is SecureCompressDecoder decoder)
+                                    {
+                                        await decoder.FinalizeAsync(cancel);
+                                    }
                                 }
                                 finally
                                 {
                                     await destStream._DisposeSafeAsync();
                                     await xts._DisposeSafeAsync();
+                                    await secureCompressEncoder._DisposeSafeAsync();
                                     await srcStream._DisposeSafeAsync();
                                 }
 
@@ -1363,125 +1447,144 @@ public static partial class FileUtil
 
         readErrorIgnored.Set(false);
 
-        checked
+        long totalReadErrorCount = 0;
+        long totalReadErrorSize = 0;
+
+        long lastOkIntervalSize = 0;
+
+        long renzokuErrorCounter = 0;
+
+        try
         {
-            long currentPosition = 0;
-
-            if (param.AsyncCopy == false)
+            checked
             {
-                // Normal copy
-                using (MemoryHelper.FastAllocMemoryWithUsing(param.BufferSize, out Memory<byte> buffer))
+                long currentWritePosition = 0;
+
+                long basePositionOfSrcStream = -1;
+                try
                 {
-                    while (true)
-                    {
-                        Memory<byte> thisTimeBuffer = buffer;
-
-                        if (truncateSize >= 0)
-                        {
-                            // Truncate
-                            long remainSize = Math.Max(truncateSize - currentPosition, 0);
-
-                            if (thisTimeBuffer.Length > remainSize)
-                            {
-                                thisTimeBuffer = thisTimeBuffer.Slice(0, (int)remainSize);
-                            }
-
-                            if (remainSize == 0) break;
-                        }
-
-                        int readSize;
-                        if (param.EnsureBufferSize == false)
-                        {
-                            readSize = await src.ReadAsync(thisTimeBuffer, cancel);
-                        }
-                        else
-                        {
-                            readSize = await src._ReadAllAsync(thisTimeBuffer, cancel, true);
-                        }
-
-                        Debug.Assert(readSize <= thisTimeBuffer.Length);
-
-                        if (readSize <= 0) break;
-
-                        ReadOnlyMemory<byte> sliced = thisTimeBuffer.Slice(0, readSize);
-
-                        if (param.Flags.Bit(FileFlags.CopyFile_Verify))
-                        {
-                            srcCrc.Append(sliced.Span);
-                        }
-
-                        if (hash != null)
-                        {
-                            var seg = sliced._AsSegment();
-
-                            hash.TransformBlock(seg.Array!, seg.Offset, seg.Count, null, 0);
-                        }
-
-                        await dest.WriteAsync(sliced, cancel);
-
-                        currentPosition += readSize;
-                        reporter.ReportProgress(new ProgressData(currentPosition, estimatedSize));
-                    }
+                    basePositionOfSrcStream = src.Position;
                 }
-            }
-            else
-            {
-                // Async copy
-                using (MemoryHelper.FastAllocMemoryWithUsing(param.BufferSize, out Memory<byte> buffer1))
-                {
-                    using (MemoryHelper.FastAllocMemoryWithUsing(param.BufferSize, out Memory<byte> buffer2))
-                    {
-                        ValueTask? lastWriteTask = null;
-                        int number = 0;
-                        int writeSize = 0;
+                catch { }
 
+                if (param.AsyncCopy == false)
+                {
+                    // Normal copy
+                    using (MemoryHelper.FastAllocMemoryWithUsing(param.BufferSize, out Memory<byte> buffer))
+                    {
                         long currentReadPosition = 0;
 
-                        Memory<byte>[] buffers = new Memory<byte>[2] { buffer1, buffer2 };
+                        long sectorSizeBasedReadOperationEndMarker = 0;
 
                         while (true)
                         {
-                            Memory<byte> buffer = buffers[(number++) % 2];
-
                             Memory<byte> thisTimeBuffer = buffer;
 
                             if (truncateSize >= 0)
                             {
                                 // Truncate
-                                long remainSize = Math.Max(truncateSize - currentReadPosition, 0);
+                                long remainSize = Math.Max(truncateSize - currentWritePosition, 0);
 
                                 if (thisTimeBuffer.Length > remainSize)
                                 {
                                     thisTimeBuffer = thisTimeBuffer.Slice(0, (int)remainSize);
                                 }
+
+                                if (remainSize == 0) break;
                             }
 
                             int readSize;
-                            if (param.EnsureBufferSize == false)
+
+                            // Last time ignored error. Then shrink thisTimeBuffer's size to ignore sector size.
+                            if (currentReadPosition < sectorSizeBasedReadOperationEndMarker)
                             {
-                                readSize = await src.ReadAsync(thisTimeBuffer, cancel);
-                            }
-                            else
-                            {
-                                readSize = await src._ReadAllAsync(thisTimeBuffer, cancel, true);
+                                thisTimeBuffer = thisTimeBuffer.Slice(0, param.IgnoreReadErrorSectorSize);
                             }
 
-                            Debug.Assert(readSize <= buffer.Length);
-
-                            if (lastWriteTask != null)
+                            try
                             {
-                                await lastWriteTask.Value;
-                                currentPosition += writeSize;
-                                reporter.ReportProgress(new ProgressData(currentPosition, estimatedSize));
+                                if (param.EnsureBufferSize == false)
+                                {
+                                    readSize = await src.ReadAsync(thisTimeBuffer, cancel);
+                                }
+                                else
+                                {
+                                    readSize = await src._ReadAllAsync(thisTimeBuffer, cancel, true);
+                                }
+
+                                lastOkIntervalSize += readSize;
+
+                                renzokuErrorCounter = 0;
                             }
+                            catch (Exception ex) when (basePositionOfSrcStream >= 0 && param.IgnoreReadError && estimatedSize >= 1 && src.CanSeek && param.IgnoreReadErrorSectorSize >= 1 && !(ex is DisconnectedException) && !(ex is SocketException))
+                            {
+                                // Ignore read error
+                                cancel.ThrowIfCancellationRequested();
+
+                                if ((totalReadErrorCount % 30) == 0)
+                                {
+                                    await Task.Yield();
+                                }
+
+                                sectorSizeBasedReadOperationEndMarker = currentReadPosition + param.BufferSize;
+
+                                long currentSrcPos = basePositionOfSrcStream + currentReadPosition;
+
+                                long currentSrcSector = currentSrcPos / param.IgnoreReadErrorSectorSize;
+
+                                int skipSectors = 1;
+                                if (renzokuErrorCounter >= 1)
+                                {
+                                    int maxSkipSectors = Math.Max(1, param.BufferSize / param.IgnoreReadErrorSectorSize);
+
+                                    skipSectors = (int)Math.Min(maxSkipSectors, renzokuErrorCounter);
+                                }
+
+                                long nextSector = currentSrcSector + skipSectors;
+
+                                long nextSrcPos = nextSector * param.IgnoreReadErrorSectorSize;
+
+                                int skipSize = (int)(nextSrcPos - currentSrcPos);
+
+                                src.Seek(nextSrcPos, SeekOrigin.Begin);
+
+                                readSize = skipSize;
+
+                                thisTimeBuffer.Span.Slice(0, readSize).Fill(0);
+
+                                totalReadErrorCount++;
+                                totalReadErrorSize += skipSize;
+
+                                if (src.Position > estimatedSize)
+                                {
+                                    readSize = 0;
+                                }
+                                else
+                                {
+                                    readErrorIgnored.Set(true);
+
+                                    $"CopyBetweenStreamAsync: {totalReadErrorCount._ToString3()} read errors ignored. Position = {currentSrcPos._ToString3()}, Skip size = {skipSize._ToString3()} bytes, Successful read size since last error = {lastOkIntervalSize._ToString3()} bytes, Total skip size = {totalReadErrorSize._ToString3()} bytes. Last error = {ex.Message}"._Error();
+                                }
+
+                                if (lastOkIntervalSize >= 1)
+                                {
+                                    renzokuErrorCounter = 0;
+                                }
+                                else
+                                {
+                                    renzokuErrorCounter++;
+                                }
+
+                                lastOkIntervalSize = 0;
+                            }
+
+                            Debug.Assert(readSize <= thisTimeBuffer.Length);
 
                             if (readSize <= 0) break;
 
                             currentReadPosition += readSize;
 
-                            writeSize = readSize;
-
-                            ReadOnlyMemory<byte> sliced = buffer.Slice(0, writeSize);
+                            ReadOnlyMemory<byte> sliced = thisTimeBuffer.Slice(0, readSize);
 
                             if (param.Flags.Bit(FileFlags.CopyFile_Verify))
                             {
@@ -1495,17 +1598,181 @@ public static partial class FileUtil
                                 hash.TransformBlock(seg.Array!, seg.Offset, seg.Count, null, 0);
                             }
 
-                            lastWriteTask = dest.WriteAsync(sliced, cancel);
-                        }
+                            await dest.WriteAsync(sliced, cancel);
 
-                        reporter.ReportProgress(new ProgressData(currentPosition, estimatedSize));
+                            currentWritePosition += readSize;
+                            reporter.ReportProgress(new ProgressData(currentWritePosition, estimatedSize));
+                        }
                     }
                 }
+                else
+                {
+                    // Async copy
+                    using (MemoryHelper.FastAllocMemoryWithUsing(param.BufferSize, out Memory<byte> buffer1))
+                    {
+                        using (MemoryHelper.FastAllocMemoryWithUsing(param.BufferSize, out Memory<byte> buffer2))
+                        {
+                            ValueTask? lastWriteTask = null;
+                            int number = 0;
+                            int writeSize = 0;
+
+                            long currentReadPosition = 0;
+
+                            long sectorSizeBasedReadOperationEndMarker = 0;
+
+                            Memory<byte>[] buffers = new Memory<byte>[2] { buffer1, buffer2 };
+
+                            while (true)
+                            {
+                                Memory<byte> buffer = buffers[(number++) % 2];
+
+                                Memory<byte> thisTimeBuffer = buffer;
+
+                                if (truncateSize >= 0)
+                                {
+                                    // Truncate
+                                    long remainSize = Math.Max(truncateSize - currentReadPosition, 0);
+
+                                    if (thisTimeBuffer.Length > remainSize)
+                                    {
+                                        thisTimeBuffer = thisTimeBuffer.Slice(0, (int)remainSize);
+                                    }
+                                }
+
+                                int readSize;
+
+                                // Last time ignored error. Then shrink thisTimeBuffer's size to ignore sector size.
+                                if (currentReadPosition < sectorSizeBasedReadOperationEndMarker)
+                                {
+                                    thisTimeBuffer = thisTimeBuffer.Slice(0, param.IgnoreReadErrorSectorSize);
+                                }
+
+                                try
+                                {
+//                                    Con.WriteLine($"pos = {currentReadPosition._ToString3()}, size = {thisTimeBuffer.Length._ToString3()}");
+                                    if (param.EnsureBufferSize == false)
+                                    {
+                                        readSize = await src.ReadAsync(thisTimeBuffer, cancel);
+                                    }
+                                    else
+                                    {
+                                        readSize = await src._ReadAllAsync(thisTimeBuffer, cancel, true);
+                                    }
+
+                                    lastOkIntervalSize += readSize;
+
+                                    renzokuErrorCounter = 0;
+                                }
+                                catch (Exception ex) when (basePositionOfSrcStream >= 0 && param.IgnoreReadError && estimatedSize >= 1 && src.CanSeek && param.IgnoreReadErrorSectorSize >= 1 && !(ex is DisconnectedException) && !(ex is SocketException))
+                                {
+                                    // Ignore read error
+                                    cancel.ThrowIfCancellationRequested();
+
+                                    if ((totalReadErrorCount % 30) == 0)
+                                    {
+                                        await Task.Yield();
+                                    }
+
+                                    sectorSizeBasedReadOperationEndMarker = currentReadPosition + param.BufferSize;
+
+                                    long currentSrcPos = basePositionOfSrcStream + currentReadPosition;
+
+                                    long currentSrcSector = currentSrcPos / param.IgnoreReadErrorSectorSize;
+
+                                    int skipSectors = 1;
+                                    if (renzokuErrorCounter >= 1)
+                                    {
+                                        int maxSkipSectors = Math.Max(1, param.BufferSize / param.IgnoreReadErrorSectorSize);
+
+                                        skipSectors = (int)Math.Min(maxSkipSectors, renzokuErrorCounter);
+                                    }
+
+                                    long nextSector = currentSrcSector + skipSectors;
+
+                                    long nextSrcPos = nextSector * param.IgnoreReadErrorSectorSize;
+
+                                    int skipSize = (int)(nextSrcPos - currentSrcPos);
+
+                                    src.Seek(nextSrcPos, SeekOrigin.Begin);
+
+                                    readSize = skipSize;
+
+                                    thisTimeBuffer.Span.Slice(0, readSize).Fill(0);
+
+                                    totalReadErrorCount++;
+                                    totalReadErrorSize += skipSize;
+
+                                    if (src.Position > estimatedSize)
+                                    {
+                                        readSize = 0;
+                                    }
+                                    else
+                                    {
+                                        readErrorIgnored.Set(true);
+
+                                        $"CopyBetweenStreamAsync: {totalReadErrorCount._ToString3()} read errors ignored. Position = {currentSrcPos._ToString3()}, Skip size = {skipSize._ToString3()} bytes, Successful read size since last error = {lastOkIntervalSize._ToString3()} bytes, Total skip size = {totalReadErrorSize._ToString3()} bytes. Last error = {ex.Message}"._Error();
+                                    }
+
+                                    if (lastOkIntervalSize >= 1)
+                                    {
+                                        renzokuErrorCounter = 0;
+                                    }
+                                    else
+                                    {
+                                        renzokuErrorCounter++;
+                                    }
+
+                                    lastOkIntervalSize = 0;
+                                }
+
+                                Debug.Assert(readSize <= buffer.Length);
+
+                                if (lastWriteTask != null)
+                                {
+                                    await lastWriteTask.Value;
+                                    currentWritePosition += writeSize;
+                                    reporter.ReportProgress(new ProgressData(currentWritePosition, estimatedSize));
+                                }
+
+                                if (readSize <= 0) break;
+
+                                currentReadPosition += readSize;
+
+                                writeSize = readSize;
+
+                                ReadOnlyMemory<byte> sliced = buffer.Slice(0, writeSize);
+
+                                if (param.Flags.Bit(FileFlags.CopyFile_Verify))
+                                {
+                                    srcCrc.Append(sliced.Span);
+                                }
+
+                                if (hash != null)
+                                {
+                                    var seg = sliced._AsSegment();
+
+                                    hash.TransformBlock(seg.Array!, seg.Offset, seg.Count, null, 0);
+                                }
+
+                                lastWriteTask = dest.WriteAsync(sliced, cancel);
+                            }
+
+                            reporter.ReportProgress(new ProgressData(currentWritePosition, estimatedSize));
+                        }
+                    }
+                }
+
+                srcZipCrc.Set(srcCrc.Value);
+
+                return currentWritePosition;
             }
-
-            srcZipCrc.Set(srcCrc.Value);
-
-            return currentPosition;
+        }
+        finally
+        {
+            if (totalReadErrorCount >= 1)
+            {
+                $"CopyBetweenStreamAsync: Skipped errors result: {totalReadErrorCount._ToString3()} read errors ignored. Total skip size = {totalReadErrorSize._ToString3()} bytes"._Error();
+            }
         }
     }
 
