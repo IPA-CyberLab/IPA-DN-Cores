@@ -4740,13 +4740,31 @@ HOST: www.google.com
     {
         await using var rawFs = new LocalRawDiskFileSystem();
 
-        await using var disk = await rawFs.OpenAsync("/by-disksize-4000784417280");
+        await using var disk = await rawFs.OpenAsync("/by-disksize-500105249280");
 
-        await using var stream = disk.GetStream();
+        await using var stream = disk.GetStream(true);
 
-        int ret = await FileUtil.GetMinimumReadSectorSizeAsync(stream);
+        long start = 1268000000;
+        start = (start / 512) * 512;
 
-        ret._Print();
+        Memory<byte> tmp = new byte[512];
+
+        for (long pos = start; ; pos += 512)
+        {
+            try
+            {
+                stream.Seek(pos, SeekOrigin.Begin);
+                //int sz = await disk.ReadRandomAsync(pos, tmp);
+
+                int sz = await stream._ReadAllAsync(tmp);
+
+                $"{pos._ToString3()}   ({(pos / 512)._ToString3()})  Ok. sz = {sz}"._Print();
+            }
+            catch (Exception ex)
+            {
+                $"{pos._ToString3()}   ({(pos / 512)._ToString3()})  {ex.Message}"._Print();
+            }
+        }
     }
 
     public static void Test_Generic()
