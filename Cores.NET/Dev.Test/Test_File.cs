@@ -1368,9 +1368,11 @@ partial class TestDevCommands
 
             var items = rawFs.EnumDirectory("/");
 
+            int maxWidth = items.Max(x => x.Name._GetWidth());
+
             foreach (var item in items.Where(x => x.IsFile))
             {
-                Con.WriteLine($"{item.Name}    -  {item.Size._ToString3()} bytes");
+                Con.WriteLine($"{item.Name}{Str.MakeCharArray(' ', maxWidth - item.Name._GetWidth())}    -  {item.Size._ToString3()} bytes");
             }
 
             Con.WriteLine();
