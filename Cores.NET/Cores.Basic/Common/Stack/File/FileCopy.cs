@@ -111,7 +111,7 @@ public class CopyDirectoryParams
     public FileMetadataCopier DirectoryMetadataCopier { get; }
     public FileMetadataCopier FileMetadataCopier { get; }
     public int BufferSize { get; }
-    public int IgnoreReadErrorSectorSize { get; }
+    public int? IgnoreReadErrorSectorSize { get; }
 
     public ProgressReporterFactoryBase EntireProgressReporterFactory { get; }
     public ProgressReporterFactoryBase FileProgressReporterFactory { get; }
@@ -166,7 +166,7 @@ public class CopyDirectoryParams
 
     public CopyDirectoryParams(CopyDirectoryFlags copyDirFlags = CopyDirectoryFlags.Default, FileFlags copyFileFlags = FileFlags.None,
         FileMetadataCopier? dirMetadataCopier = null, FileMetadataCopier? fileMetadataCopier = null,
-        int bufferSize = 0, int ignoreReadErrorSectorSize = 0,
+        int bufferSize = 0, int? ignoreReadErrorSectorSize = null,
         ProgressReporterFactoryBase? entireReporterFactory = null, ProgressReporterFactoryBase? fileReporterFactory = null,
         ProgressCallback? progressCallback = null,
         ExceptionCallback? exceptionCallback = null,
@@ -233,7 +233,7 @@ public class CopyFileParams
     public int BufferSize { get; }
     public bool AsyncCopy { get; }
     public bool IgnoreReadError { get; }
-    public int IgnoreReadErrorSectorSize { get; }
+    public int? IgnoreReadErrorSectorSize { get; }
     public EncryptOption EncryptOption { get; }
     public string EncryptPassword { get; }
     public bool DeleteFileIfVerifyFailed { get; }
@@ -248,14 +248,14 @@ public class CopyFileParams
     public static ProgressReporterFactoryBase DebugReporterFactory { get; } = new ProgressFileProcessingReporterFactory(ProgressReporterOutputs.Debug, options: ProgressReporterOptions.EnableThroughput);
 
     public CopyFileParams(bool overwrite = true, FileFlags flags = FileFlags.None, FileMetadataCopier? metadataCopier = null, int bufferSize = 0, bool asyncCopy = true,
-        bool ignoreReadError = false, int ignoreReadErrorSectorSize = 0,
+        bool ignoreReadError = false, int? ignoreReadErrorSectorSize = null,
         ProgressReporterFactoryBase? reporterFactory = null, EncryptOption encryptOption = EncryptOption.None, string encryptPassword = "",
         bool deleteFileIfVerifyFailed = false, bool ensureBufferSize = false, int retryCount = 3, bool calcDigest = false)
     {
         if (metadataCopier == null) metadataCopier = DefaultFileMetadataCopier;
         if (bufferSize <= 0) bufferSize = CoresConfig.FileUtilSettings.FileCopyBufferSize;
         if (reporterFactory == null) reporterFactory = NullReporterFactory;
-        if (ignoreReadErrorSectorSize <= 0) ignoreReadErrorSectorSize = CoresConfig.FileUtilSettings.DefaultSectorSize;
+        if (ignoreReadErrorSectorSize.HasValue && ignoreReadErrorSectorSize.Value <= 0) ignoreReadErrorSectorSize = CoresConfig.FileUtilSettings.DefaultSectorSize;
         if (retryCount < 0) retryCount = 0;
 
         if (encryptOption.Bit(EncryptOption.Encrypt) && encryptOption.Bit(EncryptOption.Decrypt))
@@ -269,11 +269,6 @@ public class CopyFileParams
             {
                 throw new CoresLibException("Compress is enabled while Encrypt and Decrypt are disabled");
             }
-        }
-
-        if (ignoreReadError && ensureBufferSize && ((bufferSize % ignoreReadErrorSectorSize) != 0))
-        {
-            throw new CoresLibException($"ignoreReadError == true && ensureBufferSize == true && ((bufferSize ({bufferSize}) % ignoreReadErrorSectorSize ({ignoreReadErrorSectorSize})) != 0)");
         }
 
         this.Overwrite = overwrite;
@@ -1270,6 +1265,69 @@ public static partial class FileUtil
         return await CopyBetweenStreamAsync(srcStream, destStream, param, reporter, estimatedSize, cancel, readErrorIgnored, srcZipCrc, truncateSize, hash);
     }
 
+    public static async Task<int> GetMinimumReadSectorSizeAsync(Stream stream, int defaultSize = 4096, CancellationToken cancel = default)
+    {
+        if (stream.CanSeek == false)
+        {
+            return defaultSize;
+        }
+
+        long originalPosition;
+
+        try
+        {
+            originalPosition = stream.Position;
+
+            if (stream.Length < 65536)
+            {
+                return defaultSize;
+            }
+        }
+        catch
+        {
+            return defaultSize;
+        }
+
+        try
+        {
+            stream.Position = 36864;
+        }
+        catch
+        {
+            stream.Position = originalPosition;
+
+            return defaultSize;
+        }
+
+        try
+        {
+            // Try 512
+            int trySize = 512;
+
+            Memory<byte> tmpBuf = new byte[trySize];
+
+            stream.Position = 36864 + trySize;
+
+            try
+            {
+                int sz = await stream.ReadAsync(tmpBuf, cancel);
+
+                if (sz == trySize)
+                {
+                    return trySize;
+                }
+            }
+            catch { }
+
+            // Then 4096
+            return 4096;
+        }
+        finally
+        {
+            stream.Position = originalPosition;
+        }
+    }
+
     public static async Task<long> CopyBetweenStreamAsync(Stream src, Stream dest, CopyFileParams? param = null, ProgressReporterBase? reporter = null,
         long estimatedSize = -1, CancellationToken cancel = default, RefBool? readErrorIgnored = null, Ref<uint>? srcZipCrc = null, long truncateSize = -1, HashAlgorithm? hash = null)
     {
@@ -1289,6 +1347,27 @@ public static partial class FileUtil
                 // Gzip 等の圧縮ストリーム等でサイズ取得に失敗するものも存在する
                 estimatedSize = -1;
             }
+        }
+
+        int ignoreSectorSize = 4096;
+
+        if (param.IgnoreReadError)
+        {
+            if (param.IgnoreReadErrorSectorSize.HasValue)
+            {
+                ignoreSectorSize = param.IgnoreReadErrorSectorSize.Value;
+            }
+            else
+            {
+                ignoreSectorSize = await FileUtil.GetMinimumReadSectorSizeAsync(src, cancel: cancel);
+            }
+        }
+
+        int bufferSize = param.BufferSize;
+
+        if (param.IgnoreReadError && (bufferSize % ignoreSectorSize) != 0)
+        {
+            bufferSize = ((bufferSize + (ignoreSectorSize - 1)) / ignoreSectorSize) * ignoreSectorSize;
         }
 
         if (truncateSize >= 0)
@@ -1323,7 +1402,7 @@ public static partial class FileUtil
                 if (param.AsyncCopy == false)
                 {
                     // Normal copy
-                    using (MemoryHelper.FastAllocMemoryWithUsing(param.BufferSize, out Memory<byte> buffer))
+                    using (MemoryHelper.FastAllocMemoryWithUsing(bufferSize, out Memory<byte> buffer))
                     {
                         long currentReadPosition = 0;
 
@@ -1354,7 +1433,7 @@ public static partial class FileUtil
                             if (currentReadPosition < sectorSizeBasedReadOperationEndMarker)
                             {
                                 isSmallSectorReadMode = true;
-                                thisTimeBuffer = thisTimeBuffer.Slice(0, param.IgnoreReadErrorSectorSize);
+                                thisTimeBuffer = thisTimeBuffer.Slice(0, ignoreSectorSize);
                             }
 
                             try
@@ -1372,12 +1451,12 @@ public static partial class FileUtil
 
                                 renzokuErrorCounter = 0;
                             }
-                            catch (Exception ex) when (basePositionOfSrcStream >= 0 && param.IgnoreReadError && estimatedSize >= 1 && src.CanSeek && param.IgnoreReadErrorSectorSize >= 1 && !(ex is DisconnectedException) && !(ex is SocketException))
+                            catch (Exception ex) when (basePositionOfSrcStream >= 0 && param.IgnoreReadError && estimatedSize >= 1 && src.CanSeek && ignoreSectorSize >= 1 && !(ex is DisconnectedException) && !(ex is SocketException))
                             {
                                 // Ignore read error
                                 cancel.ThrowIfCancellationRequested();
 
-                                sectorSizeBasedReadOperationEndMarker = currentReadPosition + param.BufferSize;
+                                sectorSizeBasedReadOperationEndMarker = currentReadPosition + bufferSize;
 
                                 long currentSrcPos = basePositionOfSrcStream + currentReadPosition;
 
@@ -1393,21 +1472,21 @@ public static partial class FileUtil
                                     await Task.Yield();
                                 }
 
-                                sectorSizeBasedReadOperationEndMarker = currentReadPosition + param.BufferSize;
+                                sectorSizeBasedReadOperationEndMarker = currentReadPosition + bufferSize;
 
-                                long currentSrcSector = currentSrcPos / param.IgnoreReadErrorSectorSize;
+                                long currentSrcSector = currentSrcPos / ignoreSectorSize;
 
                                 int skipSectors = 1;
                                 if (renzokuErrorCounter >= 1)
                                 {
-                                    int maxSkipSectors = Math.Max(1, param.BufferSize / param.IgnoreReadErrorSectorSize);
+                                    int maxSkipSectors = Math.Max(1, bufferSize / ignoreSectorSize);
 
                                     skipSectors = (int)Math.Min(maxSkipSectors, renzokuErrorCounter);
                                 }
 
                                 long nextSector = currentSrcSector + skipSectors;
 
-                                long nextSrcPos = nextSector * param.IgnoreReadErrorSectorSize;
+                                long nextSrcPos = nextSector * ignoreSectorSize;
 
                                 int skipSize = (int)(nextSrcPos - currentSrcPos);
 
@@ -1473,9 +1552,9 @@ public static partial class FileUtil
                 else
                 {
                     // Async copy
-                    using (MemoryHelper.FastAllocMemoryWithUsing(param.BufferSize, out Memory<byte> buffer1))
+                    using (MemoryHelper.FastAllocMemoryWithUsing(bufferSize, out Memory<byte> buffer1))
                     {
-                        using (MemoryHelper.FastAllocMemoryWithUsing(param.BufferSize, out Memory<byte> buffer2))
+                        using (MemoryHelper.FastAllocMemoryWithUsing(bufferSize, out Memory<byte> buffer2))
                         {
                             ValueTask? lastWriteTask = null;
                             int number = 0;
@@ -1512,12 +1591,12 @@ public static partial class FileUtil
                                 if (currentReadPosition < sectorSizeBasedReadOperationEndMarker)
                                 {
                                     isSmallSectorReadMode = true;
-                                    thisTimeBuffer = thisTimeBuffer.Slice(0, param.IgnoreReadErrorSectorSize);
+                                    thisTimeBuffer = thisTimeBuffer.Slice(0, ignoreSectorSize);
                                 }
 
                                 try
                                 {
-//                                    Con.WriteLine($"pos = {currentReadPosition._ToString3()}, size = {thisTimeBuffer.Length._ToString3()}");
+                                    //                                    Con.WriteLine($"pos = {currentReadPosition._ToString3()}, size = {thisTimeBuffer.Length._ToString3()}");
                                     if (param.EnsureBufferSize == false)
                                     {
                                         readSize = await src.ReadAsync(thisTimeBuffer, cancel);
@@ -1531,12 +1610,12 @@ public static partial class FileUtil
 
                                     renzokuErrorCounter = 0;
                                 }
-                                catch (Exception ex) when (basePositionOfSrcStream >= 0 && param.IgnoreReadError && estimatedSize >= 1 && src.CanSeek && param.IgnoreReadErrorSectorSize >= 1 && !(ex is DisconnectedException) && !(ex is SocketException))
+                                catch (Exception ex) when (basePositionOfSrcStream >= 0 && param.IgnoreReadError && estimatedSize >= 1 && src.CanSeek && ignoreSectorSize >= 1 && !(ex is DisconnectedException) && !(ex is SocketException))
                                 {
                                     // Ignore read error
                                     cancel.ThrowIfCancellationRequested();
 
-                                    sectorSizeBasedReadOperationEndMarker = currentReadPosition + param.BufferSize;
+                                    sectorSizeBasedReadOperationEndMarker = currentReadPosition + bufferSize;
 
                                     long currentSrcPos = basePositionOfSrcStream + currentReadPosition;
 
@@ -1552,19 +1631,19 @@ public static partial class FileUtil
                                         await Task.Yield();
                                     }
 
-                                    long currentSrcSector = currentSrcPos / param.IgnoreReadErrorSectorSize;
+                                    long currentSrcSector = currentSrcPos / ignoreSectorSize;
 
                                     int skipSectors = 1;
                                     if (renzokuErrorCounter >= 1)
                                     {
-                                        int maxSkipSectors = Math.Max(1, param.BufferSize / param.IgnoreReadErrorSectorSize);
+                                        int maxSkipSectors = Math.Max(1, bufferSize / ignoreSectorSize);
 
                                         skipSectors = (int)Math.Min(maxSkipSectors, renzokuErrorCounter);
                                     }
 
                                     long nextSector = currentSrcSector + skipSectors;
 
-                                    long nextSrcPos = nextSector * param.IgnoreReadErrorSectorSize;
+                                    long nextSrcPos = nextSector * ignoreSectorSize;
 
                                     int skipSize = (int)(nextSrcPos - currentSrcPos);
 

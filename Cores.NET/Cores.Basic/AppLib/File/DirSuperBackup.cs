@@ -96,7 +96,7 @@ public enum DirSuperBackupFlags : long
     RestoreNoMd5 = 2097152,
 
     NoFileNameLenLimit = 4194304,
-    IgnoreBadSector = 8388608,
+    IgnoreReadError = 8388608,
 }
 
 public class DirSuperBackupOptions
@@ -836,7 +836,7 @@ public class DirSuperBackup : AsyncService
 
                         bool ignoreReadError = false;
 
-                        if (this.Options.Flags.Bit(DirSuperBackupFlags.IgnoreBadSector) == false)
+                        if (this.Options.Flags.Bit(DirSuperBackupFlags.IgnoreReadError) == false)
                         {
                             ignoreReadError = true;
                         }
@@ -1240,7 +1240,7 @@ public class DirSuperBackup : AsyncService
 
                         bool ignoreReadError = false;
 
-                        if (this.Options.Flags.Bit(DirSuperBackupFlags.IgnoreBadSector) == false)
+                        if (this.Options.Flags.Bit(DirSuperBackupFlags.IgnoreReadError) == false)
                         {
                             ignoreReadError = true;
                         }

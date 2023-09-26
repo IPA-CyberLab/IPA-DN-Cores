@@ -4736,9 +4736,27 @@ HOST: www.google.com
         }
     }
 
+    static async Task Test_230927()
+    {
+        await using var rawFs = new LocalRawDiskFileSystem();
+
+        await using var disk = await rawFs.OpenAsync("/by-disksize-4000784417280");
+
+        await using var stream = disk.GetStream();
+
+        int ret = await FileUtil.GetMinimumReadSectorSizeAsync(stream);
+
+        ret._Print();
+    }
 
     public static void Test_Generic()
     {
+        if (true)
+        {
+            Test_230927()._GetResult();
+            return;
+        }
+
         if (true)
         {
             Test_230925_Backup();
