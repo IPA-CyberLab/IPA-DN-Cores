@@ -4767,11 +4767,18 @@ HOST: www.google.com
         }
     }
 
+    static async Task Test_230927_TsTest()
+    {
+        await using TimeStampDocsUtil u = new TimeStampDocsUtil(Lfs);
+
+        await u.DoAsync(@"C:\tmp2\230927_ts_test\dir1; C:\tmp2\230927_ts_test\dir2");
+    }
+
     public static void Test_Generic()
     {
         if (true)
         {
-            Test_230926()._GetResult();
+            Test_230927_TsTest()._GetResult();
             return;
         }
 

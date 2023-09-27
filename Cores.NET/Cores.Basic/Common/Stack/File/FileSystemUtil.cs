@@ -1020,6 +1020,8 @@ public class DirectoryPathInfo
         => this.FullPath;
 }
 
+public class CoresNoSubDirException : CoresException { }
+
 public class DirectoryWalker
 {
     public FileSystem FileSystem { get; }
@@ -1111,12 +1113,22 @@ public class DirectoryWalker
             currentDirInfo = new DirectoryPathInfo(this.FileSystem, true, directoryFullPath, directoryRelativePath, rootDirEntry);
         }
 
-        if (await callback(currentDirInfo, entityList, opCancel) == false)
+        bool noSubDir = false;
+
+        try
         {
-            return false;
+            if (await callback(currentDirInfo, entityList, opCancel) == false)
+            {
+                return false;
+            }
+        }
+        catch (CoresNoSubDirException)
+        {
+            // CoresNoSubDirException 例外が発生した場合は、サブディレクトリには突入しない
+            noSubDir = true;
         }
 
-        if (recursive)
+        if (recursive && noSubDir == false)
         {
             // Deep directory
             foreach (FileSystemEntity entity in entityList.Where(x => x.IsCurrentOrParentDirectory == false))
@@ -1168,6 +1180,38 @@ public class DirectoryWalker
             async (dirInfo, exception, c) => { if (exceptionHandler == null) throw exception; return exceptionHandler(dirInfo, exception, c); },
             recursive, cancel)._GetResult();
 #pragma warning restore CS1998
+
+    public async Task<bool> WalkDirectoriesAsync(string[] rootDirectoryList,
+        Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>> callback,
+        Func<DirectoryPathInfo, FileSystemEntity[], CancellationToken, Task<bool>>? callbackForDirectoryAgain = null,
+        Func<DirectoryPathInfo, Exception, CancellationToken, Task<bool>>? exceptionHandler = null,
+        bool recursive = true,
+        CancellationToken cancel = default,
+        Func<DirectoryPathInfo, FileSystemEntity, bool>? entityFilter = null
+        )
+    {
+        if (rootDirectoryList.Length == 0)
+        {
+            return false;
+        }
+
+        foreach (var element in rootDirectoryList)
+        {
+            cancel.ThrowIfCancellationRequested();
+
+            var rootDirectory = await FileSystem.NormalizePathAsync(element, cancel: cancel);
+
+            bool ret = await WalkDirectoryInternalAsync(rootDirectory, "", callback, callbackForDirectoryAgain, exceptionHandler, recursive, cancel, entityFilter: entityFilter);
+
+            if (ret == false)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
 }
 
 public enum EasyFileAccessType
