@@ -1477,12 +1477,13 @@ public static partial class FileUtil
                                 long currentSrcSector = currentSrcPos / ignoreSectorSize;
 
                                 int skipSectors = 1;
-                                if (renzokuErrorCounter >= 1)
+                                /* この処理は消した。これを有効にすると物理ディスクのセクタサイズ境界と合わずにエラーが生じる。
+                                 * if (renzokuErrorCounter >= 1)
                                 {
                                     int maxSkipSectors = Math.Max(1, bufferSize / ignoreSectorSize);
 
                                     skipSectors = (int)Math.Min(maxSkipSectors, renzokuErrorCounter);
-                                }
+                                }*/
 
                                 long nextSector = currentSrcSector + skipSectors;
 
@@ -1634,12 +1635,13 @@ public static partial class FileUtil
                                     long currentSrcSector = currentSrcPos / ignoreSectorSize;
 
                                     int skipSectors = 1;
-                                    if (renzokuErrorCounter >= 1)
+                                    /* この処理は消した。これを有効にすると物理ディスクのセクタサイズ境界と合わずにエラーが生じる。
+                                     * if (renzokuErrorCounter >= 1)
                                     {
                                         int maxSkipSectors = Math.Max(1, bufferSize / ignoreSectorSize);
 
                                         skipSectors = (int)Math.Min(maxSkipSectors, renzokuErrorCounter);
-                                    }
+                                    }*/
 
                                     long nextSector = currentSrcSector + skipSectors;
 
