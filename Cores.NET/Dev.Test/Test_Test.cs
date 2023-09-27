@@ -4711,10 +4711,10 @@ HOST: www.google.com
 
     static async Task Test_230926()
     {
-        //await using var file = await Lfs.OpenAsync("/bktmp1/230926_ltshv1_3_c_backup/lts-hv1.securecompress");
-        //await using var stream = file.GetStream(true);
+        await using var file = await Lfs.OpenAsync("/bktmp1/230926_ltshv1_3_c_backup/lts-hv1.securecompress");
+        await using var stream = file.GetStream(true);
 
-        await using var stream = File.OpenRead("/bktmp1/230926_ltshv1_3_c_backup/lts-hv1.securecompress");
+        //await using var stream = File.OpenRead("/bktmp1/230926_ltshv1_3_c_backup/lts-hv1.securecompress");
 
         long total = 0;
 
