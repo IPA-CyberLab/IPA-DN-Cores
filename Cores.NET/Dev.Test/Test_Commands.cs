@@ -327,6 +327,26 @@ partial class TestDevCommands
     }
 
     [ConsoleCommand(
+        "Execute SecureCompressTest Suite",
+        "SecureCompressTest",
+        "Execute SecureCompressTest Suite")]
+    static int SecureCompressTest(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
+        };
+
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        Cores.Basic.SecureCompresTest.DoTestAsync()._GetResult();
+
+        ""._Print();
+        $"Test Ok."._Print();
+
+        return 0;
+    }
+
+    [ConsoleCommand(
     "Normalize Src Code Text with BOM and UTF-8",
     "NormalizeSrcCodeText [dir]",
     "Normalize Src Code Text with BOM and UTF-8",

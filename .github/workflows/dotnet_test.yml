@@ -94,5 +94,8 @@ jobs:
       - name: SslTestSuite Self Release
         run: dotnet run --project Cores.NET/Dev.Test/Dev.Test.csproj --configuration Release SslTestSuite self /parallel:64 /interval:1000 /ignore:default /expectedcertstr:default
 
+      - name: SecureCompressTest Release
+        run: dotnet run --project Cores.NET/Dev.Test/Dev.Test.csproj --configuration Release SecureCompressTest
+
 
 

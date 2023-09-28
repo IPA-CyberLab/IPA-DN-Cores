@@ -4767,18 +4767,80 @@ HOST: www.google.com
         }
     }
 
-    static async Task Test_230927_TsTest()
+    static async Task Test_230927_generate_securecompress_test_data()
     {
-        await using TimeStampDocsUtil u = new TimeStampDocsUtil(Lfs);
+        // https://lts.dn.ipantt.net/d/230928_001_51962/  を生成
 
-        await u.DoAsync(@"C:\tmp2\230927_ts_test\dir1; C:\tmp2\230927_ts_test\dir2");
+        //if (false)
+        {
+            StringWriter w = new StringWriter();
+            w.NewLine = Str.NewLine_Str_Unix;
+            int i;
+            SeedBasedRandomGenerator rand = new SeedBasedRandomGenerator("Hello");
+            for (i = 0; i < 20_000; i++)
+            {
+                string hex = rand.GetBytes(600)._GetHexString();
+
+                w.Write(hex);
+                w.WriteLine();
+            }
+            await w.FlushAsync();
+            byte[] mem = w.ToString()._GetBytes_Ascii();
+
+            Secure.HashSHA1(mem)._GetHexString()._Print();
+
+            await using var file1 = await Lfs.CreateAsync(@"c:\tmp2\230928\1.dat", flags: FileFlags.AutoCreateDirectory);
+            await using var fileStream1 = file1.GetStream(true);
+
+            await using SecureCompressEncoder enc = new SecureCompressEncoder(fileStream1, new SecureCompressOptions("", true, "microsoft", true));
+
+            await enc.WriteAsync(mem);
+        }
+        //else
+        {
+            var body1 = await Lfs.ReadDataFromFileAsync(@"c:\tmp2\230928\1.dat");
+
+            MemoryStream ms1 = new MemoryStream();
+            await using SecureCompressDecoder dec = new SecureCompressDecoder(ms1, new SecureCompressOptions("", true, "microsoft", true));
+            await dec.WriteAsync(body1);
+            await dec.FinalizeAsync();
+
+            await Lfs.WriteDataToFileAsync(@"c:\tmp2\230928\2.dat", ms1.ToArray());
+        }
+
+        if (false)
+        {
+            var body1 = await Lfs.ReadDataFromFileAsync(@"c:\tmp2\230928\1.dat");
+
+            for (int i = 0; i < 10; i++)
+            {
+                int pos = Secure.RandSInt31() % (body1.Length - 4_000_000) + 2_000_000;
+
+                body1.Slice(pos).Slice(0, 10000).Span.Fill((byte)'x');
+            }
+            await Lfs.WriteDataToFileAsync(@"c:\tmp2\230928\1_broken.dat", body1);
+        }
+        {
+            var body1 = await Lfs.ReadDataFromFileAsync(@"c:\tmp2\230928\1_broken.dat");
+
+            MemoryStream ms1 = new MemoryStream();
+            await using SecureCompressDecoder dec = new SecureCompressDecoder(ms1, new SecureCompressOptions("", true, "microsoft", true));
+            await dec.WriteAsync(body1);
+            await dec.FinalizeAsync();
+
+            await Lfs.WriteDataToFileAsync(@"c:\tmp2\230928\2_broken.dat", ms1.ToArray());
+
+            Secure.HashSHA1(ms1.ToArray())._GetHexString()._Print();
+        }
+
     }
 
     public static void Test_Generic()
     {
         if (true)
         {
-            Test_230927_TsTest()._GetResult();
+            SecureCompresTest.DoTestAsync()._GetResult();
+            //Test_230927_generate_securecompress_test_data()._GetResult();
             return;
         }
 

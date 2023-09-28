@@ -1430,5 +1430,42 @@ public class SecureCompressEncoder : StreamImplBase
     }
 }
 
+public static class SecureCompresTest
+{
+    public static async Task DoTestAsync()
+    {
+        // テストデータ生成元: Test_230927_generate_securecompress_test_data
+
+        var normal = await SimpleHttpDownloader.DownloadAsync(@"https://lts.dn.ipantt.net/d/230928_001_51962/1.dat",
+            options: new WebApiOptions(new WebApiSettings { AllowAutoRedirect = true, }));
+
+        Dbg.TestTrue(Secure.HashSHA1(normal.Data)._GetHexString() == "D8F45E54F82858ECC1831E7C00DD96D54ED97CE9");
+
+        var broken = await SimpleHttpDownloader.DownloadAsync(@"https://lts.dn.ipantt.net/d/230928_001_51962/1_broken.dat",
+            options: new WebApiOptions(new WebApiSettings { AllowAutoRedirect = true, }));
+
+        Dbg.TestTrue(Secure.HashSHA1(broken.Data)._GetHexString() == "9C63E340C42DE44D1C801AC728DA6F6DACE86DDE");
+
+        MemoryStream ms1 = new MemoryStream();
+        await using SecureCompressDecoder dec1 = new SecureCompressDecoder(ms1, new SecureCompressOptions("", true, "microsoft", true));
+        await dec1.WriteAsync(normal.Data);
+        await dec1.FlushAsync();
+        await dec1.FinalizeAsync();
+
+        MemoryStream ms2 = new MemoryStream();
+        await using SecureCompressDecoder dec2 = new SecureCompressDecoder(ms2, new SecureCompressOptions("", true, "microsoft", true));
+        await dec2.WriteAsync(broken.Data);
+        await dec2.FlushAsync();
+        await dec2.FinalizeAsync();
+
+        Dbg.TestTrue(Secure.HashSHA1(ms1.ToArray())._GetHexString() == "C0F31F265AC69011A0545563476DF9AB3DD797D7");
+
+        Dbg.TestTrue(Secure.HashSHA1(ms2.ToArray())._GetHexString() == "C79FD716B3720E582533524B0CC44943E416BF4B");
+
+        Dbg.TestTrue(dec2.NumError == 8);
+        Dbg.TestTrue(dec2.NumWarning == 9);
+    }
+}
+
 #endif
 
