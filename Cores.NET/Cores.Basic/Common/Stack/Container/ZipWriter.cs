@@ -163,8 +163,8 @@ public class ZipWriter : FileContainer
                 {
                     bool useZip64 = false;
 
-                        // ZIP64 形式のヘッダが必要かどうか判定する
-                        if (NumTotalFiles > ushort.MaxValue) useZip64 = true;
+                    // ZIP64 形式のヘッダが必要かどうか判定する
+                    if (NumTotalFiles > ushort.MaxValue) useZip64 = true;
                     if (sizeOfCentralDirectory > uint.MaxValue) useZip64 = true;
                     if (offsetOfCentralDirectory > uint.MaxValue) useZip64 = true;
 
@@ -174,8 +174,8 @@ public class ZipWriter : FileContainer
 
                     if (useZip64)
                     {
-                            // ZIP64 エンドオブセントラルディレクトリレコードの追記
-                            ref Zip64EndOfCentralDirectoryRecord endZip64Record = ref p.AppendSpan<Zip64EndOfCentralDirectoryRecord>();
+                        // ZIP64 エンドオブセントラルディレクトリレコードの追記
+                        ref Zip64EndOfCentralDirectoryRecord endZip64Record = ref p.AppendSpan<Zip64EndOfCentralDirectoryRecord>();
 
                         endZip64Record.Signature = ZipConsts.Zip64EndOfCentralDirectorySignature._LE_Endian32_U();
 
@@ -192,8 +192,8 @@ public class ZipWriter : FileContainer
                         endZip64Record.SizeOfCentralDirectory = ((ulong)sizeOfCentralDirectory)._LE_Endian64_U();
                         endZip64Record.OffsetStartCentralDirectory = ((ulong)offsetOfCentralDirectory)._LE_Endian64_U();
 
-                            // ZIP64 エンドオブセントラルディレクトリロケータの追記
-                            ref Zip64EndOfCentralDirectoryLocator zip64Locator = ref p.AppendSpan<Zip64EndOfCentralDirectoryLocator>();
+                        // ZIP64 エンドオブセントラルディレクトリロケータの追記
+                        ref Zip64EndOfCentralDirectoryLocator zip64Locator = ref p.AppendSpan<Zip64EndOfCentralDirectoryLocator>();
 
                         zip64Locator.Signature = ZipConsts.Zip64EndOfCentralDirectoryLocatorSignature;
                         zip64Locator.NumberOfThisDisk = 0;
@@ -201,8 +201,8 @@ public class ZipWriter : FileContainer
                         zip64Locator.TotalNumberOfDisk = 1._LE_Endian32_U();
                     }
 
-                        // エンドオブセントラルディレクトリレコード
-                        ref ZipEndOfCentralDirectoryRecord endRecord = ref p.AppendSpan<ZipEndOfCentralDirectoryRecord>();
+                    // エンドオブセントラルディレクトリレコード
+                    ref ZipEndOfCentralDirectoryRecord endRecord = ref p.AppendSpan<ZipEndOfCentralDirectoryRecord>();
 
                     endRecord.Signature = ZipConsts.EndOfCentralDirectorySignature._LE_Endian32_U();
 
@@ -287,8 +287,8 @@ public class ZipWriter : FileContainer
                 {
                     checked
                     {
-                            // このファイル用のローカルファイルヘッダを生成します
-                            LocalFileHeader.Signature = ZipConsts.LocalFileHeaderSignature._LE_Endian32_U();
+                        // このファイル用のローカルファイルヘッダを生成します
+                        LocalFileHeader.Signature = ZipConsts.LocalFileHeaderSignature._LE_Endian32_U();
                         LocalFileHeader.NeedVersion = ZipFileVersion.Ver2_0;
                         LocalFileHeader.GeneralPurposeFlag = (ZipGeneralPurposeFlags.UseDataDescriptor |
                             ZipGeneralPurposeFlags.Utf8.If(this.Encoding._IsUtf8Encoding()) |
@@ -354,7 +354,7 @@ public class ZipWriter : FileContainer
                 if (CompressionMethod != ZipCompressionMethod.Raw)
                 {
                     // 圧縮レイヤーを追加
-                    this.FileContentWriterStream.Add((lower) => new DeflateStream(lower, Param.Flags.Bit(FileContainerEntityFlags.CompressionMode_Fast) ? CompressionLevel.Fastest : CompressionLevel.Optimal, true),
+                    this.FileContentWriterStream.Add((lower) => new DeflateStream(lower, Param.Flags.Bit(FileContainerEntityFlags.CompressionMode_Fast) ? CompressionLevel.Fastest : (Param.Flags.Bit(FileContainerEntityFlags.CompressionMode_SmallestSize) ? CompressionLevel.SmallestSize : CompressionLevel.Optimal), true),
                         autoDispose: true);
                 }
             }
@@ -419,8 +419,8 @@ public class ZipWriter : FileContainer
             {
                 checked
                 {
-                        // このファイル用のデータデスクリプタ (フッタのようなもの) を書き込みます
-                        DataDescriptor.Signature = ZipConsts.DataDescriptorSignature._LE_Endian32_U();
+                    // このファイル用のデータデスクリプタ (フッタのようなもの) を書き込みます
+                    DataDescriptor.Signature = ZipConsts.DataDescriptorSignature._LE_Endian32_U();
                     DataDescriptor.Crc32 = Crc32.Value._LE_Endian32_U();
 
                     if (useZip64 == false)
@@ -450,8 +450,8 @@ public class ZipWriter : FileContainer
                 {
                     Memory<byte> extraFieldsMemory = default;
 
-                        // このファイル用のセントラルディレクトリヘッダを生成します (後で書き込みますが、今は書き込みません。バッファに一時保存するだけです)
-                        Packet p = new Packet();
+                    // このファイル用のセントラルディレクトリヘッダを生成します (後で書き込みますが、今は書き込みません。バッファに一時保存するだけです)
+                    Packet p = new Packet();
 
                     ref ZipCentralFileHeader centralFileHeader = ref p.AppendSpan<ZipCentralFileHeader>();
 

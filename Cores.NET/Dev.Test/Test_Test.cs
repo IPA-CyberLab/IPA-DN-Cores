@@ -4835,11 +4835,25 @@ HOST: www.google.com
 
     }
 
+    static async Task Test_230927_TsTest()
+    {
+        if (false)
+        {
+            FileUtil.CalcTextBodyToZipSize(Secure.Rand(100000000)._GetHexString(), "abc")._Print();
+        }
+        else
+        {
+            await using TimeStampDocsUtil u = new TimeStampDocsUtil(Lfs);
+
+            await u.DoAsync(@"C:\tmp2\230927_ts_test\dir1; C:\tmp2\230927_ts_test\dir2");
+        }
+    }
+
     public static void Test_Generic()
     {
         if (true)
         {
-            SecureCompresTest.DoTestAsync()._GetResult();
+            Test_230927_TsTest()._GetResult();
             //Test_230927_generate_securecompress_test_data()._GetResult();
             return;
         }

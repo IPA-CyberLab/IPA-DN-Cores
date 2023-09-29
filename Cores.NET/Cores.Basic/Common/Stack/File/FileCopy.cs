@@ -323,6 +323,90 @@ public enum ArchiveFileType
 
 public static partial class FileUtil
 {
+    public static List<Memory<byte>> CompressTextToZipFilesSplittedWithMinSize(string textBody, int minSize, string innerFileNameWithoutExt, string zipPassword, string ext = ".txt")
+    {
+        List<Memory<byte>> ret = new List<Memory<byte>>();
+
+        string[] srcLines = textBody._GetLines();
+
+        int index = 0;
+
+        //int numLinesInSingleZip = CalcHowManyFirstLineCanBeIncludedInZip(srcLines, minSize, zipPassword);
+
+        while (srcLines.Length >= 1)
+        {
+            int numLinesInSingleZip = CalcHowManyFirstLineCanBeIncludedInZip(srcLines, minSize, zipPassword);
+
+            string[] thisFileLines = srcLines.Take(numLinesInSingleZip).ToArray();
+            srcLines = srcLines.TakeLast(srcLines.Length - numLinesInSingleZip).ToArray();
+
+            index++;
+
+            string fn = $"{innerFileNameWithoutExt}-{index:D3}{ext}";
+
+            MemoryStream ms = new MemoryStream();
+
+            using SeekableStreamBasedRandomAccess ra = new SeekableStreamBasedRandomAccess(ms, true);
+
+            using var zip = new ZipWriter(new ZipContainerOptions(ra));
+
+            zip.AddFileSimpleData(new FileContainerEntityParam(fn, flags: FileContainerEntityFlags.EnableCompression | FileContainerEntityFlags.CompressionMode_SmallestSize, encryptPassword: zipPassword), (thisFileLines._LinesToStr(Str.NewLine_Str_Windows))._GetBytes_UTF8(true));
+
+            zip.Finish();
+
+            ret.Add(ms.ToArray());
+        }
+
+        return ret;
+    }
+
+    public static int CalcHowManyFirstLineCanBeIncludedInZip(string[] lines, int minZipFileSize, string password, int step = 10000, int minLines = 10000)
+    {
+        if (lines.Length <= step)
+        {
+            return lines.Length;
+        }
+
+        int ret = 0;
+
+        int sz2 = CalcTextBodyToZipSize(lines._LinesToStr(Str.NewLine_Str_Windows), password);
+        if (sz2 <= minZipFileSize)
+        {
+            return lines.Length;
+        }
+
+        for (int i = step; i < lines.Length; i += step)
+        {
+            int sz = CalcTextBodyToZipSize(lines.Take(i)._LinesToStr(Str.NewLine_Str_Windows), password);
+
+            if (sz <= minZipFileSize)
+            {
+                ret = i;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        return Math.Min(Math.Max(ret, minLines), lines.Length);
+    }
+
+    public static int CalcTextBodyToZipSize(string body, string password)
+    {
+        MemoryStream ms = new MemoryStream();
+
+        using SeekableStreamBasedRandomAccess ra = new SeekableStreamBasedRandomAccess(ms, true);
+
+        using var zip = new ZipWriter(new ZipContainerOptions(ra));
+
+        zip.AddFileSimpleData(new FileContainerEntityParam(@"test.txt", flags: FileContainerEntityFlags.EnableCompression | FileContainerEntityFlags.CompressionMode_SmallestSize, encryptPassword: password), body._GetBytes_UTF8(true));
+
+        zip.Finish();
+
+        return (int)ms.Length;
+    }
+
     public static async Task<ArchiveFileType> DetectArchiveFileFormatAsync(Stream stream, CancellationToken cancel = default)
     {
         long originalPos = stream.Position;

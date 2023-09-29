@@ -72,6 +72,7 @@ public enum FileContainerEntityFlags : ulong
     EnableCompression = 1,      // 通常の圧縮を ON にする
     CompressionMode_Fast = 2,   // 速度優先の圧縮
     FileNameUseShiftJisIfPossible = 4,  // ファイル名が SHIFT_JIS で表現可能な場合は SHIFT_JIS 化する
+    CompressionMode_SmallestSize = 8,   // 最小サイズへの圧縮
 }
 
 [Serializable]
