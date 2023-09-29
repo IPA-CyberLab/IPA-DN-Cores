@@ -244,6 +244,11 @@ public class FileHiveStorageProvider : HiveStorageProvider
         string newFilename = filename + Options.TmpFileExtension;
         string directoryName = PathParser.GetDirectoryName(filename);
 
+        if (dataName._InStri("timestampdocs"))
+        {
+            DoNothing();
+        }
+
         Mutant? mutant = null;
 
         if (this.Options.GlobalLock)
@@ -268,6 +273,25 @@ public class FileHiveStorageProvider : HiveStorageProvider
                     }
                 }
 
+                bool sameContentsAlreadyInFile = false;
+
+                try
+                {
+                    if (Options.Flags.Value.Bit(FileFlags.WriteOnlyIfChanged))
+                    {
+                        if (await FileSystem.IsFileExistsAsync(filename, cancel))
+                        {
+                            var currentData = await FileSystem.ReadDataFromFileAsync(filename, flags: Options.Flags, cancel: cancel);
+
+                            if (currentData._MemEquals(data))
+                            {
+                                sameContentsAlreadyInFile = true;
+                            }
+                        }
+                    }
+                }
+                catch { }
+
                 try
                 {
                     await FileSystem.CreateDirectoryAsync(directoryName, Options.Flags, cancel);
@@ -275,15 +299,18 @@ public class FileHiveStorageProvider : HiveStorageProvider
                     if (Options.PutGitIgnore)
                         Util.PutGitIgnoreFileOnDirectory(Options.RootDirectoryPath.Value);
 
-                    await FileSystem.WriteDataToFileAsync(newFilename, data, Options.Flags | FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, false, cancel);
-
-                    try
+                    if (sameContentsAlreadyInFile == false)
                     {
-                        await FileSystem.DeleteFileAsync(filename, Options.Flags | FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
-                    }
-                    catch { }
+                        await FileSystem.WriteDataToFileAsync(newFilename, data, Options.Flags | FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, false, cancel);
 
-                    await FileSystem.MoveFileAsync(newFilename, filename, cancel);
+                        try
+                        {
+                            await FileSystem.DeleteFileAsync(filename, Options.Flags | FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed, cancel);
+                        }
+                        catch { }
+
+                        await FileSystem.MoveFileAsync(newFilename, filename, cancel);
+                    }
                 }
                 finally
                 {
@@ -503,8 +530,8 @@ public class Hive : AsyncServiceWithMainLoop
     {
         Module.AddAfterInitAction(() =>
         {
-                // Create shared config hive
-                SharedConfigHive = new Hive(new HiveOptions(ConfigHiveDirName, enableManagedSync: true, syncInterval: CoresConfig.ConfigHiveOptions.SyncIntervalMsec, globalLock: true, enableAutoArchiver: true));
+            // Create shared config hive
+            SharedConfigHive = new Hive(new HiveOptions(ConfigHiveDirName, enableManagedSync: true, syncInterval: CoresConfig.ConfigHiveOptions.SyncIntervalMsec, globalLock: true, enableAutoArchiver: true));
 
             SharedLocalConfigHive = new Hive(new HiveOptions(LocalConfigHiveDirName, enableManagedSync: true, syncInterval: CoresConfig.ConfigHiveOptions.SyncIntervalMsec, putGitIgnore: true, globalLock: true, enableAutoArchiver: true));
 
