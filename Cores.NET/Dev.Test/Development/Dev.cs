@@ -85,7 +85,9 @@ public class TimeStampDocsSetting : INormalizable
     public int MaxFilesInProject = 0;
     public int MaxFilesTotal = 0;
 
-    public int SingleMailZipFileSize = 30000;//7140000;
+    public int SingleMailZipFileSize = 7140000;
+
+    public int MailTryCount = 3;
 
     public string LogDir = "";
 
@@ -614,7 +616,6 @@ public class TimeStampDocsUtil : AsyncService
 
             mail.CcList.Add(new MailAddress(this.Settings.MailCc));
 
-            Dbg.Where();
             mailLog.WriteLine($"========== メール ({i + 1}/{zipDataList.Count}) 通目 ==========");
             mailLog.WriteLine($"送信日時: {DtOffsetNow._ToDtStr(true)}");
             mailLog.WriteLine($"メールサーバー: {smtpConfig.SmtpServer}:{smtpConfig.SmtpPort}");
@@ -628,8 +629,15 @@ public class TimeStampDocsUtil : AsyncService
             mailLog.WriteLine("---- 本文 ここまで ----");
             mailLog.WriteLine("");
 
-            await mail.SendAsync(smtpConfig, cancel);
-            Dbg.Where();
+            await TaskUtil.RetryAsync(async () =>
+            {
+                await mail.SendAsync(smtpConfig, cancel);
+                return 0;
+            },
+            1000,
+            this.Settings.MailTryCount,
+            cancel,
+            true);
         }
 
         mailLog.WriteLine("");
