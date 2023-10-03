@@ -4590,7 +4590,7 @@ HOST: www.google.com
             Con.WriteError(ex);
         }
 
-        using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, archiveFs, infolog, errorlog, /*encryptPassword: "test", */flags: DirSuperBackupFlags.BackupSync)))
+        using (var b = new DirSuperBackup(new DirSuperBackupOptions(Lfs, archiveFs, infolog, errorlog, encryptPassword: "test", flags: DirSuperBackupFlags.BackupSync)))
         {
             Async(async () =>
             {
@@ -4853,7 +4853,11 @@ HOST: www.google.com
     {
         if (true)
         {
-            Test_210307_EncCopy();
+            Test_230925_Verify();
+            //Test_230925_Restore();
+            //Test_230925_Backup();
+
+            //Test_210307_EncCopy();
             //Test_230927_TsTest()._GetResult();
             //Test_230927_generate_securecompress_test_data()._GetResult();
             return;
@@ -4863,7 +4867,6 @@ HOST: www.google.com
         {
             Test_230925_Backup();
             //Test_230925_Restore();
-            //Test_230925_Verify();
             //Test_230926()._GetResult();
             return;
         }

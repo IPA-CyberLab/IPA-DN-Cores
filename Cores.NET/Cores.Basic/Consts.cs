@@ -417,6 +417,8 @@ public static partial class Consts
         public const string EncryptedXtsAes256 = "._encrypted_xtsaes256";
         public const string CompressedXtsAes256 = "._compressed_xtsaes256";
 
+        public const string EncryptedSecureCompress = "._encrypted_securecompress";
+
         public const string DirSuperBackupHistory = "._backup_history";
     }
 

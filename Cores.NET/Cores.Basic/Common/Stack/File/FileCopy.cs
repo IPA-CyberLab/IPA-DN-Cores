@@ -902,6 +902,8 @@ public static partial class FileUtil
             hash = MD5.Create();
         }
 
+        string hashStrOverride = "";
+
         srcPath = await srcFileSystem.NormalizePathAsync(srcPath, cancel: cancel);
         destPath = await destFileSystem.NormalizePathAsync(destPath, cancel: cancel);
 
@@ -975,6 +977,7 @@ public static partial class FileUtil
                                 Stream? destStream = null;
                                 XtsAesRandomAccess? xts = null;
                                 SecureCompressEncoder? secureCompressEncoder = null;
+                                HashCalcStream? hashCalcStreamForSecureCompressDecoder = null;
 
                                 try
                                 {
@@ -1022,6 +1025,8 @@ public static partial class FileUtil
                                         // Decryption
                                         if (param.EncryptOption.Bit(EncryptOption.Decrypt_v2_SecureCompress))
                                         {
+                                            hashCalcStreamForSecureCompressDecoder = new HashCalcStream(MD5.Create());
+
                                             srcStream = srcFile.GetStream(disposeTarget: true);
 
                                             // Decryption (SecureCompress, 2023/09 ～)
@@ -1034,7 +1039,8 @@ public static partial class FileUtil
                                                     System.IO.Compression.CompressionLevel.SmallestSize,
                                                     flags: (param.Flags.Bit(FileFlags.CopyFile_Verify) && param.IgnoreReadError == false) ? SecureCompressFlags.CalcZipCrc32 : SecureCompressFlags.None),
                                                     await srcFile.GetFileSizeAsync(cancel: cancel),
-                                                    true);
+                                                    true,
+                                                    hashCalcStream: hashCalcStreamForSecureCompressDecoder);
                                             }
                                             catch
                                             {
@@ -1072,6 +1078,11 @@ public static partial class FileUtil
                                         await decoder.FinalizeAsync(cancel);
 
                                         srcZipCrc.Set(decoder.Crc32Value);
+
+                                        if (hashCalcStreamForSecureCompressDecoder != null)
+                                        {
+                                            hashStrOverride = hashCalcStreamForSecureCompressDecoder.GetFinalHash()._GetHexString();
+                                        }
                                     }
                                 }
                                 finally
@@ -1080,6 +1091,7 @@ public static partial class FileUtil
                                     await xts._DisposeSafeAsync();
                                     await secureCompressEncoder._DisposeSafeAsync();
                                     await srcStream._DisposeSafeAsync();
+                                    await hashCalcStreamForSecureCompressDecoder._DisposeSafeAsync();
                                 }
 
                                 srcStream = null;
@@ -1283,6 +1295,11 @@ public static partial class FileUtil
             hash.TransformFinalBlock(new byte[0], 0, 0);
 
             digest.Set(hash.Hash!._GetHexString());
+
+            if (hashStrOverride._IsFilled())
+            {
+                digest.Set(hashStrOverride);
+            }
         }
     }
     public static void CopyFile(FileSystem srcFileSystem, string srcPath, FileSystem destFileSystem, string destPath,

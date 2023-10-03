@@ -97,6 +97,8 @@ public enum DirSuperBackupFlags : long
 
     NoFileNameLenLimit = 4194304,
     IgnoreReadError = 8388608,
+
+    UseLegacyXtsAes256 = 16777216,
 }
 
 public class DirSuperBackupOptions
@@ -414,6 +416,7 @@ public class DirSuperBackup : AsyncService
                     }
 
                     bool isEncrypted = false;
+                    bool isEncryptedWithLegacyXtsAes256 = false;
                     string encryptPassword = "";
 
                     if (archivedFileMetaData2.EncrypedFileName._IsNullOrZeroLen() == false)
@@ -430,6 +433,17 @@ public class DirSuperBackup : AsyncService
 
                         isEncrypted = true;
                         encryptPassword = this.Options.EncryptPassword;
+
+                        if (archivedFilePath.EndsWith(Consts.Extensions.EncryptedSecureCompress, StringComparison.OrdinalIgnoreCase))
+                        {
+                            // SecureCompress, 2023/09 ～
+                            isEncryptedWithLegacyXtsAes256 = false;
+                        }
+                        else
+                        {
+                            // Legacy XTS, ～ 2023/09
+                            isEncryptedWithLegacyXtsAes256 = true;
+                        }
                     }
 
                     Ref<string> hashStr1 = new Ref<string>();
@@ -454,7 +468,16 @@ public class DirSuperBackup : AsyncService
                         {
                             // NoCheckFileSize を付けないと、一部の Windows クライアントと一部の Samba サーバーとの間でヘンなエラーが発生する。
                             funcName = "CompareEncryptedFileHashAsync";
-                            sameRet = await FileUtil.CompareEncryptedFileHashAsync(encryptPassword, EncryptOption.Compress, new FilePath(localFile.FullPath, LocalFs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), new FilePath(archivedFilePath, ArchiveFs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), cancel: cancel, hashStr1: hashStr1, hashStr2: hashStr2, exception: exception);
+                            if (isEncryptedWithLegacyXtsAes256 == false)
+                            {
+                                // SecureCompress, 2023/09 ～
+                                sameRet = await FileUtil.CompareEncryptedFileHashAsync(encryptPassword, EncryptOption.Compress | EncryptOption.Decrypt_v2_SecureCompress, new FilePath(localFile.FullPath, LocalFs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), new FilePath(archivedFilePath, ArchiveFs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), cancel: cancel, hashStr1: hashStr1, hashStr2: hashStr2, exception: exception);
+                            }
+                            else
+                            {
+                                // Legacy XTS, ～ 2023/09
+                                sameRet = await FileUtil.CompareEncryptedFileHashAsync(encryptPassword, EncryptOption.Compress, new FilePath(localFile.FullPath, LocalFs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), new FilePath(archivedFilePath, ArchiveFs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), cancel: cancel, hashStr1: hashStr1, hashStr2: hashStr2, exception: exception);
+                            }
                         }
 
                         if (sameRet.IsOk == false)
@@ -691,6 +714,7 @@ public class DirSuperBackup : AsyncService
                 try
                 {
                     bool isEncrypted = false;
+                    bool isEncryptedWithLegacyXtsAes256 = false;
                     string encryptPassword = "";
 
                     if (srcFile.EncrypedFileName._IsNullOrZeroLen() == false)
@@ -706,6 +730,17 @@ public class DirSuperBackup : AsyncService
 
                         isEncrypted = true;
                         encryptPassword = this.Options.EncryptPassword;
+
+                        if (srcFilePath.EndsWith(Consts.Extensions.EncryptedSecureCompress, StringComparison.OrdinalIgnoreCase))
+                        {
+                            // SecureCompress, 2023/09 ～
+                            isEncryptedWithLegacyXtsAes256 = false;
+                        }
+                        else
+                        {
+                            // Legacy XTS, ～ 2023/09
+                            isEncryptedWithLegacyXtsAes256 = true;
+                        }
                     }
 
                     srcFileMetadata = srcFile.MetaData;
@@ -757,7 +792,16 @@ public class DirSuperBackup : AsyncService
                                     else
                                     {
                                         // NoCheckFileSize を付けないと、一部の Windows クライアントと一部の Samba サーバーとの間でヘンなエラーが発生する。
-                                        sameRet = await FileUtil.CompareEncryptedFileHashAsync(encryptPassword, EncryptOption.Compress, new FilePath(destFilePath, LocalFs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), new FilePath(srcFilePath, ArchiveFs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), cancel: cancel);
+                                        if (isEncryptedWithLegacyXtsAes256)
+                                        {
+                                            // SecureCompress, 2023/09 ～
+                                            sameRet = await FileUtil.CompareEncryptedFileHashAsync(encryptPassword, EncryptOption.Compress, new FilePath(destFilePath, LocalFs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), new FilePath(srcFilePath, ArchiveFs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), cancel: cancel);
+                                        }
+                                        else
+                                        {
+                                            // Legacy XTS, ～ 2023/09
+                                            sameRet = await FileUtil.CompareEncryptedFileHashAsync(encryptPassword, EncryptOption.Compress | EncryptOption.Decrypt_v2_SecureCompress, new FilePath(destFilePath, LocalFs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), new FilePath(srcFilePath, ArchiveFs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), cancel: cancel);
+                                        }
                                     }
 
                                     if (sameRet.IsOk == false || sameRet.Value != 0)
@@ -864,7 +908,7 @@ public class DirSuperBackup : AsyncService
                             await ArchiveFs.CopyFileAsync(srcFilePath, destFilePath,
                                 new CopyFileParams(flags: flags,
                                     metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll),
-                                    encryptOption: isEncrypted ? EncryptOption.Decrypt | EncryptOption.Compress : EncryptOption.None,
+                                    encryptOption: isEncrypted ? ( isEncryptedWithLegacyXtsAes256 ? EncryptOption.Decrypt_v1_XtsLts : EncryptOption.Decrypt_v2_SecureCompress) | EncryptOption.Compress : EncryptOption.None,
                                     encryptPassword: encryptPassword,
                                     calcDigest: checkMd5,
                                     retryCount: 0,
@@ -1102,7 +1146,16 @@ public class DirSuperBackup : AsyncService
 
                 if (Options.EncryptPassword._IsNullOrZeroLen() == false)
                 {
-                    destFilePath += Consts.Extensions.CompressedXtsAes256;
+                    if (Options.Flags.Bit(DirSuperBackupFlags.UseLegacyXtsAes256) == false)
+                    {
+                        // SecureCompress, 2023/09 ～
+                        destFilePath += Consts.Extensions.EncryptedSecureCompress;
+                    }
+                    else
+                    {
+                        // Legacy XTS, ～ 2023/09
+                        destFilePath += Consts.Extensions.CompressedXtsAes256;
+                    }
                 }
 
                 FileMetadata? srcFileMetadata = null;
@@ -1254,7 +1307,7 @@ public class DirSuperBackup : AsyncService
                         await LocalFs.CopyFileAsync(srcFile.FullPath, destFilePath,
                             new CopyFileParams(flags: flags, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll),
                             ignoreReadError: ignoreReadError,
-                            encryptOption: Options.EncryptPassword._IsNullOrZeroLen() ? EncryptOption.None : EncryptOption.Encrypt | EncryptOption.Compress,
+                            encryptOption: Options.EncryptPassword._IsNullOrZeroLen() ? EncryptOption.None : this.Options.Flags.Bit(DirSuperBackupFlags.UseLegacyXtsAes256) ? (EncryptOption.Encrypt_v1_XtsLts | EncryptOption.Compress) : (EncryptOption.Encrypt_v2_SecureCompress | EncryptOption.Compress),
                             encryptPassword: Options.EncryptPassword, deleteFileIfVerifyFailed: true, calcDigest: this.Options.Flags.Bit(DirSuperBackupFlags.BackupNoMd5) == false),
                             cancel: cancel, digest: md5hash, errorOccuredButRecovered: verifyErrorRecovered,
                             destFileSystem: ArchiveFs);
@@ -1352,7 +1405,7 @@ public class DirSuperBackup : AsyncService
                         destDirNewMetaData.FileList.Add(new DirSuperBackupMetadataFile()
                         {
                             FileName = srcFile.Name,
-                            EncrypedFileName = Options.EncryptPassword._IsNullOrZeroLen() ? null : srcFile.Name + Consts.Extensions.CompressedXtsAes256,
+                            EncrypedFileName = Options.EncryptPassword._IsNullOrZeroLen() ? null : srcFile.Name + (Options.Flags.Bit(DirSuperBackupFlags.UseLegacyXtsAes256) == false ? Consts.Extensions.EncryptedSecureCompress : Consts.Extensions.CompressedXtsAes256),
                             MetaData = srcFileMetadata,
                             EncryptedPhysicalSize = encryptedPhysicalSize,
                             Md5 = md5hash.Value._NullIfZeroLen(),
@@ -1468,7 +1521,7 @@ public class DirSuperBackup : AsyncService
                             var extraFiles = destDirEnum2.Where(x => x.IsFile && x.IsSymbolicLink == false)
                                 .Where(x => x.Name._StartWithi(DirSuperBackup.PrefixMetadata) == false && x.Name._EndsWithi(DirSuperBackup.SuffixMetadata) == false)
                                 .Where(x => srcDirEnum2.Where(y => y.IsFile && y.Name._IsSameiTrim(x.Name)).Any() == false)
-                                .Where(x => srcDirEnum2.Where(y => y.IsFile && (y.Name + Consts.Extensions.CompressedXtsAes256)._IsSameiTrim(x.Name)).Any() == false);
+                                .Where(x => srcDirEnum2.Where(y => y.IsFile && ((y.Name + Consts.Extensions.CompressedXtsAes256)._IsSameiTrim(x.Name) || (y.Name + Consts.Extensions.EncryptedSecureCompress)._IsSameiTrim(x.Name))).Any() == false);
 
                             foreach (var extraFile in extraFiles)
                             {

@@ -388,7 +388,7 @@ public class SecureCompressDecoder : StreamImplBase
 
     public uint Crc32Value => this.DestWritable.Crc32Value;
 
-    public SecureCompressDecoder(Stream destStream, SecureCompressOptions options, long srcDataSizeHint = -1, bool autoDispose = false, ProgressReporterBase? reporter = null)
+    public SecureCompressDecoder(Stream destStream, SecureCompressOptions options, long srcDataSizeHint = -1, bool autoDispose = false, ProgressReporterBase? reporter = null, HashCalcStream? hashCalcStream = null)
         : base(new StreamImplBaseOptions(false, true, false))
     {
         try
@@ -398,7 +398,7 @@ public class SecureCompressDecoder : StreamImplBase
             this.Options = options;
             this.Reporter = reporter;
 
-            this.DestWritable = new StreamBasedSequentialWritable(this.DestStream, autoDispose, this.Options.Flags.Bit(SecureCompressFlags.CalcZipCrc32));
+            this.DestWritable = new StreamBasedSequentialWritable(this.DestStream, autoDispose, this.Options.Flags.Bit(SecureCompressFlags.CalcZipCrc32), hashCalcStream);
             this.DestRandomWriter = new SequentialWritableBasedRandomAccess<byte>(this.DestWritable, allowForwardSeek: true);
 
             this.CurrentSrcDataBuffer = new FastStreamBuffer();

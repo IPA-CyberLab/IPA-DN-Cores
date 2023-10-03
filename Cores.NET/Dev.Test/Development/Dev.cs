@@ -786,14 +786,14 @@ public class TimeStampDocsUtil : AsyncService
                     if (result.NumFiles_Inc >= this.Settings.MaxFilesInProject)
                     {
                         // ファイル個数超過 (プロジェクト単位)
-                        $"Error: NumFiles ({result.NumFiles_Inc}) >= MaxFilesInProject ({Settings.MaxFilesInProject})"._Error();
+                        $"Error: NumFiles ({result.NumFiles_Inc}) >= MaxFilesInProject ({Settings.MaxFilesInProject}). Project: \"{result.RootDirPath}\", FilePath: \"{fileEntry.FullPath}\""._Error();
                         return;
                     }
 
                     if (this.TotalNumFiles >= this.Settings.MaxFilesTotal)
                     {
                         // ファイル個数超過 (全体)
-                        $"Error: TotalNumFiles ({TotalNumFiles}) >= MaxFilesTotal ({Settings.MaxFilesTotal})"._Error();
+                        $"Error: TotalNumFiles ({TotalNumFiles}) >= MaxFilesTotal ({Settings.MaxFilesTotal}). Project: \"{result.RootDirPath}\", FilePath: \"{fileEntry.FullPath}\""._Error();
                         return;
                     }
 
