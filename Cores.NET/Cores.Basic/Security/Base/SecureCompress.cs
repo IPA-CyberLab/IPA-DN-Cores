@@ -312,6 +312,7 @@ public class SecureCompressFirstHeader
 public enum SecureCompressFlags
 {
     None = 0,
+    CalcZipCrc32,
 }
 
 public class SecureCompressOptions
@@ -385,6 +386,8 @@ public class SecureCompressDecoder : StreamImplBase
     public int NumError { get; private set; }
     public int NumWarning { get; private set; }
 
+    public uint Crc32Value => this.DestWritable.Crc32Value;
+
     public SecureCompressDecoder(Stream destStream, SecureCompressOptions options, long srcDataSizeHint = -1, bool autoDispose = false, ProgressReporterBase? reporter = null)
         : base(new StreamImplBaseOptions(false, true, false))
     {
@@ -395,7 +398,7 @@ public class SecureCompressDecoder : StreamImplBase
             this.Options = options;
             this.Reporter = reporter;
 
-            this.DestWritable = new StreamBasedSequentialWritable(this.DestStream, autoDispose);
+            this.DestWritable = new StreamBasedSequentialWritable(this.DestStream, autoDispose, this.Options.Flags.Bit(SecureCompressFlags.CalcZipCrc32));
             this.DestRandomWriter = new SequentialWritableBasedRandomAccess<byte>(this.DestWritable, allowForwardSeek: true);
 
             this.CurrentSrcDataBuffer = new FastStreamBuffer();

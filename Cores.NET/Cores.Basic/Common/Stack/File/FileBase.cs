@@ -1729,12 +1729,19 @@ public class StreamBasedSequentialWritable : SequentialWritableImpl<byte>, IDisp
     public Stream BaseStream { get; }
     public bool AutoDispose { get; }
 
-    public StreamBasedSequentialWritable(Stream baseStream, bool autoDispose = false)
+    bool CalcCrc32;
+
+    ZipCrc32 Crc32 = new ZipCrc32();
+
+    public uint Crc32Value => Crc32.Value;
+
+    public StreamBasedSequentialWritable(Stream baseStream, bool autoDispose = false, bool calcCrc32 = false)
     {
         try
         {
             this.BaseStream = baseStream;
             this.AutoDispose = autoDispose;
+            this.CalcCrc32 = calcCrc32;
 
             this.Leak = LeakChecker.Enter(LeakCounterKind.StreamBasedSequentialWritable);
 
@@ -1772,6 +1779,11 @@ public class StreamBasedSequentialWritable : SequentialWritableImpl<byte>, IDisp
     protected override async Task AppendImplAsync(ReadOnlyMemory<byte> data, long hintCurrentLength, long hintNewLength, CancellationToken cancel = default)
     {
         await BaseStream.WriteAsync(data, cancel);
+
+        if (this.CalcCrc32)
+        {
+            this.Crc32.Append(data.Span);
+        }
     }
 
     protected override Task CompleteImplAsync(bool ok, long hintCurrentLength, CancellationToken cancel = default)

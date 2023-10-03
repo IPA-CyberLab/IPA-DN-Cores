@@ -1012,8 +1012,9 @@ public static partial class FileUtil
                                             try
                                             {
                                                 destStream = new SecureCompressDecoder(destFileStream,
-                                                    new SecureCompressOptions(srcFileSystem.PathParser.GetFileName(srcPath), true, param.EncryptPassword, false,
-                                                    System.IO.Compression.CompressionLevel.SmallestSize),
+                                                    new SecureCompressOptions(destFileSystem.PathParser.GetFileName(destPath), true, param.EncryptPassword, false,
+                                                    System.IO.Compression.CompressionLevel.SmallestSize,
+                                                    flags: (param.Flags.Bit(FileFlags.CopyFile_Verify) && param.IgnoreReadError == false) ? SecureCompressFlags.CalcZipCrc32 : SecureCompressFlags.None),
                                                     await srcFile.GetFileSizeAsync(cancel: cancel),
                                                     true);
                                             }
@@ -1051,6 +1052,8 @@ public static partial class FileUtil
                                     if (destStream is SecureCompressDecoder decoder)
                                     {
                                         await decoder.FinalizeAsync(cancel);
+
+                                        srcZipCrc.Set(decoder.Crc32Value);
                                     }
                                 }
                                 finally
@@ -1082,33 +1085,63 @@ public static partial class FileUtil
 
                                             try
                                             {
-                                                if (param.EncryptOption.Bit(EncryptOption.Encrypt))
+                                                if (param.EncryptOption.Bit(EncryptOption.Encrypt_v2_SecureCompress))
                                                 {
-                                                    // Encryption
-                                                    xts = new XtsAesRandomAccess(destFile2, param.EncryptPassword, disposeObject: true);
+                                                    // SecureCompress, 2023/09 ～
+                                                    if (param.EncryptOption.Bit(EncryptOption.Encrypt))
+                                                    {
+                                                        await using var destFile2Stream = destFile2.GetStream(disposeTarget: true); // 暗号化された結果ファイルのストリーム
+                                                        await using var zipCrc32Stream = new ZipCrc32Stream();
 
-                                                    if (param.EncryptOption.Bit(EncryptOption.Compress) == false)
-                                                    {
-                                                        destStream = xts.GetStream(disposeTarget: true);
-                                                    }
-                                                    else
-                                                    {
-                                                        destStream = await xts.GetDecompressStreamAsync();
+                                                        await using var decoder = new SecureCompressDecoder(zipCrc32Stream,
+                                                            new SecureCompressOptions(destFileSystem.PathParser.GetFileName(destPath),
+                                                            true, param.EncryptPassword, false,
+                                                             System.IO.Compression.CompressionLevel.SmallestSize),
+                                                            await destFile2.GetFileSizeAsync(cancel: cancel),
+                                                            true);
+
+                                                        await CopyBetweenStreamAsync(destFile2Stream, decoder, param, cancel: cancel);
+                                                        await decoder.FinalizeAsync(cancel);
+
+                                                        if (srcZipCrc.Value != zipCrc32Stream.GetCrc32Result())
+                                                        {
+                                                            // なんと Verify に失敗したぞ
+                                                            verifyErrorOccured.Set(true);
+                                                            throw new CoresException($"CopyFile_Verify error. Src file: '{srcPath}', Dest file: '{destPath}', srcCrc: {srcZipCrc.Value}, destCrc = {zipCrc32Stream.GetCrc32Result()}");
+                                                        }
                                                     }
                                                 }
                                                 else
                                                 {
-                                                    // Decryption
-                                                    destStream = destFile2.GetStream(disposeTarget: true);
-                                                }
+                                                    // Legacy XTS, ～ 2023/09
+                                                    if (param.EncryptOption.Bit(EncryptOption.Encrypt))
+                                                    {
+                                                        // Decryption
+                                                        xts = new XtsAesRandomAccess(destFile2, param.EncryptPassword, disposeObject: true);
 
-                                                uint destZipCrc = await CalcZipCrc32HandleAsync(destStream, param, cancel);
+                                                        if (param.EncryptOption.Bit(EncryptOption.Compress) == false)
+                                                        {
+                                                            destStream = xts.GetStream(disposeTarget: true);
+                                                        }
+                                                        else
+                                                        {
+                                                            destStream = await xts.GetDecompressStreamAsync();
+                                                        }
+                                                    }
+                                                    else
+                                                    {
+                                                        // Decryption
+                                                        destStream = destFile2.GetStream(disposeTarget: true);
+                                                    }
 
-                                                if (srcZipCrc.Value != destZipCrc)
-                                                {
-                                                    // なんと Verify に失敗したぞ
-                                                    verifyErrorOccured.Set(true);
-                                                    throw new CoresException($"CopyFile_Verify error. Src file: '{srcPath}', Dest file: '{destPath}', srcCrc: {srcZipCrc.Value}, destCrc = {destZipCrc}");
+                                                    uint destZipCrc = await CalcZipCrc32HandleAsync(destStream, param, cancel);
+
+                                                    if (srcZipCrc.Value != destZipCrc)
+                                                    {
+                                                        // なんと Verify に失敗したぞ
+                                                        verifyErrorOccured.Set(true);
+                                                        throw new CoresException($"CopyFile_Verify error. Src file: '{srcPath}', Dest file: '{destPath}', srcCrc: {srcZipCrc.Value}, destCrc = {destZipCrc}");
+                                                    }
                                                 }
                                             }
                                             finally
@@ -1888,5 +1921,147 @@ public static partial class FileUtil
                 ex._Error();
             }
         }
+    }
+}
+
+
+public class ZipCrc32Stream : StreamImplBase
+{
+    ZipCrc32 Crc32 = new ZipCrc32();
+    long _CurrentPosition = 0;
+
+    public ZipCrc32Stream() : base(new StreamImplBaseOptions(false, true, false))
+    {
+        try
+        {
+        }
+        catch
+        {
+            this._DisposeSafe();
+            throw;
+        }
+    }
+
+    public override bool DataAvailable => throw new NotImplementedException();
+
+    protected override Task FlushImplAsync(CancellationToken cancellationToken = default)
+    {
+        return TaskCompleted;
+    }
+
+    protected override long GetLengthImpl()
+    {
+        return this._CurrentPosition;
+    }
+
+    protected override long GetPositionImpl()
+    {
+        return this._CurrentPosition;
+    }
+
+    protected override ValueTask<int> ReadImplAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+    {
+        throw new NotImplementedException();
+    }
+
+    protected override long SeekImpl(long offset, SeekOrigin origin)
+    {
+        if (origin == SeekOrigin.Begin && offset == this._CurrentPosition)
+        {
+            return this._CurrentPosition;
+        }
+
+        if (origin == SeekOrigin.Current && offset == 0)
+        {
+            return this._CurrentPosition;
+        }
+
+        throw new NotImplementedException();
+    }
+
+    protected override void SetLengthImpl(long length)
+    {
+        if (length == this._CurrentPosition)
+        {
+            return;
+        }
+
+        throw new NotImplementedException();
+    }
+
+    protected override void SetPositionImpl(long position)
+    {
+        if (position == this._CurrentPosition)
+        {
+            return;
+        }
+
+        throw new NotImplementedException();
+    }
+
+    protected override ValueTask WriteImplAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        this.Crc32.Append(buffer.Span);
+
+        this._CurrentPosition += buffer.Span.Length;
+
+        return ValueTask.CompletedTask;
+    }
+
+    Once FinalFlag;
+    uint? ResultCache = uint.MaxValue;
+    Exception Error = new CoresException("Unknown error");
+
+    public uint GetCrc32Result()
+    {
+        if (FinalFlag.IsFirstCall())
+        {
+            try
+            {
+                this.ResultCache = Crc32.Value;
+            }
+            catch (Exception ex)
+            {
+                this.Error = ex;
+                throw;
+            }
+        }
+
+        if (this.ResultCache == null)
+        {
+            throw this.Error;
+        }
+        else
+        {
+            return this.ResultCache.Value;
+        }
+    }
+
+    Once DisposeFlag;
+    public override async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (DisposeFlag.IsFirstCall() == false) return;
+            await DisposeInternalAsync();
+        }
+        finally
+        {
+            await base.DisposeAsync();
+        }
+    }
+    protected override void Dispose(bool disposing)
+    {
+        try
+        {
+            if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+            DisposeInternalAsync()._GetResult();
+        }
+        finally { base.Dispose(disposing); }
+    }
+    Task DisposeInternalAsync()
+    {
+        return Task.CompletedTask;
     }
 }
