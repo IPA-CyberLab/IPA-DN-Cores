@@ -222,6 +222,8 @@ public class TimeStampDocsUtil : AsyncService
         public int NumFiles => this.DirList.Sum(x => x.FileList.Count);
         public long TotalFileSize => this.DirList.Sum(x => x.FileList.Sum(y => y.FileSize));
 
+        public List<string> SettingsFiles = new List<string>();
+
         public void WriteTo(TextWriter t, DateTimeOffset now, WriteFlags flags)
         {
             t.WriteLine($"# このプロジェクトには、{this.DirList.Count._ToString3()} 個のフォルダ中に、{this.DirList.Sum(x => x.FileList.Count)._ToString3()} 個のファイルが存在します。");
@@ -478,6 +480,8 @@ public class TimeStampDocsUtil : AsyncService
                         RootDirName = this.Fs.PathParser.GetFileName(di.FullPath),
                     };
 
+                    result.SettingsFiles.Add(configPath);
+
                     await ProcessProjectDirAsync(config, di, list, cancel, di.FullPath, result);
 
                     projectResultsList.Add(result);
@@ -645,9 +649,24 @@ public class TimeStampDocsUtil : AsyncService
         // メールデータ出力
         await this.Fs.WriteStringToFileAsync(this.Fs.PP.Combine(entireLogsDirPath, $"maillog-{yyyymmdd}-{this.Settings.OutputFilenamePrefix}.txt"), mailLog.ToString(), FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag, writeBom: true);
 
+        StringWriter settingsFileNameTxt = new StringWriter();
+        settingsFileNameTxt.NewLine = Str.NewLine_Str_Windows;
+
         // プロジェクト単位でのログ出力
         foreach (var proj in projectResultsList)
         {
+            if (proj.SettingsFiles.Count() >= 1)
+            {
+                settingsFileNameTxt.WriteLine($"■ {proj.SettingsFiles.First()}");
+
+                foreach (var settingsFile in proj.SettingsFiles)
+                {
+                    settingsFileNameTxt.WriteLine($"{settingsFile}");
+                }
+            }
+
+            settingsFileNameTxt.WriteLine();
+
             StringWriter forProjLogFull = new StringWriter();
             forProjLogFull.NewLine = Str.NewLine_Str_Windows;
 
@@ -681,6 +700,9 @@ public class TimeStampDocsUtil : AsyncService
             // メールデータ出力
             await this.Fs.WriteStringToFileAsync(this.Fs.PP.Combine(logDir, $"maillog-{yyyymmdd}-{this.Settings.OutputFilenamePrefix}.txt"), mailLog.ToString(), FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag, writeBom: true);
         }
+
+        // 設定ファイル一覧出力
+        await this.Fs.WriteStringToFileAsync(this.Fs.PP.Combine(entireLogsDirPath, $"configfilelist-{yyyymmdd}-{this.Settings.OutputFilenamePrefix}.txt"), settingsFileNameTxt.ToString(), FileFlags.AutoCreateDirectory | FileFlags.OnCreateSetCompressionFlag, writeBom: true);
     }
 
     void WriteTo(TextWriter allText, List<ProjectResult> projectResultsList, DateTimeOffset now, WriteFlags flags, string uniqueId, ProjectResult? targetProj = null)
@@ -817,11 +839,14 @@ public class TimeStampDocsUtil : AsyncService
                 if (config.ProcessFilterForDirectory(subDirEntry.Name))
                 {
                     // このサブディレクトリに独自の Config はあるか?
-                    var subDirConfig = await this.ParseConfigAsync(this.Fs.PathParser.Combine(subDirEntry.FullPath, this.Settings.TimeStampConfigFilename), cancel);
+                    string configPath = this.Fs.PathParser.Combine(subDirEntry.FullPath, this.Settings.TimeStampConfigFilename);
+                    var subDirConfig = await this.ParseConfigAsync(configPath, cancel);
 
                     if (subDirConfig != null)
                     {
                         // 独自の Config がある場合は、一階層上の Config を承継した上で必要に応じて上書きをした新たな Config を作る
+                        result.SettingsFiles.Add(configPath);
+
                         subDirConfig = config.MergeConfig(subDirConfig);
                     }
                     else
