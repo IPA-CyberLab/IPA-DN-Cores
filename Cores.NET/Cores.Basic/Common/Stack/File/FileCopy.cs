@@ -1002,16 +1002,16 @@ public static partial class FileUtil
                                     else
                                     {
                                         // Decryption
-                                        destStream = destFile.GetStream(disposeTarget: true);
-
-                                        if (param.EncryptOption.Bit(EncryptOption.Encrypt_v2_SecureCompress))
+                                        if (param.EncryptOption.Bit(EncryptOption.Decrypt_v2_SecureCompress))
                                         {
+                                            srcStream = srcFile.GetStream(disposeTarget: true);
+
                                             // Decryption (SecureCompress, 2023/09 ～)
-                                            Stream srcFileStream = srcFile.GetStream(disposeObject: true);
+                                            Stream destFileStream = destFile.GetStream(disposeObject: true);
 
                                             try
                                             {
-                                                srcStream = new SecureCompressDecoder(srcFileStream,
+                                                destStream = new SecureCompressDecoder(destFileStream,
                                                     new SecureCompressOptions(srcFileSystem.PathParser.GetFileName(srcPath), true, param.EncryptPassword, false,
                                                     System.IO.Compression.CompressionLevel.SmallestSize),
                                                     await srcFile.GetFileSizeAsync(cancel: cancel),
@@ -1019,12 +1019,14 @@ public static partial class FileUtil
                                             }
                                             catch
                                             {
-                                                await srcFileStream._DisposeSafeAsync();
+                                                await destFileStream._DisposeSafeAsync();
                                                 throw;
                                             }
                                         }
                                         else
                                         {
+                                            destStream = destFile.GetStream(disposeTarget: true);
+
                                             // Decryption (Legacy XTS, ～ 2023/09)
                                             xts = new XtsAesRandomAccess(srcFile, param.EncryptPassword, disposeObject: true);
 
@@ -1046,7 +1048,7 @@ public static partial class FileUtil
                                         await encoder.FinalizeAsync(cancel);
                                     }
 
-                                    if (srcStream is SecureCompressDecoder decoder)
+                                    if (destStream is SecureCompressDecoder decoder)
                                     {
                                         await decoder.FinalizeAsync(cancel);
                                     }

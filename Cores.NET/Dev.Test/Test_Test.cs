@@ -1795,9 +1795,9 @@ static class TestClass
         string dst2 = @"C:\tmp\enc2\test2.log";
         string pass = "pass";
 
-        FileUtil.CopyFileAsync(Lfs, src, Lfs, dst, new CopyFileParams(encryptOption: EncryptOption.Encrypt | EncryptOption.Compress, encryptPassword: "test", flags: FileFlags.AutoCreateDirectory | FileFlags.CopyFile_Verify | FileFlags.WriteOnlyIfChanged))._GetResult();
+        FileUtil.CopyFileAsync(Lfs, src, Lfs, dst, new CopyFileParams(encryptOption: EncryptOption.Encrypt_v2_SecureCompress | EncryptOption.Compress, encryptPassword: "test", flags: FileFlags.AutoCreateDirectory/* | FileFlags.CopyFile_Verify | FileFlags.WriteOnlyIfChanged*/))._GetResult();
 
-        FileUtil.CopyFileAsync(Lfs, dst, Lfs, dst2, new CopyFileParams(encryptOption: EncryptOption.Decrypt | EncryptOption.Compress, encryptPassword: "test", flags: FileFlags.AutoCreateDirectory | FileFlags.CopyFile_Verify | FileFlags.WriteOnlyIfChanged))._GetResult();
+        FileUtil.CopyFileAsync(Lfs, dst, Lfs, dst2, new CopyFileParams(encryptOption: EncryptOption.Decrypt_v2_SecureCompress | EncryptOption.Compress, encryptPassword: "test", flags: FileFlags.AutoCreateDirectory/* | FileFlags.CopyFile_Verify | FileFlags.WriteOnlyIfChanged*/))._GetResult();
     }
 
     static async Task Test_210309_Samba()
@@ -4853,7 +4853,8 @@ HOST: www.google.com
     {
         if (true)
         {
-            Test_230927_TsTest()._GetResult();
+            Test_210307_EncCopy();
+            //Test_230927_TsTest()._GetResult();
             //Test_230927_generate_securecompress_test_data()._GetResult();
             return;
         }
