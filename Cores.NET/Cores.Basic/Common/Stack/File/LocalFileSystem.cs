@@ -228,10 +228,14 @@ public partial class LocalFileSystem : FileSystem
 
             if (Env.IsWindows)
             {
-                if (flags.Bit(FileFlags.OnCreateSetCompressionFlag))
-                    await Win32ApiUtil.SetCompressionFlagAsync(directoryPath, true, true, cancel);
-                else if (flags.Bit(FileFlags.OnCreateRemoveCompressionFlag))
-                    await Win32ApiUtil.SetCompressionFlagAsync(directoryPath, true, false, cancel);
+                try
+                {
+                    if (flags.Bit(FileFlags.OnCreateSetCompressionFlag))
+                        await Win32ApiUtil.SetCompressionFlagAsync(directoryPath, true, true, cancel);
+                    else if (flags.Bit(FileFlags.OnCreateRemoveCompressionFlag))
+                        await Win32ApiUtil.SetCompressionFlagAsync(directoryPath, true, false, cancel);
+                }
+                catch { }
             }
         }
     }

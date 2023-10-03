@@ -534,18 +534,18 @@ public class TimeStampDocsUtil : AsyncService
 
         //return;
 
-        // テスト用に増幅
-        if (false)
-        {
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < 250; i++)
-            {
-                sb.Append(forZipTextBody);
-            }
-            forZipTextBody = sb.ToString();
-        }
+        //// テスト用に増幅
+        //if (false)
+        //{
+        //    StringBuilder sb = new StringBuilder();
+        //    for (int i = 0; i < 250; i++)
+        //    {
+        //        sb.Append(forZipTextBody);
+        //    }
+        //    forZipTextBody = sb.ToString();
+        //}
 
-        var zipDataList = FileUtil.CompressTextToZipFilesSplittedWithMinSize(forZipTextBody, this.Settings.SingleMailZipFileSize, $"timestamptxt-{yyyymmdd}-{this.Settings.OutputFilenamePrefix}", "", ".txt");
+        var zipDataList = FileUtil.CompressTextToZipFilesSplittedWithMinSize(forZipTextBody, this.Settings.SingleMailZipFileSize, $"timestamptxt-{yyyymmdd}-{this.Settings.OutputFilenamePrefix}", this.Settings.MailZipPassword, ".txt");
 
         Util.PutGitIgnoreFileOnDirectory(this.Settings.LogDir, FileFlags.AutoCreateDirectory);
         string entireLogsDirPath = this.Fs.PP.Combine(this.Settings.LogDir, $"{yyyymmdd}-{this.Settings.OutputFilenamePrefix}");
@@ -566,16 +566,23 @@ public class TimeStampDocsUtil : AsyncService
         mailLog.WriteLine($"ハッシュ計算ジョブユニーク ID: {uniqueId}");
         mailLog.WriteLine();
 
+        CoresLib.Report_SimpleResult = $"Projects: {projectResultsList.Count}, NumFiles: {TotalNumFiles._ToString3()}, ZIPs: {zipDataList.Count} (Total: {zipDataList.Sum(x => x.Length)._GetFileSizeStr()}), UID: {uniqueId}";
+
+        Con.WriteLine($"Unique ID: {uniqueId}");
+
         for (int i = 0; i < zipDataList.Count; i++)
         {
             var zipData = zipDataList[i];
 
             string zipFnSimple = $"timestampzip-{yyyymmdd}-{this.Settings.OutputFilenamePrefix}-{(i + 1):D3}.zip";
             string zipFn = this.Fs.PP.Combine(entireLogsDirPath, zipFnSimple);
+            string zipPwFn = zipFn + ".password.txt";
 
             // 分割された ZIP ファイル本体をファイルに保存
-            Dbg.Where(zipFn);
+            //Dbg.Where(zipFn);
             await this.Fs.WriteDataToFileAsync(zipFn, zipData, flags: FileFlags.AutoCreateDirectory);
+
+            await this.Fs.WriteStringToFileAsync(zipPwFn, this.Settings.MailZipPassword + "\r\n", flags: FileFlags.AutoCreateDirectory);
 
             // メールを送信
             string subject = $"{this.Settings.MailSubjectPrefix} {yyyymmdd}-{this.Settings.OutputFilenamePrefix} ({i + 1}/{zipDataList.Count}) - {zipData.Length._ToString3()} bytes";
@@ -592,16 +599,17 @@ public class TimeStampDocsUtil : AsyncService
             mailText.WriteLine($"この ZIP ファイル: {i + 1} 個目 / {zipDataList.Count} 個中");
             mailText.WriteLine($"この ZIP ファイルのファイル名: {zipFnSimple}");
             mailText.WriteLine($"この ZIP ファイルのサイズ: {zipData.Length._ToString3()} bytes ({zipData.Length._GetFileSizeStr()})");
-            mailText.WriteLine($"この ZIP ファイルの MD5 ハッシュ値: {Secure.HashMD5(zipData.Span)._GetHexString()}");
-            mailText.WriteLine($"この ZIP ファイルの SHA512 ハッシュ値: {Secure.HashSHA512(zipData.Span)._GetHexString()}");
+            mailText.WriteLine($"この ZIP ファイルの MD5 ハッシュ値: {Secure.HashMD5(zipData.Span)._GetHexString().ToLowerInvariant()}");
+            mailText.WriteLine($"この ZIP ファイルの SHA256 ハッシュ値: {Secure.HashSHA256(zipData.Span)._GetHexString().ToLowerInvariant()}");
+            mailText.WriteLine($"この ZIP ファイルの SHA512 ハッシュ値: {Secure.HashSHA512(zipData.Span)._GetHexString().ToLowerInvariant()}");
             mailText.WriteLine();
             mailText.WriteLine($"このメールを含めて、合計 {zipDataList.Count} 通のメールが送付されています。");
             mailText.WriteLine($"これらのメールにそれぞれ添付されている合計 {zipDataList.Count} 個の ZIP ファイルに分割されています。");
             mailText.WriteLine($"合計 ZIP ファイルサイズ: {zipDataList.Sum(x => x.Length)._ToString3()} bytes ({zipDataList.Sum(x => x.Length)._GetFileSizeStr()})");
             mailText.WriteLine();
             mailText.WriteLine($"これらの ZIP ファイルは、タイムスタンプ署名が施されることになります。");
-            mailText.WriteLine($"タイムスタンプ署名が施された ZIP ファイルは、しばらくすると、署名サービスにより、返信メールとして送り返されてきます。");
-            mailText.WriteLine("送り返されてきたタイムスタンプ署名が施されたメールは、長期間保存しましょう。");
+            mailText.WriteLine($"しばらくすると、署名サービスにより、ZIP ファイルのハッシュ値 (上記) を記載した PDF ファイルにタイムスタンプ署名が施されたものが、返信メールとして送り返されてきます。");
+            mailText.WriteLine("送り返されてきたタイムスタンプ署名が施されたメールは、このメール本体とともに、長期間保存しましょう。");
             mailText.WriteLine($"これにより、{DtOffsetNow._ToDtStr()} の時点で、ZIP ファイル内のハッシュ表に含まれているファイルが存在していたことが証明されます。");
             mailText.WriteLine("タイムスタンプ署名とは、そのようなものなのです。");
             mailText.WriteLine();
@@ -627,6 +635,7 @@ public class TimeStampDocsUtil : AsyncService
             mailLog.WriteLine($"To: {this.Settings.MailTo}");
             mailLog.WriteLine($"Cc: {this.Settings.MailCc}");
             mailLog.WriteLine($"Subject: {subject}");
+            mailLog.WriteLine($"Body size: {mailText.ToString().Length._ToString3()} characters");
             mailLog.WriteLine("");
             mailLog.WriteLine("---- 本文 ここから ----");
             mailLog.WriteLine(mailText.ToString());
@@ -635,7 +644,17 @@ public class TimeStampDocsUtil : AsyncService
 
             await TaskUtil.RetryAsync(async () =>
             {
-                await mail.SendAsync(smtpConfig, cancel);
+                try
+                {
+                    Con.WriteLine($"Sending email from {this.Settings.MailFrom} to {this.Settings.MailTo} (subject: {subject}, length = {mailText.ToString().Length._ToString3()} characters)");
+                    await mail.SendAsync(smtpConfig, cancel);
+                    Con.WriteLine($"Ok.");
+                }
+                catch (Exception ex)
+                {
+                    ex._Error();
+                    throw;
+                }
                 return 0;
             },
             1000,
@@ -804,8 +823,8 @@ public class TimeStampDocsUtil : AsyncService
                     };
 
                     RefLong size = new();
-                    fileData.Md5 = (await Fs.CalcFileHashAsync(fileEntry.FullPath, MD5.Create(), cancel: cancel, totalReadSize: size))._GetHexString();
-                    fileData.Sha512 = (await Fs.CalcFileHashAsync(fileEntry.FullPath, SHA512.Create(), cancel: cancel))._GetHexString();
+                    fileData.Md5 = (await Fs.CalcFileHashAsync(fileEntry.FullPath, MD5.Create(), flags: FileFlags.BackupMode, cancel: cancel, totalReadSize: size))._GetHexString();
+                    fileData.Sha512 = (await Fs.CalcFileHashAsync(fileEntry.FullPath, SHA512.Create(), flags: FileFlags.BackupMode, cancel: cancel))._GetHexString();
                     fileData.FileSize = size;
 
                     dirData.FileList.Add(fileData);
@@ -836,27 +855,30 @@ public class TimeStampDocsUtil : AsyncService
                     return;
                 }
 
-                if (config.ProcessFilterForDirectory(subDirEntry.Name))
+                if (subDirEntry.Name._IsDiffi(this.Settings.TimeStampProjectLogDirName))
                 {
-                    // このサブディレクトリに独自の Config はあるか?
-                    string configPath = this.Fs.PathParser.Combine(subDirEntry.FullPath, this.Settings.TimeStampConfigFilename);
-                    var subDirConfig = await this.ParseConfigAsync(configPath, cancel);
-
-                    if (subDirConfig != null)
+                    if (config.ProcessFilterForDirectory(subDirEntry.Name))
                     {
-                        // 独自の Config がある場合は、一階層上の Config を承継した上で必要に応じて上書きをした新たな Config を作る
-                        result.SettingsFiles.Add(configPath);
+                        // このサブディレクトリに独自の Config はあるか?
+                        string configPath = this.Fs.PathParser.Combine(subDirEntry.FullPath, this.Settings.TimeStampConfigFilename);
+                        var subDirConfig = await this.ParseConfigAsync(configPath, cancel);
 
-                        subDirConfig = config.MergeConfig(subDirConfig);
-                    }
-                    else
-                    {
-                        // 独自の Config がなければ、親 Config のうちディレクトリに関する設定を除いたフィルタをそのまま利用する
-                        subDirConfig = config.MergeConfig(null);
-                    }
+                        if (subDirConfig != null)
+                        {
+                            // 独自の Config がある場合は、一階層上の Config を承継した上で必要に応じて上書きをした新たな Config を作る
+                            result.SettingsFiles.Add(configPath);
 
-                    // 再帰
-                    await ProcessParentManagedSubDirAsync(subDirConfig, subDirEntry.FullPath, cancel, parentDirPathForFilter, result);
+                            subDirConfig = config.MergeConfig(subDirConfig);
+                        }
+                        else
+                        {
+                            // 独自の Config がなければ、親 Config のうちディレクトリに関する設定を除いたフィルタをそのまま利用する
+                            subDirConfig = config.MergeConfig(null);
+                        }
+
+                        // 再帰
+                        await ProcessParentManagedSubDirAsync(subDirConfig, subDirEntry.FullPath, cancel, parentDirPathForFilter, result);
+                    }
                 }
             }
             catch (Exception ex)

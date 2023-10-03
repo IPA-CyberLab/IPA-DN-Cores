@@ -53,6 +53,39 @@ namespace IPA.TestDev;
 partial class TestDevCommands
 {
     [ConsoleCommand(
+        "TimeStampDocs command",
+        "TimeStampDocs [dirlist]",
+        "TimeStampDocs command")]
+    static async Task<int> TimeStampDocs(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
+                new ConsoleParam("[dirlist]", ConsoleService.Prompt, "Source directory list: ", ConsoleService.EvalNotEmpty, null),
+            };
+
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        string dirlist = vl.DefaultParam.StrValue;
+
+        bool err = false;
+
+        try
+        {
+            Lfs.EnableBackupPrivilege();
+        }
+        catch (Exception ex)
+        {
+            Con.WriteError(ex.Message);
+        }
+
+        await using TimeStampDocsUtil util = new TimeStampDocsUtil(Lfs);
+
+        await util.DoAsync(dirlist);
+
+        return 0;
+    }
+
+    [ConsoleCommand(
         "SecureCompressVerify command",
         "SecureCompressVerify [original] /archive:archive [/password:password] [/numthreads:num]",
         "SecureCompressVerify command")]
