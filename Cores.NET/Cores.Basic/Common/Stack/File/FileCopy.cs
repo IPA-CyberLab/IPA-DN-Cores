@@ -506,8 +506,9 @@ public static partial class FileUtil
         return hash1._MemCompare(hash2);
     }
 
-    public static async Task<ResultOrError<int>> CompareEncryptedFileHashAsync(string encryptPassword, bool isCompressed, FilePath filePlain, FilePath fileEncrypted, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? fileSize = null, CancellationToken cancel = default, Ref<Exception?>? exception = null, Ref<string>? hashStr1 = null, Ref<string>? hashStr2 = null)
+    public static async Task<ResultOrError<int>> CompareEncryptedFileHashAsync(string encryptPassword, EncryptOption options, FilePath filePlain, FilePath fileEncrypted, int bufferSize = Consts.Numbers.DefaultLargeBufferSize, RefLong? fileSize = null, CancellationToken cancel = default, Ref<Exception?>? exception = null, Ref<string>? hashStr1 = null, Ref<string>? hashStr2 = null)
     {
+        bool isCompressed = options.Bit(EncryptOption.Compress);
         if (exception == null) exception = new Ref<Exception?>();
         exception.Set(null);
 
@@ -547,11 +548,28 @@ public static partial class FileUtil
                 return new ResultOrError<int>(EnsureError.Error);
             }
 
-            await using var fileEncryptedObject = await fileEncrypted.OpenAsync(cancel: cancel);
-            await using var xts = new XtsAesRandomAccess(fileEncryptedObject, encryptPassword, disposeObject: true);
-            await using Stream internalStream = isCompressed == false ? xts.GetStream(disposeTarget: true) : await xts.GetDecompressStreamAsync();
+            if (options.Bit(EncryptOption.Decrypt_v2_SecureCompress) || options.Bit(EncryptOption.Encrypt_v2_SecureCompress))
+            {
+                // Decryption (SecureCompress, 2023/09 ～)
+                await using var fileEncryptedObject = await fileEncrypted.OpenAsync(cancel: cancel);
+                await using var fileEncryptedStream = fileEncryptedObject.GetStream(disposeObject: true);
+                await using HashCalcStream md5Stream = new HashCalcStream(MD5.Create(), true);
+                await using var decoder = new SecureCompressDecoder(md5Stream,
+                    new SecureCompressOptions("", true, encryptPassword), autoDispose: true);
+                await FileUtil.CopyBetweenStreamAsync(fileEncryptedStream, decoder);
+                await decoder.FinalizeAsync(cancel);
 
-            hash2 = await Secure.CalcStreamHashAsync(internalStream, md5, bufferSize: bufferSize, cancel: cancel);
+                hash2 = md5Stream.GetFinalHash();
+            }
+            else
+            {
+                // Decryption (Legacy XTS, ～ 2023/09)
+                await using var fileEncryptedObject = await fileEncrypted.OpenAsync(cancel: cancel);
+                await using var xts = new XtsAesRandomAccess(fileEncryptedObject, encryptPassword, disposeObject: true);
+                await using Stream internalStream = isCompressed == false ? xts.GetStream(disposeTarget: true) : await xts.GetDecompressStreamAsync();
+
+                hash2 = await Secure.CalcStreamHashAsync(internalStream, md5, bufferSize: bufferSize, cancel: cancel);
+            }
         }
         catch (Exception ex)
         {
@@ -902,11 +920,11 @@ public static partial class FileUtil
 
                 if (param.EncryptOption.Bit(EncryptOption.Encrypt))
                 {
-                    sameRet = await CompareEncryptedFileHashAsync(param.EncryptPassword, param.EncryptOption.Bit(EncryptOption.Compress), new FilePath(srcPath, srcFileSystem, flags: param.Flags), new FilePath(destPath, destFileSystem, flags: param.Flags), fileSize: skippedFileSize, cancel: cancel);
+                    sameRet = await CompareEncryptedFileHashAsync(param.EncryptPassword, param.EncryptOption, new FilePath(srcPath, srcFileSystem, flags: param.Flags), new FilePath(destPath, destFileSystem, flags: param.Flags), fileSize: skippedFileSize, cancel: cancel);
                 }
                 else if (param.EncryptOption.Bit(EncryptOption.Decrypt))
                 {
-                    sameRet = await CompareEncryptedFileHashAsync(param.EncryptPassword, param.EncryptOption.Bit(EncryptOption.Compress), new FilePath(destPath, destFileSystem, flags: param.Flags), new FilePath(srcPath, srcFileSystem, flags: param.Flags), fileSize: skippedFileSize, cancel: cancel);
+                    sameRet = await CompareEncryptedFileHashAsync(param.EncryptPassword, param.EncryptOption, new FilePath(destPath, destFileSystem, flags: param.Flags), new FilePath(srcPath, srcFileSystem, flags: param.Flags), fileSize: skippedFileSize, cancel: cancel);
                 }
                 else
                 {

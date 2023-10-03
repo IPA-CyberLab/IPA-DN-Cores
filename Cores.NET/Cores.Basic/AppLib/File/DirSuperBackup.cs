@@ -454,7 +454,7 @@ public class DirSuperBackup : AsyncService
                         {
                             // NoCheckFileSize を付けないと、一部の Windows クライアントと一部の Samba サーバーとの間でヘンなエラーが発生する。
                             funcName = "CompareEncryptedFileHashAsync";
-                            sameRet = await FileUtil.CompareEncryptedFileHashAsync(encryptPassword, true, new FilePath(localFile.FullPath, LocalFs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), new FilePath(archivedFilePath, ArchiveFs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), cancel: cancel, hashStr1: hashStr1, hashStr2: hashStr2, exception: exception);
+                            sameRet = await FileUtil.CompareEncryptedFileHashAsync(encryptPassword, EncryptOption.Compress, new FilePath(localFile.FullPath, LocalFs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), new FilePath(archivedFilePath, ArchiveFs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), cancel: cancel, hashStr1: hashStr1, hashStr2: hashStr2, exception: exception);
                         }
 
                         if (sameRet.IsOk == false)
@@ -757,7 +757,7 @@ public class DirSuperBackup : AsyncService
                                     else
                                     {
                                         // NoCheckFileSize を付けないと、一部の Windows クライアントと一部の Samba サーバーとの間でヘンなエラーが発生する。
-                                        sameRet = await FileUtil.CompareEncryptedFileHashAsync(encryptPassword, true, new FilePath(destFilePath, LocalFs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), new FilePath(srcFilePath, ArchiveFs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), cancel: cancel);
+                                        sameRet = await FileUtil.CompareEncryptedFileHashAsync(encryptPassword, EncryptOption.Compress, new FilePath(destFilePath, LocalFs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), new FilePath(srcFilePath, ArchiveFs, flags: FileFlags.BackupMode | FileFlags.NoCheckFileSize), cancel: cancel);
                                     }
 
                                     if (sameRet.IsOk == false || sameRet.Value != 0)
