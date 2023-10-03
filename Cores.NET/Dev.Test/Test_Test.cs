@@ -4853,8 +4853,8 @@ HOST: www.google.com
     {
         if (true)
         {
-            Test_230925_Verify();
-            //Test_230925_Restore();
+            //Test_230925_Verify();
+            Test_230925_Restore();
             //Test_230925_Backup();
 
             //Test_210307_EncCopy();
