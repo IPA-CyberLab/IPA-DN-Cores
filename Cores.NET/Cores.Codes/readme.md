@@ -51,6 +51,9 @@
 ### CORES_CODES_IISUTIL
 - IIS 用ユーティリティ関係
 
+### CORES_CODES_EXCELUTIL
+- Excel ユーティリティ関係
+
 
 
 

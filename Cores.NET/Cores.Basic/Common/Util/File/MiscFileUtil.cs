@@ -53,60 +53,11 @@ using System.Runtime.CompilerServices;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
 
-using OfficeOpenXml;
-
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic;
-
-public class ExcelFile : AsyncService
-{
-    public ExcelPackage Excel { get; }
-
-    public ExcelWorkbook Workbook => this.Excel.Workbook;
-
-    public ExcelWorksheets Worksheets => this.Workbook.Worksheets;
-
-    readonly Stream TargetStream;
-
-    public ExcelFile(ReadOnlySpan<byte> data) : this(new MemoryStream(data.ToArray())) { }
-
-    public ExcelFile(Stream st)
-    {
-        try
-        {
-            this.TargetStream = st;
-
-            this.Excel = new ExcelPackage(this.TargetStream);
-        }
-        catch
-        {
-            this._DisposeSafe();
-            throw;
-        }
-    }
-
-    protected override async Task CleanupImplAsync(Exception? ex)
-    {
-        try
-        {
-            await this.Excel._DisposeSafeAsync2();
-
-            await this.TargetStream._DisposeSafeAsync();
-        }
-        finally
-        {
-            await base.CleanupImplAsync(ex);
-        }
-    }
-
-    public static void RunTestStartup()
-    {
-        Limbo.ObjectVolatileSlow = OfficeOpenXml.FontSize.FontHeights;
-    }
-}
 
 #endif
 

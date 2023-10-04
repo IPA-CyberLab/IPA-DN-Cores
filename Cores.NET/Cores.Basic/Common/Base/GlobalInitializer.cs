@@ -392,7 +392,6 @@ public static class CoresLib
         SecureShellClient.RunStartupTest();
         ComPortClient.RunStartupTest();
         DnsClientLibBasedDnsResolver.RunTestStartup();
-        ExcelFile.RunTestStartup();
 #endif
 
     }
