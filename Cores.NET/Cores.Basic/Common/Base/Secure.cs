@@ -249,6 +249,24 @@ namespace IPA.Cores.Basic
             return ret;
         }
 
+        public static byte[] HMacSHA1(byte[] key, ReadOnlySpan<byte> data)
+        {
+            Span<byte> dest = new byte[SHA1Size];
+            int r = HMacSHA1(key, data, dest);
+            Debug.Assert(r == dest.Length);
+            return dest.ToArray();
+        }
+
+        public static int HMacSHA1(byte[] key, ReadOnlySpan<byte> data, Span<byte> dest)
+        {
+            using HMACSHA1 h = new HMACSHA1(key);
+
+            if (h.TryComputeHash(data, dest, out int ret) == false)
+                throw new CoresLibException("TryComputeHash error.");
+
+            return ret;
+        }
+
 
         // SHA0
         public static byte[] HashSHA0(ReadOnlySpan<byte> src)

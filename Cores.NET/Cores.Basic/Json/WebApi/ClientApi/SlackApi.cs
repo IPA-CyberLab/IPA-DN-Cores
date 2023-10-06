@@ -149,9 +149,9 @@ public class SlackApi : WebApi
         this.Json_MaxDepth = 128;
     }
 
-    protected override HttpRequestMessage CreateWebRequest(WebMethods method, string url, params (string name, string? value)[]? queryList)
+    protected override HttpRequestMessage CreateWebRequest(WebMethods method, string url, WebRequestOptions? options, params (string name, string? value)[]? queryList)
     {
-        HttpRequestMessage r = base.CreateWebRequest(method, url, queryList);
+        HttpRequestMessage r = base.CreateWebRequest(method, url, options, queryList);
 
         if (this.AccessTokenStr._IsFilled())
         {
@@ -332,14 +332,14 @@ public class SlackApi : WebApi
         public UserePrefs? prefs;
     }
 
-    public override async Task<WebRet> SimpleQueryAsync(WebMethods method, string url, CancellationToken cancel = default, string? postContentType = Consts.MimeTypes.FormUrlEncoded, params (string name, string? value)[]? queryList)
+    public override async Task<WebRet> SimpleQueryAsync(WebMethods method, bool exactMimeType, string url, WebRequestOptions? options, CancellationToken cancel = default, string? postContentType = Consts.MimeTypes.FormUrlEncoded, params (string name, string? value)[]? queryList)
     {
         int num_retry = 0;
 
         LABEL_RETRY:
         {
             if (postContentType._IsEmpty()) postContentType = Consts.MimeTypes.FormUrlEncoded;
-            using HttpRequestMessage r = CreateWebRequest(method, url, queryList);
+            using HttpRequestMessage r = CreateWebRequest(method, url, options, queryList);
 
             if (method == WebMethods.POST || method == WebMethods.PUT)
             {

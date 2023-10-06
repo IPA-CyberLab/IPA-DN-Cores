@@ -58,8 +58,6 @@ using IPA.Cores.Basic.DnsLib;
 using IPA.Cores.Basic.Internal;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
-using Microsoft.AspNetCore.Server.IIS.Core;
-//using Microsoft.EntityFrameworkCore.Query.Internal;
 using System.Net.Sockets;
 
 using Newtonsoft.Json;
@@ -70,7 +68,297 @@ using Newtonsoft.Json.Linq;
 
 namespace IPA.Cores.Basic;
 
+public enum S3FsClientFlags
+{
+    None = 0,
+    AmazonS3 = 1,
+}
 
+public class S3FsClientConfig : INormalizable
+{
+    public S3FsClientFlags Flags = S3FsClientFlags.None;
+
+    public string BaseUrl = "";
+
+    public string AccessKey = "";
+    public string SecretKey = "";
+    public string BucketName = "";
+
+    public void Normalize()
+    {
+    }
+}
+
+public class S3FsRequest
+{
+    public S3FsClientConfig Config = null!;
+    public WebMethods Method = WebMethods.GET;
+    public string ContentMD5 = "";
+    public string ContentType = Consts.MimeTypes.OctetStream;
+    public DateTimeOffset Date = Util.ZeroDateTimeOffsetValue;
+
+    public string VirtualPath = "";
+    public string SubResource = "";
+
+    public long? RangeStart = null;
+    public long? RangeLength = null;
+
+    public StrDictionary<List<string>> Headers = new StrDictionary<List<string>>(StrCmpi);
+
+    public string GenerateAuthorizationHeader()
+    {
+        return $"AWS {this.Config.AccessKey}:{GenerateSignature()}";
+    }
+
+    public string GenerateSignature()
+    {
+        // https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/userguide/RESTAuthentication.html#ConstructingTheAuthenticationHeader
+        string strToSign = GenerateStringToSign();
+
+        byte[] signBytes = Secure.HMacSHA1(this.Config.SecretKey._GetBytes_UTF8(), strToSign._GetBytes_UTF8());
+
+        return Str.Base64Encode(signBytes);
+    }
+
+    public string GenerateStringToSign()
+    {
+        // https://docs.aws.amazon.com/ja_jp/AmazonS3/latest/userguide/RESTAuthentication.html#ConstructingTheAuthenticationHeader
+        StringWriter w = new StringWriter();
+        w.NewLine = Str.NewLine_Str_Unix;
+
+        w.WriteLine(this.Method.ToString());
+        w.WriteLine(this.ContentMD5);
+
+        if (this.Method == WebMethods.POST || this.Method == WebMethods.PUT)
+        {
+            w.WriteLine(this.ContentType);
+        }
+        else
+        {
+            w.WriteLine();
+        }
+
+        w.WriteLine(this.Date.ToUniversalTime().ToString("r"));
+
+        if (this.Config.Flags.Bit(S3FsClientFlags.AmazonS3))
+        {
+            foreach (var kv in this.Headers.OrderBy(x => x.Key.ToLowerInvariant()))
+            {
+                string key = kv.Key;
+                var valueList = kv.Value;
+
+                if (key.StartsWith("x-amz-", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (key._IsSamei("x-amz-date") == false)
+                    {
+                        string key2 = key.ToLowerInvariant();
+
+                        string txt = key2 + ":" + valueList._Combine(",");
+
+                        w.WriteLine(txt);
+                    }
+                }
+            }
+        }
+
+        string canonicalizedResource = "";
+
+        var baseUri = this.Config.BaseUrl._ParseUrl();
+        if (baseUri.AbsolutePath == "" || baseUri.AbsolutePath == "/")
+        {
+            canonicalizedResource = "/" + this.Config.BucketName;
+        }
+
+        canonicalizedResource += this.VirtualPath;
+
+        if (this.SubResource._IsFilled())
+        {
+            if (this.SubResource.StartsWith("?") == false)
+            {
+                canonicalizedResource += "?";
+            }
+            canonicalizedResource += this.SubResource;
+        }
+
+        w.Write(canonicalizedResource);
+
+        return w.ToString();
+    }
+}
+
+public class S3FsClient : WebFsClient
+{
+    public S3FsClientConfig Config;
+    public WebApi Web;
+
+    public S3FsClient(S3FsClientConfig config, WebFsClientSettings? settings = null) : base(settings)
+    {
+        try
+        {
+            this.Config = config;
+
+            this.Config.Normalize();
+
+            this.Web = new WebApi(this.Settings.WebOptions);
+        }
+        catch (Exception ex)
+        {
+            this._DisposeSafe(ex);
+            throw;
+        }
+    }
+
+    // 任意の絶対パスを、S3 内で通用する仮想パスに変換する (主にパスのチェックをしてディレクトリ区切り記号を正規化するだけ)
+    public static string NormalizeVirtualPath(string path, bool isDirectory)
+    {
+        path = PPLinux.NormalizeDirectorySeparatorAndCheckIfAbsolutePath(path);
+
+        if (path.StartsWith("/") == false)
+        {
+            throw new CoresLibException($"targetPath '{path}' doesn't start with '/'.");
+        }
+
+        if (isDirectory == false)
+        {
+            if (path.Length <= 1 || path.EndsWith("/"))
+            {
+                throw new CoresLibException($"targetPath '{path}' is invalid as filename.");
+            }
+        }
+        else
+        {
+            if (path.EndsWith("/") == false)
+            {
+                path += "/";
+            }
+        }
+
+        return path;
+    }
+
+    // 任意の絶対パスを、S3 用の URL に変換する
+    public string GenerateUrlFromVirtualPath(string path, bool isDirectory)
+    {
+        path = NormalizeVirtualPath(path, isDirectory);
+
+        if (path.StartsWith("/") == false)
+        {
+            throw new CoresLibException($"Invalid path: '{path}'");
+        }
+
+        path = path.Substring(1);
+
+        string baseUrlTmp = this.Config.BaseUrl;
+
+        if (baseUrlTmp.EndsWith("/") == false)
+        {
+            baseUrlTmp += "/";
+        }
+
+        var baseUri = baseUrlTmp._ParseUrl();
+
+        var ret = baseUri._CombineUrl(path);
+
+        return ret.ToString();
+    }
+
+    // リクエストの送付
+    public async Task<WebSendRecvResponse> RequestAsync(S3FsRequest req, string url, Stream? uploadStream = null, CancellationToken cancel = default)
+    {
+        WebRequestOptions options = new WebRequestOptions();
+
+        options.RequestHeaders.Add("Date", req.Date.ToUniversalTime().ToString("r")._SingleList());
+        options.RequestHeaders.Add("Authorization", req.GenerateAuthorizationHeader()._SingleList());
+
+        foreach (var kv in req.Headers)
+        {
+            options.RequestHeaders.Add(kv.Key, kv.Value.ToList());
+        }
+
+        WebSendRecvRequest webReq = new WebSendRecvRequest(req.Method, url, cancel, req.ContentType, uploadStream, options: options, rangeStart: req.RangeStart, rangeLength: req.RangeLength);
+
+        var webRes = await this.Web.HttpSendRecvDataAsync(webReq);
+
+        return webRes;
+    }
+
+    public async Task Test1Async(CancellationToken cancel = default)
+    {
+        string path = "/Hello.txt";
+
+        var x = GenerateUrlFromVirtualPath(path, false);
+
+        S3FsRequest req = new S3FsRequest
+        {
+            Config = this.Config,
+            Method = WebMethods.GET,
+            Date = DtOffsetNow,
+            VirtualPath = NormalizeVirtualPath(path, false),
+        };
+
+        string url = GenerateUrlFromVirtualPath(path, false);
+
+        await using var res = await this.RequestAsync(req, url, null, cancel);
+
+        var data = await res.DownloadStream._ReadToEndAsync();
+
+        res.HttpResponseMessage.Content.Headers._Print();
+
+        data._GetString_UTF8()._Print();
+    }
+
+    protected override async Task CleanupImplAsync(Exception? ex)
+    {
+        try
+        {
+            await this.Web._DisposeSafeAsync();
+        }
+        finally
+        {
+            await base.CleanupImplAsync(ex);
+        }
+    }
+}
+
+public class WebFsClientSettings
+{
+    public WebApiOptions WebOptions { get; }
+
+    public WebFsClientSettings(WebApiOptions? webOptions = null)
+    {
+        if (webOptions == null)
+        {
+            webOptions = new WebApiOptions(doNotUseTcpStack: true);
+        }
+
+        this.WebOptions = webOptions;
+    }
+}
+
+public abstract class WebFsClient : AsyncService
+{
+    public WebFsClientSettings Settings { get; }
+
+    public WebFsClient(WebFsClientSettings? settings = null)
+    {
+        try
+        {
+            if (settings == null) settings = new WebFsClientSettings();
+
+            this.Settings = settings;
+        }
+        catch (Exception ex)
+        {
+            this._DisposeSafe(ex);
+            throw;
+        }
+    }
+
+    protected override Task CleanupImplAsync(Exception? ex)
+    {
+        return base.CleanupImplAsync(ex);
+    }
+}
 
 
 

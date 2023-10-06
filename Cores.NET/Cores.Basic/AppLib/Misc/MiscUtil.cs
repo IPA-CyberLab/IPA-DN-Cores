@@ -1173,7 +1173,7 @@ https://www.twitter.com/
 
                 if (consumed == false)
                 {
-                    destLines.Add(tmp);
+                    destLines.Add(line);
                 }
             }
         }

@@ -68,6 +68,53 @@ public static partial class CoresConfig
     }
 }
 
+public class CoresWebApiResponseException : CoresException
+{
+    public static async Task<CoresWebApiResponseException> CreateExceptionAsync(HttpResponseMessage res)
+    {
+        string details = "";
+
+        byte[] data = new byte[0];
+
+        try
+        {
+            data = await res.Content.ReadAsByteArrayAsync();
+
+            details = data._GetString_UTF8()._OneLine(" ");
+        }
+        catch { }
+
+        string errStr = string.Format("Response status code does not indicate success: {0} ({1}).", (int)res.StatusCode, res.ReasonPhrase);
+
+        if (details != null)
+        {
+            errStr += " Details: " + details._TruncStr(1024);
+        }
+
+        var ret = new CoresWebApiResponseException(errStr);
+
+        ret.Version = res.Version;
+        ret.StatusCode = res.StatusCode;
+        ret.ReasonPhrase = res.ReasonPhrase;
+        ret.ResponseHttpBodyData = data;
+        try
+        {
+            ret.ResponseHttpBodyText = data._GetString_UTF8(true);
+        }
+        catch { }
+
+        return ret;
+    }
+
+    public Version Version { get; private set; } = null!;
+    public HttpStatusCode StatusCode { get; private set; }
+    public string ReasonPhrase { get; private set; } = "";
+    public ReadOnlyMemory<byte> ResponseHttpBodyData { get; private set; }
+    public string ResponseHttpBodyText { get; private set; } = "";
+
+    private CoresWebApiResponseException(string message) : base(message) { }
+}
+
 public class EasyHttpClientOptions
 {
     public int TryCount { get; }
@@ -194,10 +241,11 @@ public class WebSendRecvRequest : IDisposable
     public Stream? UploadStream { get; }
     public long? RangeStart { get; }
     public long? RangeLength { get; }
+    public WebRequestOptions? Options { get; }
 
     public WebSendRecvRequest(WebMethods method, string url, CancellationToken cancel = default,
         string uploadContentType = Consts.MimeTypes.OctetStream, Stream? uploadStream = null,
-        long? rangeStart = null, long? rangeLength = null)
+        long? rangeStart = null, long? rangeLength = null, WebRequestOptions? options = null)
     {
         if (rangeStart == null && rangeLength != null) throw new ArgumentOutOfRangeException("rangeStart == null && rangeLength != null");
         if ((rangeStart ?? 0) < 0) throw new ArgumentOutOfRangeException(nameof(rangeStart));
@@ -216,6 +264,7 @@ public class WebSendRecvRequest : IDisposable
         this.Cancel = cancel;
         this.UploadContentType = uploadContentType._FilledOrDefault(Consts.MimeTypes.OctetStream);
         this.UploadStream = uploadStream;
+        this.Options = options;
     }
 
     public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
@@ -434,6 +483,11 @@ public class WebApiOptions
     }
 }
 
+public class WebRequestOptions
+{
+    public StrDictionary<List<string>> RequestHeaders = new StrDictionary<List<string>>(StrCmpi);
+}
+
 public partial class WebApi : IDisposable, IAsyncDisposable
 {
     WebApiSettings Settings;
@@ -587,8 +641,16 @@ public partial class WebApi : IDisposable, IAsyncDisposable
         return ProxyDefCacheList.GetOrCreate(proxyUri, a => new SimpleProxyDef(a))!;
     }
 
-    virtual protected HttpRequestMessage CreateWebRequest(WebMethods method, string url, params (string name, string? value)[]? queryList)
+    protected HttpRequestMessage CreateWebRequest(WebMethods method, string url, params (string name, string? value)[]? queryList)
+        => CreateWebRequest(method, url, null, queryList);
+
+    virtual protected HttpRequestMessage CreateWebRequest(WebMethods method, string url, WebRequestOptions? options, params (string name, string? value)[]? queryList)
     {
+        if (options == null)
+        {
+            options = new WebRequestOptions();
+        }
+
         string[]? embeddedSslCertHashList = null;
 
         int sslHashStrIndex = url._Search("!ssl=");
@@ -746,6 +808,24 @@ public partial class WebApi : IDisposable, IAsyncDisposable
                 }
             }
 
+            foreach (string name in options.RequestHeaders.Keys)
+            {
+                bool ok = true;
+
+                if (name._IsSamei("Authorization") && embeddedAuthHeader._IsFilled())
+                {
+                    ok = false;
+                }
+
+                if (ok)
+                {
+                    foreach (var value in options.RequestHeaders[name])
+                    {
+                        tmp._GetOrNew(name, () => new List<string>()).Add(value);
+                    }
+                }
+            }
+
             foreach (var kv in tmp.OrderBy(x => x.Key, StrCmpi))
             {
                 if (kv.Key._IsSamei("cookie") == false)
@@ -782,33 +862,21 @@ public partial class WebApi : IDisposable, IAsyncDisposable
     {
         if (res.IsSuccessStatusCode) return;
 
-        string details = "";
+        var ex = await CoresWebApiResponseException.CreateExceptionAsync(res);
 
-        try
-        {
-            byte[] data = await res.Content.ReadAsByteArrayAsync();
-
-            details = data._GetString_UTF8()._OneLine(" ");
-        }
-        catch { }
-
-        string errStr = string.Format("Response status code does not indicate success: {0} ({1}).", (int)res.StatusCode, res.ReasonPhrase);
-
-        if (details != null)
-        {
-            errStr += " Details: " + details._TruncStr(1024);
-        }
-
-        throw new HttpRequestException(errStr);
+        throw ex;
     }
 
-    public virtual Task<WebRet> SimpleQueryAsync(WebMethods method, string url, CancellationToken cancel = default, string? postContentType = Consts.MimeTypes.FormUrlEncoded, params (string name, string? value)[] queryList)
+    public Task<WebRet> SimpleQueryAsync(WebMethods method, string url, CancellationToken cancel = default, string? postContentType = Consts.MimeTypes.FormUrlEncoded, params (string name, string? value)[] queryList)
         => SimpleQueryAsync(method, false, url, cancel, postContentType, queryList);
 
-    public virtual async Task<WebRet> SimpleQueryAsync(WebMethods method, bool exactMimeType, string url, CancellationToken cancel = default, string? postContentType = Consts.MimeTypes.FormUrlEncoded, params (string name, string? value)[] queryList)
+    public Task<WebRet> SimpleQueryAsync(WebMethods method, bool exactMimeType, string url, CancellationToken cancel = default, string? postContentType = Consts.MimeTypes.FormUrlEncoded, params (string name, string? value)[] queryList)
+        => SimpleQueryAsync(method, exactMimeType, url, null, cancel, postContentType, queryList);
+
+    public virtual async Task<WebRet> SimpleQueryAsync(WebMethods method, bool exactMimeType, string url, WebRequestOptions? options, CancellationToken cancel = default, string? postContentType = Consts.MimeTypes.FormUrlEncoded, params (string name, string? value)[] queryList)
     {
         if (postContentType._IsEmpty()) postContentType = Consts.MimeTypes.FormUrlEncoded;
-        using HttpRequestMessage r = CreateWebRequest(method, url, queryList);
+        using HttpRequestMessage r = CreateWebRequest(method, url, options, queryList);
 
         if (method == WebMethods.POST || method == WebMethods.PUT)
         {
@@ -845,10 +913,10 @@ public partial class WebApi : IDisposable, IAsyncDisposable
         return new MediaTypeHeaderValue(str);
     }
 
-    public virtual async Task<WebRet> SimplePostDataAsync(string url, byte[] postData, CancellationToken cancel = default, string postContentType = Consts.MimeTypes.Json)
+    public virtual async Task<WebRet> SimplePostDataAsync(string url, byte[] postData, CancellationToken cancel = default, string postContentType = Consts.MimeTypes.Json, WebRequestOptions? options = null)
     {
         if (postContentType._IsEmpty()) postContentType = Consts.MimeTypes.Json;
-        using HttpRequestMessage r = CreateWebRequest(WebMethods.POST, url);
+        using HttpRequestMessage r = CreateWebRequest(WebMethods.POST, url, options);
 
         r.Content = new ByteArrayContent(postData);
         r.Content.Headers.ContentType = ParseContentTypeStr(postContentType);
@@ -865,13 +933,13 @@ public partial class WebApi : IDisposable, IAsyncDisposable
     }
 
 
-    public virtual async Task<WebRet> SimplePostJsonAsync(WebMethods method, string url, string jsonString, CancellationToken cancel = default, string postContentType = Consts.MimeTypes.Json)
+    public virtual async Task<WebRet> SimplePostJsonAsync(WebMethods method, string url, string jsonString, CancellationToken cancel = default, string postContentType = Consts.MimeTypes.Json, WebRequestOptions? options = null)
     {
         if (postContentType._IsEmpty()) postContentType = Consts.MimeTypes.Json;
 
         if (!(method == WebMethods.POST || method == WebMethods.PUT)) throw new ArgumentException($"Invalid method: {method.ToString()}");
 
-        using HttpRequestMessage r = CreateWebRequest(method, url);
+        using HttpRequestMessage r = CreateWebRequest(method, url, options);
 
         byte[] upload_data = jsonString._GetBytes(this.RequestEncoding);
 
@@ -890,7 +958,7 @@ public partial class WebApi : IDisposable, IAsyncDisposable
 
     public virtual async Task<WebSendRecvResponse> HttpSendRecvDataAsync(WebSendRecvRequest request)
     {
-        HttpRequestMessage r = CreateWebRequest(request.Method, request.Url);
+        HttpRequestMessage r = CreateWebRequest(request.Method, request.Url, request.Options);
 
         if (request.RangeStart != null)
         {

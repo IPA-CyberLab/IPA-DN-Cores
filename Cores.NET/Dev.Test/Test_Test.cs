@@ -4849,8 +4849,30 @@ HOST: www.google.com
         }
     }
 
+    public static async Task Test_231005_Async()
+    {
+        S3FsClientConfig config = new()
+        {
+            BaseUrl  = "http://dntest230924.s3.ap-northeast-1.amazonaws.com",
+            BucketName = "dntest230924",
+            AccessKey = await Lfs.ReadStringFromFileAsync(@"H:\Secure\231005_AwsS3Test\1_access_key.txt", oneLine: true),
+            SecretKey = await Lfs.ReadStringFromFileAsync(@"H:\Secure\231005_AwsS3Test\2_secret_key.txt", oneLine: true),
+        };
+
+        await using var s3 = new S3FsClient(config);
+
+        for (int i = 0; i < 10;i++)
+        await s3.Test1Async();
+    }
+
     public static void Test_Generic()
     {
+        if (true)
+        {
+            Test_231005_Async()._GetResult();
+            return;
+        }
+
         if (true)
         {
             //Test_230925_Verify();

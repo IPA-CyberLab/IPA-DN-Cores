@@ -86,9 +86,9 @@ namespace IPA.Cores.ClientApi.GoogleApi
             this.Json_MaxDepth = 128;
         }
 
-        protected override HttpRequestMessage CreateWebRequest(WebMethods method, string url, params (string name, string? value)[]? queryList)
+        protected override HttpRequestMessage CreateWebRequest(WebMethods method, string url, WebRequestOptions? options, params (string name, string? value)[]? queryList)
         {
-            HttpRequestMessage r = base.CreateWebRequest(method, url, queryList);
+            HttpRequestMessage r = base.CreateWebRequest(method, url, options, queryList);
 
             if (this.AccessTokenStr._IsFilled())
             {
