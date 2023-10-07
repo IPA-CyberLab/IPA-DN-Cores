@@ -1233,6 +1233,18 @@ namespace IPA.Cores.Basic
             return dt;
         }
 
+        public static DateTime NormalizeDateTimeForFileSystem(DateTime dt)
+        {
+            if (IsZeroForFileSystem(dt)) return FileSystem.ZeroDateTimeForFileSystem;
+            return dt;
+        }
+
+        public static DateTimeOffset NormalizeDateTimeForFileSystem(DateTimeOffset dt)
+        {
+            if (IsZeroForFileSystem(dt)) return FileSystem.ZeroDateTimeOffsetForFileSystem;
+            return dt;
+        }
+
         // 指定されたオブジェクトが Null、0 または空データであるかどうか判別する
         public static bool IsEmpty<T>([NotNullWhen(false)] T data, bool zeroValueIsEmpty = false)
         {
@@ -1303,6 +1315,24 @@ namespace IPA.Cores.Basic
             }
             return false;
         }
+
+        public static bool IsZeroForFileSystem(DateTime dt)
+        {
+            if (dt.Year < 1980)
+            {
+                return true;
+            }
+            return false;
+        }
+        public static bool IsZeroForFileSystem(DateTimeOffset dt)
+        {
+            if (dt.Year < 1980)
+            {
+                return true;
+            }
+            return false;
+        }
+
 
         // byte[] 配列がオールゼロかどうか検査する
         [MethodImpl(Inline)]

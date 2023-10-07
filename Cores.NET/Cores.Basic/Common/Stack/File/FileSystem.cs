@@ -1004,7 +1004,7 @@ public class PathParser
         return pathStack.ToArray();
     }
 
-    public string[] SplitAbsolutePathToElementsUnixStyle(string path, bool allowOnWindows = false)
+    public string[] SplitAbsolutePathToElementsUnixStyle(string path, bool allowOnWindows = false, bool noProcessStacking = false)
     {
         if (allowOnWindows == false)
         {
@@ -1021,9 +1021,14 @@ public class PathParser
         if (path.StartsWith("/") == false)
             throw new ArgumentException($"The speficied path \"{path}\" is not an absolute path.");
 
-        List<string> pathStack = new List<string>();
-
         string[] tokens = path.Split(this.PossibleDirectorySeparators, StringSplitOptions.RemoveEmptyEntries);
+
+        if (noProcessStacking)
+        {
+            return tokens;
+        }
+
+        List<string> pathStack = new List<string>();
 
         foreach (string s in tokens)
         {
@@ -1221,9 +1226,31 @@ public class PathParser
         if (trimmed == "." || trimmed == "..") return false;
 
         foreach (char c in name)
+        {
             foreach (char sep in this.PossibleDirectorySeparators)
+            {
                 if (c == sep)
+                {
                     return false;
+                }
+            }
+
+            foreach (char invalidChar in this.InvalidFileNameChars)
+            {
+                if (c == invalidChar)
+                {
+                    return false;
+                }
+            }
+
+            foreach (char invalidChar in this.InvalidPathChars)
+            {
+                if (c == invalidChar)
+                {
+                    return false;
+                }
+            }
+        }
 
         return true;
     }
@@ -1858,6 +1885,10 @@ public abstract partial class FileSystem : AsyncService
     public Singleton<FileSystemObjectPool> ObjectPoolForWrite { get; }
 
     public LargeFileSystem? LargeFileSystem { get; }
+
+    // Do not change
+    public static readonly DateTimeOffset ZeroDateTimeOffsetForFileSystem = new DateTimeOffset(1980, 1, 1, 0, 0, 0, new TimeSpan(0, 0, 0));
+    public static readonly DateTime ZeroDateTimeForFileSystem = new DateTime(1980, 1, 1, 0, 0, 0);
 
     public FileSystem(FileSystemParams param) : base()
     {

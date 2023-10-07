@@ -47,6 +47,8 @@ using System.Runtime.ExceptionServices;
 using System.Security.Cryptography.X509Certificates;
 using System.Reflection;
 using System.Linq;
+using System.Xml;
+using System.Xml.Linq;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 using System.Runtime.Serialization;
@@ -803,8 +805,14 @@ public static class BasicHelper
     public static bool _IsZeroDateTime(this DateTime dt) => Util.IsZero(dt);
     public static bool _IsZeroDateTime(this DateTimeOffset dt) => Util.IsZero(dt);
 
+    public static bool _IsZeroDateTimeForFileSystem(this DateTime dt) => Util.IsZeroForFileSystem(dt);
+    public static bool _IsZeroDateTimeForFileSystem(this DateTimeOffset dt) => Util.IsZeroForFileSystem(dt);
+
     public static DateTime _NormalizeDateTime(this DateTime dt) => Util.NormalizeDateTime(dt);
     public static DateTimeOffset _NormalizeDateTimeOffset(this DateTimeOffset dt) => Util.NormalizeDateTime(dt);
+
+    public static DateTime _NormalizeDateTimeForFileSystem(this DateTime dt) => Util.NormalizeDateTimeForFileSystem(dt);
+    public static DateTimeOffset _NormalizeDateTimeOffsetForFileSystem(this DateTimeOffset dt) => Util.NormalizeDateTimeForFileSystem(dt);
 
     public static byte[] _ReadToEnd(this Stream s, int maxSize = 0) => Util.ReadStreamToEnd(s, maxSize);
     public static async Task<byte[]> _ReadToEndAsync(this Stream s, int maxSize = 0, CancellationToken cancel = default(CancellationToken)) => await Util.ReadStreamToEndAsync(s, maxSize, cancel);
@@ -2977,7 +2985,7 @@ public static class BasicHelper
         {
             for (int i = 0; i < retArray.Length - 1; i += 1)
             {
-                uint ui = ((uint *)ptr)[i] & 0x7FFFFFFF;
+                uint ui = ((uint*)ptr)[i] & 0x7FFFFFFF;
                 int swapIndex = (int)ui % (retArray.Length - i) + i;
                 if (swapIndex != i)
                 {
@@ -3770,7 +3778,7 @@ public static class BasicHelper
     public static bool _IsIPv4OrIPv6AddressFaimly(this IPAddress ip)
         => _IsIPv4OrIPv6AddressFaimly(ip.AddressFamily);
 
-    public static void _CheckIsIPv4OrIPv6AddressFamily(this AddressFamily af, Exception?ex = null)
+    public static void _CheckIsIPv4OrIPv6AddressFamily(this AddressFamily af, Exception? ex = null)
     {
         if (_IsIPv4OrIPv6AddressFaimly(af) == false)
         {
@@ -3815,6 +3823,79 @@ public static class BasicHelper
     public static IDisposable _EmptyDisposableIfNull(this IDisposable? disposable)
     {
         return disposable ?? new EmptyDisposable();
+    }
+    
+    public static XDocument _StrToXDocument(this string xmlBodyStr)
+    {
+        using StringReader r = new StringReader(xmlBodyStr);
+
+        var doc = XDocument.Load(r);
+
+        return doc;
+    }
+
+    public static string _XDocumentReformat(this string xmlBodyStr, CrlfStyle crlfStyle = CrlfStyle.LocalPlatform)
+    {
+        return xmlBodyStr._StrToXDocument()._XDocumentToStr(crlfStyle);
+    }
+
+    public static string _XDocumentToStr(this XDocument xdoc, CrlfStyle crlfStyle = CrlfStyle.LocalPlatform, SaveOptions saveOptions = SaveOptions.None)
+    {
+        StringWriter w = new StringWriter();
+
+        w.NewLine = Str.GetNewLineStr(crlfStyle);
+
+        xdoc.Save(w, saveOptions);
+
+        return w.ToString();
+    }
+
+    public static XElement? _XmlFindNodeByLocalName(this IEnumerable<XElement> elements, string localName)
+    {
+        localName._NotEmptyCheck(nameof(localName));
+
+        var element = elements.Where(x => x.Name.LocalName == localName).SingleOrDefault();
+
+        return element;
+    }
+
+    public static IEnumerable<XElement> _XmlEnumNodesByLocalName(this IEnumerable<XElement> elements, string localName)
+    {
+        localName._NotEmptyCheck(nameof(localName));
+
+        return elements.Where(x => x.Name.LocalName == localName);
+    }
+
+
+    public static string? _XmlGetSimpleElementStr(this IEnumerable<XElement> elements, string localName, string? defaultStr = null)
+    {
+        var element = elements._XmlFindNodeByLocalName(localName);
+
+        if (element == null)
+        {
+            return defaultStr;
+        }
+
+        if (element.IsEmpty)
+        {
+            return defaultStr;
+        }
+
+        var child = element.Nodes().SingleOrDefault();
+
+        if (child == null)
+        {
+            return defaultStr;
+        }
+
+        if (child.NodeType != XmlNodeType.Text)
+        {
+            return defaultStr;
+        }
+
+        XText childAsText = (XText)child;
+
+        return childAsText.Value;
     }
 }
 

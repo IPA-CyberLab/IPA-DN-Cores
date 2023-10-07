@@ -4853,16 +4853,29 @@ HOST: www.google.com
     {
         S3FsClientConfig config = new()
         {
-            BaseUrl  = "http://dntest230924.s3.ap-northeast-1.amazonaws.com",
-            BucketName = "dntest230924",
+            BaseUrl = "http://dnemptybucket.s3.ap-northeast-1.amazonaws.com",
+            BucketName = "dnemptybucket",
             AccessKey = await Lfs.ReadStringFromFileAsync(@"H:\Secure\231005_AwsS3Test\1_access_key.txt", oneLine: true),
             SecretKey = await Lfs.ReadStringFromFileAsync(@"H:\Secure\231005_AwsS3Test\2_secret_key.txt", oneLine: true),
         };
 
         await using var s3 = new S3FsClient(config);
 
-        for (int i = 0; i < 10;i++)
-        await s3.Test1Async();
+        if (false)
+        {
+            await using var res = await s3.DownloadFileAsync("/Hello.txt", new WebFsArgs { DownloadStartPosition = 1 });
+
+            var data = await res.DownloadStream!._ReadToEndAsync();
+
+            data._GetString_UTF8()._Print();
+        }
+        else
+        {
+            //await s3.TestAsync();
+            var list = await s3.EnumDirecroryAsync("/", args: new WebFsArgs {MaxEnumDirItemsPerRequest=100 });
+
+            list._DebugAsJson();
+        }
     }
 
     public static void Test_Generic()

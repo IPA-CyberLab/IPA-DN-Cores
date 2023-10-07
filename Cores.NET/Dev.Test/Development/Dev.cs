@@ -60,6 +60,9 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Net.Sockets;
 
+using System.Xml;
+using System.Xml.Linq;
+
 using Newtonsoft.Json;
 using System.Data;
 using System.Reflection;
@@ -166,6 +169,8 @@ public class S3FsRequest
         var baseUri = this.Config.BaseUrl._ParseUrl();
         if (baseUri.AbsolutePath == "" || baseUri.AbsolutePath == "/")
         {
+            this.Config.BucketName._NotEmptyCheck(nameof(this.Config.BucketName));
+
             canonicalizedResource = "/" + this.Config.BucketName;
         }
 
@@ -209,7 +214,7 @@ public class S3FsClient : WebFsClient
     }
 
     // 任意の絶対パスを、S3 内で通用する仮想パスに変換する (主にパスのチェックをしてディレクトリ区切り記号を正規化するだけ)
-    public static string NormalizeVirtualPath(string path, bool isDirectory)
+    public static string NormalizeS3VirtualPath(string path, bool isDirectory)
     {
         path = PPLinux.NormalizeDirectorySeparatorAndCheckIfAbsolutePath(path);
 
@@ -233,13 +238,21 @@ public class S3FsClient : WebFsClient
             }
         }
 
+        string[] elements = PPLinux.SplitAbsolutePathToElementsUnixStyle(path, noProcessStacking: true);
+
+        foreach (var element in elements)
+        {
+            PPLinux.ValidateFileOrDirectoryName(element);
+            PPWin.ValidateFileOrDirectoryName(element);
+        }
+
         return path;
     }
 
     // 任意の絶対パスを、S3 用の URL に変換する
-    public string GenerateUrlFromVirtualPath(string path, bool isDirectory)
+    public string GenerateS3UrlFromVirtualPath(string path, bool isDirectory)
     {
-        path = NormalizeVirtualPath(path, isDirectory);
+        path = NormalizeS3VirtualPath(path, isDirectory);
 
         if (path.StartsWith("/") == false)
         {
@@ -263,7 +276,7 @@ public class S3FsClient : WebFsClient
     }
 
     // リクエストの送付
-    public async Task<WebSendRecvResponse> RequestAsync(S3FsRequest req, string url, Stream? uploadStream = null, CancellationToken cancel = default)
+    public async Task<WebSendRecvResponse> RequestS3Async(S3FsRequest req, string url, Stream? uploadStream = null, CancellationToken cancel = default)
     {
         WebRequestOptions options = new WebRequestOptions();
 
@@ -282,29 +295,299 @@ public class S3FsClient : WebFsClient
         return webRes;
     }
 
-    public async Task Test1Async(CancellationToken cancel = default)
+    protected override async Task<WebFsFileResponse> DownloadFileImplAsync(WebFsArgs args, string path, CancellationToken cancel = default)
     {
-        string path = "/Hello.txt";
-
-        var x = GenerateUrlFromVirtualPath(path, false);
+        string url = GenerateS3UrlFromVirtualPath(path, false);
 
         S3FsRequest req = new S3FsRequest
         {
             Config = this.Config,
             Method = WebMethods.GET,
             Date = DtOffsetNow,
-            VirtualPath = NormalizeVirtualPath(path, false),
+            VirtualPath = NormalizeS3VirtualPath(path, false),
+            RangeStart = args.DownloadStartPosition,
+            RangeLength = args.DownloadPartialLength,
         };
 
-        string url = GenerateUrlFromVirtualPath(path, false);
+        var res = await this.RequestS3Async(req, url, null, cancel);
 
-        await using var res = await this.RequestAsync(req, url, null, cancel);
+        try
+        {
+            if (res.DownloadContentLength.HasValue == false)
+            {
+                throw new CoresLibException("No ContentLength header in the S3 web response");
+            }
 
-        var data = await res.DownloadStream._ReadToEndAsync();
+            long fullContentLength;
+            long partialContentLength = res.DownloadContentLength.Value;
 
-        res.HttpResponseMessage.Content.Headers._Print();
+            var range = res.HttpResponseMessage.Content.Headers.ContentRange;
 
-        data._GetString_UTF8()._Print();
+            long startPos;
+
+            if (range != null)
+            {
+                if (range.Length.HasValue == false)
+                {
+                    throw new CoresLibException("range.Length is missing in the S3 response");
+                }
+
+                fullContentLength = range.Length.Value;
+
+                if (range.Unit._IsDiffi("bytes"))
+                {
+                    throw new CoresLibException($"range unit is '{range.Unit}'");
+                }
+
+                if (range.From.HasValue)
+                {
+                    startPos = range.From.Value;
+                }
+                else
+                {
+                    startPos = 0;
+                }
+
+                if (range.To.HasValue)
+                {
+                    partialContentLength = range.To.Value + 1 - startPos;
+                    if (partialContentLength < 0)
+                    {
+                        throw new CoresLibException($"Invalid range. startPos = {startPos}, To = {range.To}, Calculated partialContentLength = {partialContentLength}");
+                    }
+                }
+                else
+                {
+                    throw new CoresLibException("range.To is missing in the S3 response");
+                }
+
+                if ((partialContentLength + startPos) > fullContentLength)
+                {
+                    throw new CoresLibException($"(partialContentLength ({partialContentLength}) + startPos ({startPos})) > fullContentLength ({fullContentLength})");
+                }
+            }
+            else
+            {
+                startPos = 0;
+                fullContentLength = partialContentLength;
+            }
+
+            if (startPos != (args.DownloadStartPosition ?? 0))
+            {
+                throw new CoresLibException($"Returned DownloadStartPosition ({startPos}) != Requested DownloadStartPosition ({args.DownloadStartPosition})");
+            }
+
+            var ret = new WebFsFileResponse(res, res.DownloadStream, fullContentLength, startPos, partialContentLength);
+
+            return ret;
+        }
+        catch
+        {
+            await res._DisposeSafeAsync();
+            throw;
+        }
+    }
+
+    protected override async Task<WebFsEnumDirResponse> EnumDirectoryImplAsync(WebFsArgs args, string path, string wildcard = "", string continueToken = "", int maxItems = 1000, CancellationToken cancel = default)
+    {
+        string dirPrefix = NormalizeS3VirtualPath(path, true);
+
+        // 先頭の "/" を抜く
+        if (dirPrefix[0] != '/')
+        {
+            throw new CoresLibException($"dirPrefix[0] != '/'. dirPrefix = '{dirPrefix}'");
+        }
+        dirPrefix = dirPrefix.Substring(1);
+
+        S3FsRequest req = new S3FsRequest
+        {
+            Config = this.Config,
+            Method = WebMethods.GET,
+            Date = DtOffsetNow,
+            VirtualPath = "/",
+        };
+
+        QueryStringList qs = new QueryStringList();
+        qs.Add("list-type", "2");
+        qs.Add("delimiter", "/");
+        qs.Add("max-keys", maxItems.ToString());
+
+        if (dirPrefix._IsFilled())
+        {
+            qs.Add("prefix", dirPrefix);
+        }
+
+        if (continueToken._IsFilled())
+        {
+            qs.Add("continuation-token", continueToken);
+        }
+
+        string qsString = qs.ToString();
+
+        string url = GenerateS3UrlFromVirtualPath("/", true) + "?" + qsString;
+
+        await using var res = await this.RequestS3Async(req, url, null, cancel);
+
+        string xmlBody = (await res.DownloadStream._ReadToEndAsync())._GetString_UTF8();
+
+        var ret = ParseListObjectsV2(xmlBody, dirPrefix);
+
+        if (ret.MaxKeys > maxItems)
+        {
+            throw new CoresLibException($"MaxKeys ({ret.MaxKeys}) > maxItems ({maxItems})");
+        }
+
+        if (ret.SpecifiedPrefix != dirPrefix)
+        {
+            throw new CoresLibException($"Response refix '{ret.SpecifiedPrefix}' != Request prefix '{dirPrefix}'");
+        }
+
+        if (ret.Delimiter != "/")
+        {
+            throw new CoresLibException($"Response Delimiter '{ret.Delimiter}' != '/'");
+        }
+
+        if (ret.BucketName != this.Config.BucketName)
+        {
+            throw new CoresLibException($"Response BucketName '{ret.BucketName}' != Request BucketName '{this.Config.BucketName}'");
+        }
+
+        return ret;
+    }
+
+    static WebFsEnumDirResponse ParseListObjectsV2(string xmlBody, string dirPrefix)
+    {
+        xmlBody._XDocumentReformat()._Print();
+
+        var doc = xmlBody._StrToXDocument();
+
+        var listNode = doc.Root!;
+
+        if (listNode.Name.LocalName != "ListBucketResult")
+        {
+            throw new CoresLibException($"Invalid XML result: {xmlBody._OneLine()._TruncStrEx(512)}");
+        }
+
+        var childNodes = listNode.Elements();
+
+        WebFsEnumDirResponse ret = new WebFsEnumDirResponse();
+
+        ret.IsTruncated = childNodes._XmlGetSimpleElementStr("IsTruncated")._ToBool();
+        ret.BucketName = childNodes._XmlGetSimpleElementStr("Name")._NonNull();
+        ret.SpecifiedPrefix = childNodes._XmlGetSimpleElementStr("Prefix")._NonNull();
+        ret.KeyCount = childNodes._XmlGetSimpleElementStr("KeyCount")._ToInt();
+        ret.MaxKeys = childNodes._XmlGetSimpleElementStr("MaxKeys")._ToInt();
+        ret.Delimiter = childNodes._XmlGetSimpleElementStr("Delimiter")._NonNull();
+        ret.NextContinuationToken = childNodes._XmlGetSimpleElementStr("NextContinuationToken")._NonNull();
+
+        if (ret.IsTruncated && ret.NextContinuationToken._IsEmpty())
+        {
+            throw new CoresLibException("ret.IsTruncated && ret.NextContinuationToken._IsEmpty()");
+        }
+
+        if (ret.IsTruncated == false && ret.NextContinuationToken._IsFilled())
+        {
+            throw new CoresLibException("ret.IsTruncated == false && ret.NextContinuationToken._IsFilled()");
+        }
+
+        if (ret.KeyCount > ret.MaxKeys)
+        {
+            throw new CoresLibException($"KeyCount ({ret.KeyCount}) > MaxKeys ({ret.MaxKeys})");
+        }
+
+        var contents = childNodes._XmlEnumNodesByLocalName("Contents").ToArray();
+
+        foreach (var content in contents)
+        {
+            var nodes = content.Elements();
+
+            string? keyName = nodes._XmlGetSimpleElementStr("Key");
+            DateTimeOffset dt = DtOffsetZero;
+
+            if (DateTimeOffset.TryParse(nodes._XmlGetSimpleElementStr("LastModified"), out DateTimeOffset time))
+            {
+                dt = time;
+            }
+
+            dt = dt.LocalDateTime._AsDateTimeOffset(true);
+
+            string etag = nodes._XmlGetSimpleElementStr("ETag")._NonNullTrim()._RemoveQuotation();
+
+            long size = nodes._XmlGetSimpleElementStr("Size")._ToLong();
+
+            string storageClass = nodes._XmlGetSimpleElementStr("StorageClass")._NonNullTrim();
+
+            if (keyName._IsNullOrZeroLen()) throw new CoresLibException($"Invalid keyname: '{keyName}'");
+            if (size < 0) throw new CoresLibException($"Invalid size: {size}");
+
+            if (keyName.StartsWith("/")) throw new CoresLibException($"Invalid keyname: '{keyName}'");
+
+            if (keyName != dirPrefix)
+            {
+                // Normal file
+                string keyNameNormalized = NormalizeS3VirtualPath("/" + keyName, false);
+
+                WebFsEnumDirEntity entity = new WebFsEnumDirEntity
+                {
+                    IsDirectory = false,
+                    Name = keyNameNormalized,
+                    LastModified = time._NormalizeDateTimeOffsetForFileSystem(),
+                    ETag = etag,
+                    StorageClass = storageClass,
+                    Size = size,
+                };
+
+                ret.EntityList.Add(entity.Name, entity);
+            }
+            else
+            {
+                // Current directory
+                string prefixNormalized = NormalizeS3VirtualPath("/" + keyName, true);
+
+                WebFsEnumDirEntity entity = new WebFsEnumDirEntity
+                {
+                    IsDirectory = true,
+                    IsCurrentDirectory = true,
+                    Name = prefixNormalized,
+                    LastModified = time._NormalizeDateTimeOffsetForFileSystem(),
+                    ETag = etag,
+                    StorageClass = storageClass,
+                    Size = size,
+                };
+
+                ret.EntityList.Add(entity.Name, entity);
+            }
+        }
+
+        var commonPrefixes = childNodes._XmlEnumNodesByLocalName("CommonPrefixes").ToArray();
+
+        foreach (var commonPrefix in commonPrefixes)
+        {
+            var nodes = commonPrefix.Elements();
+
+            string? prefix = nodes._XmlGetSimpleElementStr("Prefix");
+
+            if (prefix._IsNullOrZeroLen()) throw new CoresLibException($"Invalid prefix: '{prefix}'");
+            if (prefix.StartsWith("/")) throw new CoresLibException($"Invalid prefix: '{prefix}'");
+            if (prefix.EndsWith("/") == false) throw new CoresLibException($"Invalid prefix: '{prefix}'");
+
+            string prefixNormalized = NormalizeS3VirtualPath("/" + prefix, true);
+
+            WebFsEnumDirEntity entity = new WebFsEnumDirEntity
+            {
+                IsDirectory = true,
+                Name = prefixNormalized,
+                LastModified = DtOffsetZero._NormalizeDateTimeOffsetForFileSystem(),
+                ETag = "",
+                StorageClass = "",
+            };
+
+            ret.EntityList.Add(entity.Name, entity);
+        }
+
+        //ret._PrintAsJson();
+
+        return ret;
     }
 
     protected override async Task CleanupImplAsync(Exception? ex)
@@ -335,8 +618,105 @@ public class WebFsClientSettings
     }
 }
 
+public class WebFsFileResponse : IDisposable, IAsyncDisposable
+{
+    public Stream? DownloadStream { get; }
+    public long ContentFullLength { get; }
+    public long ContentStartPosition { get; }
+    public long ContentPartialLength { get; }
+
+    readonly IAsyncDisposable? DisposeMe;
+
+    public WebFsFileResponse(IAsyncDisposable? disposeMe, Stream? downloadStream, long contentFullLength, long contentStartPosition, long contentPartialLength)
+    {
+        try
+        {
+            this.DisposeMe = disposeMe;
+            this.DownloadStream = downloadStream;
+
+            this.ContentFullLength = contentFullLength;
+            this.ContentStartPosition = contentStartPosition;
+            this.ContentPartialLength = contentPartialLength;
+
+            if (this.ContentFullLength < 0) throw new CoresLibException($"ContentFullLength ({this.ContentFullLength}) < 0");
+            if (this.ContentStartPosition < 0) throw new CoresLibException($"ContentStartPosition ({this.ContentStartPosition}) < 0");
+            if (this.ContentPartialLength < 0) throw new CoresLibException($"ContentPartialLength ({this.ContentPartialLength}) < 0");
+
+            if ((this.ContentStartPosition + this.ContentPartialLength) > this.ContentFullLength)
+            {
+                throw new CoresLibException($"(ContentStartPosition ({this.ContentStartPosition}) + ContentPartialLength ({this.ContentPartialLength})) > ContentFullLength ({this.ContentFullLength})");
+            }
+        }
+        catch
+        {
+            this._DisposeSafe();
+            throw;
+        }
+    }
+
+    public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
+    Once DisposeFlag;
+    public virtual async ValueTask DisposeAsync()
+    {
+        if (DisposeFlag.IsFirstCall() == false) return;
+        await DisposeInternalAsync();
+    }
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+        DisposeInternalAsync()._GetResult();
+    }
+    async Task DisposeInternalAsync()
+    {
+        await this.DownloadStream._DisposeSafeAsync();
+
+        await this.DisposeMe._DisposeSafeAsync();
+    }
+}
+
+public class WebFsEnumDirEntity
+{
+    public bool IsDirectory;
+    public bool IsCurrentDirectory;
+    public string Name = "";
+    public DateTimeOffset LastModified = ZeroDateTimeOffsetValue;
+    public string ETag = "";
+    public long Size;
+    public string StorageClass = "";
+}
+
+public class WebFsEnumDirResponse
+{
+    public StrDictionary<WebFsEnumDirEntity> EntityList = new StrDictionary<WebFsEnumDirEntity>();
+    public string SpecifiedPrefix = "";
+    public string Delimiter = "";
+    public int KeyCount;
+    public int MaxKeys;
+    public string BucketName = "";
+    public bool IsTruncated = false;
+    public string NextContinuationToken = "";
+}
+
+public class WebFsArgs : IValidatable
+{
+    public long? DownloadStartPosition;
+    public long? DownloadPartialLength;
+    public int? MaxEnumDirItemsPerRequest;
+
+    public void Validate()
+    {
+        if ((this.DownloadStartPosition ?? 0) < 0) throw new CoresLibException($"DownloadStartPosition ({this.DownloadStartPosition}) < 0");
+        if ((this.DownloadPartialLength ?? 0) < 0) throw new CoresLibException($"DownloadPartialLength ({this.DownloadPartialLength}) < 0");
+        if ((this.MaxEnumDirItemsPerRequest ?? 1000) <= 0) throw new CoresLibException($"MaxEnumDirItemsPerRequest ({this.MaxEnumDirItemsPerRequest}) <= 0");
+    }
+}
+
+
 public abstract class WebFsClient : AsyncService
 {
+    protected abstract Task<WebFsFileResponse> DownloadFileImplAsync(WebFsArgs args, string path, CancellationToken cancel = default);
+    protected abstract Task<WebFsEnumDirResponse> EnumDirectoryImplAsync(WebFsArgs args, string path, string wildcard = "", string continueToken = "", int maxItems = 1000, CancellationToken cancel = default);
+
     public WebFsClientSettings Settings { get; }
 
     public WebFsClient(WebFsClientSettings? settings = null)
@@ -354,11 +734,91 @@ public abstract class WebFsClient : AsyncService
         }
     }
 
+    public async Task<WebFsFileResponse> DownloadFileAsync(string path, WebFsArgs? args = null, CancellationToken cancel = default)
+    {
+        args ??= new WebFsArgs();
+
+        args.Validate();
+
+        var res = await this.DownloadFileImplAsync(args, path, cancel);
+
+        return res;
+    }
+
+    public async Task<WebFsEnumDirResponse> EnumDirecroryAsync(string path, string wildcard = "", WebFsArgs? args = null, CancellationToken cancel = default)
+    {
+        args ??= new WebFsArgs();
+
+        args.Validate();
+
+        WebFsEnumDirResponse ret = await this.EnumDirectoryImplAsync(args, path, wildcard, "", args.MaxEnumDirItemsPerRequest ?? 1000, cancel);
+        
+        string nextToken = ret.NextContinuationToken;
+
+        int counterForAbort = 0;
+
+        while (nextToken._IsFilled())
+        {
+            cancel.ThrowIfCancellationRequested();
+
+            WebFsEnumDirResponse contResponse = await this.EnumDirectoryImplAsync(args, path, wildcard, nextToken, args.MaxEnumDirItemsPerRequest ?? 1000, cancel);
+
+            bool newNameItem = false;
+
+            foreach (var item in contResponse.EntityList)
+            {
+                if (ret.EntityList.TryAdd(item.Key, item.Value))
+                {
+                    newNameItem = true;
+                }
+            }
+
+            if (newNameItem == false)
+            {
+                // 継続列挙結果で何ら新しいアイテムが追加されないことが 2 回以上発生したら、S3 側の不具合で無限ループしていることになるので、中断する
+                counterForAbort++;
+
+                if (counterForAbort >= 3)
+                {
+                    throw new CoresLibException("Invalid state: counterForAbort >= 3");
+                }
+            }
+            else
+            {
+                counterForAbort = 0;
+            }
+
+            nextToken = contResponse.NextContinuationToken;
+        }
+
+        ret.NextContinuationToken = "";
+        ret.IsTruncated = false;
+
+        if (ret.EntityList.Any() == false && ret.SpecifiedPrefix._IsNotZeroLen())
+        {
+            throw new VfsNotFoundException(path, $"Directory '{path}' not found");
+        }
+
+        // Current directory オブジェクトを削除
+        foreach (var kv in ret.EntityList.Where(x => x.Value.IsCurrentDirectory).ToArray())
+        {
+            ret.EntityList.Remove(kv.Key);
+        }
+
+        return ret;
+    }
+
+    public async Task TestAsync(CancellationToken cancel = default)
+    {
+        await this.EnumDirectoryImplAsync(new WebFsArgs(), "/", maxItems: 1);
+    }
+
     protected override Task CleanupImplAsync(Exception? ex)
     {
         return base.CleanupImplAsync(ex);
     }
 }
+
 
 
 
