@@ -457,7 +457,7 @@ public class S3FsClient : WebFsClient
 
     static WebFsEnumDirResponse ParseListObjectsV2(string xmlBody, string dirPrefix)
     {
-        xmlBody._XDocumentReformat()._Print();
+        //xmlBody._XDocumentReformat()._Print();
 
         var doc = xmlBody._StrToXDocument();
 
@@ -751,9 +751,13 @@ public abstract class WebFsClient : AsyncService
 
         args.Validate();
 
+        HashSet<string> tokenHistory = new HashSet<string>();
+
         WebFsEnumDirResponse ret = await this.EnumDirectoryImplAsync(args, path, wildcard, "", args.MaxEnumDirItemsPerRequest ?? 1000, cancel);
         
         string nextToken = ret.NextContinuationToken;
+
+        tokenHistory.Add(nextToken);
 
         int counterForAbort = 0;
 
@@ -789,6 +793,15 @@ public abstract class WebFsClient : AsyncService
             }
 
             nextToken = contResponse.NextContinuationToken;
+
+            if (nextToken._IsFilled())
+            {
+                if (tokenHistory.Add(nextToken) == false)
+                {
+                    // 継続トークンループ
+                    throw new CoresLibException("Invalid state: existing token");
+                }
+            }
         }
 
         ret.NextContinuationToken = "";
@@ -797,12 +810,6 @@ public abstract class WebFsClient : AsyncService
         if (ret.EntityList.Any() == false && ret.SpecifiedPrefix._IsNotZeroLen())
         {
             throw new VfsNotFoundException(path, $"Directory '{path}' not found");
-        }
-
-        // Current directory オブジェクトを削除
-        foreach (var kv in ret.EntityList.Where(x => x.Value.IsCurrentDirectory).ToArray())
-        {
-            ret.EntityList.Remove(kv.Key);
         }
 
         return ret;

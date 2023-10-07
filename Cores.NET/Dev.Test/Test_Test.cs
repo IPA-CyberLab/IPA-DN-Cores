@@ -4853,8 +4853,8 @@ HOST: www.google.com
     {
         S3FsClientConfig config = new()
         {
-            BaseUrl = "http://dnemptybucket.s3.ap-northeast-1.amazonaws.com",
-            BucketName = "dnemptybucket",
+            BaseUrl = "http://dntest230924.s3.ap-northeast-1.amazonaws.com",
+            BucketName = "dntest230924",
             AccessKey = await Lfs.ReadStringFromFileAsync(@"H:\Secure\231005_AwsS3Test\1_access_key.txt", oneLine: true),
             SecretKey = await Lfs.ReadStringFromFileAsync(@"H:\Secure\231005_AwsS3Test\2_secret_key.txt", oneLine: true),
         };
@@ -4872,7 +4872,7 @@ HOST: www.google.com
         else
         {
             //await s3.TestAsync();
-            var list = await s3.EnumDirecroryAsync("/", args: new WebFsArgs {MaxEnumDirItemsPerRequest=100 });
+            var list = await s3.EnumDirecroryAsync("/testdir1/", args: new WebFsArgs {MaxEnumDirItemsPerRequest=1 });
 
             list._DebugAsJson();
         }
