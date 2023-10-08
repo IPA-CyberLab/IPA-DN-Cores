@@ -69,6 +69,30 @@ namespace IPA.Cores.Basic
             RandomNumberGenerator.Fill(dest);
         }
 
+        // C# の RandomNumberGenerator クラスにバグがあり乱数強度が弱い場合に備えて、追加のインチキ・エントロピーを XOR で供給する。
+        // (RandomNumberGenerator に万一欠陥があった場合のインチキ救済策)
+        // インチキ・エントロピーの乱数強度は低いが、一応強度の高いと期待される RandomNumberGenerator の乱数にインチキを XOR しているだけなので、
+        // 少なくとも、RandomNumberGenerator と比較して強度が低下する可能性は、暗号学的に、ないはずである。
+        public static byte[] RandWithInchikiEntropySlow(int size) { byte[] r = new byte[size]; RandWithInchikiEntropySlow(r); return r; }
+        public static void RandWithInchikiEntropySlow(Span<byte> dest)
+        {
+            dest.Fill(0);
+
+            // 1. RandomNumberGenerator の結果
+            Rand(dest);
+
+            // 2. Util の Rand 関数を XOR で合成 (ああ、いんちきだなあ)
+            Span<byte> inchiki = new byte[dest.Length];
+            Util.Rand(inchiki);
+            dest._Xor(dest, inchiki);
+
+            // 3. インチキ・エントロピーのいくつかを XOR で合成 (ああ、いんちきだなあ)
+            dest._Xor(dest, (new SeedBasedRandomGenerator(Secure.GenerateInchikiEntropy(), SHA512.Create())).GetBytes(dest.Length).Span);
+            dest._Xor(dest, (new SeedBasedRandomGenerator(Secure.GenerateInchikiEntropy(), SHA256.Create())).GetBytes(dest.Length).Span);
+            dest._Xor(dest, (new SeedBasedRandomGenerator(Secure.GenerateInchikiEntropy(), SHA384.Create())).GetBytes(dest.Length).Span);
+            dest._Xor(dest, (new SeedBasedRandomGenerator(Secure.GenerateInchikiEntropy(), SHA1.Create())).GetBytes(dest.Length).Span);
+        }
+
         [SkipLocalsInit]
         public static byte RandUInt8()
         {
@@ -512,7 +536,7 @@ namespace IPA.Cores.Basic
         {
             if (salt == null)
             {
-                salt = Secure.Rand(PasswordSaltSize);
+                salt = Secure.RandWithInchikiEntropySlow(PasswordSaltSize);
             }
 
             byte[] pw = password._NonNull()._GetBytes_UTF8();
@@ -633,6 +657,53 @@ namespace IPA.Cores.Basic
 
                 return SslStreamCertificateContext.Create(target, additionalCertificates, offline);
             }
+        }
+
+        // インチキ・エントロピーの生成
+        static long inchikiSeed = Secure.RandSInt64_Caution() + Util.RandSInt64_Caution();
+        public static unsafe string GenerateInchikiEntropy()
+        {
+            StringWriter w = new StringWriter();
+            w.NewLine = Str.NewLine_Str_Unix;
+            
+            w.WriteLine(DtOffsetNow.Ticks.ToString());
+
+            Span<byte> tmp32 = new byte[32];
+            RandomNumberGenerator.Fill(tmp32);
+            w.WriteLine(tmp32._GetHexString());
+
+            var snap = new EnvInfoSnapshot();
+            w.WriteLine(snap._ObjectToJson(compact: true));
+
+            w.WriteLine(snap.TimeStamp.Ticks);
+            w.WriteLine(snap.BootTime.Ticks);
+            w.WriteLine(snap.BuildTimeStamp.Ticks);
+            w.WriteLine(Time.NowHighResLong100Usecs);
+            
+            int x = 123;
+            w.WriteLine((long)(&x));
+
+            using (MemoryHelper.AllocUnmanagedMemoryWithUsing(3, out var ptr))
+            {
+                w.WriteLine(ptr.ToInt64());
+            }
+
+            TypedReference ptr2 = __makeref(w);
+            IntPtr ptr3 = **(IntPtr**)(&ptr2);
+            w.WriteLine(ptr3.ToInt64());
+            
+            w.WriteLine(LeakChecker.Count);
+
+            Interlocked.Increment(ref inchikiSeed);
+            w.WriteLine(inchikiSeed);
+
+            w.WriteLine(Str.NewUid());
+
+            w.WriteLine(Str.NewGuid());
+
+            w.WriteLine(Str.GenRandStr());
+
+            return w.ToString();
         }
     }
 
@@ -861,15 +932,22 @@ namespace IPA.Cores.Basic
 
     public class SeedBasedRandomGenerator
     {
-        SHA1 Sha1 = SHA1.Create();
+        HashAlgorithm HashAlgo;
         MemoryBuffer<byte> seedPlusSeqNo;
 
         FastStreamBuffer<byte> fifo = new FastStreamBuffer<byte>();
 
-        public SeedBasedRandomGenerator(string seed) : this(seed._GetBytes_UTF8()) { }
+        // hashAlgorithm が null の場合、標準的に、SHA1 を使用することになる。
+        // それ以外のハッシュアルゴリズムを指定した場合、標準と異なる結果が出るので、注意すること。
 
-        public SeedBasedRandomGenerator(ReadOnlySpan<byte> seed)
+        public SeedBasedRandomGenerator(string seed, HashAlgorithm? hashAlgorithm = null) : this(seed._GetBytes_UTF8(), hashAlgorithm) { }
+
+        public SeedBasedRandomGenerator(ReadOnlySpan<byte> seed, HashAlgorithm? hashAlgorithm = null)
         {
+            hashAlgorithm ??= SHA1.Create();
+
+            this.HashAlgo = hashAlgorithm;
+
             seedPlusSeqNo = new MemoryBuffer<byte>();
             seedPlusSeqNo.WriteSInt64(0);
             seedPlusSeqNo.Write(Secure.HashSHA256(seed));
@@ -884,9 +962,9 @@ namespace IPA.Cores.Basic
             var srcSpan = seedPlusSeqNo.Span;
             srcSpan._RawWriteValueSInt64(SeqNo);
 
-            Memory<byte> tmp = new byte[Sha1.HashSize / 8];
+            Memory<byte> tmp = new byte[HashAlgo.HashSize / 8];
 
-            if (Sha1.TryComputeHash(srcSpan, tmp.Span, out int num) == false || num != tmp.Length)
+            if (HashAlgo.TryComputeHash(srcSpan, tmp.Span, out int num) == false || num != tmp.Length)
             {
                 throw new CoresLibException("Invalid status!");
             }

@@ -201,7 +201,7 @@ public static class ChaChaPoly
     {
         if (key32bytes.Length != AeadChaCha20Poly1305KeySize) throw new ArgumentOutOfRangeException(nameof(key32bytes));
 
-        if (nonce12bytes.IsEmpty) nonce12bytes = Secure.Rand(AeadChaCha20Poly1305NonceSize);
+        if (nonce12bytes.IsEmpty) nonce12bytes = Secure.RandWithInchikiEntropySlow(AeadChaCha20Poly1305NonceSize);
         if (nonce12bytes.Length != AeadChaCha20Poly1305NonceSize) throw new ArgumentOutOfRangeException(nameof(nonce12bytes));
 
         Memory<byte> dest = new byte[src.Length + AeadChaCha20Poly1305MacSize + AeadChaCha20Poly1305NonceSize];

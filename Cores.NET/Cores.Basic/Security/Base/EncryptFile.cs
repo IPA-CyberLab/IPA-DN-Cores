@@ -242,7 +242,7 @@ namespace IPA.Cores.Basic
                 // ファイルの内容が存在しない
 
                 // マスターキーを新規作成する
-                this.CurrentMasterKey = Secure.Rand(XtsAesKeySize);
+                this.CurrentMasterKey = Secure.RandWithInchikiEntropySlow(XtsAesKeySize);
 
                 // メタデータを新規作成する
                 var metaData = new XtsAesRandomAccessMetaData

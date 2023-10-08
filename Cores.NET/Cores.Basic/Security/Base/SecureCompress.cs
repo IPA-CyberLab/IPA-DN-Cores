@@ -952,7 +952,7 @@ public class SecureCompressEncoder : StreamImplBase
                 throw new CoresLibException("compress == true && compressionLevel == CompressionLevel.NoCompression");
             }
 
-            MasterSecret = Secure.Rand(XtsAesRandomAccess.XtsAesKeySize);
+            MasterSecret = Secure.RandWithInchikiEntropySlow(XtsAesRandomAccess.XtsAesKeySize);
 
             //$"Master = {this.CurrentMasterKey._GetHexString()}"._Debug();
 

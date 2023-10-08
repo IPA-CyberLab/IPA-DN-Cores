@@ -295,7 +295,7 @@ public class S3FsClient : WebFsClient
         return webRes;
     }
 
-    protected override async Task<WebFsFileResponse> DownloadFileImplAsync(WebFsArgs args, string path, CancellationToken cancel = default)
+    protected override async Task<WebFsFileResponse> ReadFileImplAsync(WebFsArgs args, string path, CancellationToken cancel = default)
     {
         string url = GenerateS3UrlFromVirtualPath(path, false);
 
@@ -714,7 +714,7 @@ public class WebFsArgs : IValidatable
 
 public abstract class WebFsClient : AsyncService
 {
-    protected abstract Task<WebFsFileResponse> DownloadFileImplAsync(WebFsArgs args, string path, CancellationToken cancel = default);
+    protected abstract Task<WebFsFileResponse> ReadFileImplAsync(WebFsArgs args, string path, CancellationToken cancel = default);
     protected abstract Task<WebFsEnumDirResponse> EnumDirectoryImplAsync(WebFsArgs args, string path, string wildcard = "", string continueToken = "", int maxItems = 1000, CancellationToken cancel = default);
 
     public WebFsClientSettings Settings { get; }
@@ -734,13 +734,13 @@ public abstract class WebFsClient : AsyncService
         }
     }
 
-    public async Task<WebFsFileResponse> DownloadFileAsync(string path, WebFsArgs? args = null, CancellationToken cancel = default)
+    public async Task<WebFsFileResponse> ReadFileAsync(string path, WebFsArgs? args = null, CancellationToken cancel = default)
     {
         args ??= new WebFsArgs();
 
         args.Validate();
 
-        var res = await this.DownloadFileImplAsync(args, path, cancel);
+        var res = await this.ReadFileImplAsync(args, path, cancel);
 
         return res;
     }

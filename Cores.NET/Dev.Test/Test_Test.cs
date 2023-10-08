@@ -4863,7 +4863,7 @@ HOST: www.google.com
 
         if (false)
         {
-            await using var res = await s3.DownloadFileAsync("/Hello.txt", new WebFsArgs { DownloadStartPosition = 1 });
+            await using var res = await s3.ReadFileAsync("/Hello.txt", new WebFsArgs { DownloadStartPosition = 1 });
 
             var data = await res.DownloadStream!._ReadToEndAsync();
 

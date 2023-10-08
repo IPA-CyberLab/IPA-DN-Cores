@@ -1910,6 +1910,8 @@ namespace IPA.Cores.Basic
         static int[]? LeakCounters;
         static bool FullStackTrace;
 
+        public static long InternalCurrentId => _InternalCurrentId;
+
         public static StaticModule<LeakCheckerResult> Module { get; } = new StaticModule<LeakCheckerResult>(ModuleInit, ModuleFree);
 
         static void ModuleInit()

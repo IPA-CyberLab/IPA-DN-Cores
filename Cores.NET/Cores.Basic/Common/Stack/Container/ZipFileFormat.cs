@@ -406,7 +406,7 @@ public class ZipEncryptionStream : WrapperStreamImplBase
         this.Enc = new ZipEncryption(password);
 
         // 最初の 12 バイトのダミーデータ (PKZIP のドキュメントではヘッダと呼ばれている) データを覚える
-        InitialHeader = Secure.Rand(12);
+        InitialHeader = Secure.RandWithInchikiEntropySlow(12);
 
         InitialHeader.Span[11] = byte11th;
     }
