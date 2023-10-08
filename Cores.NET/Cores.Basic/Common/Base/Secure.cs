@@ -689,7 +689,9 @@ namespace IPA.Cores.Basic
             }
 
             TypedReference ptr2 = __makeref(w);
+#pragma warning disable CS8500 // これは、マネージ型のアドレスの取得、サイズの取得、またはそのマネージ型へのポインターの宣言を行います
             IntPtr ptr3 = **(IntPtr**)(&ptr2);
+#pragma warning restore CS8500 // これは、マネージ型のアドレスの取得、サイズの取得、またはそのマネージ型へのポインターの宣言を行います
             w.WriteLine(ptr3.ToInt64());
             
             w.WriteLine(LeakChecker.Count);

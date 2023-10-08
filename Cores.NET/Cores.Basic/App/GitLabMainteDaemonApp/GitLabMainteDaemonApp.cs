@@ -301,6 +301,9 @@ public class GitLabMainteDaemonSettings : INormalizable
     public int ForceRepositoryUpdateIntervalMsecs = 0;
     public int UsersListMainteIntervalMsecs = 0;
 
+    public int ForceRepositoryUpdateIntervalMsecs_InErrorMax = 0;
+    public int UsersListMainteIntervalMsecs_InErrorMax = 0;
+
     public string GitMirrorDataRootDir = "";
     public string GitWebDataRootDir = "";
 
@@ -331,8 +334,10 @@ public class GitLabMainteDaemonSettings : INormalizable
         this.DefaultGroupsAllUsersWillJoin = this.DefaultGroupsAllUsersWillJoin.Distinct(StrCmpi).ToList();
 
         if (this.ForceRepositoryUpdateIntervalMsecs <= 0) this.ForceRepositoryUpdateIntervalMsecs = 3 * 60 * 1000;
+        if (this.UsersListMainteIntervalMsecs_InErrorMax <= 0) this.UsersListMainteIntervalMsecs_InErrorMax = 3 * 60 * 60 * 1000;
 
         if (this.UsersListMainteIntervalMsecs <= 0) this.UsersListMainteIntervalMsecs = 15 * 1000;
+        if (this.UsersListMainteIntervalMsecs_InErrorMax <= 0) this.UsersListMainteIntervalMsecs_InErrorMax = 3 * 60 * 60 * 1000;
 
         if (GitMirrorDataRootDir._IsEmpty())
         {
@@ -544,8 +549,12 @@ public class GitLabMainteDaemonApp : AsyncService
     {
         long lastHookTick = -1;
 
+        int nextTimeWaitInterval = this.Settings.ForceRepositoryUpdateIntervalMsecs;
+
         while (cancel.IsCancellationRequested == false)
         {
+            bool hasError = false;
+
             try
             {
                 await Lfs.CreateDirectoryAsync(this.Settings.GitMirrorDataRootDir);
@@ -585,6 +594,7 @@ public class GitLabMainteDaemonApp : AsyncService
                     }
                     catch (Exception ex)
                     {
+                        hasError = true;
                         ex._Error();
                     }
                 }, cancel);
@@ -602,6 +612,7 @@ public class GitLabMainteDaemonApp : AsyncService
                     }
                     catch (Exception ex)
                     {
+                        hasError = true;
                         ex._Error();
                     }
                 }
@@ -618,16 +629,28 @@ public class GitLabMainteDaemonApp : AsyncService
                     }
                     catch (Exception ex)
                     {
+                        hasError = true;
                         ex._Error();
                     }
                 }
             }
             catch (Exception ex)
             {
+                hasError = true;
                 ex._Error();
             }
 
-            await TaskUtil.AwaitWithPollAsync(this.Settings.ForceRepositoryUpdateIntervalMsecs, 500, () =>
+            if (hasError)
+            {
+                nextTimeWaitInterval = Math.Min(nextTimeWaitInterval * 2, this.Settings.ForceRepositoryUpdateIntervalMsecs_InErrorMax);
+                $"nextTimeWaitInterval = {nextTimeWaitInterval._ToString3()}"._Error();
+            }
+            else
+            {
+                nextTimeWaitInterval = this.Settings.ForceRepositoryUpdateIntervalMsecs;
+            }
+
+            await TaskUtil.AwaitWithPollAsync(nextTimeWaitInterval, 500, () =>
             {
                 long currentHookTick = this.HookFiredTick;
 
@@ -651,8 +674,12 @@ public class GitLabMainteDaemonApp : AsyncService
 
         List<GitLabMainteClient.User> lastPendingUsers = new List<GitLabMainteClient.User>();
 
+        int nextTimeWaitInterval = this.Settings.UsersListMainteIntervalMsecs;
+
         while (cancel.IsCancellationRequested == false)
         {
+            bool hasError = false;
+
             // 新規申請中のユーザーが増えたらメールで知らせる
             try
             {
@@ -716,6 +743,8 @@ public class GitLabMainteDaemonApp : AsyncService
             catch (Exception ex)
             {
                 ex._Error();
+
+                hasError = true;
             }
 
             // すべてのユーザーをデフォルトグループに自動追加する
@@ -726,9 +755,21 @@ public class GitLabMainteDaemonApp : AsyncService
             catch (Exception ex)
             {
                 ex._Error();
+
+                hasError = true;
             }
 
-            await TaskUtil.AwaitWithPollAsync(this.Settings.UsersListMainteIntervalMsecs, 500, () =>
+            if (hasError)
+            {
+                nextTimeWaitInterval = Math.Min(nextTimeWaitInterval * 2, this.Settings.UsersListMainteIntervalMsecs_InErrorMax);
+                $"nextTimeWaitInterval = {nextTimeWaitInterval._ToString3()}"._Error();
+            }
+            else
+            {
+                nextTimeWaitInterval = this.Settings.UsersListMainteIntervalMsecs;
+            }
+
+            await TaskUtil.AwaitWithPollAsync(nextTimeWaitInterval, 500, () =>
             {
                 long currentHookTick = this.HookFiredTick;
 
