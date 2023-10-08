@@ -334,7 +334,7 @@ public class GitLabMainteDaemonSettings : INormalizable
         this.DefaultGroupsAllUsersWillJoin = this.DefaultGroupsAllUsersWillJoin.Distinct(StrCmpi).ToList();
 
         if (this.ForceRepositoryUpdateIntervalMsecs <= 0) this.ForceRepositoryUpdateIntervalMsecs = 3 * 60 * 1000;
-        if (this.UsersListMainteIntervalMsecs_InErrorMax <= 0) this.UsersListMainteIntervalMsecs_InErrorMax = 3 * 60 * 60 * 1000;
+        if (this.ForceRepositoryUpdateIntervalMsecs_InErrorMax <= 0) this.ForceRepositoryUpdateIntervalMsecs_InErrorMax = 3 * 60 * 60 * 1000;
 
         if (this.UsersListMainteIntervalMsecs <= 0) this.UsersListMainteIntervalMsecs = 15 * 1000;
         if (this.UsersListMainteIntervalMsecs_InErrorMax <= 0) this.UsersListMainteIntervalMsecs_InErrorMax = 3 * 60 * 60 * 1000;
