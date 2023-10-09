@@ -169,7 +169,9 @@ public abstract partial class FileSystem
     {
         if (size < 0) throw new CoresLibException("size < 0");
 
-        string filePath = this.PathParser.Combine(dirPath, $"_free_space_check_{size}.dat");
+        string machineHex = Secure.HashSHA1(Env.MachineName.ToLowerInvariant()._GetBytes_UTF8()).AsSpan(0, 8)._GetHexString().ToLowerInvariant();
+
+        string filePath = this.PathParser.Combine(dirPath, $"_space_check_{machineHex}_{size}bytes.dat");
 
         using (await LockFor_CheckFreeDiskSpaceByTestFileAsync.LockWithAwait(filePath, cancel))
         {
