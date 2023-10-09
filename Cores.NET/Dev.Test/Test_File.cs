@@ -123,8 +123,8 @@ partial class TestDevCommands
         }
 
         var ret = await SecureCompressUtil.VerifyFileAsync(
-            new FilePath(original, Lfs, FileFlags.NoCheckFileSize | FileFlags.AllowRelativePath),
-            new FilePath(archive, Lfs, FileFlags.NoCheckFileSize | FileFlags.AllowRelativePath),
+            new FilePath(original, Lfs, FileFlags.NoCheckFileSize, true),
+            new FilePath(archive, Lfs, FileFlags.NoCheckFileSize, true),
             new SecureCompressOptions(original._GetFileName(), password._IsFilled(), password, true, CompressionLevel.SmallestSize, numthreads._ToInt()), true);
 
         if (ret.NumErrors >= 1)
@@ -179,12 +179,9 @@ partial class TestDevCommands
             Con.WriteError(ex.Message);
         }
 
-        var srcPath = new FilePath(src, Lfs, FileFlags.NoCheckFileSize | FileFlags.AllowRelativePath);
-        var dstPath = new FilePath(dst, Lfs, FileFlags.NoCheckFileSize | FileFlags.AutoCreateDirectory | FileFlags.AllowRelativePath | (sparsefile ? FileFlags.SparseFile : 0));
-
         var ret = await SecureCompressUtil.RestoreFileAsync(
-            srcPath,
-            dstPath,
+            new FilePath(src, Lfs, FileFlags.NoCheckFileSize, true),
+            new FilePath(dst, Lfs, FileFlags.NoCheckFileSize | FileFlags.AutoCreateDirectory | (sparsefile ? FileFlags.SparseFile : 0), true),
             new SecureCompressOptions(src._GetFileName(), password._IsFilled(), password, true, CompressionLevel.SmallestSize, numthreads._ToInt()), true);
 
         if (ret.NumErrors >= 1)
@@ -246,8 +243,8 @@ partial class TestDevCommands
         }
 
         await SecureCompressUtil.BackupFileAsync(
-            new FilePath(src, Lfs, FileFlags.NoCheckFileSize | FileFlags.AllowRelativePath),
-            new FilePath(dst, Lfs, FileFlags.NoCheckFileSize | FileFlags.AutoCreateDirectory | FileFlags.SparseFile | FileFlags.AllowRelativePath),
+            new FilePath(src, Lfs, FileFlags.NoCheckFileSize, true),
+            new FilePath(dst, Lfs, FileFlags.NoCheckFileSize | FileFlags.AutoCreateDirectory | FileFlags.SparseFile, true),
             new SecureCompressOptions(src._GetFileName(), password._IsFilled(), password, true, CompressionLevel.SmallestSize, numthreads._ToInt()), truncate._ToLong(), true);
 
         return 0;

@@ -413,8 +413,28 @@ public class CertVault : AsyncServiceWithMainLoop
 
     bool IsAcmeCertUpdated = false;
 
+    readonly ShouldWarn WarnForDiskSpace = new(60 * 60 * 1000);
+
+    public async Task<bool> CheckFreeDiskSpaceAsync(CancellationToken cancel = default)
+    {
+        // ディスクの空き容量をチェック
+        if (await this.BaseDir.CheckFreeDiskSpaceByTestFileAsync(1_000_000, cancel) == false)
+        {
+            // 空き容量がもうない
+            if (WarnForDiskSpace.IsGoodTimeToWarn())
+            {
+                $"Disk space of '{this.BaseDir}' is not enough to run MainLoopAsync of CertVault"._Error();
+            }
+
+            return false;
+        }
+
+        return true;
+    }
+
     public async Task MainLoopAsync(CancellationToken cancel)
     {
+
         while (cancel.IsCancellationRequested == false)
         {
             try
@@ -615,6 +635,12 @@ public class CertVault : AsyncServiceWithMainLoop
                 }
                 else
                 {
+                    // ローカルへの保存前にローカルディスク容量を確認する
+                    if (await this.CheckFreeDiskSpaceAsync(cancel) == false)
+                    {
+                        return false;
+                    }
+
                     // 新しいファイルを入手したのでローカルディスクに保存する
                     await certFile.WriteDataToFileAsync(newCertBody, FileFlags.AutoCreateDirectory, cancel: cancel);
                     await keyFile.WriteDataToFileAsync(newKeyBody, FileFlags.AutoCreateDirectory, cancel: cancel);
@@ -698,6 +724,12 @@ public class CertVault : AsyncServiceWithMainLoop
 
                                 if (IsCertificateDateTimeToUpdate(certData.NotBefore, certData.NotAfter))
                                 {
+                                    if (await this.CheckFreeDiskSpaceAsync(cancel) == false)
+                                    {
+                                        // ディスクの空き容量がないので、手続きを中止する
+                                        return;
+                                    }
+
                                     if (account == null)
                                     {
                                         client = new AcmeClient(new AcmeClientOptions(this.Settings.AcmeServiceDirectoryUrl!, this.TcpIp));
@@ -822,6 +854,12 @@ public class CertVault : AsyncServiceWithMainLoop
         if (queue.Count == 0)
         {
             // キューがない
+            return;
+        }
+
+        if (await this.CheckFreeDiskSpaceAsync(cancel) == false)
+        {
+            // ローカルディスクの空き容量がない
             return;
         }
 

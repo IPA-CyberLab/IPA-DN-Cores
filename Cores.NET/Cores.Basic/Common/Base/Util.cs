@@ -9161,3 +9161,36 @@ public class SimpleCommentAttribute : Attribute
     }
 }
 
+public class ShouldWarn
+{
+    public int IntervalMsecs { get; }
+    public bool RandInterval { get; }
+    public double PlusMinusPercentage { get; }
+
+    long NextTick = 0;
+
+    public ShouldWarn(int intervalMsecs, bool randInterval = false, double plusMinusPercentage = 30)
+    {
+        this.IntervalMsecs = intervalMsecs;
+        this.RandInterval = randInterval;
+        this.PlusMinusPercentage = plusMinusPercentage;
+
+        this.NextTick = 0;
+    }
+
+    public bool IsGoodTimeToWarn()
+    {
+        long now = Time.Tick64;
+        bool ret = false;
+
+        if (now >= this.NextTick || this.NextTick == 0)
+        {
+            ret = true;
+
+            this.NextTick = now + Util.GenRandInterval(this.IntervalMsecs, this.PlusMinusPercentage);
+        }
+
+        return ret;
+    }
+}
+

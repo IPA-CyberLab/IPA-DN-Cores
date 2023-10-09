@@ -162,6 +162,79 @@ public abstract partial class FileSystem
         }
     }
 
+    readonly NamedAsyncLocks LockFor_CheckFreeDiskSpaceByTestFileAsync = new();
+
+    // 指定された長さのファイルを保存してみることによって、ディスクに空き容量があることを確認する
+    public async Task<bool> CheckFreeDiskSpaceByTestFileAsync(string dirPath, int size, CancellationToken cancel = default)
+    {
+        if (size < 0) throw new CoresLibException("size < 0");
+
+        string filePath = this.PathParser.Combine(dirPath, $"_free_space_check_{size}.dat");
+
+        using (await LockFor_CheckFreeDiskSpaceByTestFileAsync.LockWithAwait(filePath, cancel))
+        {
+            bool ret = false;
+
+            try
+            {
+                await this.DeleteFileAsync(filePath, cancel: cancel);
+            }
+            catch { }
+
+            try
+            {
+                await this.CreateDirectoryAsync(dirPath, cancel: cancel);
+            }
+            catch { }
+
+            try
+            {
+                await this.DeleteFileAsync(filePath, cancel: cancel);
+            }
+            catch { }
+
+            SeedBasedRandomGenerator rand = new SeedBasedRandomGenerator(Str.GenRandStr());
+
+            try
+            {
+                await using (var file = await this.CreateAsync(filePath, flags: FileFlags.AutoCreateDirectory, cancel: cancel))
+                {
+                    int currentPos = 0;
+
+                    while (currentPos < size)
+                    {
+                        cancel.ThrowIfCancellationRequested();
+
+                        int thisTimeSize = size - currentPos;
+
+                        thisTimeSize = Math.Min(thisTimeSize, Consts.Numbers.DefaultLargeBufferSize);
+
+                        await file.WriteAsync(rand.GetBytes(thisTimeSize), cancel: cancel);
+
+                        currentPos += thisTimeSize;
+                    }
+
+                    await file.FlushAsync(cancel);
+
+                    ret = true;
+                }
+            }
+            catch
+            {
+            }
+            finally
+            {
+                try
+                {
+                    await this.DeleteFileAsync(filePath, cancel: cancel);
+                }
+                catch { }
+            }
+
+            return ret;
+        }
+    }
+
     public async Task<int> ConcurrentSafeAppendDataToFileAsync(string path, ReadOnlyMemory<byte> data, FileFlags additionalFileFlags = FileFlags.None, CancellationToken cancel = default)
     {
         using (await ConcurrentAppendLock.LockWithAwait(path, cancel))
@@ -1278,11 +1351,16 @@ public abstract class FileSystemPath : IEquatable<FileSystemPath> // CloneDeep �
     public FileFlags Flags { get; }
     public PathParser PathParser => this.FileSystem.PathParser;
 
-    public FileSystemPath(string pathString, FileSystem? fileSystem = null, FileFlags flags = FileFlags.None)
+    public FileSystemPath(string pathString, FileSystem? fileSystem = null, FileFlags flags = FileFlags.None, bool allowRelativePath = false)
     {
         if (pathString == null || pathString == "") throw new ArgumentNullException("pathString");
 
         if (fileSystem == null) fileSystem = Lfs;
+
+        if (allowRelativePath)
+        {
+            pathString = fileSystem.GetAbsolutePathFromRelativePath(pathString, flags);
+        }
 
         this.FileSystem = fileSystem;
         this.Flags = flags;
@@ -1308,9 +1386,12 @@ public abstract class FileSystemPath : IEquatable<FileSystemPath> // CloneDeep �
 
 public class DirectoryPath : FileSystemPath // CloneDeep 禁止
 {
-    public DirectoryPath(string pathString, FileSystem? fileSystem = null, FileFlags flags = FileFlags.None) : base(pathString, fileSystem, flags)
+    public DirectoryPath(string pathString, FileSystem? fileSystem = null, FileFlags flags = FileFlags.None, bool allowRelativePath = false) : base(pathString, fileSystem, flags, allowRelativePath)
     {
     }
+
+    public Task<bool> CheckFreeDiskSpaceByTestFileAsync(int size, CancellationToken cancel = default)
+        => this.FileSystem.CheckFreeDiskSpaceByTestFileAsync(this.PathString, size, cancel);
 
     public Task CreateDirectoryAsync(CancellationToken cancel = default)
         => this.FileSystem.CreateDirectoryAsync(this.PathString, this.Flags, cancel);
@@ -1339,13 +1420,6 @@ public class DirectoryPath : FileSystemPath // CloneDeep 禁止
     }
     public DirectoryPath[] GetDirectories(EnumDirectoryFlags flags = EnumDirectoryFlags.None, CancellationToken cancel = default)
         => GetDirectoriesAsync(flags, cancel)._GetResult();
-
-
-    public async Task<DirectoryPath> GetAbsolutePathFromRelativePathAsync(CancellationToken cancel = default)
-        => new DirectoryPath(await this.FileSystem.GetAbsolutePathFromRelativePathAsync(this.PathString, this.Flags, cancel), this.FileSystem, this.Flags);
-
-    public DirectoryPath GetAbsolutePathFromRelativePath(CancellationToken cancel = default)
-        => GetAbsolutePathFromRelativePathAsync(cancel)._GetResult();
 
     public async Task<FilePath[]> GetFilesAsync(EnumDirectoryFlags flags = EnumDirectoryFlags.None, CancellationToken cancel = default)
     {
@@ -1437,19 +1511,13 @@ public class FilePath : FileSystemPath // CloneDeep 禁止
     public FilePath(ResourceFileSystem resFs, string partOfPath, bool exact = false, string rootDir = "/", FileFlags operationFlags = FileFlags.None, CancellationToken cancel = default)
         : this((resFs ?? Res.Cores).EasyFindSingleFile(partOfPath, exact, rootDir, cancel), (resFs ?? Res.Cores)) { }
 
-    public FilePath(string pathString, FileSystem? fileSystem = null, FileFlags flags = FileFlags.None)
-         : base(pathString, fileSystem, flags)
+    public FilePath(string pathString, FileSystem? fileSystem = null, FileFlags flags = FileFlags.None, bool allowRelativePath = false)
+         : base(pathString, fileSystem, flags, allowRelativePath)
     {
         this.EasyAccessSingleton = new Singleton<EasyFileAccess>(() => new EasyFileAccess(this.FileSystem, this.PathString));
     }
 
     public static implicit operator FilePath(string fileName) => new FilePath(fileName, flags: FileFlags.AutoCreateDirectory);
-
-    public async Task<FilePath> GetAbsolutePathFromRelativePathAsync(CancellationToken cancel = default)
-        => new FilePath(await this.FileSystem.GetAbsolutePathFromRelativePathAsync(this.PathString, this.Flags, cancel), this.FileSystem, this.Flags);
-
-    public FilePath GetAbsolutePathFromRelativePath(CancellationToken cancel = default)
-        => GetAbsolutePathFromRelativePathAsync(cancel)._GetResult();
 
     public FilePath GetPath(string pathString) => new FilePath(pathString, this.FileSystem, this.Flags);
 

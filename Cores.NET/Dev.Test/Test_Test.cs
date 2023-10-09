@@ -4882,6 +4882,12 @@ HOST: www.google.com
     {
         if (true)
         {
+            Lfs.CheckFreeDiskSpaceByTestFileAsync(@"c:\tmp2\231009", 10_000_000)._GetResult()._Print();
+            return;
+        }
+
+        if (true)
+        {
             Test_231005_Async()._GetResult();
             return;
         }
