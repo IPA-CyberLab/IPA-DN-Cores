@@ -142,7 +142,7 @@ partial class TestDevCommands
 
     [ConsoleCommand(
     "SecureCompressRestore command",
-    "SecureCompressRestore [src] /dst:dst [/password:password] [/numthreads:num]",
+    "SecureCompressRestore [src] /dst:dst [/password:password] [/numthreads:num] [/sparsefile:true|false]",
     "SecureCompressRestore command")]
     static async Task<int> SecureCompressRestore(ConsoleService c, string cmdName, string str)
     {
@@ -152,6 +152,7 @@ partial class TestDevCommands
                 new ConsoleParam("dst", ConsoleService.Prompt, "Destination file path: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("password"),
                 new ConsoleParam("numthreads"),
+                new ConsoleParam("sparsefile"),
             };
 
         ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
@@ -160,6 +161,7 @@ partial class TestDevCommands
         string dst = vl["dst"].StrValue;
         string password = vl["password"].StrValue;
         string numthreads = vl["numthreads"].StrValue;
+        bool sparsefile = vl["sparsefile"].BoolValue;
 
         if (src._IsSamei(dst))
         {
@@ -179,7 +181,7 @@ partial class TestDevCommands
 
         var ret = await SecureCompressUtil.RestoreFileAsync(
             new FilePath(src, Lfs, FileFlags.NoCheckFileSize),
-            new FilePath(dst, Lfs, FileFlags.NoCheckFileSize | FileFlags.AutoCreateDirectory | FileFlags.SparseFile),
+            new FilePath(dst, Lfs, FileFlags.NoCheckFileSize | FileFlags.AutoCreateDirectory | (sparsefile ? FileFlags.SparseFile : 0)),
             new SecureCompressOptions(src._GetFileName(), password._IsFilled(), password, true, CompressionLevel.SmallestSize, numthreads._ToInt()), true);
 
         if (ret.NumErrors >= 1)
