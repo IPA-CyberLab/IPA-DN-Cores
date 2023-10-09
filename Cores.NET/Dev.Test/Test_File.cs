@@ -1194,6 +1194,8 @@ partial class TestDevCommands
 
         ArchiveFileType filetype = ArchiveFileType.Raw.ParseAsDefault(filetypeStr, false, true);
 
+        bool hasError = false;
+
         await using (var rawFs = new LocalRawDiskFileSystem())
         {
             await using (var disk = await rawFs.OpenAsync($"/{diskName}"))
@@ -1227,22 +1229,29 @@ partial class TestDevCommands
                         {
                             RefBool readErrorIgnored = new();
 
-                            await FileUtil.CopyBetweenStreamAsync(diskStream, archiveStream, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024, ensureBufferSize: true, ignoreReadError: true), reporter: reporter, readErrorIgnored: readErrorIgnored);
+                            long size = await FileUtil.CopyBetweenStreamAsync(diskStream, archiveStream, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024, ensureBufferSize: true, ignoreReadError: true), reporter: reporter, readErrorIgnored: readErrorIgnored);
 
                             if (readErrorIgnored)
                             {
                                 $"Warning! There were sector read errors on source disk. Please check the error log."._Error();
+                                CoresLib.Report_HasError = true;
+                                hasError = true;
                             }
 
                             await archiveStream.FlushAsync();
                             await archiveFileStream.FlushAsync();
+
+                            string msg = $"Result: Total {size._ToString3()} bytes ({size._GetFileSizeStr()}) copied.";
+
+                            msg._Print();
+                            CoresLib.Report_SimpleResult = msg;
                         }
                     }
                 }
             }
         }
 
-        return 0;
+        return hasError ? 1 : 0;
     }
 
     // Restore Physical Disk
@@ -1278,6 +1287,8 @@ partial class TestDevCommands
         }
 
         ArchiveFileType filetype = ArchiveFileType.Raw.ParseAsDefault(filetypeStr, false, true);
+
+        bool hasError = false;
 
         await using (var rawFs = new LocalRawDiskFileSystem())
         {
@@ -1338,6 +1349,8 @@ partial class TestDevCommands
                             if (readErrorIgnored)
                             {
                                 $"Warning! There were sector read errors on source archive file. Please check the error log."._Error();
+                                CoresLib.Report_HasError = true;
+                                hasError = true;
                             }
                         }
                     }
@@ -1345,7 +1358,7 @@ partial class TestDevCommands
             }
         }
 
-        return 0;
+        return hasError ? 1 : 0;
     }
 
     // Zero Clear Physical Disk
@@ -1484,6 +1497,9 @@ partial class TestDevCommands
             {
                 err = true;
             }
+
+            CoresLib.Report_SimpleResult = b.Stat._ObjectToJson(compact: true);
+            CoresLib.Report_HasError = err;
         }
 
         if (err)
@@ -1553,6 +1569,9 @@ partial class TestDevCommands
             {
                 err = true;
             }
+
+            CoresLib.Report_SimpleResult = b.Stat._ObjectToJson(compact: true);
+            CoresLib.Report_HasError = err;
         }
 
         if (err)
@@ -1622,6 +1641,9 @@ partial class TestDevCommands
             {
                 err = true;
             }
+
+            CoresLib.Report_SimpleResult = b.Stat._ObjectToJson(compact: true);
+            CoresLib.Report_HasError = err;
         }
 
         if (err)
