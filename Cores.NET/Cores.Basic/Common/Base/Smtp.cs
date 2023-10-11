@@ -487,7 +487,7 @@ public class SmtpLogRouteSettings
     public string MailTo { get; }
     public int MaxLines { get; }
 
-    public const int DefaultMaxLines = 100000;
+    public const int DefaultMaxLines = 20000;
 
     public SmtpLogRouteSettings(string smtpServer, bool smtpUseSsl, string smtpUsername, string smtpPassword, string mailFrom, string mailTo, int maxLines = DefaultMaxLines)
     {
