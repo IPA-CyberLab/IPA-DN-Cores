@@ -473,6 +473,131 @@ __IMG__
 
 partial class TestDevCommands
 {
+    public class BookPageDef
+    {
+        public bool IsOk
+        {
+            get
+            {
+                if (this.PageStart >= 1 && this.PageEnd >= this.PageStart && this.BookName._IsFilled())
+                {
+                    return true;
+                }
+                return false;
+            }
+        }
+
+        public int PageStart;
+        public int PageEnd;
+        public int NumPages => this.PageEnd - this.PageStart + 1;
+        public string BookName = "";
+
+        public BookPageDef() { }
+
+        public BookPageDef(string line)
+        {
+            if (line._GetKeysListAndValue(2, out var keys, out var value, " \t"))
+            {
+                if (value._IsFilled())
+                {
+                    this.PageStart = keys[0]._ToInt();
+                    this.PageEnd = keys[1]._ToInt();
+                    this.BookName = value;
+                }
+            }
+        }
+    }
+
+    [ConsoleCommand(
+    "BookRandomPages",
+    "BookRandomPages [configFileName] [/NUM:num_pages]",
+    "BookRandomPages")]
+    static int BookRandomPages(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
+            new ConsoleParam("[configFileName]", ConsoleService.Prompt, "Config File Name: ", ConsoleService.EvalNotEmpty, null),
+            new ConsoleParam("NUM"),
+        };
+
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        string fileName = vl.DefaultParam.StrValue;
+
+        int numPages = vl["NUM"].IntValue;
+
+        if (numPages <= 0)
+        {
+            numPages = 100;
+        }
+
+        var lines = Lfs.ReadStringFromFile(fileName)._GetLines(true, true);
+
+        string currentBookName = "";
+
+        List<BookPageDef> bookDefList = new();
+
+        foreach (var line in lines)
+        {
+            if (line._IsFilled())
+            {
+                if (line.StartsWith(" ") || line.StartsWith("\t") || (line[0] >= '0' && line[0] <= '9'))
+                {
+                    if (currentBookName._IsFilled())
+                    {
+                        string tmp = line.Trim() + " " + currentBookName;
+
+                        var def = new BookPageDef(tmp);
+
+                        if (def.IsOk)
+                        {
+                            bookDefList.Add(def);
+                        }
+                    }
+                }
+                else
+                {
+                    currentBookName = line.Trim();
+                }
+            }
+        }
+
+        int virtualPageStart = 0;
+
+        List<(int VirtualPageStart, BookPageDef Def)> vlist = new();
+
+        foreach (var def in bookDefList)
+        {
+            vlist.Add((virtualPageStart, def));
+
+            virtualPageStart += def.NumPages;
+        }
+
+        int totalPages = virtualPageStart;
+
+        vlist.Reverse();
+
+        for (int i = 0; i < numPages; i++)
+        {
+            int pg = (int)(Secure.RandSInt63() % totalPages);
+
+            foreach (var vdef in vlist)
+            {
+                if (vdef.VirtualPageStart <= pg)
+                {
+                    int page = (pg - vdef.VirtualPageStart) + vdef.Def.PageStart;
+
+                    Con.WriteLine(vdef.Def.BookName._RemoveQuotation());
+                    Con.WriteLine($"   {page}");
+                    Con.WriteLine();
+                    break;
+                }
+            }
+        }
+
+        return 0;
+    }
+
     [ConsoleCommand(
   "Gc",
   "Gc",
