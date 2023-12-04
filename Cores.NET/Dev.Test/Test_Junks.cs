@@ -1668,7 +1668,7 @@ partial class TestDevCommands
         bool driver = vl["driver"].BoolValue;
         string cert = vl["cert"].StrValue;
 
-        using (AuthenticodeSignClient ac = new AuthenticodeSignClient("https://10.40.0.243:7006/sign", "3CCE0F1B9F61AE5114E77C3A306DCBF7A96D22A22BBFC761FB762F2C295FAA5B"))
+        using (AuthenticodeSignClient ac = new AuthenticodeSignClient("https://dn-labsign2.lab.coe.ad.jp:7006/sign", "3CCE0F1B9F61AE5114E77C3A306DCBF7A96D22A22BBFC761FB762F2C295FAA5B"))
         {
             var srcData = Load(srcPath);
 
