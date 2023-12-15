@@ -276,7 +276,7 @@ partial class TestDevCommands
 
     [ConsoleCommand(
         "WriteLargeRandFile command",
-        "WriteLargeRandFile <path> /SIZE:<size> [/COUNT:<count=1>]",
+        "WriteLargeRandFile <path> /SIZE:<size> [/COUNT:<count=1>] [/FAST:yes|no]",
         "WriteLargeRandFile command")]
     static int WriteLargeRandFile(ConsoleService c, string cmdName, string str)
     {
@@ -285,6 +285,7 @@ partial class TestDevCommands
             new ConsoleParam("[path]", ConsoleService.Prompt, "Path: ", ConsoleService.EvalNotEmpty, null),
             new ConsoleParam("SIZE", ConsoleService.Prompt, "Size: ", ConsoleService.EvalNotEmpty, null),
             new ConsoleParam("COUNT"),
+            new ConsoleParam("FAST"),
         };
 
         ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
@@ -292,6 +293,7 @@ partial class TestDevCommands
         string basePath = vl.DefaultParam.StrValue;
         long targetOneFileSize = vl["SIZE"].StrValue._ToLong();
         int count = vl["COUNT"].IntValue;
+        bool fast = vl["FAST"].BoolValue;
 
         count = Math.Max(count, 1);
 
@@ -351,6 +353,8 @@ partial class TestDevCommands
 
                     Memory<byte> buffer = new byte[bufSize];
 
+                    Util.Rand(buffer.Span);
+
                     int flushCount = 0;
 
                     estimatedRemainSize -= initialFileSize;
@@ -367,7 +371,10 @@ partial class TestDevCommands
 
                         Memory<byte> block = buffer.Slice(0, blockSize);
 
-                        Util.Rand(block.Span);
+                        if (fast == false)
+                        {
+                            Util.Rand(block.Span);
+                        }
 
                         await file.WriteAsync(block);
 
