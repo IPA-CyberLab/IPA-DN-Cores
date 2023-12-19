@@ -1167,6 +1167,95 @@ partial class TestDevCommands
         return 0;
     }
 
+    // Copy Physical Disk
+    [ConsoleCommand(
+        "RawDiskCopy command",
+        "RawDiskCopy [srcDiskName] /dst:[dstDiskName] [/truncate:size]",
+        "RawDiskCopy command")]
+    static async Task<int> RawDiskCopy(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
+            new ConsoleParam("[srcDiskName]", ConsoleService.Prompt, "Src physical disk name: ", ConsoleService.EvalNotEmpty, null),
+            new ConsoleParam("dst", ConsoleService.Prompt, "Dest physical disk name: ", ConsoleService.EvalNotEmpty, null),
+            new ConsoleParam("truncate"),
+        };
+
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        string srcDiskName = vl.DefaultParam.StrValue;
+        string dstDiskName = vl["dst"].StrValue;
+        long truncate = vl["truncate"].StrValue._ToLong();
+        if (truncate <= 0)
+        {
+            truncate = -1;
+        }
+        else
+        {
+            truncate = (truncate + 4095L) / 4096L * 4096L;
+        }
+
+        if (srcDiskName._IsSameiTrim(dstDiskName))
+        {
+            throw new CoresException($"Error! src is same to dst.");
+        }
+
+        bool hasError = false;
+
+        await using (var rawFs = new LocalRawDiskFileSystem())
+        {
+            await using (var srcDisk = await rawFs.OpenAsync($"/{srcDiskName}"))
+            {
+                await using var srcDiskStream = srcDisk.GetStream(true);
+
+                await using (var dstDisk = await rawFs.OpenAsync($"/{dstDiskName}", writeMode: true))
+                {
+                    await using var dstStream = dstDisk.GetStream(true);
+
+                    long srcDiskSize = await srcDisk.GetFileSizeAsync();
+                    long dstDiskSize = await dstDisk.GetFileSizeAsync();
+
+                    $"Src disk size: {srcDiskSize._ToString3()} bytes"._Print();
+                    $"Dst disk size: {dstDiskSize._ToString3()} bytes"._Print();
+
+                    if (srcDiskSize > dstDiskSize)
+                    {
+                        $"*** Warning! Src srcDiskSize > dstDiskSize. Size will be truncated.");
+                    }
+
+                    truncate = Math.Min(truncate, Math.Min(srcDiskSize, dstDiskSize));
+
+                    truncate = (truncate + 4095L) / 4096L * 4096L;
+
+                    $"Total copy size: {truncate._ToString3()} bytes"._Print();
+
+                    using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
+                    {
+                        RefBool readErrorIgnored = new();
+
+                        long size = await FileUtil.CopyBetweenStreamAsync(srcDiskStream, dstStream, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024, ensureBufferSize: true, ignoreReadError: true), reporter: reporter, readErrorIgnored: readErrorIgnored);
+
+                        if (readErrorIgnored)
+                        {
+                            $"Warning! There were sector read errors on source disk. Please check the error log."._Error();
+                            CoresLib.Report_HasError = true;
+                            hasError = true;
+                        }
+
+                        await dstStream.FlushAsync();
+
+                        string msg = $"Result: Total {size._ToString3()} bytes ({size._GetFileSizeStr()}) copied.";
+
+                        msg._Print();
+                        CoresLib.Report_SimpleResult = msg;
+                    }
+                }
+            }
+        }
+
+        return hasError ? 1 : 0;
+    }
+
     // Backup Physical Disk
     [ConsoleCommand(
         "RawDiskBackup command",
