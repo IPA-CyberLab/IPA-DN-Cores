@@ -1220,7 +1220,7 @@ partial class TestDevCommands
 
                     if (srcDiskSize > dstDiskSize)
                     {
-                        $"*** Warning! Src srcDiskSize > dstDiskSize. Size will be truncated.");
+                        $"*** Warning! Src srcDiskSize > dstDiskSize. Size will be truncated."._Print();
                     }
 
                     truncate = Math.Min(truncate, Math.Min(srcDiskSize, dstDiskSize));
