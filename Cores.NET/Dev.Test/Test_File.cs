@@ -1188,12 +1188,10 @@ partial class TestDevCommands
         long truncate = vl["truncate"].StrValue._ToLong();
         if (truncate <= 0)
         {
-            truncate = -1;
+            truncate = long.MaxValue - 4096L;
         }
-        else
-        {
-            truncate = (truncate + 4095L) / 4096L * 4096L;
-        }
+
+        truncate = (truncate + 4095L) / 4096L * 4096L;
 
         if (srcDiskName._IsSameiTrim(dstDiskName))
         {
