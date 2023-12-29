@@ -473,6 +473,71 @@ __IMG__
 
 partial class TestDevCommands
 {
+    [ConsoleCommand(
+        "GenerateAsciiTestFile",
+        "GenerateAsciiTestFile [filename] [/SIZE:size]",
+        "GenerateAsciiTestFile")]
+    static async Task<int> GenerateAsciiTestFile(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
+            new ConsoleParam("[filename]", ConsoleService.Prompt, "File Name: ", ConsoleService.EvalNotEmpty, null),
+            new ConsoleParam("SIZE", ConsoleService.Prompt, "Size: ", ConsoleService.EvalNotEmpty, null),
+        };
+
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        string filename = vl.DefaultParam.StrValue;
+        long size = vl["SIZE"].StrValue._ToLong();
+
+        if (size <= 0)
+        {
+            throw new CoresException("Invalid size");
+        }
+
+        await using var file = await Lfs.CreateAsync(filename, flags: FileFlags.AutoCreateDirectory);
+
+        await using var stream = file.GetStream(true);
+
+        await using var dst = new BufferedStream(stream);
+
+        long writtenSize = 0;
+
+        using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput,
+            reportTimingSetting: new ProgressReportTimingSetting(false, 1000)
+            ), null))
+        {
+            for (long count = 0; ; count++)
+            {
+                reporter.ReportProgress(new ProgressData(writtenSize, size));
+
+                long remainSize = size - writtenSize;
+
+                if (remainSize <= 0)
+                {
+                    break;
+                }
+
+                string line = count.ToString("D15") + "\n";
+
+                if (count == 0)
+                {
+                    line = "*" + (((size + 15) / 16) - 1).ToString("D14") + "\n";
+                }
+
+                var data = line._GetBytes_Ascii().AsMemory();
+
+                data = data.Slice(0, (int)Math.Min(remainSize, data.Length));
+
+                await dst.WriteAsync(data);
+
+                writtenSize += data.Length;
+            }
+        }
+
+        return 0;
+    }
+
     public class BookPageDef
     {
         public bool IsOk
