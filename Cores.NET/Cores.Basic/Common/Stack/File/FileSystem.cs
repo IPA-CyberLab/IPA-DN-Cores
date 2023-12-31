@@ -184,7 +184,7 @@ public abstract class FileObject : FileBase
 
                         CheckAccessBit(FileAccess.Read);
 
-                        if (this.FileParams.Flags.Bit(FileFlags.NoCheckFileSize) == false)
+                        if (this.FileParams.Flags.Bit(FileFlags.NoCheckFileSize) == false && this.FileCharacteristics.Bit(FileCharacteristics.IsNonSeekable) == false)
                         {
                             if (this.InternalFileSize < this.InternalPosition)
                             {
@@ -248,6 +248,11 @@ public abstract class FileObject : FileBase
 
     public sealed override async Task<int> ReadRandomAsync(long position, Memory<byte> data, CancellationToken cancel = default)
     {
+        if (this.FileCharacteristics.Bit(FileCharacteristics.IsNonSeekable))
+        {
+            throw new CoresLibException($"This file object doesn't support SeekAsync, but ReadRandomAsync is called");
+        }
+
         checked
         {
             try
@@ -336,11 +341,14 @@ public abstract class FileObject : FileBase
 
                         CheckAccessBit(FileAccess.Write);
 
-                        if (this.InternalFileSize < this.InternalPosition)
+                        if (this.FileCharacteristics.Bit(FileCharacteristics.IsNonSeekable) == false)
                         {
-                            await GetFileSizeInternalAsync(true, operationCancel);
                             if (this.InternalFileSize < this.InternalPosition)
-                                throw new FileException(this.FileParams.Path, $"Current position is out of range. Current position: {this.InternalPosition}, File size: {this.InternalFileSize}. (WriteAsync)");
+                            {
+                                await GetFileSizeInternalAsync(true, operationCancel);
+                                if (this.InternalFileSize < this.InternalPosition)
+                                    throw new FileException(this.FileParams.Path, $"Current position is out of range. Current position: {this.InternalPosition}, File size: {this.InternalFileSize}. (WriteAsync)");
+                            }
                         }
 
                         operationCancel.ThrowIfCancellationRequested();
@@ -353,9 +361,12 @@ public abstract class FileObject : FileBase
 
                         this.InternalPosition += data.Length;
 
-                        if (this.InternalFileSize < this.InternalPosition)
+                        if (this.FileCharacteristics.Bit(FileCharacteristics.IsNonSeekable) == false)
                         {
-                            this.InternalFileSize = this.InternalPosition;
+                            if (this.InternalFileSize < this.InternalPosition)
+                            {
+                                this.InternalFileSize = this.InternalPosition;
+                            }
                         }
 
                         return;
@@ -374,6 +385,11 @@ public abstract class FileObject : FileBase
     {
         checked
         {
+            if (this.FileCharacteristics.Bit(FileCharacteristics.IsNonSeekable))
+            {
+                throw new CoresLibException($"This file object doesn't support SeekAsync, but WriteRandomAsync is called");
+            }
+
             try
             {
                 EventListeners.Fire(this, FileObjectEventType.WriteRandom);
@@ -457,13 +473,24 @@ public abstract class FileObject : FileBase
                         if (newPosition < 0)
                             throw new FileException(this.FileParams.Path, $"newPosition < 0");
 
-                        if (this.InternalFileSize < newPosition)
+                        if (this.FileCharacteristics.Bit(FileCharacteristics.IsNonSeekable))
                         {
-                            await GetFileSizeInternalAsync(true, operationCancel);
+                            if (this.InternalPosition != newPosition)
+                            {
+                                throw new CoresLibException($"This file object doesn't support SeekAsync, but SeekAsync({newPosition}) is called when InternalPosition = {InternalPosition}");
+                            }
+                        }
+
+                        if (this.FileCharacteristics.Bit(FileCharacteristics.IsNonSeekable) == false)
+                        {
                             if (this.InternalFileSize < newPosition)
                             {
-                                if (this.FileParams.Access.Bit(FileAccess.Write) == false)
-                                    throw new FileException(this.FileParams.Path, $"New position is out of range. New position: {newPosition}, File size: {this.InternalFileSize}.");
+                                await GetFileSizeInternalAsync(true, operationCancel);
+                                if (this.InternalFileSize < newPosition)
+                                {
+                                    if (this.FileParams.Access.Bit(FileAccess.Write) == false)
+                                        throw new FileException(this.FileParams.Path, $"New position is out of range. New position: {newPosition}, File size: {this.InternalFileSize}.");
+                                }
                             }
                         }
 
@@ -499,6 +526,11 @@ public abstract class FileObject : FileBase
         {
             try
             {
+                if (this.FileCharacteristics.Bit(FileCharacteristics.IsNonSeekable))
+                {
+                    return -1;
+                }
+
                 if (refresh == false)
                     return this.InternalFileSize;
 
@@ -549,6 +581,11 @@ public abstract class FileObject : FileBase
     {
         checked
         {
+            if (this.FileCharacteristics.Bit(FileCharacteristics.IsNonSeekable))
+            {
+                throw new CoresLibException($"This file object doesn't support SetFileSize, but SetFileSize({size}) is called");
+            }
+
             if (size < 0)
                 throw new ArgumentOutOfRangeException("size < 0");
 

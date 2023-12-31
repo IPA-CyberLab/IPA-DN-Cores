@@ -2897,6 +2897,13 @@ public class RandomAccessHandle : IRandomAccess<byte>, IDisposable, IAsyncDispos
     public long GetPhysicalSize(CancellationToken cancel = default) => GetPhysicalSizeAsync(cancel)._GetResult();
 }
 
+[Flags]
+public enum FileCharacteristics
+{
+    None = 0,
+    IsNonSeekable = 1,
+}
+
 public abstract class FileBase : IDisposable, IAsyncClosable, IRandomAccess<byte>
 {
     public FileParameters FileParams { get; }
@@ -2905,6 +2912,7 @@ public abstract class FileBase : IDisposable, IAsyncClosable, IRandomAccess<byte
     public abstract Exception? LastError { get; protected set; }
     public FastEventListenerList<FileBase, FileObjectEventType> EventListeners { get; }
         = new FastEventListenerList<FileBase, FileObjectEventType>();
+    public FileCharacteristics FileCharacteristics { get; protected set; }
 
     public AsyncLock SharedAsyncLock { get; } = new AsyncLock();
 

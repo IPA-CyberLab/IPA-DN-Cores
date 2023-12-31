@@ -1051,7 +1051,15 @@ public class LocalFileObject : FileObject
 
             _PhysicalFinalPath = physicalFinalPathTmp;
 
-            this.CurrentPosition = BaseStream.Position;
+            if (BaseStream.CanSeek == false)
+            {
+                this.FileCharacteristics |= FileCharacteristics.IsNonSeekable;
+            }
+
+            if (this.FileCharacteristics.Bit(FileCharacteristics.IsNonSeekable) == false)
+            {
+                this.CurrentPosition = BaseStream.Position;
+            }
 
             if (Env.IsLinux)
             {
@@ -1067,7 +1075,14 @@ public class LocalFileObject : FileObject
                 }
             }
 
-            InitAndCheckFileSizeAndPosition(this.CurrentPosition, await GetFileSizeImplAsync(cancel), cancel);
+            if (this.FileCharacteristics.Bit(FileCharacteristics.IsNonSeekable) == false)
+            {
+                InitAndCheckFileSizeAndPosition(this.CurrentPosition, await GetFileSizeImplAsync(cancel), cancel);
+            }
+            else
+            {
+                InitAndCheckFileSizeAndPosition(this.CurrentPosition, 0, cancel);
+            }
         }
         catch
         {
@@ -1080,6 +1095,7 @@ public class LocalFileObject : FileObject
     bool isSparseFile = false;
     async Task SetAsSparseFileAsync(CancellationToken cancel = default)
     {
+        if (this.FileCharacteristics.Bit(FileCharacteristics.IsNonSeekable) == false) return;
         if (Env.IsWindows == false) return;
         if (isSparseFile) return;
 
@@ -1098,11 +1114,21 @@ public class LocalFileObject : FileObject
 
     protected override async Task<long> GetFileSizeImplAsync(CancellationToken cancel = default)
     {
+        if (this.FileCharacteristics.Bit(FileCharacteristics.IsNonSeekable))
+        {
+            return -1;
+        }
+
         return this.FixedSize ?? BaseStream.Length;
     }
 
     protected override async Task SetFileSizeImplAsync(long size, CancellationToken cancel = default)
     {
+        if (this.FileCharacteristics.Bit(FileCharacteristics.IsNonSeekable))
+        {
+            throw new CoresLibException($"This file object doesn't support SetFileSize, but SetFileSize({size}) is called");
+        }
+
         long? fixedSizeCopy = this.FixedSize;
 
         if (fixedSizeCopy.HasValue)
@@ -1169,6 +1195,11 @@ public class LocalFileObject : FileObject
             {
                 if (this.CurrentPosition != position)
                 {
+                    if (this.FileCharacteristics.Bit(FileCharacteristics.IsNonSeekable))
+                    {
+                        throw new CoresLibException($"The file object is non seekable, and current position = {this.CurrentPosition}, but ReadRandomImplAsync(position = {position}) is called");
+                    }
+
                     BaseStream.Seek(position, SeekOrigin.Begin);
                     this.CurrentPosition = position;
                 }
@@ -1189,15 +1220,18 @@ public class LocalFileObject : FileObject
             }
             catch
             {
-                // When ReadAsync occurs the error, we need to obtain the position.
-                try
+                if (this.FileCharacteristics.Bit(FileCharacteristics.IsNonSeekable) == false)
                 {
-                    this.CurrentPosition = BaseStream.Position;
-                }
-                catch
-                {
-                    // Failed to obtain the position.
-                    this.CurrentPosition = long.MinValue;
+                    // When ReadAsync occurs the error, we need to obtain the position.
+                    try
+                    {
+                        this.CurrentPosition = BaseStream.Position;
+                    }
+                    catch
+                    {
+                        // Failed to obtain the position.
+                        this.CurrentPosition = long.MinValue;
+                    }
                 }
                 throw;
             }
@@ -1224,7 +1258,7 @@ public class LocalFileObject : FileObject
             catch { }
         }
 
-        if (isSparseFile)
+        if (isSparseFile && this.FileCharacteristics.Bit(FileCharacteristics.IsNonSeekable) == false)
         {
             await WriteRandomAutoSparseAsync(position, data, cancel);
         }
@@ -1242,6 +1276,11 @@ public class LocalFileObject : FileObject
             {
                 if (this.CurrentPosition != position)
                 {
+                    if (this.FileCharacteristics.Bit(FileCharacteristics.IsNonSeekable))
+                    {
+                        throw new CoresLibException($"The file object is non seekable, and current position = {this.CurrentPosition}, but ReadRandomImplAsync(position = {position}) is called");
+                    }
+
                     BaseStream.Seek(position, SeekOrigin.Begin);
                     this.CurrentPosition = position;
                 }
@@ -1255,15 +1294,18 @@ public class LocalFileObject : FileObject
             }
             catch
             {
-                // When WriteAsync occurs the error, we need to obtain the position.
-                try
+                if (this.FileCharacteristics.Bit(FileCharacteristics.IsNonSeekable) == false)
                 {
-                    this.CurrentPosition = BaseStream.Position;
-                }
-                catch
-                {
-                    // Failed to obtain the position.
-                    this.CurrentPosition = long.MinValue;
+                    // When WriteAsync occurs the error, we need to obtain the position.
+                    try
+                    {
+                        this.CurrentPosition = BaseStream.Position;
+                    }
+                    catch
+                    {
+                        // Failed to obtain the position.
+                        this.CurrentPosition = long.MinValue;
+                    }
                 }
                 throw;
             }
@@ -1277,6 +1319,7 @@ public class LocalFileObject : FileObject
         {
             if (position < 0) throw new ArgumentOutOfRangeException("position");
             if (size < 0) throw new ArgumentOutOfRangeException("size");
+            if (this.FileCharacteristics.Bit(FileCharacteristics.IsNonSeekable)) throw new CoresLibException($"The file object is non seekable, but FileZeroClearDataAsync is called");
             if (size == 0) return;
 
             if (Env.IsWindows)
@@ -1311,6 +1354,7 @@ public class LocalFileObject : FileObject
     async Task WriteRandomAutoSparseAsync(long position, ReadOnlyMemory<byte> data, CancellationToken cancel = default)
     {
         if (position < 0) throw new ArgumentOutOfRangeException("position");
+        if (this.FileCharacteristics.Bit(FileCharacteristics.IsNonSeekable)) throw new CoresLibException($"The file object is non seekable, but WriteRandomAutoSparseAsync is called");
 
         checked
         {
