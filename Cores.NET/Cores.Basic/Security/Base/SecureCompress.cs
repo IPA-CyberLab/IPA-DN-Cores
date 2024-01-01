@@ -88,11 +88,13 @@ public class SecureCompressUtilRet
 {
     public int NumErrors;
     public int NumWarnings;
+    public long TotalReadSize;
+    public SecureCompressFinalHeader? FinalHeader;
 }
 
 public static class SecureCompressUtil
 {
-    public static async Task BackupFileAsync(FilePath srcFilePath, FilePath destFilePath, SecureCompressOptions options, long truncate = -1, bool writeProgressToConsole = false, CancellationToken cancel = default)
+    public static async Task<SecureCompressUtilRet> BackupFileAsync(FilePath srcFilePath, FilePath destFilePath, SecureCompressOptions options, long truncate = -1, bool writeProgressToConsole = false, CancellationToken cancel = default)
     {
         await using var srcFile = await srcFilePath.OpenAsync(cancel: cancel);
 
@@ -122,7 +124,15 @@ public static class SecureCompressUtil
 
         long sz = await srcStream.CopyBetweenStreamAsync(secureWriter, reporter: reporter, estimatedSize: srcFile.Size, truncateSize: truncate);
 
-        await secureWriter.FinalizeAsync();
+        var finalHeader = await secureWriter.FinalizeAsync();
+
+        return new SecureCompressUtilRet
+        {
+            FinalHeader = finalHeader,
+            NumErrors = 0,
+            NumWarnings = 0,
+            TotalReadSize = sz,
+        };
     }
 
     public static async Task<SecureCompressUtilRet> RestoreFileAsync(FilePath srcFilePath, FilePath destFilePath, SecureCompressOptions options, bool writeProgressToConsole = false, CancellationToken cancel = default)
@@ -148,12 +158,14 @@ public static class SecureCompressUtil
 
         long sz = await srcStream.CopyBetweenStreamAsync(secureWriter, estimatedSize: srcFile.Size);
 
-        await secureWriter.FinalizeAsync();
+        var finalHeader = await secureWriter.FinalizeAsync();
 
         return new SecureCompressUtilRet
         {
             NumErrors = secureWriter.NumError,
             NumWarnings = secureWriter.NumWarning,
+            FinalHeader = finalHeader,
+            TotalReadSize = sz,
         };
     }
 
@@ -774,7 +786,9 @@ public class SecureCompressDecoder : StreamImplBase
 
     Once FinalizedFlag;
 
-    public async Task FinalizeAsync(CancellationToken cancel = default)
+    SecureCompressFinalHeader? FinalHeaderRet;
+
+    public async Task<SecureCompressFinalHeader> FinalizeAsync(CancellationToken cancel = default)
     {
         if (LastException != null)
         {
@@ -809,8 +823,12 @@ public class SecureCompressDecoder : StreamImplBase
                         $"{this.Options.FileNameHint}: FinalHeader's SrcSha1 is different. Header: {this.FinalHeader.SrcSha1}, Real: {this.DestHash_Sha1.GetFinalHash()._GetHexString()}"._Error();
                         this.NumError++;
                     }
+
+                    FinalHeaderRet = this.FinalHeader._CloneDeep();
                 }
             }
+
+            return FinalHeaderRet ?? new SecureCompressFinalHeader();
         }
         catch (Exception ex)
         {
@@ -1289,7 +1307,7 @@ public class SecureCompressEncoder : StreamImplBase
 
     Once FinalizedFlag;
 
-    public async Task FinalizeAsync(CancellationToken cancel = default)
+    public async Task<SecureCompressFinalHeader> FinalizeAsync(CancellationToken cancel = default)
     {
         if (LastException != null)
         {
@@ -1347,6 +1365,8 @@ public class SecureCompressEncoder : StreamImplBase
                 tmpBuf.Write(headerData2);
 
                 await this.AppendToDestBufferAsync(tmpBuf, cancel);
+
+                return finalHeader._CloneDeep();
             }
         }
         catch (Exception ex)

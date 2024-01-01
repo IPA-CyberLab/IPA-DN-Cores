@@ -179,17 +179,37 @@ partial class TestDevCommands
             Con.WriteError(ex.Message);
         }
 
-        var ret = await SecureCompressUtil.RestoreFileAsync(
+        var result = await SecureCompressUtil.RestoreFileAsync(
             new FilePath(src, Lfs, FileFlags.NoCheckFileSize, true),
             new FilePath(dst, Lfs, FileFlags.NoCheckFileSize | FileFlags.AutoCreateDirectory | (sparsefile ? FileFlags.SparseFile : 0), true),
             new SecureCompressOptions(src._GetFileName(), password._IsFilled(), password, true, CompressionLevel.SmallestSize, numthreads._ToInt()), true);
 
-        if (ret.NumErrors >= 1)
+        if (result.NumErrors >= 1)
         {
             throw new CoresException("ret.NumErrors >= 1");
         }
 
-        if (ret.NumWarnings >= 1)
+        result.FinalHeader._MarkNotNull();
+
+        StringWriter print = new StringWriter();
+        print.NewLine = Str.NewLine_Str_Local;
+
+        print.WriteLine();
+        print.WriteLine("--- SecureCompressRestore result begin ---");
+        print.WriteLine($"Src: {src}");
+        print.WriteLine($"Dst: {dst}");
+        print.WriteLine($"Result:");
+        print.WriteLine(result._ObjectToJson(compact: false));
+        print.WriteLine("--- SecureCompressRestore result end ---");
+        print.WriteLine();
+
+        string printStr = print.ToString();
+
+        Con.WriteLine(printStr);
+
+        CoresLib.Report_SimpleResult = $"{PPWin.GetFileName(src)}: Src={result.FinalHeader.DestPhysicalSize._ToString3()}, Dst={result.FinalHeader.SrcSize._ToString3()}";
+
+        if (result.NumWarnings >= 1)
         {
             throw new CoresException("ret.NumWarnings >= 1");
         }
@@ -242,10 +262,30 @@ partial class TestDevCommands
             Con.WriteError(ex.Message);
         }
 
-        await SecureCompressUtil.BackupFileAsync(
+        var result = await SecureCompressUtil.BackupFileAsync(
             new FilePath(src, Lfs, FileFlags.NoCheckFileSize, true),
             new FilePath(dst, Lfs, FileFlags.NoCheckFileSize | FileFlags.AutoCreateDirectory | FileFlags.SparseFile, true),
             new SecureCompressOptions(src._GetFileName(), password._IsFilled(), password, true, CompressionLevel.SmallestSize, numthreads._ToInt()), truncate._ToLong(), true);
+
+        result.FinalHeader._MarkNotNull();
+
+        StringWriter print = new StringWriter();
+        print.NewLine = Str.NewLine_Str_Local;
+
+        print.WriteLine();
+        print.WriteLine("--- SecureCompressBackup result begin ---");
+        print.WriteLine($"Src: {src}");
+        print.WriteLine($"Dst: {dst}");
+        print.WriteLine($"Result:");
+        print.WriteLine(result._ObjectToJson(compact: false));
+        print.WriteLine("--- SecureCompressBackup result end ---");
+        print.WriteLine();
+
+        string printStr = print.ToString();
+
+        Con.WriteLine(printStr);
+
+        CoresLib.Report_SimpleResult = $"{PPWin.GetFileName(dst)}: Dst={result.FinalHeader.DestPhysicalSize._ToString3()}, Src={result.FinalHeader.SrcSize._ToString3()}";
 
         return 0;
     }
@@ -1027,7 +1067,12 @@ partial class TestDevCommands
         {
             ReadAllFilesCtx ctx = new ReadAllFilesCtx();
 
-            ctx.DoMainAsync(reporter, dirName)._GetResult();
+            CoresLib.Report_SimpleResult = ctx.DoMainAsync(reporter, dirName)._GetResult();
+
+            if (ctx.TotalErrorNum >= 1)
+            {
+                CoresLib.Report_HasError = true;
+            }
         }
 
         return 0;
@@ -1041,13 +1086,17 @@ partial class TestDevCommands
 
         readonly Memory<byte> TmpBuffer = new byte[4 * 1024 * 1024];
 
-        public async Task DoMainAsync(ProgressReporterBase r, string dirName)
+        public async Task<string> DoMainAsync(ProgressReporterBase r, string dirName)
         {
             await ProcessDirectoryAsync(r, dirName);
 
             r.ReportProgress(new ProgressData(TotalReadSize));
 
-            Con.WriteLine($"Finished!  TotalReadSize = {TotalReadSize._ToString3()}, TotalReadNum = {TotalReadNum._ToString3()}, TotalErrorNum = {TotalErrorNum._ToString3()}");
+            string ret = $"TotalReadSize = {TotalReadSize._ToString3()}, TotalReadNum = {TotalReadNum._ToString3()}, TotalErrorNum = {TotalErrorNum._ToString3()}";
+
+            Con.WriteLine($"Finished! {ret}");
+
+            return ret;
         }
 
         async Task ProcessDirectoryAsync(ProgressReporterBase r, string dirName)
