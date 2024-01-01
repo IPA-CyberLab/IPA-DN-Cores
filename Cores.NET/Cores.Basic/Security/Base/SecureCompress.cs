@@ -1307,6 +1307,8 @@ public class SecureCompressEncoder : StreamImplBase
 
     Once FinalizedFlag;
 
+    SecureCompressFinalHeader? RetHeaderCache = null;
+
     public async Task<SecureCompressFinalHeader> FinalizeAsync(CancellationToken cancel = default)
     {
         if (LastException != null)
@@ -1366,8 +1368,10 @@ public class SecureCompressEncoder : StreamImplBase
 
                 await this.AppendToDestBufferAsync(tmpBuf, cancel);
 
-                return finalHeader._CloneDeep();
+                RetHeaderCache =finalHeader._CloneDeep();
             }
+
+            return RetHeaderCache ?? new SecureCompressFinalHeader();
         }
         catch (Exception ex)
         {
