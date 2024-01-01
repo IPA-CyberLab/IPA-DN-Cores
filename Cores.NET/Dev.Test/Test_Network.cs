@@ -295,7 +295,7 @@ partial class TestDevCommands
         FileDownloader.DownloadUrlListedAsync(vl.DefaultParam.StrValue,
             vl["dest"].StrValue,
             extList,
-            reporterFactory: new ProgressFileDownloadingReporterFactory(ProgressReporterOutputs.ConsoleAndDebug, options: ProgressReporterOptions.EnableThroughput | ProgressReporterOptions.ShowThroughputBps)
+            reporterFactory: new ProgressFileDownloadingReporterFactory(ProgressReporterOutputs.Console, options: ProgressReporterOptions.EnableThroughput | ProgressReporterOptions.ShowThroughputBps)
             )._GetResult();
 
         return 0;
@@ -322,7 +322,7 @@ partial class TestDevCommands
         Async(async () =>
         {
             var option = new FileDownloadOption();
-            var reporterFactory = new ProgressFileDownloadingReporterFactory(ProgressReporterOutputs.ConsoleAndDebug, options: ProgressReporterOptions.EnableThroughput | ProgressReporterOptions.ShowThroughputBps);
+            var reporterFactory = new ProgressFileDownloadingReporterFactory(ProgressReporterOutputs.Console, options: ProgressReporterOptions.EnableThroughput | ProgressReporterOptions.ShowThroughputBps);
 
             using var reporter = reporterFactory.CreateNewReporter(destFileName);
 

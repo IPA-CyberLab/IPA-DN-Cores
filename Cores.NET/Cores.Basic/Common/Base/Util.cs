@@ -6173,7 +6173,7 @@ namespace IPA.Cores.Basic
         public ProgressReportListener? Listener { get; set; }
         public ProgressReporterOutputs AdditionalOutputs { get; }
 
-        public ProgressReporterSetting(ProgressReporterOutputs outputs, ProgressReportListener? listener = null, string title = "Ok", string unit = "", bool toStr3 = false, bool showEta = true,
+        public ProgressReporterSetting(ProgressReporterOutputs outputs = ProgressReporterOutputs.Console, ProgressReportListener? listener = null, string title = "Ok", string unit = "", bool toStr3 = false, bool showEta = true,
             bool fileSizeStr = false, ProgressReportTimingSetting? reportTimingSetting = null, ProgressReporterOptions options = ProgressReporterOptions.None)
             : base(title, unit, toStr3, showEta, fileSizeStr, reportTimingSetting, options)
         {
@@ -6282,7 +6282,7 @@ namespace IPA.Cores.Basic
 
     public class ProgressFileDownloadingReporterFactory : ProgressReporterFactoryBase
     {
-        public ProgressFileDownloadingReporterFactory(ProgressReporterOutputs outputs, ProgressReportListener? listener = null, ProgressReportTimingSetting? reportTimingSetting = null, ProgressReporterOptions options = ProgressReporterOptions.None)
+        public ProgressFileDownloadingReporterFactory(ProgressReporterOutputs outputs = ProgressReporterOutputs.Console, ProgressReportListener? listener = null, ProgressReportTimingSetting? reportTimingSetting = null, ProgressReporterOptions options = ProgressReporterOptions.None)
             : base(outputs, listener, reportTimingSetting, options) { }
 
         public override ProgressReporterBase CreateNewReporter(string title, object? state = null)

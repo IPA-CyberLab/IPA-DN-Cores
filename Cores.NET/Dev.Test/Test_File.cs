@@ -325,7 +325,7 @@ partial class TestDevCommands
 
         long initialTotalSize = estimatedRemainSize;
 
-        using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput,
+        using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput,
             reportTimingSetting: new ProgressReportTimingSetting(false, 1000)
             ), null))
         {
@@ -449,7 +449,7 @@ partial class TestDevCommands
 
             StringWriter diffResults = new StringWriter();
 
-            using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput,
+            using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput,
     reportTimingSetting: new ProgressReportTimingSetting(false, 1000)
     ), null))
             {
@@ -615,7 +615,7 @@ partial class TestDevCommands
 
             try
             {
-                using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput,
+                using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput,
                     reportTimingSetting: new ProgressReportTimingSetting(false, 1000)
                     ), null))
                 {
@@ -746,7 +746,7 @@ partial class TestDevCommands
 
             long currentTotalWriteSize = 0;
 
-            using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true,
+            using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: true,
                 options: ProgressReporterOptions.EnableThroughput,
                 reportTimingSetting: new ProgressReportTimingSetting(false, 1000)
                 ), null))
@@ -906,7 +906,7 @@ partial class TestDevCommands
 
             ""._Print();
 
-            using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true,
+            using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: true,
                 options: ProgressReporterOptions.EnableThroughput,
                 reportTimingSetting: new ProgressReportTimingSetting(false, 1000)
                 ), null))
@@ -965,7 +965,7 @@ partial class TestDevCommands
             sizeToRead = long.MaxValue;
         }
 
-        using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput,
+        using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput,
             reportTimingSetting: new ProgressReportTimingSetting(false, 1000)
             ), null))
         {
@@ -1020,7 +1020,7 @@ partial class TestDevCommands
 
         string dirName = vl.DefaultParam.StrValue;
 
-        using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: false,
+        using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: false,
             options: ProgressReporterOptions.EnableThroughput,
             reportTimingSetting: new ProgressReportTimingSetting(false, 1000)
             ), null))
@@ -1227,7 +1227,7 @@ partial class TestDevCommands
 
                     $"Total copy size: {truncate._ToString3()} bytes"._Print();
 
-                    using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
+                    using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
                     {
                         RefBool readErrorIgnored = new();
 
@@ -1319,7 +1319,7 @@ partial class TestDevCommands
 
                     await using (archiveStream)
                     {
-                        using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
+                        using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
                         {
                             RefBool readErrorIgnored = new();
 
@@ -1403,7 +1403,7 @@ partial class TestDevCommands
                         Con.WriteLine($"Detected file format: {filetype}");
                     }
 
-                    using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
+                    using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
                     {
                         Stream srcStream, dstStream;
 
@@ -1492,7 +1492,7 @@ partial class TestDevCommands
                 size = Math.Min(size, diskSize);
 
                 // Plain
-                using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
+                using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
                 {
                     FileUtil.EraseFileBaseAsync(disk, totalSize: size, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024, ensureBufferSize: true), reporter: reporter)._GetResult();
 
@@ -1813,7 +1813,7 @@ partial class TestDevCommands
 
         Lfs.CopyFile(vl.DefaultParam.StrValue, vl["dest"].StrValue,
             new CopyFileParams(overwrite: true, flags: FileFlags.AutoCreateDirectory, ignoreReadError: true, retryCount: 0,
-            reporterFactory: new ProgressFileProcessingReporterFactory(ProgressReporterOutputs.ConsoleAndDebug, options: ProgressReporterOptions.EnableThroughput)),
+            reporterFactory: new ProgressFileProcessingReporterFactory(ProgressReporterOutputs.Console, options: ProgressReporterOptions.EnableThroughput)),
             readErrorIgnored: ignoredError);
 
         if (ignoredError)

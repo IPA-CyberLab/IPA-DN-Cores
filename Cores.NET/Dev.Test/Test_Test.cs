@@ -6500,7 +6500,7 @@ HOST: www.google.com
 
                             $"----------- {i}"._Debug();
 
-                            using var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, title: $"Task {taskId}", unit: "bytes", toStr3: true));
+                            using var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, title: $"Task {taskId}", unit: "bytes", toStr3: true));
 
                             HugeMemoryBuffer<byte> mem = new HugeMemoryBuffer<byte>();
 
@@ -6602,7 +6602,7 @@ HOST: www.google.com
 
                         $"----------- {i}"._Debug();
 
-                        using var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, title: "Downloading", unit: "bytes", toStr3: true));
+                        using var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, title: "Downloading", unit: "bytes", toStr3: true));
 
                         HugeMemoryBuffer<byte> mem = new HugeMemoryBuffer<byte>();
 
@@ -6969,7 +6969,7 @@ HOST: www.google.com
 
                         $"----------- {i}"._Debug();
 
-                        using var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, title: "Downloading", unit: "bytes", toStr3: true));
+                        using var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, title: "Downloading", unit: "bytes", toStr3: true));
 
                         HugeMemoryBuffer<byte> mem = new HugeMemoryBuffer<byte>();
 
@@ -7045,7 +7045,7 @@ HOST: www.google.com
         if (true)
         {
             FileDownloader.DownloadUrlListedAsync("https://raw.githubusercontent.com/dotnet/core/master/release-notes/3.1/3.1.6/3.1.6.md", @"c:\tmp\down1", "tar.gz,zip,exe",
-                reporterFactory: new ProgressFileDownloadingReporterFactory(ProgressReporterOutputs.ConsoleAndDebug)
+                reporterFactory: new ProgressFileDownloadingReporterFactory(ProgressReporterOutputs.Console)
                 )._GetResult();
             return;
         }

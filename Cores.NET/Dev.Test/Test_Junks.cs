@@ -503,7 +503,7 @@ partial class TestDevCommands
 
         long writtenSize = 0;
 
-        using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.ConsoleAndDebug, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput,
+        using (ProgressReporterBase reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput,
             reportTimingSetting: new ProgressReportTimingSetting(false, 1000)
             ), null))
         {
