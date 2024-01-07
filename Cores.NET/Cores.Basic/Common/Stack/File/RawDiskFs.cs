@@ -353,28 +353,32 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
                 }
             }
 
-            var partUuidObjects = await Lfs.EnumDirectoryAsync("/dev/disk/by-partuuid/", cancel: cancel);
-
-            foreach (var partUuidObj in partUuidObjects.OrderBy(x => x.Name))
+            try
             {
-                if (partUuidObj.IsSymbolicLink && partUuidObj.SymbolicLinkTarget._IsFilled())
+                var partUuidObjects = await Lfs.EnumDirectoryAsync("/dev/disk/by-partuuid/", cancel: cancel);
+
+                foreach (var partUuidObj in partUuidObjects.OrderBy(x => x.Name))
                 {
-                    string partRealPath = Lfs.PathParser.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(Lfs.PathParser.Combine("/dev/disk/by-partuuid/", partUuidObj.SymbolicLinkTarget));
-                    string uuid = partUuidObj.Name;
-
-                    var realDisk = tmpDiskItemList.Where(x => x.AliasOf._IsEmpty() && partRealPath.StartsWith(x.RawPath)).OrderByDescending(x => x.RawPath.Length).ThenBy(x => x.RawPath).FirstOrDefault();
-
-                    if (realDisk != null)
+                    if (partUuidObj.IsSymbolicLink && partUuidObj.SymbolicLinkTarget._IsFilled())
                     {
-                        string byPartUuidName = $"have-partuuid-{Str.MakeVerySafeAsciiOnlyNonSpaceFileName(uuid, true)}";
+                        string partRealPath = Lfs.PathParser.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(Lfs.PathParser.Combine("/dev/disk/by-partuuid/", partUuidObj.SymbolicLinkTarget));
+                        string uuid = partUuidObj.Name;
 
-                        if (tmpDiskItemList.Any(x => x.Name == byPartUuidName) == false)
+                        var realDisk = tmpDiskItemList.Where(x => x.AliasOf._IsEmpty() && partRealPath.StartsWith(x.RawPath)).OrderByDescending(x => x.RawPath.Length).ThenBy(x => x.RawPath).FirstOrDefault();
+
+                        if (realDisk != null)
                         {
-                            tmpDiskItemList.Add(new RawDiskItemData(byPartUuidName, realDisk.RawPath, realDisk.Type, realDisk.Length, realDisk.Name));
+                            string byPartUuidName = $"have-partuuid-{Str.MakeVerySafeAsciiOnlyNonSpaceFileName(uuid, true)}";
+
+                            if (tmpDiskItemList.Any(x => x.Name == byPartUuidName) == false)
+                            {
+                                tmpDiskItemList.Add(new RawDiskItemData(byPartUuidName, realDisk.RawPath, realDisk.Type, realDisk.Length, realDisk.Name));
+                            }
                         }
                     }
                 }
             }
+            catch { }
 
             foreach (var realDisk in tmpDiskItemList.Where(x => x.AliasOf._IsEmpty()).OrderBy(x => x.RawPath).ToArray())
             {
