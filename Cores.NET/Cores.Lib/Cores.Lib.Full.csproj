@@ -56,7 +56,7 @@
 
     <!-- Cores.Basic.Database -->
     <PackageReference Include="Microsoft.Data.Sqlite" Version="6.0.0" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
-    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.0.0" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.1.3" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
     <PackageReference Include="Dapper" Version="2.0.123" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
     <PackageReference Include="Dapper.Contrib" Version="2.0.78" Condition="$(DefineConstants.Contains('CORES_BASIC_DATABASE;'))" />
 
