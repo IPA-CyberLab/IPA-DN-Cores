@@ -4878,8 +4878,27 @@ HOST: www.google.com
         }
     }
 
+    static void Test_240129()
+    {
+        GitLabMainteClientSettings s = new GitLabMainteClientSettings
+        {
+            BasicAuthUsername = "012",
+            BasicAuthPassword = "abc",
+            GitLabBaseUrl = "https://dnt-gitlab-test1.sehosts.com/",
+            PrivateToken = "zzz",
+        };
+
+        s.GitLabBaseUrlWithBasicAuth._Print();
+    }
+
     public static void Test_Generic()
     {
+        if (true)
+        {
+            Test_240129();
+            return;
+        }
+
         if (true)
         {
             Lfs.CheckFreeDiskSpaceByTestFileAsync(@"c:\tmp2\231009", 10_000_000)._GetResult()._Print();

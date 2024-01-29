@@ -76,11 +76,37 @@ public class GitLabMainteClientSettings : INormalizable
 {
     public string GitLabBaseUrl = "";
     public string PrivateToken = "";
+    public string BasicAuthUsername = "";
+    public string BasicAuthPassword = "";
 
     public void Normalize()
     {
         if (GitLabBaseUrl._IsEmpty()) GitLabBaseUrl = "https://git-lab-address-here/";
         if (PrivateToken._IsEmpty()) PrivateToken = "PrivateTokenHere";
+
+        this.BasicAuthUsername = this.BasicAuthUsername._NonNullTrim();
+        this.BasicAuthPassword = this.BasicAuthPassword._NonNullTrim();
+    }
+
+    public string GitLabBaseUrlWithBasicAuth
+    {
+        get
+        {
+            if (this.BasicAuthUsername._IsEmpty() || this.BasicAuthPassword._IsEmpty())
+            {
+                return this.GitLabBaseUrl;
+
+            }
+
+            var uri = this.GitLabBaseUrl._ParseUrl();
+
+            UriBuilder b = new UriBuilder(uri.Scheme, uri.Host, uri.Port, uri.AbsolutePath);
+
+            b.UserName = this.BasicAuthUsername;
+            b.Password = this.BasicAuthPassword;
+
+            return b.Uri.ToString();
+        }
     }
 }
 
@@ -177,7 +203,7 @@ public class GitLabMainteClient : AsyncService
 
     public async Task<List<Project>> EnumProjectsAsync(CancellationToken cancel = default)
     {
-        string url = this.Settings.GitLabBaseUrl._CombineUrl($"/api/v4/projects?private_token={this.Settings.PrivateToken}&per_page={CoresConfig.GitLabMainteDaemonHost.MaxPaging.Value}").ToString();
+        string url = this.Settings.GitLabBaseUrlWithBasicAuth._CombineUrl($"/api/v4/projects?private_token={this.Settings.PrivateToken}&per_page={CoresConfig.GitLabMainteDaemonHost.MaxPaging.Value}").ToString();
 
         var res = await this.Web.SimpleQueryAsync(WebMethods.GET, url, cancel);
 
@@ -186,7 +212,7 @@ public class GitLabMainteClient : AsyncService
 
     public async Task<List<User>> EnumUsersAsync(CancellationToken cancel = default)
     {
-        string url = this.Settings.GitLabBaseUrl._CombineUrl($"/api/v4/users?private_token={this.Settings.PrivateToken}&per_page={CoresConfig.GitLabMainteDaemonHost.MaxPaging.Value}").ToString();
+        string url = this.Settings.GitLabBaseUrlWithBasicAuth._CombineUrl($"/api/v4/users?private_token={this.Settings.PrivateToken}&per_page={CoresConfig.GitLabMainteDaemonHost.MaxPaging.Value}").ToString();
 
         var res = await this.Web.SimpleQueryAsync(WebMethods.GET, url, cancel);
 
@@ -195,7 +221,7 @@ public class GitLabMainteClient : AsyncService
 
     public async Task<List<Group>> EnumGroupsAsync(CancellationToken cancel = default)
     {
-        string url = this.Settings.GitLabBaseUrl._CombineUrl($"/api/v4/groups?private_token={this.Settings.PrivateToken}&per_page={CoresConfig.GitLabMainteDaemonHost.MaxPaging.Value}").ToString();
+        string url = this.Settings.GitLabBaseUrlWithBasicAuth._CombineUrl($"/api/v4/groups?private_token={this.Settings.PrivateToken}&per_page={CoresConfig.GitLabMainteDaemonHost.MaxPaging.Value}").ToString();
 
         var res = await this.Web.SimpleQueryAsync(WebMethods.GET, url, cancel);
 
@@ -204,7 +230,7 @@ public class GitLabMainteClient : AsyncService
 
     public async Task<List<GroupMember>> EnumGroupMembersAsync(int groupId, CancellationToken cancel = default)
     {
-        string url = this.Settings.GitLabBaseUrl._CombineUrl($"/api/v4/groups/{groupId}/members?private_token={this.Settings.PrivateToken}&per_page={CoresConfig.GitLabMainteDaemonHost.MaxPaging.Value}").ToString();
+        string url = this.Settings.GitLabBaseUrlWithBasicAuth._CombineUrl($"/api/v4/groups/{groupId}/members?private_token={this.Settings.PrivateToken}&per_page={CoresConfig.GitLabMainteDaemonHost.MaxPaging.Value}").ToString();
 
         var res = await this.Web.SimpleQueryAsync(WebMethods.GET, url, cancel);
 
@@ -213,7 +239,7 @@ public class GitLabMainteClient : AsyncService
 
     public async Task JoinUserToGroupAsync(int userId, int groupId, int accessLevel = 30, CancellationToken cancel = default)
     {
-        string url = this.Settings.GitLabBaseUrl._CombineUrl($"/api/v4/groups/{groupId}/members").ToString();
+        string url = this.Settings.GitLabBaseUrlWithBasicAuth._CombineUrl($"/api/v4/groups/{groupId}/members").ToString();
 
         var res = await this.Web.SimpleQueryAsync(WebMethods.POST, url, cancel, Consts.MimeTypes.FormUrlEncoded,
             ("private_token", this.Settings.PrivateToken),
