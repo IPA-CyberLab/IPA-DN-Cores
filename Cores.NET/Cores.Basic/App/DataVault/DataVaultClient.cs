@@ -58,7 +58,7 @@ public static partial class CoresConfig
         public static readonly Copenhagen<int> DefaultDelay = 250;
 
         public static readonly Copenhagen<int> DefaultRetryIntervalMin = 1 * 1000;
-        public static readonly Copenhagen<int> DefaultRetryIntervalMax = 15 * 1000;
+        public static readonly Copenhagen<int> DefaultRetryIntervalMax = 60 * 60 * 1000;
     }
 
     public static partial class DataVaultClientSettings
