@@ -1643,8 +1643,9 @@ public class FileDownloadOption
     public WebApiOptions WebApiOptions { get; }
     public int BufferSize { get; }
     public int AdditionalConnectionIntervalMsecs { get; }
+    public bool IgnoreErrorInMultiFileDownload { get; }
 
-    public FileDownloadOption(int maxConcurrentThreads = -1, int maxConcurrentFiles = -1, int retryIntervalMsecs = -1, int tryCount = -1, int bufferSize = 0, int additionalConnectionIntervalMsecs = -1, WebApiOptions? webApiOptions = null)
+    public FileDownloadOption(int maxConcurrentThreads = -1, int maxConcurrentFiles = -1, int retryIntervalMsecs = -1, int tryCount = -1, int bufferSize = 0, int additionalConnectionIntervalMsecs = -1, WebApiOptions? webApiOptions = null, bool ignoreErrorInMultiFileDownload = false)
     {
         if (maxConcurrentThreads <= 0) maxConcurrentThreads = CoresConfig.FileDownloader.DefaultMaxConcurrentThreads;
         if (maxConcurrentFiles <= 0) maxConcurrentFiles = CoresConfig.FileDownloader.DefaultMaxConcurrentFiles;
@@ -1661,6 +1662,7 @@ public class FileDownloadOption
         WebApiOptions = webApiOptions;
         BufferSize = bufferSize;
         AdditionalConnectionIntervalMsecs = additionalConnectionIntervalMsecs;
+        IgnoreErrorInMultiFileDownload = ignoreErrorInMultiFileDownload;
     }
 }
 
@@ -2140,7 +2142,7 @@ public static class FileDownloader
     }
 
     // 指定された URL (のテキストファイル) をダウンロードし、その URL に記載されているすべてのファイルをダウンロードする
-    public static async Task DownloadUrlListedAsync(string urlListedFileUrl, string destDir, string extensions, FileDownloadOption? option = null, ProgressReporterFactoryBase? reporterFactory = null, CancellationToken cancel = default)
+    public static async Task<bool> DownloadUrlListedAsync(string urlListedFileUrl, string destDir, string extensions, FileDownloadOption? option = null, ProgressReporterFactoryBase? reporterFactory = null, CancellationToken cancel = default)
     {
         if (option == null) option = new FileDownloadOption();
         if (reporterFactory == null) reporterFactory = new NullReporterFactory();
@@ -2165,6 +2167,8 @@ public static class FileDownloader
         int currentPos = 0;
 
         List<string> fileUrlList = new List<string>();
+
+        List<Tuple<string, string>> errorList = new List<Tuple<string, string>>();
 
         while (true)
         {
@@ -2195,8 +2199,36 @@ public static class FileDownloader
             using var file = await Lfs.CreateAsync(destFileFullPath, false, FileFlags.AutoCreateDirectory, cancel: cancel);
             await using var fileStream = file.GetStream();
 
-            await DownloadFileParallelAsync(fileUrl, fileStream, option, progressReporter: reporter, cancel: cancel);
+            try
+            {
+                await DownloadFileParallelAsync(fileUrl, fileStream, option, progressReporter: reporter, cancel: cancel);
+            }
+            catch (Exception ex)
+            {
+                Con.WriteError($"Error. URL: {fileUrl} ErrorMessage = {ex.Message}");
+
+                errorList.Add(new Tuple<string, string>(fileUrl, ex.Message));
+
+                if (option.IgnoreErrorInMultiFileDownload == false)
+                {
+                    throw;
+                }
+            }
         }, cancel: cancel);
+
+        if (errorList.Count >= 1)
+        {
+            Con.WriteLine("----------");
+        }
+
+        for (int i = 0; i < errorList.Count; i++)
+        {
+            var err = errorList[i];
+
+            Con.WriteError($"Error occured: {i + 1}/{errorList.Count}: {err.Item1} {err.Item2}");
+        }
+
+        return (errorList.Count == 0);
     }
 }
 

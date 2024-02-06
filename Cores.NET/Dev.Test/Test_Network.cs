@@ -285,6 +285,10 @@ partial class TestDevCommands
                 new ConsoleParam("[url]", ConsoleService.Prompt, "Input URL: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("dest", ConsoleService.Prompt, "Input dest directory: ", ConsoleService.EvalNotEmpty, null),
                 new ConsoleParam("ext", ConsoleService.Prompt),
+                new ConsoleParam("threads", ConsoleService.Prompt),
+                new ConsoleParam("parts", ConsoleService.Prompt),
+                new ConsoleParam("retry", ConsoleService.Prompt),
+                new ConsoleParam("ignorerrror", ConsoleService.Prompt),
             };
 
         ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
@@ -292,11 +296,20 @@ partial class TestDevCommands
         string extList = vl["ext"].StrValue;
         if (extList._IsEmpty()) extList = "tar.gz,zip,exe";
 
-        FileDownloader.DownloadUrlListedAsync(vl.DefaultParam.StrValue,
+        var option = new FileDownloadOption(maxConcurrentThreads: vl["threads"].IntValue, maxConcurrentFiles: vl["parts"].IntValue, retryIntervalMsecs: vl["retry"].IntValue, ignoreErrorInMultiFileDownload: vl["ignorerrror"].BoolValue);
+
+        var ok = FileDownloader.DownloadUrlListedAsync(vl.DefaultParam.StrValue,
             vl["dest"].StrValue,
             extList,
-            reporterFactory: new ProgressFileDownloadingReporterFactory(ProgressReporterOutputs.Console, options: ProgressReporterOptions.EnableThroughput | ProgressReporterOptions.ShowThroughputBps)
+            reporterFactory: new ProgressFileDownloadingReporterFactory(ProgressReporterOutputs.Console, options: ProgressReporterOptions.EnableThroughput | ProgressReporterOptions.ShowThroughputBps),
+            option: option
             )._GetResult();
+
+        if (ok == false)
+        {
+            Con.WriteError("Error occured.");
+            return -1;
+        }
 
         return 0;
     }
