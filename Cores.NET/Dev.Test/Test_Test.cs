@@ -4891,11 +4891,19 @@ HOST: www.google.com
         s.GitLabBaseUrlWithBasicAuth._Print();
     }
 
+    static void Test_240215()
+    {
+        //Async(async () =>
+        //{
+        //    await MiscUtil.HttpFileSpiderAsync("http://dnt-mirror-stress1.v4.open.ad.jp/vault/oss/");
+        //});
+    }
+
     public static void Test_Generic()
     {
         if (true)
         {
-            Test_240129();
+            Test_240215();
             return;
         }
 

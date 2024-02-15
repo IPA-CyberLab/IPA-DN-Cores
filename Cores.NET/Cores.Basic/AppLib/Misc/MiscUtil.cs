@@ -62,6 +62,8 @@ using Castle.Core.Logging;
 using Microsoft.Extensions.Options;
 using System.Xml;
 
+using HtmlAgilityPack;
+
 namespace IPA.Cores.Basic;
 
 public static partial class CoresConfig
@@ -984,6 +986,99 @@ public class ExpandIncludesSettings
 // 色々なおまけユーティリティ
 public static partial class MiscUtil
 {
+    public static async Task HttpFileSpiderAsync(string baseUrl, FileDownloadOption? options = null, CancellationToken cancel = default)
+    {
+        options ??= new FileDownloadOption();
+
+        List<Task> tasksList = new List<Task>();
+
+        await using var cancelWatcher = new CancelWatcher(cancel);
+
+        Memory<byte> tmpbuf = new byte[options.BufferSize];
+
+        for (int i = 0; i < options.MaxConcurrentThreads; i++)
+        {
+            var task = TaskUtil.StartAsyncTaskAsync(async () =>
+            {
+                while (true)
+                {
+                    try
+                    {
+                        await PerformUrlAsync(baseUrl, cancelWatcher);
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Error();
+                    }
+
+                    await Task.Delay(100, cancelWatcher);
+
+                    // 1 つの指定された URL へアクセスする。アクセス先の URL からファイルを取得する。ファイルの内容が html である場合は、内容をパースしてクロールする。
+                    // ファイルの内容が html でない場合は、ファイル本文をすべてダウンロードする。
+                    async Task PerformUrlAsync(string url, CancellationToken cancel = default)
+                    {
+                        url._Print();
+
+                        await using var http = new WebApi(options.WebApiOptions);
+
+                        try
+                        {
+                            await using var webret = await http.HttpSendRecvDataAsync(new WebSendRecvRequest(WebMethods.GET, url, cancel));
+
+                            if (webret.DownloadContentType.StartsWith("text/html", StringComparison.OrdinalIgnoreCase))
+                            {
+                                var htmlData = await webret.DownloadStream._ReadToEndAsync(1_000_000, cancel);
+                                string htmlStr = htmlData._GetString(untilNullByte: true);
+                                var html = htmlStr._ParseHtml();
+                                var children = html.DocumentNode.GetAllChildren();
+                                var linkTargets = children.Where(x => x.Name._IsSamei("a")).Select(x => x.GetAttributeValue("href", "")).Where(x => x._IsFilled() && x._InStri("?") == false && x._InStri("#") == false).Distinct()._Shuffle();
+
+                                await webret._DisposeSafeAsync();
+                                await http._DisposeSafeAsync();
+
+                                foreach (var linkTarget in linkTargets)
+                                {
+                                    string subUrl = url._CombineUrl(linkTarget).ToString();
+
+                                    if (subUrl.StartsWith(url, StringComparison.OrdinalIgnoreCase) && subUrl.Length > url.Length)
+                                    {
+                                        await PerformUrlAsync(subUrl, cancel);
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                var st = webret.DownloadStream;
+                                while (true)
+                                {
+                                    if (await st.ReadAsync(tmpbuf, cancelWatcher) <= 0)
+                                    {
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            ex._Error();
+                        }
+                    }
+                }
+            });
+
+            tasksList.Add(task);
+        }
+
+        Con.ReadLine("Enter key to abort>");
+
+        cancelWatcher.Cancel();
+
+        foreach (var task in tasksList)
+        {
+            await task._TryWaitAsync();
+        }
+    }
+
     public static async Task ValidateIfMyLocalClockCorrectAsync(CancellationToken cancel = default)
     {
         var urlsList = @"
@@ -1054,7 +1149,7 @@ https://www.twitter.com/
     }
 
     // Web server health check
-    public static async Task<OkOrExeption> HttpHealthCheckAsync(string url, int numTry = 3, int timeoutMsecs = 5 * 1000, CancellationToken cancel = default, WebApiOptions ?options = null)
+    public static async Task<OkOrExeption> HttpHealthCheckAsync(string url, int numTry = 3, int timeoutMsecs = 5 * 1000, CancellationToken cancel = default, WebApiOptions? options = null)
     {
         options ??= new WebApiOptions(new WebApiSettings { Timeout = timeoutMsecs, SslAcceptAnyCerts = true }, doNotUseTcpStack: true);
 
@@ -3019,7 +3114,7 @@ public class CachedDownloaderSettings
     public int MaxTry { get; }
     public int RetryInterval { get; }
 
-    public CachedDownloaderSettings(DirectoryPath? cacheRootDirPath=null, CachedDownloaderFlags flags = CachedDownloaderFlags.None,
+    public CachedDownloaderSettings(DirectoryPath? cacheRootDirPath = null, CachedDownloaderFlags flags = CachedDownloaderFlags.None,
         WebApiOptions? webOptions = null, int maxTry = 1, int retryInterval = 1000)
     {
         this.CacheRootDirPath = cacheRootDirPath ?? new DirectoryPath(Lfs.PathParser.Combine(Env.AppLocalDir, "CachedDownloader"), Lfs);

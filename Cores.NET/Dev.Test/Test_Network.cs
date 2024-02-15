@@ -275,6 +275,36 @@ partial class TestDevCommands
 
 
     [ConsoleCommand(
+    "指定された URL から次々に辿ってファイルをダウンロードする (ダウンロードされたファイルはメモリに保存しない)",
+    "HttpFileSpider [url] [/threads:num]",
+    "指定された URL から次々に辿ってファイルをダウンロードする (ダウンロードされたファイルはメモリに保存しない)")]
+    static int HttpFileSpider(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
+                new ConsoleParam("[url]", ConsoleService.Prompt, "Input URL: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("threads"),
+            };
+
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        int threads = vl["threads"].IntValue;
+        if (threads <= 0) threads = 1;
+
+        string url = vl.DefaultParam.StrValue;
+
+        Async(async () =>
+        {
+            await MiscUtil.HttpFileSpiderAsync(url, new FileDownloadOption(threads, threads,
+                webApiOptions: new WebApiOptions(new WebApiSettings { AllowAutoRedirect = true, MaxConnectionPerServer = 1_000_000, SslAcceptAnyCerts = true }, doNotUseTcpStack: true)));
+        });
+
+        return 0;
+    }
+
+
+
+    [ConsoleCommand(
     "指定された URL (のテキストファイル) をダウンロードし、その URL に記載されているすべてのファイルをダウンロードする",
     "DownloadUrlListedAsync [url] [/dest:dir] [/ext:tar.gz,zip,exe,...]",
     "指定された URL (のテキストファイル) をダウンロードし、その URL に記載されているすべてのファイルをダウンロードする")]
