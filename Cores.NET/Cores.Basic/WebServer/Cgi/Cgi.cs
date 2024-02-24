@@ -167,7 +167,10 @@ public class CgiActionList
                         {
                             ex = ex._GetSingleException();
 
-                            ex._Error();
+                            if (ex._IsCancelException() == false)
+                            {
+                                ex._Error();
+                            }
 
                             string errorStr;
 
@@ -182,7 +185,11 @@ public class CgiActionList
 
                             await using var errorResult = new HttpStringResult($"HTTP Status Code: 500\r\n" + errorStr, statusCode: 500);
 
-                            await response._SendHttpResultAsync(errorResult, ctx.Cancel);
+                            try
+                            {
+                                await response._SendHttpResultAsync(errorResult, ctx.Cancel);
+                            }
+                            catch { }
                         }
                     });
             }
