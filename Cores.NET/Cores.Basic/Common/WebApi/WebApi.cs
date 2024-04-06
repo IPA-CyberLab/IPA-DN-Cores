@@ -1031,6 +1031,36 @@ public static class SimpleHttpDownloader
             throw;
         }
     }
+
+    public static async Task<SimpleHttpDownloaderStreamResult> DownloadGetStreamAsync(string url, WebMethods method = WebMethods.GET, WebApiOptions? options = null, RemoteCertificateValidationCallback? sslServerCertValicationCallback = null, CancellationToken cancel = default)
+    {
+        var http = new WebApi(options, sslServerCertValicationCallback);
+
+        try
+        {
+            using WebSendRecvRequest req = new WebSendRecvRequest(method, url, cancel);
+
+            var res = await http.HttpSendRecvDataAsync(req);
+
+            SimpleHttpDownloaderStreamResult ret = new SimpleHttpDownloaderStreamResult
+            {
+                Url = url,
+                Method = method,
+                ContentType = res.DownloadContentType,
+                DataSize = res.DownloadContentLength,
+                StatusCode = (int)res.HttpResponseMessage.StatusCode,
+                Stream = res.DownloadStream,
+                WebApi = http,
+            };
+
+            return ret;
+        }
+        catch
+        {
+            await http._DisposeSafeAsync();
+            throw;
+        }
+    }
 }
 
 public class SimpleHttpDownloaderResult
@@ -1039,9 +1069,40 @@ public class SimpleHttpDownloaderResult
     public WebMethods Method { get; set; } = WebMethods.GET;
     public string ContentType { get; set; } = "";
     public byte[] Data { get; set; } = new byte[0];
-    public string MediaType { get; set; } = "";
     public int DataSize { get; set; }
     public int StatusCode { get; set; }
+    public string MediaType { get; set; } = "";
+}
+
+public class SimpleHttpDownloaderStreamResult : IAsyncDisposable
+{
+    public string Url { get; set; } = "";
+    public WebMethods Method { get; set; } = WebMethods.GET;
+    public string ContentType { get; set; } = "";
+    public long? DataSize { get; set; } = null;
+    public int StatusCode { get; set; }
+    public Stream Stream { get; set; } = null!;
+    public WebApi WebApi { get; set; } = null!;
+
+    public void Dispose() { this.Dispose(true); GC.SuppressFinalize(this); }
+    Once DisposeFlag;
+
+    public virtual async ValueTask DisposeAsync()
+    {
+        if (DisposeFlag.IsFirstCall() == false) return;
+        await DisposeInternalAsync();
+    }
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposing || DisposeFlag.IsFirstCall() == false) return;
+        DisposeInternalAsync()._GetResult();
+    }
+    async Task DisposeInternalAsync()
+    {
+        await this.Stream._DisposeSafeAsync();
+
+        await this.WebApi._DisposeSafeAsync2();
+    }
 }
 
 // 任意の Stream の一部を HTTP 応答するクラス

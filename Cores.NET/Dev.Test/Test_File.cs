@@ -1400,14 +1400,14 @@ partial class TestDevCommands
     // Restore Physical Disk
     [ConsoleCommand(
         "RawDiskRestore command",
-        "RawDiskRestore [diskName] /src:filename [/truncate:size] [/filetype:raw|gzip|securecompress] [/password:password]",
+        "RawDiskRestore [diskName] /src:filenameOrUrl [/truncate:size] [/filetype:raw|gzip|securecompress] [/password:password]",
         "RawDiskRestore command")]
     static async Task<int> RawDiskRestore(ConsoleService c, string cmdName, string str)
     {
         ConsoleParam[] args =
         {
             new ConsoleParam("[diskName]", ConsoleService.Prompt, "Physical disk name: ", ConsoleService.EvalNotEmpty, null),
-            new ConsoleParam("src", ConsoleService.Prompt, "Source file name: ", ConsoleService.EvalNotEmpty, null),
+            new ConsoleParam("src", ConsoleService.Prompt, "Source file name or URL: ", ConsoleService.EvalNotEmpty, null),
             new ConsoleParam("truncate"),
             new ConsoleParam("filetype"),
             new ConsoleParam("password"),
@@ -1416,7 +1416,7 @@ partial class TestDevCommands
         ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
         string diskName = vl.DefaultParam.StrValue;
-        string archiveFilePath = vl["src"].StrValue;
+        string archiveFilePathOrUrl = vl["src"].StrValue;
         long truncate = vl["truncate"].StrValue._ToLong();
         string filetypeStr = vl["filetype"].StrValue;
         string password = vl["password"].StrValue;
@@ -1429,6 +1429,36 @@ partial class TestDevCommands
             truncate = (truncate + 4095L) / 4096L * 4096L;
         }
 
+        async Task<Stream> GetFileOrUrlStreamAsync(string fileNameOrUrl, RefLong size, CancellationToken cancel = default)
+        {
+            size = -1;
+
+            if (fileNameOrUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase) || fileNameOrUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+            {
+                var res = await SimpleHttpDownloader.DownloadGetStreamAsync(fileNameOrUrl, WebMethods.GET,
+                    new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true }, doNotUseTcpStack: true),
+                    cancel: cancel);
+
+                size = res.DataSize ?? -1;
+
+                return res.Stream;
+            }
+            else
+            {
+                var file = await Lfs.OpenAsync(archiveFilePathOrUrl, cancel: cancel);
+
+                var stream = file.GetStream(true);
+
+                try
+                {
+                    size = stream.Length;
+                }
+                catch { }
+
+                return stream;
+            }
+        }
+
         ArchiveFileType filetype = ArchiveFileType.Raw.ParseAsDefault(filetypeStr, false, true);
 
         bool hasError = false;
@@ -1439,10 +1469,10 @@ partial class TestDevCommands
             {
                 bool isGZip = false;
 
-                await using (var file = await Lfs.OpenAsync(archiveFilePath))
-                {
-                    await using var archiveFileStream = file.GetStream(true);
+                RefLong archiveFileSize = new RefLong();
 
+                await using (var archiveFileStream = await GetFileOrUrlStreamAsync(archiveFilePathOrUrl, archiveFileSize))
+                {
                     if (filetypeStr._IsEmpty()) // filetype is not specified by the command line
                     {
                         Con.WriteLine("Determining the source file format...");
@@ -1470,7 +1500,7 @@ partial class TestDevCommands
                             case ArchiveFileType.SecureCompress:
                                 srcStream = archiveFileStream;
                                 dstStream = new SecureCompressDecoder(diskStream,
-                                    new SecureCompressOptions(Lfs.PathParser.GetFileName(archiveFilePath), password._IsFilled(), password, true, CompressionLevel.SmallestSize), file.Size, true, reporter: reporter);
+                                    new SecureCompressOptions(Lfs.PathParser.GetFileName(archiveFilePathOrUrl), password._IsFilled(), password, true, CompressionLevel.SmallestSize), archiveFileSize, true, reporter: reporter);
                                 useReporterInCustomDecoder = true;
                                 break;
 
