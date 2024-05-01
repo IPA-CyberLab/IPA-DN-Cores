@@ -10,6 +10,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)AppLib\File\DirSuperBackup.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)AppLib\Misc\DfUtil.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)AppLib\Misc\TableUtil.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)AppLib\Misc\MiscUtil.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)AppLib\Misc\StatMan.cs" />

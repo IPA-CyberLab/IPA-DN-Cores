@@ -8472,6 +8472,8 @@ namespace IPA.Cores.Basic
         }
 
         // 数字を文字列に変換して 3 桁ずつカンマで区切る
+        public static string ToStr3(long v)
+            => ToString3(v);
         public static string ToString3(long v)
         {
             bool neg = false;
@@ -8518,6 +8520,8 @@ namespace IPA.Cores.Basic
 
             return str;
         }
+        public static string ToStr3(BigNumber v)
+             => ToString3(v);
         public static string ToString3(BigNumber v)
         {
             bool neg = false;

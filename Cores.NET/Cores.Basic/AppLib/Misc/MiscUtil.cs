@@ -62,6 +62,8 @@ using Castle.Core.Logging;
 using Microsoft.Extensions.Options;
 using System.Xml;
 
+using IPA.Cores.Basic.Legacy;
+
 using HtmlAgilityPack;
 
 namespace IPA.Cores.Basic;
@@ -3275,6 +3277,7 @@ public static class CachedDownloader
         }
     }
 }
+
 
 #endif
 
