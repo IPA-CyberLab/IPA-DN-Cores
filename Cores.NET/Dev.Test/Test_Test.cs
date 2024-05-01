@@ -4903,7 +4903,6 @@ HOST: www.google.com
     {
         if (true)
         {
-            IPA.Cores.Basic.DfUtil.DFDirScanner.Scan(@"\\labfs.lab.coe.ad.jp\SHARE\Secrets\Projects\NTTEastDarkfiber\01_ダークファイバ\開通済み回線原簿\");
             return;
         }
 

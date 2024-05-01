@@ -115,11 +115,16 @@ namespace IPA.Cores.Basic
         }
 
         // プログラムを起動する
-        public static Process Run(string exeName, string args)
+        public static Process Run(string exeName, string args, bool shellExecute = false)
         {
             Process p = new Process();
             p.StartInfo.FileName = IO.InnerFilePath(exeName);
             p.StartInfo.Arguments = args;
+
+            if (shellExecute)
+            {
+                p.StartInfo.UseShellExecute = true;
+            }
 
             p.Start();
 

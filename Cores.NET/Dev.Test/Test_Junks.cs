@@ -663,6 +663,29 @@ partial class TestDevCommands
         return 0;
     }
 
+
+    [ConsoleCommand(
+    "DfListGenerate",
+    "DfListGenerate [baseDir]",
+    "DfListGenerate")]
+    static int DfListGenerate(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
+            new ConsoleParam("[baseDir]", ConsoleService.Prompt, "Base Dir Fullpath: ", ConsoleService.EvalNotEmpty, null),
+        };
+
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        string baseDir = vl.DefaultParam.StrValue;
+
+        string lastHtml = IPA.Cores.Basic.DfUtil.DFDirScanner.Scan(baseDir);
+        Kernel.Run(lastHtml, "", true);
+
+        return 0;
+    }
+
+
     [ConsoleCommand(
   "Gc",
   "Gc",

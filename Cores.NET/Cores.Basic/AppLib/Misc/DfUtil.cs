@@ -73,7 +73,7 @@ namespace IPA.Cores.Basic.DfUtil;
 
 public static class DFDirScanner
 {
-    public static void Scan(string dir)
+    public static string Scan(string dir)
     {
         List<string> subdirs = new List<string>();
 
@@ -92,6 +92,8 @@ public static class DFDirScanner
 
         subdirs.Sort();
 
+        string lastHtmlFile = "";
+
         // あるディレクトリについて処理をする
         foreach (string tmp2 in subdirs)
         {
@@ -100,6 +102,8 @@ public static class DFDirScanner
             Con.WriteLine("ディレクトリ '{0}' の回線原簿を処理しています...", dir_name);
 
             string tag_dir_name = "";
+
+            bool foundDfTagFileOnThisDir = false;
 
             // このディレクトリに最も近い DFTag.txt を取得する
             foreach (string tmp3 in subdirs)
@@ -113,14 +117,25 @@ public static class DFDirScanner
                     if (File.Exists(fn))
                     {
                         tag_dir_name = Path.Combine(dir, tmp3);
+
+                        if (v1 == v2)
+                        {
+                            foundDfTagFileOnThisDir = true;
+                        }
                     }
                 }
             }
-
             if (Str.IsEmptyStr(tag_dir_name))
             {
                 //throw new ApplicationException(string.Format("ディレクトリ '{0}' に対応する適切な DFTag.txt が見つかりませんでした。", dir_name));
                 continue;
+            }
+
+            if (foundDfTagFileOnThisDir == false)
+            {
+                Con.WriteLine($"ディレクトリ '{dir_name}' に DFTag.txt がありませんので、直近の '{tag_dir_name}' からパクリ (コピー) いたします。");
+
+                File.Copy(Path.Combine(tag_dir_name, "DFTag.txt"), Path.Combine(dir_name, "DFTag.txt"));
             }
 
             DFMap m = new DFMap();
@@ -133,7 +148,11 @@ public static class DFDirScanner
             Str.WriteTextFile(out_fn, html, Str.Utf8Encoding, true);
 
             Con.WriteLine("  HTML ファイル '{0}' を書き出しました。", out_fn);
+
+            lastHtmlFile = out_fn;
         }
+
+        return lastHtmlFile;
     }
 }
 
@@ -720,7 +739,7 @@ public class DFMap
         StringWriter w = new StringWriter();
 
         w.WriteLine(string.Format("原簿ディレクトリ: {0}<BR>タグディレクトリ: {1}<BR>生成日時: {2}<BR>",
-            this.GenboDir, this.TagDir, Str.DateTimeToStrShort(DateTime.Now)));
+            this.GenboDir + PP.DirectorySeparator, this.TagDir + PP.DirectorySeparator, Str.DateTimeToStrShort(DateTime.Now)));
 
         string tmp3 = "";
 
@@ -872,6 +891,8 @@ public class DFMap
                 {
                     this_line = this_line.Substring(0, i);
                 }
+
+                this_line = Str.ReplaceStr(this_line, "    ", "\t");
 
                 int depth = 0;
                 if (this_line.StartsWith("\t")) depth = 1;
@@ -1546,9 +1567,9 @@ public class DFGenbo
         // 原簿を読み込み
         var files = Lfs.EnumDirectory(genbo_dir);
 
-        string? tanmatu = files.Where(x => x.IsFile && PP.GetExtension(x.Name)._IsSamei(".csv") && PP.GetFileNameWithoutExtension(x.Name).EndsWith("_tanmatu")).Select(x => x.FullPath).SingleOrDefault();
-        string? tyuukei = files.Where(x => x.IsFile && PP.GetExtension(x.Name)._IsSamei(".csv") && PP.GetFileNameWithoutExtension(x.Name).EndsWith("_tyuukei")).Select(x => x.FullPath).SingleOrDefault();
-        string? kyokunai = files.Where(x => x.IsFile && PP.GetExtension(x.Name)._IsSamei(".csv") && PP.GetFileNameWithoutExtension(x.Name).EndsWith("_kyokunai")).Select(x => x.FullPath).SingleOrDefault();
+        string tanmatu = files.Where(x => x.IsFile && PP.GetExtension(x.Name)._IsSamei(".csv") && PP.GetFileNameWithoutExtension(x.Name).EndsWith("_tanmatu")).Select(x => x.FullPath).SingleOrDefault();
+        string tyuukei = files.Where(x => x.IsFile && PP.GetExtension(x.Name)._IsSamei(".csv") && PP.GetFileNameWithoutExtension(x.Name).EndsWith("_tyuukei")).Select(x => x.FullPath).SingleOrDefault();
+        string kyokunai = files.Where(x => x.IsFile && PP.GetExtension(x.Name)._IsSamei(".csv") && PP.GetFileNameWithoutExtension(x.Name).EndsWith("_kyokunai")).Select(x => x.FullPath).SingleOrDefault();
 
         if (tanmatu._IsEmpty())
         {
