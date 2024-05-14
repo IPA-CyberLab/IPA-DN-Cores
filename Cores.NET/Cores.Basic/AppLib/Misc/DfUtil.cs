@@ -135,7 +135,14 @@ public static class DFDirScanner
             {
                 Con.WriteLine($"ディレクトリ '{dir_name}' に DFTag.txt がありませんので、直近の '{tag_dir_name}' からパクリ (コピー) いたします。");
 
-                File.Copy(Path.Combine(tag_dir_name, "DFTag.txt"), Path.Combine(dir_name, "DFTag.txt"));
+                try
+                {
+                    File.Copy(Path.Combine(tag_dir_name, "DFTag.txt"), Path.Combine(dir_name, "DFTag.txt"));
+                }
+                catch (Exception ex)
+                {
+                    Con.WriteLine($"   ★ エラー: txt ファイル '{Path.Combine(dir_name, "DFTag.txt")}' へのコピーに失敗しました。例外の内容: {ex.Message}");
+                }
             }
 
             DFMap m = new DFMap();
@@ -145,9 +152,16 @@ public static class DFDirScanner
 
             string out_fn = Path.Combine(dir_name, "DFList_" + tmp2 + ".htm");
 
-            Str.WriteTextFile(out_fn, html, Str.Utf8Encoding, true);
+            try
+            {
+                Str.WriteTextFile(out_fn, html, Str.Utf8Encoding, true);
 
-            Con.WriteLine("  HTML ファイル '{0}' を書き出しました。", out_fn);
+                Con.WriteLine("  HTML ファイル '{0}' を書き出しました。", out_fn);
+            }
+            catch (Exception ex)
+            {
+                Con.WriteLine($"   ★ エラー: HTML ファイル '{out_fn}' の書き出しに失敗しました。例外の内容: {ex.Message}");
+            }
 
             lastHtmlFile = out_fn;
         }
