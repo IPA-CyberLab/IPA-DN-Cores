@@ -298,7 +298,7 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
             List<string> diskDirPathList = new();
 
             diskDirPathList.Add("/dev/disk/by-id/");
-            diskDirPathList.Add("/dev/disk/by-label/");
+            diskDirPathList.Add("/dev/disk/by-path/");
 
             Dictionary<string, bool> realDiskPathSet = new();
 
