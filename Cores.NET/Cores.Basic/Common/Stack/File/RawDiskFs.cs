@@ -293,6 +293,50 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
         }
         else
         {
+            // fdisk を用いてディスクを列挙し、Disk ID を取得
+            var result = await EasyExec.ExecAsync(Lfs.UnixGetFullPathFromCommandName("fdisk"), "-l", easyOutputMaxSize: 1_000_000, timeout: 30 * 1000, cancel: cancel, throwOnErrorExitCode: false);
+
+            int mode = 0;
+
+            string fdiskCurrentDiskName = "";
+
+            Dictionary<string, string> diskIdDict = new Dictionary<string, string>();
+
+            foreach (var line in result.OutputStr._GetLines(trim: true))
+            {
+                if (line.StartsWith("Disk /"))
+                {
+                    if (mode == 0)
+                    {
+                        mode = 1;
+                        fdiskCurrentDiskName = line.Substring(5);
+                        int index1 = fdiskCurrentDiskName.IndexOf(":");
+                        if (index1 != -1)
+                        {
+                            fdiskCurrentDiskName = fdiskCurrentDiskName.Substring(0, index1);
+                        }
+                    }
+                }
+                else if (line == "")
+                {
+                    mode = 0;
+                    fdiskCurrentDiskName = "";
+                }
+                else if (line.StartsWith("Disk identifier:"))
+                {
+                    string diskId = line.Substring(16).Trim().ToLowerInvariant();
+                    if (fdiskCurrentDiskName != "")
+                    {
+                        fdiskCurrentDiskName = "";
+
+                        diskIdDict.Add(fdiskCurrentDiskName, diskId);
+                    }
+                }
+            }
+
+            diskIdDict._PrintAsJson();
+
+            // パーティションを列挙
             List<RawDiskItemData> tmpDiskItemList = new List<RawDiskItemData>();
 
             List<string> diskDirPathList = new();
@@ -300,7 +344,7 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
             diskDirPathList.Add("/dev/disk/by-id/");
             diskDirPathList.Add("/dev/disk/by-path/");
 
-            Dictionary<string, bool> realDiskPathSet = new();
+            Dictionary<string, bool> realDiskPathDict = new();
 
             foreach (var diskDirPath in diskDirPathList)
             {
@@ -334,7 +378,7 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
 
                                 tmpDiskItemList.Add(diskItem);
 
-                                realDiskPathSet.Add(diskItem.RawPath, isPartition);
+                                realDiskPathDict.Add(diskItem.RawPath, isPartition);
                             }
                             catch
                             {
@@ -345,7 +389,7 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
                 catch { }
             }
 
-            foreach (var diskRealPath in realDiskPathSet.ToArray())
+            foreach (var diskRealPath in realDiskPathDict.ToArray())
             {
                 try
                 {
@@ -355,7 +399,7 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
 
                     tmpDiskItemList.Add(diskItem);
 
-                    realDiskPathSet.Add(diskItem.RawPath, diskRealPath.Value);
+                    realDiskPathDict.Add(diskItem.RawPath, diskRealPath.Value);
                 }
                 catch
                 {
@@ -380,6 +424,8 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
                             // パーティションを包含する親ディスク
                             string byPartUuidName = $"have-partuuid-{Str.MakeVerySafeAsciiOnlyNonSpaceFileName(uuid, true)}";
 
+                            byPartUuidName = byPartUuidName.ToLowerInvariant();
+
                             if (tmpDiskItemList.Any(x => x.Name == byPartUuidName) == false)
                             {
                                 tmpDiskItemList.Add(new RawDiskItemData(byPartUuidName, a.RawPath, a.Type, a.Length, a.IsPartition, a.Name));
@@ -392,6 +438,8 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
                         {
                             // パーティションそのもの
                             string byPartUuidName = $"is-partuuid-{Str.MakeVerySafeAsciiOnlyNonSpaceFileName(uuid, true)}";
+
+                            byPartUuidName = byPartUuidName.ToLowerInvariant();
 
                             if (tmpDiskItemList.Any(x => x.Name == byPartUuidName) == false)
                             {
