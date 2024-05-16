@@ -268,7 +268,7 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
                             else if (geometry.MediaType == Win32Api.Kernel32.NativeDiskType.RemovableMedia)
                                 type = RawDiskItemType.RemovableMedia;
 
-                            ret.Add(new RawDiskItemData(name, rawPath, type, geometry.DiskSize));
+                            ret.Add(new RawDiskItemData(name, rawPath, type, geometry.DiskSize, false));
                         }
                         catch
                         { }
@@ -285,7 +285,7 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
 
                 if (ret.Any(x => x.Name == bySizeName) == false)
                 {
-                    ret.Add(new RawDiskItemData(bySizeName, realDisk.RawPath, realDisk.Type, realDisk.Length, realDisk.Name));
+                    ret.Add(new RawDiskItemData(bySizeName, realDisk.RawPath, realDisk.Type, realDisk.Length, false, realDisk.Name));
                 }
             }
 
@@ -299,12 +299,8 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
 
             diskDirPathList.Add("/dev/disk/by-id/");
             diskDirPathList.Add("/dev/disk/by-label/");
-            diskDirPathList.Add("/dev/disk/by-partlabel/");
-            diskDirPathList.Add("/dev/disk/by-partuuid/");
-            diskDirPathList.Add("/dev/disk/by-path/");
-            diskDirPathList.Add("/dev/disk/by-uuid/");
 
-            HashSet<string> realDiskPathSet = new HashSet<string>();
+            HashSet<Pair2<string, bool>> realDiskPathSet = new();
 
             foreach (var diskDirPath in diskDirPathList)
             {
@@ -320,20 +316,25 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
 
                             try
                             {
+                                bool isPartition = true;
+
                                 if (diskObj.Name.Substring(diskObj.Name.Length - 6).StartsWith("-part") == false &&
                                     diskObj.Name.Substring(diskObj.Name.Length - 7).StartsWith("-part") == false &&
                                     diskObj.Name.Substring(diskObj.Name.Length - 8).StartsWith("-part") == false)
                                 {
-                                    long diskSize = await UnixApi.GetBlockDeviceSizeAsync(diskRealPath, cancel);
-
-                                    var diskItem = new RawDiskItemData(
-                                        diskDirPath.Split("/", StringSplitOptions.RemoveEmptyEntries).Last() + "-" + Str.MakeVerySafeAsciiOnlyNonSpaceFileName(diskObj.Name.Replace(":", "_"), true), diskRealPath, RawDiskItemType.FixedMedia, diskSize,
-                                        "by-devname-" + Lfs.PathParser.GetFileName(diskRealPath));
-
-                                    tmpDiskItemList.Add(diskItem);
-
-                                    realDiskPathSet.Add(diskItem.RawPath);
+                                    isPartition = false;
                                 }
+
+                                long diskSize = await UnixApi.GetBlockDeviceSizeAsync(diskRealPath, cancel);
+
+                                var diskItem = new RawDiskItemData(
+                                    diskDirPath.Split("/", StringSplitOptions.RemoveEmptyEntries).Last() + "-" + Str.MakeVerySafeAsciiOnlyNonSpaceFileName(diskObj.Name.Replace(":", "_"), true), diskRealPath, RawDiskItemType.FixedMedia, diskSize,
+                                    isPartition,
+                                    (isPartition ? "by-partname-" : "by-devname-") + Lfs.PathParser.GetFileName(diskRealPath));
+
+                                tmpDiskItemList.Add(diskItem);
+
+                                realDiskPathSet.Add(new(diskItem.RawPath, isPartition));
                             }
                             catch
                             {
@@ -344,17 +345,17 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
                 catch { }
             }
 
-            foreach (var diskRealPath in realDiskPathSet)
+            foreach (var diskRealPath in realDiskPathSet.ToArray())
             {
                 try
                 {
-                    long diskSize = await UnixApi.GetBlockDeviceSizeAsync(diskRealPath, cancel);
+                    long diskSize = await UnixApi.GetBlockDeviceSizeAsync(diskRealPath.A, cancel);
 
-                    var diskItem = new RawDiskItemData("by-devname-" + Lfs.PathParser.GetFileName(diskRealPath), diskRealPath, RawDiskItemType.FixedMedia, diskSize);
+                    var diskItem = new RawDiskItemData((diskRealPath.B ? "by-partname-" : "by-devname-") + Lfs.PathParser.GetFileName(diskRealPath.A), diskRealPath.A, RawDiskItemType.FixedMedia, diskSize, diskRealPath.B);
 
                     tmpDiskItemList.Add(diskItem);
 
-                    realDiskPathSet.Add(diskItem.RawPath);
+                    realDiskPathSet.Add(new(diskItem.RawPath, diskRealPath.B));
                 }
                 catch
                 {
@@ -372,15 +373,29 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
                         string partRealPath = Lfs.PathParser.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(Lfs.PathParser.Combine("/dev/disk/by-partuuid/", partUuidObj.SymbolicLinkTarget));
                         string uuid = partUuidObj.Name;
 
-                        var realDisk = tmpDiskItemList.Where(x => x.AliasOf._IsEmpty() && partRealPath.StartsWith(x.RawPath)).OrderByDescending(x => x.RawPath.Length).ThenBy(x => x.RawPath).FirstOrDefault();
+                        var a = tmpDiskItemList.Where(x => x.IsPartition == false && x.AliasOf._IsEmpty() && partRealPath.StartsWith(x.RawPath)).OrderByDescending(x => x.RawPath.Length).ThenBy(x => x.RawPath).FirstOrDefault();
 
-                        if (realDisk != null)
+                        if (a != null)
                         {
+                            // パーティションを包含する親ディスク
                             string byPartUuidName = $"have-partuuid-{Str.MakeVerySafeAsciiOnlyNonSpaceFileName(uuid, true)}";
 
                             if (tmpDiskItemList.Any(x => x.Name == byPartUuidName) == false)
                             {
-                                tmpDiskItemList.Add(new RawDiskItemData(byPartUuidName, realDisk.RawPath, realDisk.Type, realDisk.Length, realDisk.Name));
+                                tmpDiskItemList.Add(new RawDiskItemData(byPartUuidName, a.RawPath, a.Type, a.Length, a.IsPartition, a.Name));
+                            }
+                        }
+
+                        a = tmpDiskItemList.Where(x => x.IsPartition && x.AliasOf._IsEmpty() && partRealPath.StartsWith(x.RawPath)).OrderByDescending(x => x.RawPath.Length).ThenBy(x => x.RawPath).FirstOrDefault();
+
+                        if (a != null)
+                        {
+                            // パーティションそのもの
+                            string byPartUuidName = $"is-partuuid-{Str.MakeVerySafeAsciiOnlyNonSpaceFileName(uuid, true)}";
+
+                            if (tmpDiskItemList.Any(x => x.Name == byPartUuidName) == false)
+                            {
+                                tmpDiskItemList.Add(new RawDiskItemData(byPartUuidName, a.RawPath, a.Type, a.Length, a.IsPartition, a.Name));
                             }
                         }
                     }
@@ -394,7 +409,7 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
 
                 if (tmpDiskItemList.Any(x => x.Name == bySizeName) == false)
                 {
-                    tmpDiskItemList.Add(new RawDiskItemData(bySizeName, realDisk.RawPath, realDisk.Type, realDisk.Length, realDisk.Name));
+                    tmpDiskItemList.Add(new RawDiskItemData(bySizeName, realDisk.RawPath, realDisk.Type, realDisk.Length, realDisk.IsPartition, realDisk.Name));
                 }
             }
 
@@ -406,15 +421,29 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
                 {
                     if (p.Target.StartsWith("/") && p.Source.StartsWith("/"))
                     {
-                        var realDisk = tmpDiskItemList.Where(x => x.AliasOf._IsEmpty() && p.Source.StartsWith(x.RawPath)).OrderByDescending(x => x.RawPath.Length).ThenBy(x => x.RawPath).FirstOrDefault();
+                        var a = tmpDiskItemList.Where(x => x.IsPartition == false && x.AliasOf._IsEmpty() && p.Source.StartsWith(x.RawPath)).OrderByDescending(x => x.RawPath.Length).ThenBy(x => x.RawPath).FirstOrDefault();
 
-                        if (realDisk != null)
+                        if (a != null)
                         {
+                            // パーティションを包含する親ディスク
                             string byMountName = $"have-mountpoint-{GeneratePrintableSafeFileNameFromUnixFullPath(p.Target)}";
 
                             if (tmpDiskItemList.Any(x => x.Name == byMountName) == false)
                             {
-                                tmpDiskItemList.Add(new RawDiskItemData(byMountName, realDisk.RawPath, realDisk.Type, realDisk.Length, realDisk.Name));
+                                tmpDiskItemList.Add(new RawDiskItemData(byMountName, a.RawPath, a.Type, a.Length, a.IsPartition, a.Name));
+                            }
+                        }
+
+                        a = tmpDiskItemList.Where(x => x.IsPartition && x.AliasOf._IsEmpty() && p.Source.StartsWith(x.RawPath)).OrderByDescending(x => x.RawPath.Length).ThenBy(x => x.RawPath).FirstOrDefault();
+
+                        if (a != null)
+                        {
+                            // パーティションそのもの
+                            string byMountName = $"is-mountpoint-{GeneratePrintableSafeFileNameFromUnixFullPath(p.Target)}";
+
+                            if (tmpDiskItemList.Any(x => x.Name == byMountName) == false)
+                            {
+                                tmpDiskItemList.Add(new RawDiskItemData(byMountName, a.RawPath, a.Type, a.Length, a.IsPartition, a.Name));
                             }
                         }
                     }
@@ -444,14 +473,16 @@ public class RawDiskItemData
     public RawDiskItemType Type { get; }
     public long Length { get; }
     public string AliasOf { get; }
+    public bool IsPartition { get; }
 
-    public RawDiskItemData(string name, string rawPath, RawDiskItemType type, long length, string aliasOf = "")
+    public RawDiskItemData(string name, string rawPath, RawDiskItemType type, long length, bool isPartiton, string aliasOf = "")
     {
         Name = name;
         RawPath = rawPath;
         Type = type;
         Length = length;
-        this.AliasOf = aliasOf;
+        AliasOf = aliasOf;
+        IsPartition = isPartiton;
     }
 }
 
