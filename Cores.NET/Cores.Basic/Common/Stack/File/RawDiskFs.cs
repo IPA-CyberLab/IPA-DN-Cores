@@ -345,7 +345,7 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
                 catch { }
             }
 
-            foreach (var diskRealPath in realDiskPathSet.ToArray())
+            foreach (var diskRealPath in realDiskPathSet)
             {
                 try
                 {
