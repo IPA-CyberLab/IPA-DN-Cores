@@ -298,42 +298,50 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
             List<string> diskDirPathList = new();
 
             diskDirPathList.Add("/dev/disk/by-id/");
+            diskDirPathList.Add("/dev/disk/by-label/");
+            diskDirPathList.Add("/dev/disk/by-partlabel/");
+            diskDirPathList.Add("/dev/disk/by-partuuid/");
             diskDirPathList.Add("/dev/disk/by-path/");
+            diskDirPathList.Add("/dev/disk/by-uuid/");
 
             HashSet<string> realDiskPathSet = new HashSet<string>();
 
             foreach (var diskDirPath in diskDirPathList)
             {
-                var diskObjects = await Lfs.EnumDirectoryAsync(diskDirPath, cancel: cancel);
-
-                foreach (var diskObj in diskObjects.OrderBy(x => x.Name))
+                try
                 {
-                    if (diskObj.IsSymbolicLink && diskObj.SymbolicLinkTarget._IsFilled())
+                    var diskObjects = await Lfs.EnumDirectoryAsync(diskDirPath, cancel: cancel);
+
+                    foreach (var diskObj in diskObjects.OrderBy(x => x.Name))
                     {
-                        string diskRealPath = Lfs.PathParser.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(Lfs.PathParser.Combine(diskDirPath, diskObj.SymbolicLinkTarget));
-
-                        try
+                        if (diskObj.IsSymbolicLink && diskObj.SymbolicLinkTarget._IsFilled())
                         {
-                            if (diskObj.Name.Substring(diskObj.Name.Length - 6).StartsWith("-part") == false &&
-                                diskObj.Name.Substring(diskObj.Name.Length - 7).StartsWith("-part") == false &&
-                                diskObj.Name.Substring(diskObj.Name.Length - 8).StartsWith("-part") == false)
+                            string diskRealPath = Lfs.PathParser.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(Lfs.PathParser.Combine(diskDirPath, diskObj.SymbolicLinkTarget));
+
+                            try
                             {
-                                long diskSize = await UnixApi.GetBlockDeviceSizeAsync(diskRealPath, cancel);
+                                if (diskObj.Name.Substring(diskObj.Name.Length - 6).StartsWith("-part") == false &&
+                                    diskObj.Name.Substring(diskObj.Name.Length - 7).StartsWith("-part") == false &&
+                                    diskObj.Name.Substring(diskObj.Name.Length - 8).StartsWith("-part") == false)
+                                {
+                                    long diskSize = await UnixApi.GetBlockDeviceSizeAsync(diskRealPath, cancel);
 
-                                var diskItem = new RawDiskItemData(
-                                    diskDirPath.Split("/", StringSplitOptions.RemoveEmptyEntries).Last() + "-" + Str.MakeVerySafeAsciiOnlyNonSpaceFileName(diskObj.Name.Replace(":", "_"), true), diskRealPath, RawDiskItemType.FixedMedia, diskSize,
-                                    "by-devname-" + Lfs.PathParser.GetFileName(diskRealPath));
+                                    var diskItem = new RawDiskItemData(
+                                        diskDirPath.Split("/", StringSplitOptions.RemoveEmptyEntries).Last() + "-" + Str.MakeVerySafeAsciiOnlyNonSpaceFileName(diskObj.Name.Replace(":", "_"), true), diskRealPath, RawDiskItemType.FixedMedia, diskSize,
+                                        "by-devname-" + Lfs.PathParser.GetFileName(diskRealPath));
 
-                                tmpDiskItemList.Add(diskItem);
+                                    tmpDiskItemList.Add(diskItem);
 
-                                realDiskPathSet.Add(diskItem.RawPath);
+                                    realDiskPathSet.Add(diskItem.RawPath);
+                                }
                             }
-                        }
-                        catch
-                        {
+                            catch
+                            {
+                            }
                         }
                     }
                 }
+                catch { }
             }
 
             foreach (var diskRealPath in realDiskPathSet)
