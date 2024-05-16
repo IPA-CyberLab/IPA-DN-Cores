@@ -300,7 +300,7 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
             diskDirPathList.Add("/dev/disk/by-id/");
             diskDirPathList.Add("/dev/disk/by-label/");
 
-            HashSet<Pair2<string, bool>> realDiskPathSet = new();
+            Dictionary<string, bool> realDiskPathSet = new();
 
             foreach (var diskDirPath in diskDirPathList)
             {
@@ -334,7 +334,7 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
 
                                 tmpDiskItemList.Add(diskItem);
 
-                                realDiskPathSet.Add(new(diskItem.RawPath, isPartition));
+                                realDiskPathSet.Add(diskItem.RawPath, isPartition);
                             }
                             catch
                             {
@@ -343,6 +343,23 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
                     }
                 }
                 catch { }
+            }
+
+            foreach (var diskRealPath in realDiskPathSet.ToArray())
+            {
+                try
+                {
+                    long diskSize = await UnixApi.GetBlockDeviceSizeAsync(diskRealPath.Key, cancel);
+
+                    var diskItem = new RawDiskItemData((diskRealPath.Value ? "by-partname-" : "by-devname-") + Lfs.PathParser.GetFileName(diskRealPath.Key), diskRealPath.Key, RawDiskItemType.FixedMedia, diskSize, diskRealPath.Value);
+
+                    tmpDiskItemList.Add(diskItem);
+
+                    realDiskPathSet.Add(diskItem.RawPath, diskRealPath.Value);
+                }
+                catch
+                {
+                }
             }
 
             try
