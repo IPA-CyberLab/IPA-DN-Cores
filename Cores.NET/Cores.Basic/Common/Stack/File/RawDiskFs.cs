@@ -334,8 +334,6 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
                 }
             }
 
-            diskIdDict._PrintAsJson();
-
             // パーティションを列挙
             List<RawDiskItemData> tmpDiskItemList = new List<RawDiskItemData>();
 
@@ -540,6 +538,11 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
                 if (tmpDiskItemList.Any(x => x.Name == bySizeName) == false)
                 {
                     tmpDiskItemList.Add(new RawDiskItemData(bySizeName, realDisk.RawPath, realDisk.Type, realDisk.Length, realDisk.IsPartition, realDisk.Name));
+                }
+
+                if (diskIdDict.TryGetValue(realDisk.Name, out string? diskId))
+                {
+                    tmpDiskItemList.Add(new RawDiskItemData($"is-diskid-" + diskId, realDisk.RawPath, realDisk.Type, realDisk.Length, realDisk.IsPartition, realDisk.Name));
                 }
             }
 
