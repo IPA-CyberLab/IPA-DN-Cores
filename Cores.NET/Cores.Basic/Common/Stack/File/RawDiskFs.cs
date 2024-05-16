@@ -403,6 +403,88 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
             }
             catch { }
 
+            try
+            {
+                var labelObjects = await Lfs.EnumDirectoryAsync("/dev/disk/by-label/", cancel: cancel);
+
+                foreach (var labelObj in labelObjects.OrderBy(x => x.Name))
+                {
+                    if (labelObj.IsSymbolicLink && labelObj.SymbolicLinkTarget._IsFilled())
+                    {
+                        string partRealPath = Lfs.PathParser.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(Lfs.PathParser.Combine("/dev/disk/by-label/", labelObj.SymbolicLinkTarget));
+                        string name = labelObj.Name;
+
+                        var a = tmpDiskItemList.Where(x => x.IsPartition == false && x.AliasOf._IsEmpty() && partRealPath.StartsWith(x.RawPath)).OrderByDescending(x => x.RawPath.Length).ThenBy(x => x.RawPath).FirstOrDefault();
+
+                        if (a != null)
+                        {
+                            // パーティションを包含する親ディスク
+                            string byLabelName = $"have-label-{Str.MakeVerySafeAsciiOnlyNonSpaceFileName(name, true)}";
+
+                            if (tmpDiskItemList.Any(x => x.Name == byLabelName) == false)
+                            {
+                                tmpDiskItemList.Add(new RawDiskItemData(byLabelName, a.RawPath, a.Type, a.Length, a.IsPartition, a.Name));
+                            }
+                        }
+
+                        a = tmpDiskItemList.Where(x => x.IsPartition && x.AliasOf._IsEmpty() && partRealPath.StartsWith(x.RawPath)).OrderByDescending(x => x.RawPath.Length).ThenBy(x => x.RawPath).FirstOrDefault();
+
+                        if (a != null)
+                        {
+                            // パーティションそのもの
+                            string byLabelName = $"is-label-{Str.MakeVerySafeAsciiOnlyNonSpaceFileName(name, true)}";
+
+                            if (tmpDiskItemList.Any(x => x.Name == byLabelName) == false)
+                            {
+                                tmpDiskItemList.Add(new RawDiskItemData(byLabelName, a.RawPath, a.Type, a.Length, a.IsPartition, a.Name));
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            try
+            {
+                var partLabelObjects = await Lfs.EnumDirectoryAsync("/dev/disk/by-partlabel/", cancel: cancel);
+
+                foreach (var partLabelObj in partLabelObjects.OrderBy(x => x.Name))
+                {
+                    if (partLabelObj.IsSymbolicLink && partLabelObj.SymbolicLinkTarget._IsFilled())
+                    {
+                        string partRealPath = Lfs.PathParser.NormalizeUnixStylePathWithRemovingRelativeDirectoryElements(Lfs.PathParser.Combine("/dev/disk/by-partlabel/", partLabelObj.SymbolicLinkTarget));
+                        string name = partLabelObj.Name;
+
+                        var a = tmpDiskItemList.Where(x => x.IsPartition == false && x.AliasOf._IsEmpty() && partRealPath.StartsWith(x.RawPath)).OrderByDescending(x => x.RawPath.Length).ThenBy(x => x.RawPath).FirstOrDefault();
+
+                        if (a != null)
+                        {
+                            // パーティションを包含する親ディスク
+                            string byLabelName = $"have-partlabel-{Str.MakeVerySafeAsciiOnlyNonSpaceFileName(name, true)}";
+
+                            if (tmpDiskItemList.Any(x => x.Name == byLabelName) == false)
+                            {
+                                tmpDiskItemList.Add(new RawDiskItemData(byLabelName, a.RawPath, a.Type, a.Length, a.IsPartition, a.Name));
+                            }
+                        }
+
+                        a = tmpDiskItemList.Where(x => x.IsPartition && x.AliasOf._IsEmpty() && partRealPath.StartsWith(x.RawPath)).OrderByDescending(x => x.RawPath.Length).ThenBy(x => x.RawPath).FirstOrDefault();
+
+                        if (a != null)
+                        {
+                            // パーティションそのもの
+                            string byLabelName = $"is-partlabel-{Str.MakeVerySafeAsciiOnlyNonSpaceFileName(name, true)}";
+
+                            if (tmpDiskItemList.Any(x => x.Name == byLabelName) == false)
+                            {
+                                tmpDiskItemList.Add(new RawDiskItemData(byLabelName, a.RawPath, a.Type, a.Length, a.IsPartition, a.Name));
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+
             foreach (var realDisk in tmpDiskItemList.Where(x => x.AliasOf._IsEmpty()).OrderBy(x => x.RawPath).ToArray())
             {
                 string bySizeName = $"by-disksize-{realDisk.Length}";
