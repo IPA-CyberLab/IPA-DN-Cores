@@ -302,37 +302,41 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
 
             Dictionary<string, string> diskIdDict = new Dictionary<string, string>();
 
-            foreach (var line in result.OutputStr._GetLines(trim: true))
+            try
             {
-                if (line.StartsWith("Disk /"))
+                foreach (var line in result.OutputStr._GetLines(trim: true))
                 {
-                    if (mode == 0)
+                    if (line.StartsWith("Disk /"))
                     {
-                        mode = 1;
-                        fdiskCurrentDiskName = line.Substring(5);
-                        int index1 = fdiskCurrentDiskName.IndexOf(":");
-                        if (index1 != -1)
+                        if (mode == 0)
                         {
-                            fdiskCurrentDiskName = fdiskCurrentDiskName.Substring(0, index1);
+                            mode = 1;
+                            fdiskCurrentDiskName = line.Substring(5);
+                            int index1 = fdiskCurrentDiskName.IndexOf(":");
+                            if (index1 != -1)
+                            {
+                                fdiskCurrentDiskName = fdiskCurrentDiskName.Substring(0, index1);
+                            }
+                        }
+                    }
+                    else if (line == "")
+                    {
+                        mode = 0;
+                        fdiskCurrentDiskName = "";
+                    }
+                    else if (line.StartsWith("Disk identifier:"))
+                    {
+                        string diskId = line.Substring(16).Trim().ToLowerInvariant();
+                        if (fdiskCurrentDiskName != "")
+                        {
+                            diskIdDict.TryAdd(fdiskCurrentDiskName, diskId);
+
+                            fdiskCurrentDiskName = "";
                         }
                     }
                 }
-                else if (line == "")
-                {
-                    mode = 0;
-                    fdiskCurrentDiskName = "";
-                }
-                else if (line.StartsWith("Disk identifier:"))
-                {
-                    string diskId = line.Substring(16).Trim().ToLowerInvariant();
-                    if (fdiskCurrentDiskName != "")
-                    {
-                        diskIdDict.TryAdd(fdiskCurrentDiskName, diskId);
-
-                        fdiskCurrentDiskName = "";
-                    }
-                }
             }
+            catch { }
 
             // パーティションを列挙
             List<RawDiskItemData> tmpDiskItemList = new List<RawDiskItemData>();
