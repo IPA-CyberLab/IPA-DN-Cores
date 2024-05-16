@@ -540,7 +540,7 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
                     tmpDiskItemList.Add(new RawDiskItemData(bySizeName, realDisk.RawPath, realDisk.Type, realDisk.Length, realDisk.IsPartition, realDisk.Name));
                 }
 
-                if (diskIdDict.TryGetValue(realDisk.Name, out string? diskId))
+                if (diskIdDict.TryGetValue(realDisk.RawPath, out string? diskId))
                 {
                     tmpDiskItemList.Add(new RawDiskItemData($"is-diskid-" + diskId, realDisk.RawPath, realDisk.Type, realDisk.Length, realDisk.IsPartition, realDisk.Name));
                 }
