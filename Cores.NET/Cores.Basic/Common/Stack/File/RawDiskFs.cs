@@ -327,9 +327,9 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
                     string diskId = line.Substring(16).Trim().ToLowerInvariant();
                     if (fdiskCurrentDiskName != "")
                     {
-                        fdiskCurrentDiskName = "";
+                        diskIdDict.TryAdd(fdiskCurrentDiskName, diskId);
 
-                        diskIdDict.Add(fdiskCurrentDiskName, diskId);
+                        fdiskCurrentDiskName = "";
                     }
                 }
             }
