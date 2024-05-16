@@ -345,23 +345,6 @@ public class LocalRawDiskFileSystem : RawDiskFileSystem
                 catch { }
             }
 
-            foreach (var diskRealPath in realDiskPathSet)
-            {
-                try
-                {
-                    long diskSize = await UnixApi.GetBlockDeviceSizeAsync(diskRealPath.A, cancel);
-
-                    var diskItem = new RawDiskItemData((diskRealPath.B ? "by-partname-" : "by-devname-") + Lfs.PathParser.GetFileName(diskRealPath.A), diskRealPath.A, RawDiskItemType.FixedMedia, diskSize, diskRealPath.B);
-
-                    tmpDiskItemList.Add(diskItem);
-
-                    realDiskPathSet.Add(new(diskItem.RawPath, diskRealPath.B));
-                }
-                catch
-                {
-                }
-            }
-
             try
             {
                 var partUuidObjects = await Lfs.EnumDirectoryAsync("/dev/disk/by-partuuid/", cancel: cancel);
