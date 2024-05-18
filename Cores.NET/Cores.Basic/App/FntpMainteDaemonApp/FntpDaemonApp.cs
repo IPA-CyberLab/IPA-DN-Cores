@@ -253,6 +253,13 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
 
                         w.WriteLine($"--- FNTP Status Change History Begin ---");
 
+                        int counter = 0;
+                        foreach (var h in hist)
+                        {
+                            counter++;
+                            w.WriteLine($"{counter}: {h.DateTime._ToDtStr()}: {(h.IsOK ? "Ok" : "Error")}: {h.Details._ObjectToJson(compact: true)}");
+                        }
+
                         w.WriteLine(hist._ObjectToJson(compact: true));
 
                         w.WriteLine($"--- FNTP Status Change History End ---");
