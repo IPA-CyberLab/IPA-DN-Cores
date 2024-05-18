@@ -260,7 +260,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                     w.WriteLine();
                     w.WriteLine();
 
-                    return new HttpStringResult(w._ObjectToJson(), Consts.MimeTypes.TextUtf8);
+                    return new HttpStringResult(w.ToString(), Consts.MimeTypes.TextUtf8);
                 });
             }
             catch
@@ -684,15 +684,16 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
         finally
         {
             // 最後に 1 回外部コマンドを実行 (シャットダウン処理)
+            // cancel は無視
             string cmd = Settings.RunCommandWhileError;
 
             if (cmd._IsFilled())
             {
                 try
                 {
-                    if (await Lfs.IsFileExistsAsync(cmd, cancel))
+                    if (await Lfs.IsFileExistsAsync(cmd))
                     {
-                        await EasyExec.ExecAsync(cmd, cancel: cancel);
+                        await EasyExec.ExecAsync(cmd);
                     }
                 }
                 catch (Exception ex)
