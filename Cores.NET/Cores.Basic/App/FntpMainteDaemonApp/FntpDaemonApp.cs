@@ -257,7 +257,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                     w.WriteLine();
 
                     w.WriteLine("--- Process Version Info Begin ---");
-                    w.WriteLine((new EnvInfoSnapshot())._GetObjectDump());
+                    w.WriteLine((new EnvInfoSnapshot())._ObjectToJson());
                     w.WriteLine("--- Process Version Info Begin ---");
 
                     w.WriteLine();
