@@ -87,6 +87,15 @@ public class FntpMainteDaemonSettings : INormalizable
     }
 }
 
+public class FntpMainteHealthStatus
+{
+    public bool IsNtpDaemonActive;
+    public bool IsNtpDaemonSynced;
+    public bool IsRtcCorrect;
+    public bool IsNtpClockCorrect;
+    public bool IsSystemClockCorrect;
+}
+
 
 public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
 {

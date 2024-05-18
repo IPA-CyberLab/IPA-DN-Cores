@@ -6791,7 +6791,7 @@ namespace IPA.Cores.Basic
             tokens = str.Split(sps, StringSplitOptions.RemoveEmptyEntries);
             if (tokens.Length == 3)
             {
-                // hh:mm:ss
+                // hh:mm:ss or hh:mm:ss.mmmmmm
                 string hourStr = tokens[0];
                 string minuteStr = tokens[1];
                 string secondStr = tokens[2];

@@ -1088,10 +1088,15 @@ public static partial class MiscUtil
         res.ThrowIfException();
     }
 
-    public static async Task<OkOrExeption> CompareLocalClockToInternetServersClockAsync(TimeSpan? allowDiff = null, bool ignoreInternetError = false, int commTimeoutMsecs = 10 * 1000, RefBool? internetCommError = null, CancellationToken cancel = default)
+    public static async Task<OkOrExeption> CompareLocalClockToInternetServersClockAsync(TimeSpan? allowDiff = null, bool ignoreInternetError = false, int commTimeoutMsecs = 10 * 1000, RefBool? internetCommError = null, Func<Task<DateTimeOffset>>? getLocalDtProc = null, CancellationToken cancel = default)
     {
         internetCommError ??= new RefBool();
         allowDiff ??= TimeSpan.FromSeconds(15); // 15 秒以内のずれを許容
+
+        if (getLocalDtProc == null)
+        {
+            getLocalDtProc = () => DateTimeOffset.Now._TR();
+        }
 
         internetCommError.Set(false);
 
@@ -1120,13 +1125,13 @@ https://www.apple.com/
             {
                 var dt = await GetCurrentDateTimeFromWebSever(url, commTimeoutMsecs, c);
 
-                var now = DateTimeOffset.Now.ToLocalTime();
+                var now = await getLocalDtProc();
 
                 if (dt._IsZeroDateTime() == false)
                 {
                     lock (resultsList)
                     {
-                        resultsList.Add(new(dt, now, url));
+                        resultsList.Add(new(dt, now.ToLocalTime(), url));
                     }
                 }
             }
@@ -3320,7 +3325,57 @@ public class LinuxTimeDateCtlResults
 
 public static class LinuxTimeDateCtlUtil
 {
-    public static async Task<LinuxTimeDateCtlResults> GetStateAsync(CancellationToken cancel = default)
+    public static async Task<DateTimeOffset> ExecuteNtpdateAndReturnResultDateTimeAsync(string ntpServer, CancellationToken cancel = default)
+    {
+        var res = await EasyExec.ExecAsync(Lfs.UnixGetFullPathFromCommandName("ntpdate"), arguments: $"-u -q -t 1 {ntpServer}", cancel: cancel, timeout: 5 * 1000);
+
+        var line = res.OutputStr._GetLines(trim: true, removeEmpty: true).Where(x => x.StartsWith("20")).FirstOrDefault();
+
+        if (line._IsFilled())
+        {
+            string[] tokens = line._Split(StringSplitOptions.None, " ", "\t");
+
+            if (tokens.Length >= 4)
+            {
+                DateTime dateTimeBase = Str.StrToDateTime(tokens[0] + " " + tokens[1]);
+
+                string timezone = tokens[2];
+
+                if (timezone.StartsWith("(") && timezone.EndsWith(")"))
+                {
+                    timezone = timezone._RemoveQuotation('(', ')');
+
+                    bool? positive = null;
+
+                    if (timezone.StartsWith("+"))
+                    {
+                        positive = true;
+                    }
+                    else if (timezone.StartsWith("-"))
+                    {
+                        positive = false;
+                    }
+
+                    if (positive != null)
+                    {
+                        timezone = timezone.Substring(1);
+
+                        int timezoneHour = timezone.Substring(0, 2)._ToInt();
+                        int timezoneMinute = timezone.Substring(2, 2)._ToInt();
+
+                        TimeSpan offset = new TimeSpan(timezoneHour, timezoneMinute, 0);
+                        if (positive == false) offset = -offset;
+
+                        return new DateTimeOffset(dateTimeBase.Year, dateTimeBase.Month, dateTimeBase.Day, dateTimeBase.Hour, dateTimeBase.Minute, dateTimeBase.Second, 0, offset);
+                    }
+                }
+            }
+        }
+
+        return Util.ZeroDateTimeOffsetValue;
+    }
+
+    public static async Task<LinuxTimeDateCtlResults> GetStateFromDateTimeCtlCommandAsync(CancellationToken cancel = default)
     {
         LinuxTimeDateCtlResults ret = new LinuxTimeDateCtlResults();
 
