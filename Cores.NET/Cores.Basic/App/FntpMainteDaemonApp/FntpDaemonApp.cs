@@ -114,6 +114,7 @@ public class FntpMainteDaemonSettings : INormalizable
 
 public class FntpMainteHealthStatus
 {
+    public bool IsOk => InternalCalcIsOk();
     public bool? HasUnknownError;
     public bool? HasTimeDateCtlCommandError;
     public bool? HasStopFile;
@@ -124,7 +125,7 @@ public class FntpMainteHealthStatus
     public bool? IsSystemClockCorrect;
     public bool? IsDateTimeNowCorrect;
 
-    public bool IsOk()
+    bool InternalCalcIsOk()
     {
         if (HasUnknownError ?? false) return false;
         if (HasTimeDateCtlCommandError ?? false) return false;
