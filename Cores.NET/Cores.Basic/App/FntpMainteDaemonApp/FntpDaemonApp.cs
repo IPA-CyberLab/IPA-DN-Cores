@@ -104,7 +104,7 @@ public class FntpMainteDaemonSettings : INormalizable
     }
 }
 
-public class FntpMainteHealthStatus : IEquatable<FntpMainteHealthStatus>, IComparable<FntpMainteHealthStatus>
+public class FntpMainteHealthStatus
 {
     public bool HasUnknownError;
     public bool? HasTimeDateCtlCommandError;
@@ -115,7 +115,7 @@ public class FntpMainteHealthStatus : IEquatable<FntpMainteHealthStatus>, ICompa
     public bool? IsSystemClockCorrect;
     public bool? IsDateTimeNowCorrect;
 
-    string ToInternalCompareStr() => $"{HasUnknownError}_{HasTimeDateCtlCommandError}_{IsNtpDaemonActive}_{IsNtpDaemonSynced}_{IsRtcCorrect}_{IsNtpClockCorrect}_{IsSystemClockCorrect}_{IsDateTimeNowCorrect}";
+    public string ToInternalCompareStr() => $"{HasUnknownError}_{HasTimeDateCtlCommandError}_{IsNtpDaemonActive}_{IsNtpDaemonSynced}_{IsRtcCorrect}_{IsNtpClockCorrect}_{IsSystemClockCorrect}_{IsDateTimeNowCorrect}";
 
     public override string ToString()
     {
@@ -123,18 +123,6 @@ public class FntpMainteHealthStatus : IEquatable<FntpMainteHealthStatus>, ICompa
     }
 
     public List<string> ErrorList = new List<string>();
-
-    public int CompareTo(FntpMainteHealthStatus? other)
-        => this.ToInternalCompareStr().CompareTo(other!.ToInternalCompareStr());
-
-    public bool Equals(FntpMainteHealthStatus? other)
-        => this.ToInternalCompareStr().Equals(other!.ToInternalCompareStr());
-
-    public override bool Equals(object? obj)
-        => Equals((FntpMainteHealthStatus)obj!);
-
-    public override int GetHashCode()
-        => this.ToInternalCompareStr().GetHashCode();
 }
 
 

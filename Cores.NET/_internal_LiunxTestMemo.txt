@@ -16,7 +16,7 @@ cd ~/IPA-DN-Cores/Cores.NET/Dev.Test/ && (cd ../../ && git pull origin master &&
 
 
 
-cd ~/IPA-DN-Cores/Cores.NET/Dev.Test/ && (cd ../../ && git pull origin master && git submodule update --init --recursive) && dotnet run FntpDaemonApp test
+cd ~/IPA-DN-Cores/Cores.NET/Dev.Test/ && (cd ../../ && git pull origin master && git submodule update --init --recursive) && dotnet run FntpMainteDaemon test
 
 
 

@@ -1143,7 +1143,7 @@ https://www.apple.com/
 
         int okCount = resultsList.Where(x => x.A._IsZeroDateTime() == false).Count();
 
-        resultsList._PrintAsJson();
+        //resultsList._PrintAsJson();
 
         if (okCount == 0)
         {
