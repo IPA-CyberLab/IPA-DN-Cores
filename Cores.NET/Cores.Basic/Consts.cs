@@ -204,6 +204,7 @@ public static partial class Consts
         public const int SslTestSuitePort = 7011;
         public const int SyslogServerPort = 514;
         public const int FntpMainteDaemonHealthPort = 7014;
+        public const int FntpMainteDaemonHttpAdminPort = 7015;
     }
 
     public static partial class DaemonArgKeys

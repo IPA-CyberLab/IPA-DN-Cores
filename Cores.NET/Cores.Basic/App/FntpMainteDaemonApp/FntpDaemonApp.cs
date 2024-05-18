@@ -128,6 +128,7 @@ public class FntpMainteHealthStatus
     public bool? IsNtpClockCorrect;
     public bool? IsSystemClockCorrect;
     public bool? IsDateTimeNowCorrect;
+    public DateTimeOffset TimeStamp = DtOffsetNow;
 
     public bool IsOk()
     {
@@ -163,6 +164,8 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
 
     readonly CriticalSection LockList = new CriticalSection<FntpMainteDaemonApp>();
 
+    public CgiHttpServer Cgi { get; }
+
     public FntpMainteDaemonApp()
     {
         try
@@ -172,11 +175,99 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
 
             // ここでサーバーを立ち上げるなどの初期化処理を行なう
             this.StartMainLoop(MainLoopAsync);
+
+            // HTTP サーバーを立ち上げる
+            this.Cgi = new CgiHttpServer(new CgiHandler(this), new HttpServerOptions()
+            {
+                AutomaticRedirectToHttpsIfPossible = false,
+                UseKestrelWithIPACoreStack = false,
+                HttpPortsList = new int[] { Consts.Ports.FntpMainteDaemonHttpAdminPort }.ToList(),
+                HttpsPortsList = new int[] {  }.ToList(),
+                UseStaticFiles = false,
+                MaxRequestBodySize = 32 * 1024,
+                ReadTimeoutMsecs = 30 * 1000,
+                DenyRobots = true,
+                UseSimpleBasicAuthentication = true,
+            },
+            true);
         }
         catch
         {
             this._DisposeSafe();
             throw;
+        }
+    }
+
+    public class CgiHandler : CgiHandlerBase
+    {
+        public readonly FntpMainteDaemonApp App;
+
+        public CgiHandler(FntpMainteDaemonApp app)
+        {
+            this.App = app;
+        }
+
+        protected override void InitActionListImpl(CgiActionList noAuth, CgiActionList reqAuth)
+        {
+            try
+            {
+                reqAuth.AddAction("/", WebMethodBits.GET | WebMethodBits.HEAD, async (ctx) =>
+                {
+                    var status = App.LastStatus;
+
+                    StringWriter w = new StringWriter();
+
+                    w.WriteLine($"Welcome to FntpDaemon Status Screen !!!");
+                    w.WriteLine();
+                    w.WriteLine($"Current datetime: {DtOffsetNow._ToDtStr()}");
+                    w.WriteLine($"This Machine name: {Env.DnsFqdnHostName}");
+                    w.WriteLine();
+                    w.WriteLine($"IsOK: {status?.IsOk() ?? false}");
+                    w.WriteLine();
+                    w.WriteLine();
+
+                    var banner_result = await EasyExec.ExecAsync("/bin/se_generate_login_banner");
+
+                    w.WriteLine("--- Linux Status Begin ---");
+                    w.WriteLine(banner_result);
+                    w.WriteLine("--- Linux Status End ---");
+
+                    w.WriteLine();
+                    w.WriteLine();
+
+                    if (status == null)
+                    {
+                        w.WriteLine($"There is no LastStatus.");
+                        w.WriteLine();
+                        w.WriteLine();
+                    }
+                    else
+                    {
+                        w.WriteLine($"--- FNTP Status Begin ---");
+                        w.WriteLine($"IsOK: {status.IsOk()}");
+                        w.WriteLine($"TimeStamp: {status.TimeStamp._ToLocalDtStr()}");
+                        w.WriteLine();
+                        w.WriteLine(status._ObjectToJson(includeNull: true));
+                        w.WriteLine($"--- FNTP Status End ---");
+                        w.WriteLine();
+                        w.WriteLine();
+                    }
+
+                    w.WriteLine("--- Linux Status Begin ---");
+                    w.WriteLine((new EnvInfoSnapshot())._GetObjectDump());
+                    w.WriteLine("--- Linux Status End ---");
+
+                    w.WriteLine();
+                    w.WriteLine();
+
+                    return new HttpStringResult(w._ObjectToJson(), Consts.MimeTypes.TextUtf8);
+                });
+            }
+            catch
+            {
+                this._DisposeSafe();
+                throw;
+            }
         }
     }
 
@@ -619,6 +710,8 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
         {
             // TODO: ここでサーバーを終了するなどのクリーンアップ処理を行なう
             await this.LastListener._DisposeSafeAsync();
+
+            await this.Cgi._DisposeSafeAsync();
 
             this.SettingsHive._DisposeSafe();
         }
