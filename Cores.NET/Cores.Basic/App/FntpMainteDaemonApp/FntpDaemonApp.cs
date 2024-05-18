@@ -244,10 +244,6 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                         w.WriteLine();
                     }
 
-                    w.WriteLine("--- Linux Status Begin ---");
-                    w.WriteLine((new EnvInfoSnapshot())._GetObjectDump());
-                    w.WriteLine("--- Linux Status End ---");
-
                     w.WriteLine();
                     w.WriteLine();
 
@@ -256,6 +252,13 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                     w.WriteLine("--- Linux Status Begin ---");
                     w.WriteLine(banner_result.ErrorAndOutputStr);
                     w.WriteLine("--- Linux Status End ---");
+
+                    w.WriteLine();
+                    w.WriteLine();
+
+                    w.WriteLine("--- Process Version Info Begin ---");
+                    w.WriteLine((new EnvInfoSnapshot())._GetObjectDump());
+                    w.WriteLine("--- Process Version Info Begin ---");
 
                     w.WriteLine();
                     w.WriteLine();
