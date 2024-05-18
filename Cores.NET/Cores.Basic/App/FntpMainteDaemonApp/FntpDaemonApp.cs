@@ -87,6 +87,8 @@ public class FntpMainteDaemonSettings : INormalizable
 
     public int CheckDateInternelCommTimeoutMsecs = 0;
 
+    public string CheckTargetNtpServerAddress = "";
+
     public void Normalize()
     {
         if (this._TestStr._IsFilled() == false)
@@ -101,6 +103,7 @@ public class FntpMainteDaemonSettings : INormalizable
         if (NtpServerResultAllowDiffMsecs <= 0) NtpServerResultAllowDiffMsecs = 2 * 1000;
         if (CheckDateInternelCommTimeoutMsecs <= 0) CheckDateInternelCommTimeoutMsecs = 2 * 1000;
         if (DateTimeNowAllowDiffMsecs <= 0) DateTimeNowAllowDiffMsecs = 2 * 1000;
+        if (CheckTargetNtpServerAddress._IsEmpty()) CheckTargetNtpServerAddress = "127.0.0.1";
     }
 }
 
@@ -215,7 +218,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                     }
                 }
             }
-            if (ret.IsDateTimeNowCorrect == false /*|| ret.IsNtpDaemonActive == false || ret.IsNtpDaemonSynced == false*/)
+            if (ret.IsDateTimeNowCorrect == false || ret.IsNtpDaemonActive == false || ret.IsNtpDaemonSynced == false)
             {
                 return ret; // ここで失敗したら、これ以降の検査を省略
             }
@@ -238,19 +241,19 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                             // 127.0.0.1 の NTPd からの応答結果を取得
                             dt = await TaskUtil.RetryAsync(async () =>
                             {
-                                return await LinuxTimeDateCtlUtil.ExecuteNtpDigAndReturnResultDateTimeAsync("127.0.0.1", 2000, cancel);
+                                return await LinuxTimeDateCtlUtil.ExecuteNtpDigAndReturnResultDateTimeAsync(Settings.CheckTargetNtpServerAddress, 2000, cancel);
                             },
                             250, 10, cancel, true);
                         }
                         catch (Exception ex)
                         {
                             // 127.0.0.1 の NTPd が動作していないようである
-                            return new CoresException($"ntpdig: Local NTP server down? Exception: {ex.Message}");
+                            return new CoresException($"ntpdig: NTP server {Settings.CheckTargetNtpServerAddress} down? Exception: {ex.Message}");
                         }
 
                         if (dt._IsZeroDateTime())
                         {
-                            return new CoresException($"ntpdig: Returned datetime was invalid: {dt._ToDtStr()}");
+                            return new CoresException($"ntpdig: Returned datetime from NTP Server {Settings.CheckTargetNtpServerAddress} was invalid: {dt._ToDtStr()}");
                         }
 
                         // この結果を元にインターネット上の HTTP サーバーと比較
