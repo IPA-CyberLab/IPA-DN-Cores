@@ -578,7 +578,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
     NetTcpListener? LastListener = null;
     FntpMainteHealthStatus? LastStatus = null;
 
-    Queue<Pair3<DateTimeOffset, bool, FntpMainteHealthStatus>> History = new();
+    Queue<(DateTimeOffset TimeStamp, bool IsOK, FntpMainteHealthStatus Details)> History = new();
 
     // 定期的に実行されるチェック処理の実装
     async Task MainProcAsync(CancellationToken cancel = default)
