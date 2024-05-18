@@ -92,6 +92,9 @@ public class FntpMainteDaemonSettings : INormalizable
     public string StopFileName = "";
     public int HealthTcpPort;
 
+    public string RunCommandWhileOk = "";
+    public string RunCommandWhileError = "";
+
     public void Normalize()
     {
         if (this._TestStr._IsFilled() == false)
@@ -108,13 +111,14 @@ public class FntpMainteDaemonSettings : INormalizable
         if (DateTimeNowAllowDiffMsecs <= 0) DateTimeNowAllowDiffMsecs = 2 * 1000;
         if (CheckTargetNtpServerAddress._IsEmpty()) CheckTargetNtpServerAddress = "127.0.0.1";
         if (StopFileName._IsEmpty()) StopFileName = "/etc/fntp_stop.txt";
+        if (RunCommandWhileOk._IsEmpty()) RunCommandWhileOk = "/etc/fntp_exec_ok.sh";
+        if (RunCommandWhileError._IsEmpty()) RunCommandWhileError = "/etc/fntp_exec_error.sh";
         if (HealthTcpPort <= 0) HealthTcpPort = Consts.Ports.FntpMainteDaemonHealthPort;
     }
 }
 
 public class FntpMainteHealthStatus
 {
-    public bool IsOk => InternalCalcIsOk();
     public bool? HasUnknownError;
     public bool? HasTimeDateCtlCommandError;
     public bool? HasStopFile;
@@ -125,7 +129,7 @@ public class FntpMainteHealthStatus
     public bool? IsSystemClockCorrect;
     public bool? IsDateTimeNowCorrect;
 
-    bool InternalCalcIsOk()
+    public bool IsOk()
     {
         if (HasUnknownError ?? false) return false;
         if (HasTimeDateCtlCommandError ?? false) return false;
@@ -468,31 +472,46 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
     {
         FntpMainteHealthStatus res = await CheckHealthAsync(cancel: cancel);
 
-        bool ok = res.IsOk;
+        bool ok = res.IsOk();
 
-        //DateTime.Now._Print();
-        //res._PrintAsJson();
+        if (LastOk != ok)
+        {
+            if (ok)
+            {
+                "Status changed to OK. Good good."._Error();
+            }
+            else
+            {
+                "Warning!! Status changed to Error !!!"._Error();
+            }
+        }
 
         if (LastStatus == null || LastStatus.ToInternalCompareStr() != res.ToInternalCompareStr())
         {
             // 状態が変化した
             // 詳細をログに書き出す
-            $"Health status changed: {res.ToString()}"._Error();
+            $"Health status changed: Ok = {ok}, Details: {res.ToString()}"._Error();
+        }
+
+        // 外部コマンドを実行
+        string cmd = ok ? Settings.RunCommandWhileOk : Settings.RunCommandWhileError;
+
+        if (cmd._IsFilled())
+        {
+            try
+            {
+                await EasyExec.ExecAsync(cmd, cancel: cancel);
+            }
+            catch (Exception ex)
+            {
+                $"Command '{cmd}' execute error. Message = {ex.Message}"._Error();
+            }
         }
 
         if (LastOk != ok)
         {
             // OK 状態が変化した
             LastOk = ok;
-
-            if (ok)
-            {
-                "Status changed to OK."._Error();
-            }
-            else
-            {
-                "Warning!! Status changed to Error !!!"._Error();
-            }
 
             // 検査用 TCP ポートを開閉する
             if (ok)
