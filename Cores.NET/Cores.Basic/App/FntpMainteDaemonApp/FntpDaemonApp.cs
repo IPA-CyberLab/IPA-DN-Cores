@@ -489,6 +489,8 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
         if (LastStatus == null || LastStatus.ToInternalCompareStr() != res.ToInternalCompareStr())
         {
             // 状態が変化した
+            LastStatus = res;
+
             // 詳細をログに書き出す
             $"Health status changed: Ok = {ok}, Details: {res.ToString()}"._Error();
         }
