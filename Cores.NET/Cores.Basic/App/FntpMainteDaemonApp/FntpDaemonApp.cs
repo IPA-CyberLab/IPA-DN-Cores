@@ -73,6 +73,20 @@ public class FntpMainteDaemonSettings : INormalizable
 
     public int ClockCheckIntervalMsecs = 0;
 
+    public bool SkipCheckRtcCorrect = false;
+    public bool SkipCheckNtpClock = false;
+    public bool SkipCheckSystemClock = false;
+    public bool SkipCheckNtpServerResult = false;
+    public bool SkipCheckDateTimeNow = false;
+
+    public int RtcCorrectAllowDiffMsecs = 0;
+    public int NtpClockCorrectAllowDiffMsecs = 0;
+    public int SystemClockAllowDiffMsecs = 0;
+    public int DateTimeNowAllowDiffMsecs = 0;
+    public int NtpServerResultAllowDiffMsecs = 0;
+
+    public int CheckDateInternelCommTimeoutMsecs = 0;
+
     public void Normalize()
     {
         if (this._TestStr._IsFilled() == false)
@@ -80,20 +94,47 @@ public class FntpMainteDaemonSettings : INormalizable
             this._TestStr = "Hello";
         }
 
-        if (this.ClockCheckIntervalMsecs <= 0)
-        {
-            this.ClockCheckIntervalMsecs = 10 * 1000;
-        }
+        if (ClockCheckIntervalMsecs <= 0) ClockCheckIntervalMsecs = 5 * 1000;
+        if (RtcCorrectAllowDiffMsecs <= 0) RtcCorrectAllowDiffMsecs = 2 * 1000;
+        if (NtpClockCorrectAllowDiffMsecs <= 0) NtpClockCorrectAllowDiffMsecs = 2 * 1000;
+        if (SystemClockAllowDiffMsecs <= 0) SystemClockAllowDiffMsecs = 2 * 1000;
+        if (NtpServerResultAllowDiffMsecs <= 0) NtpServerResultAllowDiffMsecs = 2 * 1000;
+        if (CheckDateInternelCommTimeoutMsecs <= 0) CheckDateInternelCommTimeoutMsecs = 2 * 1000;
+        if (DateTimeNowAllowDiffMsecs <= 0) DateTimeNowAllowDiffMsecs = 2 * 1000;
     }
 }
 
-public class FntpMainteHealthStatus
+public class FntpMainteHealthStatus : IEquatable<FntpMainteHealthStatus>, IComparable<FntpMainteHealthStatus>
 {
-    public bool IsNtpDaemonActive;
-    public bool IsNtpDaemonSynced;
-    public bool IsRtcCorrect;
-    public bool IsNtpClockCorrect;
-    public bool IsSystemClockCorrect;
+    public bool HasUnknownError;
+    public bool? HasTimeDateCtlCommandError;
+    public bool? IsNtpDaemonActive;
+    public bool? IsNtpDaemonSynced;
+    public bool? IsRtcCorrect;
+    public bool? IsNtpClockCorrect;
+    public bool? IsSystemClockCorrect;
+    public bool? IsDateTimeNowCorrect;
+
+    string ToInternalCompareStr() => $"{HasUnknownError}_{HasTimeDateCtlCommandError}_{IsNtpDaemonActive}_{IsNtpDaemonSynced}_{IsRtcCorrect}_{IsNtpClockCorrect}_{IsSystemClockCorrect}_{IsDateTimeNowCorrect}";
+
+    public override string ToString()
+    {
+        return this._ObjectToJson(includeNull: true, compact: true);
+    }
+
+    public List<string> ErrorList = new List<string>();
+
+    public int CompareTo(FntpMainteHealthStatus? other)
+        => this.ToInternalCompareStr().CompareTo(other!.ToInternalCompareStr());
+
+    public bool Equals(FntpMainteHealthStatus? other)
+        => this.ToInternalCompareStr().Equals(other!.ToInternalCompareStr());
+
+    public override bool Equals(object? obj)
+        => Equals((FntpMainteHealthStatus)obj!);
+
+    public override int GetHashCode()
+        => this.ToInternalCompareStr().GetHashCode();
 }
 
 
@@ -124,9 +165,262 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
         }
     }
 
+    // 健康状態チェック実行
+    public async Task<FntpMainteHealthStatus> CheckHealthAsync(CancellationToken cancel = default)
+    {
+        FntpMainteHealthStatus ret = new FntpMainteHealthStatus();
+
+        try
+        {
+            // timedatectl の実行結果を取得
+            try
+            {
+                var ctlResult = await TaskUtil.RetryAsync(async () =>
+                {
+                    return await LinuxTimeDateCtlUtil.GetStateFromTimeDateCtlCommandAsync(cancel);
+                }, 1000, 5);
+
+                ret.IsNtpDaemonActive = ctlResult.NtpServiceActive;
+                ret.IsNtpDaemonSynced = ctlResult.SystemClockSynchronized;
+            }
+            catch (Exception ex)
+            {
+                ret.HasTimeDateCtlCommandError = true;
+                ret.ErrorList.Add($"timedatectl command exec error. message = {ex.Message}");
+                return ret; // ここで失敗したら、これ以降の検査を省略
+            }
+
+            // システム時計を検査 (DateTime.Now 報告値)
+            if (Settings.SkipCheckDateTimeNow)
+            {
+                ret.IsDateTimeNowCorrect = true;
+            }
+            else
+            {
+                RefBool commError = new RefBool();
+                var res = await MiscUtil.CompareLocalClockToInternetServersClockAsync(Settings.SystemClockAllowDiffMsecs._ToTimeSpanMSecs(), true, Settings.CheckDateInternelCommTimeoutMsecs,
+                    commError,
+                    () =>
+                    {
+                        return DateTimeOffset.Now._TR();
+                    },
+                    cancel);
+
+                if (commError)
+                {
+                    // 比較対象の HTTP サーバーとの間でのインターネット通信エラー発生時は成功と見なす (ただし、ログを吐き出す)
+                    $"DateTime.Now Clock: CompareLocalClockToInternetServersClockAsync error. Error = {res.Exception.ToString()}"._Error();
+                    ret.IsDateTimeNowCorrect = true;
+                }
+                else
+                {
+                    if (res.IsOk)
+                    {
+                        // 比較に成功し、時差は許容範囲内であった
+                        ret.IsDateTimeNowCorrect = true;
+                    }
+                    else
+                    {
+                        // 比較に成功したが、時差が許容範囲を超えていた
+                        ret.IsDateTimeNowCorrect = false;
+                        ret.ErrorList.Add($"DateTime.Now Health Check Failed: {res.Exception.Message}");
+                    }
+                }
+            }
+            if (ret.IsDateTimeNowCorrect == false)
+            {
+                return ret; // ここで失敗したら、これ以降の検査を省略
+            }
+
+            // NTP 応答値を検査
+            if (Settings.SkipCheckNtpClock)
+            {
+                ret.IsNtpClockCorrect = true;
+            }
+            else
+            {
+                // 数回リトライを実施する
+                try
+                {
+                    var res = await TaskUtil.RetryAsync(async () =>
+                    {
+                        // 127.0.0.1 の NTPd からの応答結果を取得
+                        var dt = await TaskUtil.RetryAsync(async () =>
+                        {
+                            return await LinuxTimeDateCtlUtil.ExecuteNtpDigAndReturnResultDateTimeAsync("127.0.0.1", 2000, cancel);
+                        },
+                        250, 10, cancel, true);
+
+                        if (dt._IsZeroDateTime())
+                        {
+                            throw new CoresException($"ntpdig: Returned datetime was invalid: {dt._ToDtStr()}");
+                        }
+
+                        // この結果を元にインターネット上の HTTP サーバーと比較
+                        RefBool commError = new RefBool();
+                        var res = await MiscUtil.CompareLocalClockToInternetServersClockAsync(Settings.SystemClockAllowDiffMsecs._ToTimeSpanMSecs(), true, Settings.CheckDateInternelCommTimeoutMsecs,
+                            commError,
+                            () =>
+                            {
+                                return DateTimeOffset.Now._TR();
+                            },
+                            cancel);
+
+                        if (commError)
+                        {
+                            // 比較対象の HTTP サーバーとの間でのインターネット通信エラー発生時は成功と見なす (ただし、ログを吐き出す)
+                            $"ntpdig: CompareLocalClockToInternetServersClockAsync error. Error = {res.Exception.ToString()}"._Error();
+                            return new OkOrExeption();
+                        }
+                        else
+                        {
+                            if (res.IsOk)
+                            {
+                                // 比較に成功し、時差は許容範囲内であった
+                                return new OkOrExeption();
+                            }
+                            else
+                            {
+                                // 比較に成功したが、時差が許容範囲を超えていた
+                                return new OkOrExeption(new CoresException($"ntpdig Health Check Failed: {res.Exception.Message}"));
+                            }
+                        }
+                    },
+                    250, 5, cancel, randomInterval: true);
+
+                    if (res.IsOk)
+                    {
+                        ret.IsNtpClockCorrect = true;
+                    }
+                    else
+                    {
+                        ret.IsNtpClockCorrect = false;
+                        ret.ErrorList.Add(res.Exception.Message);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ret.IsNtpClockCorrect = false;
+                    ret.ErrorList.Add($"RTC Health Check Failed (try-catch): {ex.Message}");
+                }
+            }
+            if (ret.IsNtpClockCorrect == false)
+            {
+                return ret; // ここで失敗したら、これ以降の検査を省略
+            }
+
+            // RTC を検査
+            if (Settings.SkipCheckRtcCorrect)
+            {
+                ret.IsRtcCorrect = true;
+            }
+            else
+            {
+                RefBool commError = new RefBool();
+                var res = await MiscUtil.CompareLocalClockToInternetServersClockAsync(Settings.RtcCorrectAllowDiffMsecs._ToTimeSpanMSecs(), true, Settings.CheckDateInternelCommTimeoutMsecs,
+                    commError,
+                    async () =>
+                    {
+                        var ctlResult = await TaskUtil.RetryAsync(async () =>
+                        {
+                            return await LinuxTimeDateCtlUtil.GetStateFromTimeDateCtlCommandAsync(cancel);
+                        }, 250, 5, cancel, true);
+
+                        return ctlResult.RtcTime;
+                    },
+                    cancel);
+
+                if (commError)
+                {
+                    // 比較対象の HTTP サーバーとの間でのインターネット通信エラー発生時は成功と見なす (ただし、ログを吐き出す)
+                    $"RTC: CompareLocalClockToInternetServersClockAsync error. Error = {res.Exception.ToString()}"._Error();
+                }
+                else
+                {
+                    if (res.IsOk)
+                    {
+                        // 比較に成功し、時差は許容範囲内であった
+                        ret.IsRtcCorrect = true;
+                    }
+                    else
+                    {
+                        // 比較に成功したが、時差が許容範囲を超えていた
+                        ret.IsRtcCorrect = false;
+                        ret.ErrorList.Add($"RTC Health Check Failed: {res.Exception.Message}");
+                    }
+                }
+            }
+            if (ret.IsRtcCorrect == false)
+            {
+                return ret; // ここで失敗したら、これ以降の検査を省略
+            }
+
+            // システム時計を検査 (timedatectl 報告値)
+            if (Settings.SkipCheckSystemClock)
+            {
+                ret.IsSystemClockCorrect = true;
+            }
+            else
+            {
+                RefBool commError = new RefBool();
+                var res = await MiscUtil.CompareLocalClockToInternetServersClockAsync(Settings.SystemClockAllowDiffMsecs._ToTimeSpanMSecs(), true, Settings.CheckDateInternelCommTimeoutMsecs,
+                    commError,
+                    async () =>
+                    {
+                        var ctlResult = await TaskUtil.RetryAsync(async () =>
+                        {
+                            return await LinuxTimeDateCtlUtil.GetStateFromTimeDateCtlCommandAsync(cancel);
+                        }, 250, 5, cancel, true);
+
+                        return ctlResult.UniversalTime;
+                    },
+                    cancel);
+
+                if (commError)
+                {
+                    // 比較対象の HTTP サーバーとの間でのインターネット通信エラー発生時は成功と見なす (ただし、ログを吐き出す)
+                    $"System Clock: CompareLocalClockToInternetServersClockAsync error. Error = {res.Exception.ToString()}"._Error();
+                }
+                else
+                {
+                    if (res.IsOk)
+                    {
+                        // 比較に成功し、時差は許容範囲内であった
+                        ret.IsSystemClockCorrect = true;
+                    }
+                    else
+                    {
+                        // 比較に成功したが、時差が許容範囲を超えていた
+                        ret.IsSystemClockCorrect = false;
+                        ret.ErrorList.Add($"System Clock Health Check Failed: {res.Exception.Message}");
+                    }
+                }
+            }
+            if (ret.IsSystemClockCorrect == false)
+            {
+                return ret; // ここで失敗したら、これ以降の検査を省略
+            }
+
+            return ret;
+        }
+        catch (Exception ex)
+        {
+            ret = new FntpMainteHealthStatus();
+
+            ret.HasUnknownError = true;
+
+            ret.ErrorList.Add($"Unknown exception: {ex.Message}");
+
+            return ret;
+        }
+    }
+
     // 定期的に実行されるチェック処理の実装
     async Task MainProcAsync(CancellationToken cancel = default)
     {
+        var res = await CheckHealthAsync(cancel: cancel);
+
+        res._PrintAsJson();
     }
 
     // メインループ

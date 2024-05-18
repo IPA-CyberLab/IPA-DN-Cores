@@ -15,6 +15,12 @@ git clone --recursive https://github.com/IPA-CyberLab/IPA-DN-Cores.git
 cd ~/IPA-DN-Cores/Cores.NET/Dev.Test/ && (cd ../../ && git pull origin master && git submodule update --init --recursive) && dotnet run test
 
 
+
+cd ~/IPA-DN-Cores/Cores.NET/Dev.Test/ && (cd ../../ && git pull origin master && git submodule update --init --recursive) && dotnet run FntpDaemonApp test
+
+
+
+
 ■ Web サーバーテスト
 cd ~/IPA-DN-Cores/Cores.NET/SampleProjects/AspNetCore1/AspNetCore1/ && (cd ../../ && git pull origin master && git submodule update --init --recursive) && dotnet run
 

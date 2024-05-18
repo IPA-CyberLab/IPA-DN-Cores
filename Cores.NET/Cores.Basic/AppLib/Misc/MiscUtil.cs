@@ -3325,9 +3325,11 @@ public class LinuxTimeDateCtlResults
 
 public static class LinuxTimeDateCtlUtil
 {
-    public static async Task<DateTimeOffset> ExecuteNtpdateAndReturnResultDateTimeAsync(string ntpServer, CancellationToken cancel = default)
+    public static async Task<DateTimeOffset> ExecuteNtpDigAndReturnResultDateTimeAsync(string ntpServer, int timeoutMsecs = 5 * 1000, CancellationToken cancel = default)
     {
-        var res = await EasyExec.ExecAsync(Lfs.UnixGetFullPathFromCommandName("ntpdate"), arguments: $"-u -q -t 1 {ntpServer}", cancel: cancel, timeout: 5 * 1000);
+        if (timeoutMsecs <= 0) timeoutMsecs = 5 * 1000;
+
+        var res = await EasyExec.ExecAsync(Lfs.UnixGetFullPathFromCommandName("ntpdig"), arguments: $"--samples=1 --timeout=1 {ntpServer}", cancel: cancel, timeout: timeoutMsecs);
 
         var line = res.OutputStr._GetLines(trim: true, removeEmpty: true).Where(x => x.StartsWith("20") || x.StartsWith("21")).FirstOrDefault();
 
@@ -3375,7 +3377,7 @@ public static class LinuxTimeDateCtlUtil
         return Util.ZeroDateTimeOffsetValue;
     }
 
-    public static async Task<LinuxTimeDateCtlResults> GetStateFromDateTimeCtlCommandAsync(CancellationToken cancel = default)
+    public static async Task<LinuxTimeDateCtlResults> GetStateFromTimeDateCtlCommandAsync(CancellationToken cancel = default)
     {
         LinuxTimeDateCtlResults ret = new LinuxTimeDateCtlResults();
 

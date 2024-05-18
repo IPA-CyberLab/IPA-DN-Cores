@@ -4893,11 +4893,12 @@ HOST: www.google.com
 
     static void Test_240215()
     {
+
         try
         {
             try
             {
-                var dt = LinuxTimeDateCtlUtil.ExecuteNtpdateAndReturnResultDateTimeAsync("127.0.0.1")._GetResult();
+                var dt = LinuxTimeDateCtlUtil.ExecuteNtpDigAndReturnResultDateTimeAsync("127.0.0.1")._GetResult();
 
                 dt._PrintAsJson();
             }
@@ -4906,7 +4907,7 @@ HOST: www.google.com
                 ex.Message._Print();
             }
 
-            var res = LinuxTimeDateCtlUtil.GetStateFromDateTimeCtlCommandAsync()._GetResult();
+            var res = LinuxTimeDateCtlUtil.GetStateFromTimeDateCtlCommandAsync()._GetResult();
 
             res._DebugAsJson();
         }
