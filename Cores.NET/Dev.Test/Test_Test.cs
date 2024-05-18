@@ -4872,7 +4872,7 @@ HOST: www.google.com
         else
         {
             //await s3.TestAsync();
-            var list = await s3.EnumDirecroryAsync("/testdir1/", args: new WebFsArgs {MaxEnumDirItemsPerRequest=1 });
+            var list = await s3.EnumDirecroryAsync("/testdir1/", args: new WebFsArgs { MaxEnumDirItemsPerRequest = 1 });
 
             list._DebugAsJson();
         }
@@ -4895,18 +4895,15 @@ HOST: www.google.com
     {
         try
         {
-            while (true)
+            try
             {
-                try
-                {
-                    var dt = LinuxTimeDateCtlUtil.ExecuteNtpdateAndReturnResultDateTimeAsync("127.0.0.1")._GetResult();
+                var dt = LinuxTimeDateCtlUtil.ExecuteNtpdateAndReturnResultDateTimeAsync("127.0.0.1")._GetResult();
 
-                    dt._PrintAsJson();
-                }
-                catch (Exception ex)
-                {
-                    ex.Message._Print();
-                }
+                dt._PrintAsJson();
+            }
+            catch (Exception ex)
+            {
+                ex.Message._Print();
             }
 
             var res = LinuxTimeDateCtlUtil.GetStateFromDateTimeCtlCommandAsync()._GetResult();
