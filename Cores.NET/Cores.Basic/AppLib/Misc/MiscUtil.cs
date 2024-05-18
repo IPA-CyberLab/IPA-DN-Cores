@@ -3333,7 +3333,6 @@ public static class LinuxTimeDateCtlUtil
 
         if (line._IsFilled())
         {
-            line._Debug();
             string[] tokens = line._Split(StringSplitOptions.None, " ", "\t");
 
             if (tokens.Length >= 4)
@@ -3367,7 +3366,7 @@ public static class LinuxTimeDateCtlUtil
                         TimeSpan offset = new TimeSpan(timezoneHour, timezoneMinute, 0);
                         if (positive == false) offset = -offset;
 
-                        return new DateTimeOffset(dateTimeBase.Year, dateTimeBase.Month, dateTimeBase.Day, dateTimeBase.Hour, dateTimeBase.Minute, dateTimeBase.Second, 0, offset);
+                        return new DateTimeOffset(dateTimeBase.Year, dateTimeBase.Month, dateTimeBase.Day, dateTimeBase.Hour, dateTimeBase.Minute, dateTimeBase.Second, dateTimeBase.Millisecond, offset);
                     }
                 }
             }
