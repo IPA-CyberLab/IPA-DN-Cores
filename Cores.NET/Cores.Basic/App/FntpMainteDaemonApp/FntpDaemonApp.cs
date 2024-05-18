@@ -226,15 +226,6 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                     w.WriteLine();
                     w.WriteLine();
 
-                    var banner_result = await EasyExec.ExecAsync("/bin/se_generate_login_banner");
-
-                    w.WriteLine("--- Linux Status Begin ---");
-                    w.WriteLine(banner_result.ErrorAndOutputStr);
-                    w.WriteLine("--- Linux Status End ---");
-
-                    w.WriteLine();
-                    w.WriteLine();
-
                     if (status == null)
                     {
                         w.WriteLine($"There is no LastStatus.");
@@ -245,7 +236,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                     {
                         w.WriteLine($"--- FNTP Status Begin ---");
                         w.WriteLine($"IsOK: {status.IsOk()}");
-                        w.WriteLine($"TimeStamp: {status.TimeStamp._ToLocalDtStr()}");
+                        w.WriteLine($"TimeStamp: {status.TimeStamp._ToDtStr(true)}");
                         w.WriteLine();
                         w.WriteLine(status._ObjectToJson(includeNull: true));
                         w.WriteLine($"--- FNTP Status End ---");
@@ -255,6 +246,15 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
 
                     w.WriteLine("--- Linux Status Begin ---");
                     w.WriteLine((new EnvInfoSnapshot())._GetObjectDump());
+                    w.WriteLine("--- Linux Status End ---");
+
+                    w.WriteLine();
+                    w.WriteLine();
+
+                    var banner_result = await EasyExec.ExecAsync("/bin/se_generate_login_banner");
+
+                    w.WriteLine("--- Linux Status Begin ---");
+                    w.WriteLine(banner_result.ErrorAndOutputStr);
                     w.WriteLine("--- Linux Status End ---");
 
                     w.WriteLine();
