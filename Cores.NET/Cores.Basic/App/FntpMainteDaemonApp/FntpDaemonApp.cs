@@ -311,7 +311,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
             }
             if (ret.IsNtpClockCorrect == false)
             {
-                return ret; // ここで失敗したら、これ以降の検査を省略
+                //return ret; // ここで失敗したら、これ以降の検査を省略
             }
 
             // RTC を検査
@@ -357,7 +357,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
             }
             if (ret.IsRtcCorrect == false)
             {
-                return ret; // ここで失敗したら、これ以降の検査を省略
+                //return ret; // ここで失敗したら、これ以降の検査を省略
             }
 
             // システム時計を検査 (timedatectl 報告値)
