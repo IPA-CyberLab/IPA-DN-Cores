@@ -215,7 +215,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                     }
                 }
             }
-            if (ret.IsDateTimeNowCorrect == false || ret.IsNtpDaemonActive == false || ret.IsNtpDaemonSynced == false)
+            if (ret.IsDateTimeNowCorrect == false /*|| ret.IsNtpDaemonActive == false || ret.IsNtpDaemonSynced == false*/)
             {
                 return ret; // ここで失敗したら、これ以降の検査を省略
             }
