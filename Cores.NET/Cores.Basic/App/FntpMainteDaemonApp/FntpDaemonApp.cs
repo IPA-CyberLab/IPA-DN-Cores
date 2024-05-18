@@ -181,6 +181,11 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                 return ret; // ここで失敗したら、これ以降の検査を省略
             }
 
+            //if (ret.IsNtpDaemonActive == false || ret.IsNtpDaemonSynced == false)
+            //{
+            //    return ret; // ここで失敗したら、これ以降の検査を省略
+            //}
+
             // システム時計を検査 (DateTime.Now 報告値)
             if (Settings.SkipCheckDateTimeNow)
             {
@@ -218,10 +223,10 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                     }
                 }
             }
-            if (ret.IsDateTimeNowCorrect == false || ret.IsNtpDaemonActive == false || ret.IsNtpDaemonSynced == false)
-            {
-                return ret; // ここで失敗したら、これ以降の検査を省略
-            }
+            //if (ret.IsDateTimeNowCorrect == false || ret.IsNtpDaemonActive == false || ret.IsNtpDaemonSynced == false)
+            //{
+            //    return ret; // ここで失敗したら、これ以降の検査を省略
+            //}
 
             // NTP 応答値を検査
             if (Settings.SkipCheckNtpClock)
