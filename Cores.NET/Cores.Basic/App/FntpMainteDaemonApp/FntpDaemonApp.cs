@@ -393,7 +393,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
             else
             {
                 RefBool commError = new RefBool();
-                var res = await MiscUtil.CompareLocalClockToInternetServersClockAsync(Settings.SystemClockAllowDiffMsecs._ToTimeSpanMSecs(), true, Settings.CheckDateInternelCommTimeoutMsecs,
+                var res = await MiscUtil.CompareLocalClockToInternetServersClockAsync(Settings.SystemClockAllowDiffMsecs._ToTimeSpanMSecs(), false, Settings.CheckDateInternelCommTimeoutMsecs,
                     commError,
                     () =>
                     {
@@ -462,7 +462,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
 
                         // この結果を元にインターネット上の HTTP サーバーと比較
                         RefBool commError = new RefBool();
-                        var res = await MiscUtil.CompareLocalClockToInternetServersClockAsync(Settings.SystemClockAllowDiffMsecs._ToTimeSpanMSecs(), true, Settings.CheckDateInternelCommTimeoutMsecs,
+                        var res = await MiscUtil.CompareLocalClockToInternetServersClockAsync(Settings.SystemClockAllowDiffMsecs._ToTimeSpanMSecs(), false, Settings.CheckDateInternelCommTimeoutMsecs,
                             commError,
                             () =>
                             {
@@ -521,7 +521,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
             else
             {
                 RefBool commError = new RefBool();
-                var res = await MiscUtil.CompareLocalClockToInternetServersClockAsync(Settings.RtcCorrectAllowDiffMsecs._ToTimeSpanMSecs(), true, Settings.CheckDateInternelCommTimeoutMsecs,
+                var res = await MiscUtil.CompareLocalClockToInternetServersClockAsync(Settings.RtcCorrectAllowDiffMsecs._ToTimeSpanMSecs(), false, Settings.CheckDateInternelCommTimeoutMsecs,
                     commError,
                     async () =>
                     {
@@ -567,7 +567,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
             else
             {
                 RefBool commError = new RefBool();
-                var res = await MiscUtil.CompareLocalClockToInternetServersClockAsync(Settings.SystemClockAllowDiffMsecs._ToTimeSpanMSecs(), true, Settings.CheckDateInternelCommTimeoutMsecs,
+                var res = await MiscUtil.CompareLocalClockToInternetServersClockAsync(Settings.SystemClockAllowDiffMsecs._ToTimeSpanMSecs(), false, Settings.CheckDateInternelCommTimeoutMsecs,
                     commError,
                     async () =>
                     {
