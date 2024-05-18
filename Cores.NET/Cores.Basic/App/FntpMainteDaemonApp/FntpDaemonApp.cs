@@ -289,7 +289,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                 catch (Exception ex)
                 {
                     ret.IsNtpClockCorrect = false;
-                    ret.ErrorList.Add($"RTC Health Check Failed (try-catch): {ex.Message}");
+                    ret.ErrorList.Add($"NTP Health Check Failed (try-catch): {ex.Message}");
                 }
             }
             if (ret.IsNtpClockCorrect == false)
@@ -314,7 +314,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                             return await LinuxTimeDateCtlUtil.GetStateFromTimeDateCtlCommandAsync(cancel);
                         }, 250, 5, cancel, true);
 
-                        return ctlResult.RtcTime;
+                        return ctlResult.RtcTime._AsDateTimeOffset(false, true);
                     },
                     cancel);
 
@@ -406,6 +406,8 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
     // 定期的に実行されるチェック処理の実装
     async Task MainProcAsync(CancellationToken cancel = default)
     {
+        Where();
+
         var res = await CheckHealthAsync(cancel: cancel);
 
         res._PrintAsJson();
