@@ -89,6 +89,9 @@ public class FntpMainteDaemonSettings : INormalizable
 
     public string CheckTargetNtpServerAddress = "";
 
+    public string StopFileName = "";
+    public int HealthTcpPort;
+
     public void Normalize()
     {
         if (this._TestStr._IsFilled() == false)
@@ -104,13 +107,16 @@ public class FntpMainteDaemonSettings : INormalizable
         if (CheckDateInternelCommTimeoutMsecs <= 0) CheckDateInternelCommTimeoutMsecs = 2 * 1000;
         if (DateTimeNowAllowDiffMsecs <= 0) DateTimeNowAllowDiffMsecs = 2 * 1000;
         if (CheckTargetNtpServerAddress._IsEmpty()) CheckTargetNtpServerAddress = "127.0.0.1";
+        if (StopFileName._IsEmpty()) StopFileName = "/etc/fntp_stop.txt";
+        if (HealthTcpPort <= 0) HealthTcpPort = Consts.Ports.FntpMainteDaemonHealthPort;
     }
 }
 
 public class FntpMainteHealthStatus
 {
-    public bool HasUnknownError;
+    public bool? HasUnknownError;
     public bool? HasTimeDateCtlCommandError;
+    public bool? HasStopFile;
     public bool? IsNtpDaemonActive;
     public bool? IsNtpDaemonSynced;
     public bool? IsRtcCorrect;
@@ -118,7 +124,21 @@ public class FntpMainteHealthStatus
     public bool? IsSystemClockCorrect;
     public bool? IsDateTimeNowCorrect;
 
-    public string ToInternalCompareStr() => $"{HasUnknownError}_{HasTimeDateCtlCommandError}_{IsNtpDaemonActive}_{IsNtpDaemonSynced}_{IsRtcCorrect}_{IsNtpClockCorrect}_{IsSystemClockCorrect}_{IsDateTimeNowCorrect}";
+    public bool IsOk()
+    {
+        if (HasUnknownError ?? false) return false;
+        if (HasTimeDateCtlCommandError ?? false) return false;
+        if (HasStopFile ?? false) return false;
+        if ((IsNtpDaemonActive ?? false) == false) return false;
+        if ((IsNtpDaemonSynced ?? false) == false) return false;
+        if ((IsRtcCorrect ?? false) == false) return false;
+        if ((IsNtpClockCorrect ?? false) == false) return false;
+        if ((IsSystemClockCorrect ?? false) == false) return false;
+        if ((IsDateTimeNowCorrect ?? false) == false) return false;
+        return true;
+    }
+
+    public string ToInternalCompareStr() => $"{HasStopFile}_{HasUnknownError}_{HasTimeDateCtlCommandError}_{IsNtpDaemonActive}_{IsNtpDaemonSynced}_{IsRtcCorrect}_{IsNtpClockCorrect}_{IsSystemClockCorrect}_{IsDateTimeNowCorrect}";
 
     public override string ToString()
     {
@@ -145,8 +165,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
             // Settings を読み込む
             this.SettingsHive = new HiveData<FntpMainteDaemonSettings>(Hive.SharedLocalConfigHive, $"FntpMainteDaemon", null, HiveSyncPolicy.AutoReadFromFile);
 
-
-            // TODO: ここでサーバーを立ち上げるなどの初期化処理を行なう
+            // ここでサーバーを立ち上げるなどの初期化処理を行なう
             this.StartMainLoop(MainLoopAsync);
         }
         catch
@@ -160,6 +179,25 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
     public async Task<FntpMainteHealthStatus> CheckHealthAsync(CancellationToken cancel = default)
     {
         FntpMainteHealthStatus ret = new FntpMainteHealthStatus();
+
+        // stopfile を検査
+        string stopFileName = Settings.StopFileName;
+        if (stopFileName._IsFilled())
+        {
+            try
+            {
+                ret.HasStopFile = await Lfs.IsFileExistsAsync(stopFileName, cancel);
+            }
+            catch
+            {
+                ret.HasStopFile = false;
+            }
+        }
+
+        if (ret.HasStopFile ?? false)
+        {
+            return ret; // stopfile が設置されていれば、これ以降の検査を省略
+        }
 
         try
         {
@@ -181,10 +219,10 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                 return ret; // ここで失敗したら、これ以降の検査を省略
             }
 
-            //if (ret.IsNtpDaemonActive == false || ret.IsNtpDaemonSynced == false)
-            //{
-            //    return ret; // ここで失敗したら、これ以降の検査を省略
-            //}
+            if (ret.IsNtpDaemonActive == false || ret.IsNtpDaemonSynced == false)
+            {
+                return ret; // ここで失敗したら、これ以降の検査を省略
+            }
 
             // システム時計を検査 (DateTime.Now 報告値)
             if (Settings.SkipCheckDateTimeNow)
@@ -223,10 +261,10 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                     }
                 }
             }
-            //if (ret.IsDateTimeNowCorrect == false || ret.IsNtpDaemonActive == false || ret.IsNtpDaemonSynced == false)
-            //{
-            //    return ret; // ここで失敗したら、これ以降の検査を省略
-            //}
+            if (ret.IsDateTimeNowCorrect == false || ret.IsNtpDaemonActive == false || ret.IsNtpDaemonSynced == false)
+            {
+                return ret; // ここで失敗したら、これ以降の検査を省略
+            }
 
             // NTP 応答値を検査
             if (Settings.SkipCheckNtpClock)
@@ -311,7 +349,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
             }
             if (ret.IsNtpClockCorrect == false)
             {
-                //return ret; // ここで失敗したら、これ以降の検査を省略
+                return ret; // ここで失敗したら、これ以降の検査を省略
             }
 
             // RTC を検査
@@ -357,7 +395,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
             }
             if (ret.IsRtcCorrect == false)
             {
-                //return ret; // ここで失敗したら、これ以降の検査を省略
+                return ret; // ここで失敗したら、これ以降の検査を省略
             }
 
             // システム時計を検査 (timedatectl 報告値)
@@ -420,14 +458,52 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
         }
     }
 
+    bool lastOk = false;
+
+    NetTcpListener? LastListener = null;
+
     // 定期的に実行されるチェック処理の実装
     async Task MainProcAsync(CancellationToken cancel = default)
     {
-        Where();
-
         var res = await CheckHealthAsync(cancel: cancel);
 
-        res._PrintAsJson();
+        bool ok = res.IsOk();
+
+        if (lastOk != ok)
+        {
+            // OK 状態が変化した
+            lastOk = ok;
+
+            if (ok)
+            {
+                try
+                {
+                    this.LastListener = LocalNet.CreateTcpListener(new TcpListenParam(async (listener, sock) =>
+                    {
+                        try
+                        {
+                            await using var stream = sock.GetStream();
+                            stream.ReadTimeout = 5 * 1000;
+                            stream.WriteTimeout = 5 * 1000;
+
+                            while (true)
+                            {
+                                await stream._ReadToEndAsync(1000, cancel);
+                            }
+                        }
+                        catch { }
+                    }, null, Settings.HealthTcpPort));
+                    Where();
+                }
+                catch { }
+            }
+            else
+            {
+                Where();
+                await this.LastListener._DisposeSafeAsync();
+                this.LastListener = null;
+            }
+        }
     }
 
     // メインループ
@@ -454,6 +530,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
         try
         {
             // TODO: ここでサーバーを終了するなどのクリーンアップ処理を行なう
+            await this.LastListener._DisposeSafeAsync();
 
             this.SettingsHive._DisposeSafe();
         }
