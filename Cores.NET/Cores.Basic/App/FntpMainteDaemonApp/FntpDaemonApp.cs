@@ -578,7 +578,14 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
     NetTcpListener? LastListener = null;
     FntpMainteHealthStatus? LastStatus = null;
 
-    Queue<(DateTimeOffset TimeStamp, bool IsOK, FntpMainteHealthStatus Details)> History = new();
+    public class HistItem
+    {
+        public DateTimeOffset DateTime;
+        public bool IsOK;
+        public FntpMainteHealthStatus Details = null!;
+    }
+
+    Queue<HistItem> History = new();
 
     // 定期的に実行されるチェック処理の実装
     async Task MainProcAsync(CancellationToken cancel = default)
@@ -609,7 +616,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
 
             lock (History)
             {
-                History.Enqueue(new(res.TimeStamp, ok, res));
+                History.Enqueue(new HistItem { DateTime = res.TimeStamp, IsOK = res.IsOk(), Details = res });
 
                 int counterForSafe = 0;
 
