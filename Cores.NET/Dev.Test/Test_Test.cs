@@ -4894,6 +4894,15 @@ HOST: www.google.com
     static void Test_240215()
     {
 
+        if (true)
+        {
+            var s = MiscUtil.CompareLocalClockToInternetServersClockAsync(ignoreInternetError: true)._GetResult();
+
+            s._PrintAsJson();
+
+            return;
+        }
+
         try
         {
             try
