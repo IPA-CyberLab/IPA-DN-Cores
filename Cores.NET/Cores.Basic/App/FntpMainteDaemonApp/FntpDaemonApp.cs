@@ -573,18 +573,42 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
     // メインループ
     async Task MainLoopAsync(CancellationToken cancel = default)
     {
-        while (cancel.IsCancellationRequested == false)
+        try
         {
-            try
+            while (cancel.IsCancellationRequested == false)
             {
-                await MainProcAsync(cancel);
-            }
-            catch (Exception ex)
-            {
-                ex._Error();
+                try
+                {
+                    await MainProcAsync(cancel);
+                }
+                catch (Exception ex)
+                {
+                    ex._Error();
+                }
+
+                await cancel._WaitUntilCanceledAsync(Util.GenRandInterval(Settings.ClockCheckIntervalMsecs));
             }
 
-            await cancel._WaitUntilCanceledAsync(Util.GenRandInterval(Settings.ClockCheckIntervalMsecs));
+        }
+        finally
+        {
+            // 最後に 1 回外部コマンドを実行 (シャットダウン処理)
+            string cmd = Settings.RunCommandWhileError;
+
+            if (cmd._IsFilled())
+            {
+                try
+                {
+                    if (await Lfs.IsFileExistsAsync(cmd, cancel))
+                    {
+                        await EasyExec.ExecAsync(cmd, cancel: cancel);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    $"Command '{cmd}' execute error. Message = {ex.Message}"._Error();
+                }
+            }
         }
     }
 
