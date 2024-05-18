@@ -4900,9 +4900,12 @@ HOST: www.google.com
 
         try
         {
-            var dt = LinuxTimeDateCtlUtil.ExecuteNtpdateAndReturnResultDateTimeAsync("127.0.0.1")._GetResult();
+            while (true)
+            {
+                var dt = LinuxTimeDateCtlUtil.ExecuteNtpdateAndReturnResultDateTimeAsync("127.0.0.1")._GetResult();
 
-            dt._DebugAsJson();
+                dt._DebugAsJson();
+            }
 
             var res = LinuxTimeDateCtlUtil.GetStateFromDateTimeCtlCommandAsync()._GetResult();
 

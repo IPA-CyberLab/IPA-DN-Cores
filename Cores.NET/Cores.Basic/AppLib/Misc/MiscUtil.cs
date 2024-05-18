@@ -3329,7 +3329,7 @@ public static class LinuxTimeDateCtlUtil
     {
         var res = await EasyExec.ExecAsync(Lfs.UnixGetFullPathFromCommandName("ntpdate"), arguments: $"-u -q -t 1 {ntpServer}", cancel: cancel, timeout: 5 * 1000);
 
-        var line = res.OutputStr._GetLines(trim: true, removeEmpty: true).Where(x => x.StartsWith("20")).FirstOrDefault();
+        var line = res.OutputStr._GetLines(trim: true, removeEmpty: true).Where(x => x.StartsWith("20") || x.StartsWith("21")).FirstOrDefault();
 
         if (line._IsFilled())
         {
@@ -3366,7 +3366,7 @@ public static class LinuxTimeDateCtlUtil
                         TimeSpan offset = new TimeSpan(timezoneHour, timezoneMinute, 0);
                         if (positive == false) offset = -offset;
 
-                        return new DateTimeOffset(dateTimeBase.Year, dateTimeBase.Month, dateTimeBase.Day, dateTimeBase.Hour, dateTimeBase.Minute, dateTimeBase.Second, dateTimeBase.Millisecond, offset);
+                        return new DateTimeOffset(dateTimeBase.Year, dateTimeBase.Month, dateTimeBase.Day, dateTimeBase.Hour, dateTimeBase.Minute, dateTimeBase.Second, offset).AddTicks(dateTimeBase.Ticks % 10000000L);
                     }
                 }
             }
