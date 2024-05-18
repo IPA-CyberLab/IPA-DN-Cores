@@ -224,7 +224,8 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                     w.WriteLine();
                     w.WriteLine($"This Machine name: {Env.DnsFqdnHostName}");
                     w.WriteLine($"Current datetime: {DtOffsetNow._ToDtStr()}");
-                    w.WriteLine($"Last HealthCheck: {App.LastCheck._ToDtStr()}");
+                    w.WriteLine($"Num HealthCheck: {App.NumHealthCheck._ToString3()}");
+                    w.WriteLine($"Last HealthCheck: {App.LastHealthCheck._ToDtStr()}");
                     w.WriteLine();
                     w.WriteLine($"IsOK: {status?.IsOk() ?? false}");
                     w.WriteLine();
@@ -621,7 +622,8 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
 
     Queue<HistItem> History = new();
 
-    DateTimeOffset LastCheck = DtOffsetZero;
+    DateTimeOffset LastHealthCheck = DtOffsetZero;
+    int NumHealthCheck = 0;
 
     // 定期的に実行されるチェック処理の実装
     async Task MainProcAsync(CancellationToken cancel = default)
@@ -756,7 +758,8 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                     ex._Error();
                 }
 
-                LastCheck = DtOffsetNow;
+                LastHealthCheck = DtOffsetNow;
+                NumHealthCheck++;
 
                 await cancel._WaitUntilCanceledAsync(Util.GenRandInterval(Settings.ClockCheckIntervalMsecs));
             }
