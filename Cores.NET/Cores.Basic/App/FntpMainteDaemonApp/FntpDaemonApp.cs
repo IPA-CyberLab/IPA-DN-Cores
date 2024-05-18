@@ -275,6 +275,25 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                     w.WriteLine();
                     w.WriteLine();
 
+                    var bird_v4_result = await EasyExec.ExecAsync("/usr/local/sbin/birdc", "show route all export isp_sinet_v4");
+
+                    w.WriteLine("--- BGP Export IPv4 Routes Begin ---");
+                    w.WriteLine(bird_v4_result.ErrorAndOutputStr);
+                    w.WriteLine("--- BGP Export IPv4 Routes End ---");
+
+                    w.WriteLine();
+                    w.WriteLine();
+
+                    var bird_v6_result = await EasyExec.ExecAsync("/usr/local/sbin/birdc", "show route all export isp_sinet_v6");
+
+                    w.WriteLine("--- BGP Export IPv6 Routes Begin ---");
+                    w.WriteLine(bird_v6_result.ErrorAndOutputStr);
+                    w.WriteLine("--- BGP Export IPv6 Routes End ---");
+
+                    w.WriteLine();
+                    w.WriteLine();
+
+
                     w.WriteLine("--- Process Version Info Begin ---");
                     w.WriteLine((new EnvInfoSnapshot())._ObjectToJson());
                     w.WriteLine("--- Process Version Info Begin ---");
