@@ -468,7 +468,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
     {
         FntpMainteHealthStatus res = await CheckHealthAsync(cancel: cancel);
 
-        bool ok = res.IsOk();
+        bool ok = res.IsOk;
 
         //DateTime.Now._Print();
         //res._PrintAsJson();
