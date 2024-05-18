@@ -222,8 +222,9 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
 
                     w.WriteLine($"Welcome to FntpDaemon Status Screen !!!");
                     w.WriteLine();
-                    w.WriteLine($"Current datetime: {DtOffsetNow._ToDtStr()}");
                     w.WriteLine($"This Machine name: {Env.DnsFqdnHostName}");
+                    w.WriteLine($"Current datetime: {DtOffsetNow._ToDtStr()}");
+                    w.WriteLine($"Last HealthCheck: {App.LastCheck._ToDtStr()}");
                     w.WriteLine();
                     w.WriteLine($"IsOK: {status?.IsOk() ?? false}");
                     w.WriteLine();
@@ -266,15 +267,6 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                     w.WriteLine();
                     w.WriteLine();
 
-                    var banner_result = await EasyExec.ExecAsync("/bin/se_generate_login_banner");
-
-                    w.WriteLine("--- Linux Status Begin ---");
-                    w.WriteLine(banner_result.ErrorAndOutputStr);
-                    w.WriteLine("--- Linux Status End ---");
-
-                    w.WriteLine();
-                    w.WriteLine();
-
                     try
                     {
                         var bird_v4_result = await EasyExec.ExecAsync("/usr/local/sbin/birdc", "show route all export isp_sinet_v4");
@@ -300,6 +292,16 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                         w.WriteLine();
                     }
                     catch { }
+
+
+                    var banner_result = await EasyExec.ExecAsync("/bin/se_generate_login_banner");
+
+                    w.WriteLine("--- Linux Status Begin ---");
+                    w.WriteLine(banner_result.ErrorAndOutputStr);
+                    w.WriteLine("--- Linux Status End ---");
+
+                    w.WriteLine();
+                    w.WriteLine();
 
 
                     w.WriteLine("--- Process Version Info Begin ---");
@@ -619,6 +621,8 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
 
     Queue<HistItem> History = new();
 
+    DateTimeOffset LastCheck = DtOffsetZero;
+
     // 定期的に実行されるチェック処理の実装
     async Task MainProcAsync(CancellationToken cancel = default)
     {
@@ -751,6 +755,8 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                 {
                     ex._Error();
                 }
+
+                LastCheck = DtOffsetNow;
 
                 await cancel._WaitUntilCanceledAsync(Util.GenRandInterval(Settings.ClockCheckIntervalMsecs));
             }
