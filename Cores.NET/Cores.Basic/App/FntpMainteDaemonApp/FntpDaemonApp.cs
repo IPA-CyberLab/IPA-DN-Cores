@@ -609,6 +609,8 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
         }
         catch (Exception ex)
         {
+            ex._Debug();
+
             ret = new FntpMainteHealthStatus();
 
             ret.HasUnknownError = true;
