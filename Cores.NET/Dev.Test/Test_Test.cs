@@ -4893,6 +4893,12 @@ HOST: www.google.com
 
     static void Test_240215()
     {
+        if (true)
+        {
+            Str.StrToDateTime("2024-05-18 14:16:58.351853")._AsDateTimeOffset(false)._DebugAsJson();
+            return;
+        }
+
         try
         {
             var dt = LinuxTimeDateCtlUtil.ExecuteNtpdateAndReturnResultDateTimeAsync("127.0.0.1")._GetResult();
