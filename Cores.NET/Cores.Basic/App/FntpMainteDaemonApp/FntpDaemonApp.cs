@@ -186,12 +186,12 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
         {
             try
             {
-                ret.HasStopFile = await Lfs.IsFileExistsAsync(stopFileName, cancel);
+                if (await Lfs.IsFileExistsAsync(stopFileName, cancel))
+                {
+                    ret.HasStopFile = true;
+                }
             }
-            catch
-            {
-                ret.HasStopFile = false;
-            }
+            catch { }
         }
 
         if (ret.HasStopFile ?? false)
@@ -458,57 +458,87 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
         }
     }
 
-    bool lastOk = false;
-
+    bool LastOk = false;
     NetTcpListener? LastListener = null;
+    FntpMainteHealthStatus? LastStatus = null;
 
     // 定期的に実行されるチェック処理の実装
     async Task MainProcAsync(CancellationToken cancel = default)
     {
-        var res = await CheckHealthAsync(cancel: cancel);
+        FntpMainteHealthStatus res = await CheckHealthAsync(cancel: cancel);
 
         bool ok = res.IsOk();
 
-        DateTime.Now._Print();
-        res._PrintAsJson();
+        //DateTime.Now._Print();
+        //res._PrintAsJson();
 
-        if (lastOk != ok)
+        if (LastStatus == null || LastStatus.ToInternalCompareStr() != res.ToInternalCompareStr())
+        {
+            // 状態が変化した
+            // 詳細をログに書き出す
+            $"Health status changed: {res.ToString()}"._Error();
+        }
+
+        if (LastOk != ok)
         {
             // OK 状態が変化した
-            lastOk = ok;
+            LastOk = ok;
 
             if (ok)
             {
-                try
-                {
-                    this.LastListener = LocalNet.CreateTcpListener(new TcpListenParam(async (listener, sock) =>
-                    {
-                        try
-                        {
-                            await using var stream = sock.GetStream();
-                            stream.ReadTimeout = 5 * 1000;
-                            stream.WriteTimeout = 5 * 1000;
-
-                            long endTick = TickNow + 5 * 1000;
-
-                            while (true)
-                            {
-                                if (TickNow >= endTick)
-                                {
-                                    break;
-                                }
-                                await stream._ReadToEndAsync(1000, cancel);
-                            }
-                        }
-                        catch { }
-                    }, null, Settings.HealthTcpPort));
-                    Where();
-                }
-                catch { }
+                "Status changed to OK."._Error();
             }
             else
             {
-                Where();
+                "Warning!! Status changed to Error !!!"._Error();
+            }
+
+            // 検査用 TCP ポートを開閉する
+            if (ok)
+            {
+                int port = Settings.HealthTcpPort;
+
+                if (port >= 1)
+                {
+                    try
+                    {
+                        this.LastListener = LocalNet.CreateTcpListener(new TcpListenParam(async (listener, sock) =>
+                        {
+                            try
+                            {
+                                await using var stream = sock.GetStream();
+                                stream.ReadTimeout = 5 * 1000;
+                                stream.WriteTimeout = 5 * 1000;
+
+                                long endTick = TickNow + 5 * 1000;
+
+                                while (true)
+                                {
+                                    if (TickNow >= endTick)
+                                    {
+                                        break;
+                                    }
+                                    var data = await stream._ReadToEndAsync(1000, cancel);
+
+                                    if (data.Length == 0)
+                                    {
+                                        break;
+                                    }
+
+                                    await Task.Delay(10); // 念のため
+                                }
+                            }
+                            catch { }
+                        }, null, port));
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Debug();
+                    }
+                }
+            }
+            else
+            {
                 await this.LastListener._DisposeSafeAsync();
                 this.LastListener = null;
             }
