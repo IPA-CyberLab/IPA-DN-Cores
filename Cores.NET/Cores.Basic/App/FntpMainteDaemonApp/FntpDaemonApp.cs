@@ -229,7 +229,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                     var banner_result = await EasyExec.ExecAsync("/bin/se_generate_login_banner");
 
                     w.WriteLine("--- Linux Status Begin ---");
-                    w.WriteLine(banner_result);
+                    w.WriteLine(banner_result.ErrorAndOutputStr);
                     w.WriteLine("--- Linux Status End ---");
 
                     w.WriteLine();
