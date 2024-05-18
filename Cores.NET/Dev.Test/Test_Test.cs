@@ -4896,7 +4896,6 @@ HOST: www.google.com
         if (true)
         {
             Str.StrToDateTime("2024-05-18 14:16:58.351853")._AsDateTimeOffset(false)._DebugAsJson();
-            return;
         }
 
         try
