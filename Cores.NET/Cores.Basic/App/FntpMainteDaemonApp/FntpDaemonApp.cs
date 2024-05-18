@@ -95,6 +95,8 @@ public class FntpMainteDaemonSettings : INormalizable
     public string RunCommandWhileOk = "";
     public string RunCommandWhileError = "";
 
+    public int MaxHistoryQueue = 0;
+
     public void Normalize()
     {
         if (this._TestStr._IsFilled() == false)
@@ -114,6 +116,7 @@ public class FntpMainteDaemonSettings : INormalizable
         if (RunCommandWhileOk._IsEmpty()) RunCommandWhileOk = "/etc/fntp_exec_ok.sh";
         if (RunCommandWhileError._IsEmpty()) RunCommandWhileError = "/etc/fntp_exec_error.sh";
         if (HealthTcpPort <= 0) HealthTcpPort = Consts.Ports.FntpMainteDaemonHealthPort;
+        if (MaxHistoryQueue <= 0) MaxHistoryQueue = 100;
     }
 }
 
@@ -234,14 +237,28 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                     }
                     else
                     {
-                        w.WriteLine($"--- FNTP Status Begin ---");
+                        w.WriteLine($"--- FNTP Current Status Begin ---");
                         w.WriteLine($"IsOK: {status.IsOk()}");
                         w.WriteLine($"TimeStamp: {status.TimeStamp._ToDtStr(true)}");
                         w.WriteLine();
                         w.WriteLine(status._ObjectToJson(includeNull: true));
-                        w.WriteLine($"--- FNTP Status End ---");
+                        w.WriteLine($"--- FNTP Current Status End ---");
                         w.WriteLine();
                         w.WriteLine();
+                    }
+
+                    w.WriteLine();
+                    w.WriteLine();
+
+                    lock (App.History)
+                    {
+                        var hist = App.History.ToArray();
+
+                        w.WriteLine($"--- FNTP Status Change History Begin ---");
+
+                        w.WriteLine(hist._ObjectToJson(compact: true));
+
+                        w.WriteLine($"--- FNTP Status Change History End ---");
                     }
 
                     w.WriteLine();
@@ -561,6 +578,8 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
     NetTcpListener? LastListener = null;
     FntpMainteHealthStatus? LastStatus = null;
 
+    Queue<Pair3<DateTimeOffset, bool, FntpMainteHealthStatus>> History = new();
+
     // 定期的に実行されるチェック処理の実装
     async Task MainProcAsync(CancellationToken cancel = default)
     {
@@ -587,6 +606,20 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
 
             // 詳細をログに書き出す
             $"Health status changed: Ok = {ok}, Details: {res.ToString()}"._Error();
+
+            lock (History)
+            {
+                History.Enqueue(new(res.TimeStamp, ok, res));
+
+                int counterForSafe = 0;
+
+                while (History.Count > Settings.MaxHistoryQueue)
+                {
+                    History.Dequeue();
+                    counterForSafe++;
+                    if (counterForSafe >= 100) break;
+                }
+            }
         }
 
         // 外部コマンドを実行
