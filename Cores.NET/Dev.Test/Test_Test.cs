@@ -4893,18 +4893,20 @@ HOST: www.google.com
 
     static void Test_240215()
     {
-        if (true)
-        {
-            Str.StrToDateTime("2024-05-18 14:16:58.351853")._AsDateTimeOffset(false)._DebugAsJson();
-        }
-
         try
         {
             while (true)
             {
-                var dt = LinuxTimeDateCtlUtil.ExecuteNtpdateAndReturnResultDateTimeAsync("127.0.0.1")._GetResult();
+                try
+                {
+                    var dt = LinuxTimeDateCtlUtil.ExecuteNtpdateAndReturnResultDateTimeAsync("127.0.0.1")._GetResult();
 
-                dt._DebugAsJson();
+                    dt._PrintAsJson();
+                }
+                catch (Exception ex)
+                {
+                    ex.Message._Print();
+                }
             }
 
             var res = LinuxTimeDateCtlUtil.GetStateFromDateTimeCtlCommandAsync()._GetResult();
