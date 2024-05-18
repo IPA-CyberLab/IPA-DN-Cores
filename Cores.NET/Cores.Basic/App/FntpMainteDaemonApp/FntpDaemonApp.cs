@@ -538,6 +538,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                 {
                     // 比較対象の HTTP サーバーとの間でのインターネット通信エラー発生時は成功と見なす (ただし、ログを吐き出す)
                     $"RTC: CompareLocalClockToInternetServersClockAsync error. Error = {res.Exception.ToString()}"._Error();
+                    ret.IsRtcCorrect = true;
                 }
                 else
                 {
@@ -584,6 +585,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                 {
                     // 比較対象の HTTP サーバーとの間でのインターネット通信エラー発生時は成功と見なす (ただし、ログを吐き出す)
                     $"System Clock: CompareLocalClockToInternetServersClockAsync error. Error = {res.Exception.ToString()}"._Error();
+                    ret.IsSystemClockCorrect = true;
                 }
                 else
                 {
