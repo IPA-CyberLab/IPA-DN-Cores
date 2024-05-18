@@ -215,7 +215,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                     }
                 }
             }
-            if (ret.IsDateTimeNowCorrect == false)
+            if (ret.IsDateTimeNowCorrect == false || ret.IsNtpDaemonActive == false || ret.IsNtpDaemonSynced == false)
             {
                 return ret; // ここで失敗したら、これ以降の検査を省略
             }
@@ -232,16 +232,25 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                 {
                     var res = await TaskUtil.RetryAsync(async () =>
                     {
-                        // 127.0.0.1 の NTPd からの応答結果を取得
-                        var dt = await TaskUtil.RetryAsync(async () =>
+                        DateTimeOffset dt;
+                        try
                         {
-                            return await LinuxTimeDateCtlUtil.ExecuteNtpDigAndReturnResultDateTimeAsync("127.0.0.1", 2000, cancel);
-                        },
-                        250, 10, cancel, true);
+                            // 127.0.0.1 の NTPd からの応答結果を取得
+                            dt = await TaskUtil.RetryAsync(async () =>
+                            {
+                                return await LinuxTimeDateCtlUtil.ExecuteNtpDigAndReturnResultDateTimeAsync("127.0.0.1", 2000, cancel);
+                            },
+                            250, 10, cancel, true);
+                        }
+                        catch (Exception ex)
+                        {
+                            // 127.0.0.1 の NTPd が動作していないようである
+                            return new CoresException($"ntpdig: Local NTP server down? Exception: {ex.Message}");
+                        }
 
                         if (dt._IsZeroDateTime())
                         {
-                            throw new CoresException($"ntpdig: Returned datetime was invalid: {dt._ToDtStr()}");
+                            return new CoresException($"ntpdig: Returned datetime was invalid: {dt._ToDtStr()}");
                         }
 
                         // この結果を元にインターネット上の HTTP サーバーと比較
@@ -269,8 +278,8 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                             }
                             else
                             {
-                                // 比較に成功したが、時差が許容範囲を超えていた
-                                return new OkOrExeption(new CoresException($"ntpdig Health Check Failed: {res.Exception.Message}"));
+                                // 比較に成功したが、時差が許容範囲を超えていた。この場合、再試行をする。
+                                throw new CoresException($"ntpdig Health Check Failed: {res.Exception.Message}");
                             }
                         }
                     },
