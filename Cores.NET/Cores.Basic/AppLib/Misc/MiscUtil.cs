@@ -1083,6 +1083,18 @@ public static partial class MiscUtil
 
     public static async Task ValidateIfMyLocalClockCorrectAsync(CancellationToken cancel = default)
     {
+        var res = await CompareLocalClockToInternetServersClockAsync(cancel: cancel);
+
+        res.ThrowIfException();
+    }
+
+    public static async Task<OkOrExeption> CompareLocalClockToInternetServersClockAsync(TimeSpan? allowDiff = null, bool ignoreInternetError = false, int commTimeoutMsecs = 10 * 1000, RefBool? internetCommError = null, CancellationToken cancel = default)
+    {
+        internetCommError ??= new RefBool();
+        allowDiff ??= TimeSpan.FromSeconds(15); // 15 秒以内のずれを許容
+
+        internetCommError.Set(false);
+
         var urlsList = @"
 https://www.google.com/
 http://www.google.co.jp/
@@ -1094,23 +1106,27 @@ https://www.msn.com/
 http://www.msn.co.jp/
 https://www.facebook.com/
 https://www.twitter.com/
+http://www.apple.com/
+https://www.apple.com/
 "._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, "\r", "\n", " ", "\t", "　", ",", ";").Distinct(StrCmpi);
 
-        List<DateTimeOffset> resultsList = new List<DateTimeOffset>();
-
-        DateTimeOffset now = DateTimeOffset.Now;
+        // A: サーバーの時刻
+        // B: ローカル時刻
+        List<Pair3<DateTimeOffset, DateTimeOffset, string>> resultsList = new();
 
         await TaskUtil.ForEachExAsync(urlsList, async (url, c) =>
         {
             try
             {
-                var dt = await GetCurrentDateTimeFromWebSever(url, c);
+                var dt = await GetCurrentDateTimeFromWebSever(url, commTimeoutMsecs, c);
+
+                var now = DateTimeOffset.Now.ToLocalTime();
 
                 if (dt._IsZeroDateTime() == false)
                 {
                     lock (resultsList)
                     {
-                        resultsList.Add(dt);
+                        resultsList.Add(new(dt, now, url));
                     }
                 }
             }
@@ -1120,34 +1136,50 @@ https://www.twitter.com/
         flags: ForEachExAsyncFlags.None,
         cancel: cancel);
 
-        var allowDiff = TimeSpan.FromSeconds(15);
+        int okCount = resultsList.Where(x => x.A._IsZeroDateTime() == false).Count();
 
-        if (resultsList.Count == 0)
+        resultsList._PrintAsJson();
+
+        if (okCount == 0)
         {
-            throw new CoresException($"Check Local Clock: Failed to connect to any Internet servers.");
+            internetCommError.Set(true);
+
+            if (ignoreInternetError == false)
+            {
+                return new CoresException($"Check Local Clock: Failed to connect to any Internet servers.");
+            }
+            else
+            {
+                return new OkOrExeption();
+            }
         }
 
-        foreach (var item in resultsList)
+        foreach (var item in resultsList.Where(x => x.A._IsZeroDateTime() == false))
         {
-            var diff = now - item;
+            var diff = (item.B - item.A);
+
+            diff = TimeSpan.FromTicks(Math.Abs(diff.Ticks)); // 絶対値
 
             if (diff <= allowDiff)
             {
                 // OK
-                return;
+                return new OkOrExeption();
             }
         }
+
+        var nearestResult = resultsList.Where(x => x.A._IsZeroDateTime() == false).OrderBy(x => Math.Abs((x.B - x.A).Ticks)).First();
+
         // Error
-        throw new CoresException($"Check Local Clock: Insane. Local = {now.ToLocalTime()._ToDtStr()}, Internet = {resultsList[0].ToLocalTime()._ToDtStr()}");
+        return new CoresException($"Local clock is different to Internet clock. Local = {nearestResult.B.ToLocalTime()._ToDtStr(withMSsecs: true)}, Internet = {nearestResult.A.ToLocalTime()._ToDtStr(withMSsecs: true)} (from {nearestResult.C})");
     }
 
-    static async Task<DateTimeOffset> GetCurrentDateTimeFromWebSever(string url, CancellationToken cancel = default)
+    static async Task<DateTimeOffset> GetCurrentDateTimeFromWebSever(string url, int timeoutMsecs = 10 * 1000, CancellationToken cancel = default)
     {
-        await using var web = new WebApi(new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true, AllowAutoRedirect = false, DoNotThrowHttpResultError = true, MaxRecvSize = 1_000_000, Timeout = 10 * 1000 }, doNotUseTcpStack: true));
+        await using var web = new WebApi(new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true, AllowAutoRedirect = false, DoNotThrowHttpResultError = true, MaxRecvSize = 1_000_000, Timeout = timeoutMsecs }, doNotUseTcpStack: true));
 
         var ret = await web.SimpleQueryAsync(WebMethods.HEAD, url, cancel);
 
-        return ret.Headers.Date ?? Util.ZeroDateTimeOffsetValue;
+        return (ret.Headers.Date ?? Util.ZeroDateTimeOffsetValue).ToLocalTime();
     }
 
     // Web server health check
@@ -3278,6 +3310,71 @@ public static class CachedDownloader
     }
 }
 
+public class LinuxTimeDateCtlResults
+{
+    public DateTime UniversalTime = Util.ZeroDateTimeValue;
+    public DateTime RtcTime = Util.ZeroDateTimeValue;
+    public bool SystemClockSynchronized;
+    public bool NtpServiceActive;
+}
+
+public static class LinuxTimeDateCtlUtil
+{
+    public static async Task<LinuxTimeDateCtlResults> GetStateAsync(CancellationToken cancel = default)
+    {
+        LinuxTimeDateCtlResults ret = new LinuxTimeDateCtlResults();
+
+        var res = await EasyExec.ExecAsync(Lfs.UnixGetFullPathFromCommandName("timedatectl"), cancel: cancel);
+
+        var lines = res.OutputStr._GetLines();
+
+        foreach (string line in lines)
+        {
+            if (line._GetKeyAndValue(out string? key, out string? value, ":"))
+            {
+                key = key._NonNullTrim();
+                value = value._NonNullTrim();
+
+                if (key._IsSamei("Universal time"))
+                {
+                    ret.UniversalTime = StrToDateTime(value);
+                }
+                else if (key._IsSamei("RTC time"))
+                {
+                    ret.RtcTime = StrToDateTime(value);
+                }
+                else if (key._IsSamei("System clock synchronized"))
+                {
+                    ret.SystemClockSynchronized = value._ToBool();
+                }
+                else if (key._IsSamei("NTP service"))
+                {
+                    ret.NtpServiceActive = value._ToBool();
+                }
+            }
+        }
+
+        return ret;
+    }
+
+    static DateTime StrToDateTime(string str)
+    {
+        try
+        {
+            str = str._NonNullTrim();
+
+            string[] tokens = str._Split(StringSplitOptions.None, " ", "\t");
+
+            if (tokens.Length >= 3)
+            {
+                return Str.StrToDateTime(tokens[1] + " " + tokens[2]);
+            }
+        }
+        catch { }
+
+        return Util.ZeroDateTimeValue;
+    }
+}
 
 #endif
 

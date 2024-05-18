@@ -23,7 +23,18 @@ cd ~/IPA-DN-Cores/Cores.NET/SampleProjects/AspNetCore1/AspNetCore1/ && (cd ../..
 (cd ~/IPA-DN-Cores/ && git pull origin master && git submodule update --init --recursive)
 
 
-======== 簡易コピー ========
+======== 簡易コピー to rd-rescue1 ========
+cd ~/ && rm -fr ~/Copy-IPA-DN-Cores-Copy/
+
+
+_internal_CopyToTestLXDContainer.cmd
+
+
+cd ~/Copy-IPA-DN-Cores/Cores.NET/Dev.Test/ && dotnet run test
+
+
+
+======== 簡易コピー to dn-lxd-vm2-test1 ========
 cd ~/ && rm -fr ~/Copy-IPA-DN-Cores-Copy/
 
 

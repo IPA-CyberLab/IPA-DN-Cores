@@ -6505,6 +6505,11 @@ namespace IPA.Cores.Basic
                 return true;
             }
 
+            if (s.StartsWith("active", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
             if (Str.StrToInt(s) != 0)
             {
                 return true;

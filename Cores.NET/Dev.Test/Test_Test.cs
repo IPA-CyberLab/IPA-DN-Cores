@@ -4893,18 +4893,22 @@ HOST: www.google.com
 
     static void Test_240215()
     {
-        //Async(async () =>
-        //{
-        //    await MiscUtil.HttpFileSpiderAsync("http://dnt-mirror-stress1.v4.open.ad.jp/vault/oss/");
-        //});
+        try
+        {
+            var res = LinuxTimeDateCtlUtil.GetStateAsync()._GetResult();
+
+            res._DebugAsJson();
+        }
+        catch (Exception ex)
+        {
+            ex._Debug();
+        }
+
+        MiscUtil.ValidateIfMyLocalClockCorrectAsync()._GetResult();
     }
 
     public static void Test_Generic()
     {
-        if (true)
-        {
-            return;
-        }
 
         if (true)
         {

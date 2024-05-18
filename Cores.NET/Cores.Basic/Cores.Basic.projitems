@@ -24,6 +24,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)App\DataVault\DataVaultServer.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)App\DataVault\DataVaultServerApp.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)App\EmptyDaemonApp\EmptyDaemonApp.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)App\FntpMainteDaemonApp\FntpDaemonApp.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)App\GitLabMainteDaemonApp\GitLabMainteDaemonApp.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)App\LinuxMainteDaemonApp\LinuxMainteDaemonApp.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)App\Logging\LogServerApp\LogServerApp.cs" />
