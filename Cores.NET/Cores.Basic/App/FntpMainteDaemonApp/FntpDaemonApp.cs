@@ -142,7 +142,7 @@ public class FntpMainteHealthStatus
 
     public override string ToString()
     {
-        return this._ObjectToJson(includeNull: true, compact: true);
+        return this._ObjectToJson(compact: true);
     }
 
     public List<string> ErrorList = new List<string>();
