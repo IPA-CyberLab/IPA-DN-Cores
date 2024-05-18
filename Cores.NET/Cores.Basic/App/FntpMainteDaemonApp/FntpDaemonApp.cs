@@ -308,10 +308,10 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                     catch { }
 
 
-                    var banner_result = await EasyExec.ExecAsync("/bin/se_generate_login_banner");
+                    var banner_result = await Lfs.ReadStringFromFileAsync("/etc/issue");
 
                     w.WriteLine("--- Linux Status Begin ---");
-                    w.WriteLine(banner_result.ErrorAndOutputStr);
+                    w.WriteLine(banner_result);
                     w.WriteLine("--- Linux Status End ---");
 
                     w.WriteLine();
