@@ -294,6 +294,19 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                     }
                     catch { }
 
+                    try
+                    {
+                        var bird_protocols_result = await EasyExec.ExecAsync("/usr/local/sbin/birdc", "show protocols");
+
+                        w.WriteLine("--- BIRD Protocols Begin ---");
+                        w.WriteLine(bird_protocols_result.ErrorAndOutputStr);
+                        w.WriteLine("--- BIRD Protocols End ---");
+
+                        w.WriteLine();
+                        w.WriteLine();
+                    }
+                    catch { }
+
 
                     var banner_result = await EasyExec.ExecAsync("/bin/se_generate_login_banner");
 
