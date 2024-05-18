@@ -253,11 +253,9 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
 
                         w.WriteLine($"--- FNTP Status Change History Begin ---");
 
-                        int counter = 0;
                         foreach (var h in hist)
                         {
-                            counter++;
-                            w.WriteLine($"{counter}: {h.DateTime._ToDtStr()}: {(h.IsOK ? "Ok" : "Error")}: {h.Details._ObjectToJson(compact: true)}");
+                            w.WriteLine($"{h.Counter}: {h.DateTime._ToDtStr()}: {(h.IsOK ? "Ok" : "Error")}: {h.Details._ObjectToJson(compact: true)}");
                         }
 
                         w.WriteLine(hist._ObjectToJson(compact: true));
@@ -582,8 +580,11 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
     NetTcpListener? LastListener = null;
     FntpMainteHealthStatus? LastStatus = null;
 
+    int CurrentHistCounter = 0;
+
     public class HistItem
     {
+        public int Counter;
         public DateTimeOffset DateTime;
         public bool IsOK;
         public FntpMainteHealthStatus Details = null!;
@@ -620,7 +621,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
 
             lock (History)
             {
-                History.Enqueue(new HistItem { DateTime = res.TimeStamp, IsOK = res.IsOk(), Details = res });
+                History.Enqueue(new HistItem { Counter = CurrentHistCounter++, DateTime = res.TimeStamp, IsOK = res.IsOk(), Details = res });
 
                 int counterForSafe = 0;
 
