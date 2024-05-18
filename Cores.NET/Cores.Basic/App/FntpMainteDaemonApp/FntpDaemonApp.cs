@@ -360,7 +360,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                             return await LinuxTimeDateCtlUtil.GetStateFromTimeDateCtlCommandAsync(cancel);
                         }, 250, 5, cancel, true);
 
-                        return ctlResult.UniversalTime;
+                        return ctlResult.UniversalTime._AsDateTimeOffset(false, true);
                     },
                     cancel);
 
