@@ -469,6 +469,9 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
 
         bool ok = res.IsOk();
 
+        DateTime.Now._Print();
+        res._PrintAsJson();
+
         if (lastOk != ok)
         {
             // OK 状態が変化した
@@ -486,8 +489,14 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                             stream.ReadTimeout = 5 * 1000;
                             stream.WriteTimeout = 5 * 1000;
 
+                            long endTick = TickNow + 5 * 1000;
+
                             while (true)
                             {
+                                if (TickNow >= endTick)
+                                {
+                                    break;
+                                }
                                 await stream._ReadToEndAsync(1000, cancel);
                             }
                         }
