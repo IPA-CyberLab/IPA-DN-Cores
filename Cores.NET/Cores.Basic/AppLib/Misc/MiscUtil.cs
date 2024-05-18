@@ -1100,6 +1100,15 @@ public static partial class MiscUtil
 
         internetCommError.Set(false);
 
+        List<bool> disableProxyFlags = new();
+
+        disableProxyFlags.Add(false);
+
+        if (Environment.GetEnvironmentVariable("http_proxy")._IsFilled() || Environment.GetEnvironmentVariable("https_proxy")._IsFilled())
+        {
+            disableProxyFlags.Add(true);
+        }
+
         var urlsList = @"
 https://www.google.com/
 http://www.google.co.jp/
@@ -1115,15 +1124,27 @@ http://www.apple.com/
 https://www.apple.com/
 "._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, "\r", "\n", " ", "\t", "　", ",", ";").Distinct(StrCmpi);
 
+        // A: URL
+        // B: disableProxy フラグ
+        List<Pair2<string, bool>> urlsList2 = new List<Pair2<string, bool>>();
+
+        foreach (var urls in urlsList)
+        {
+            foreach (var disableProxyFlag in disableProxyFlags)
+            {
+                urlsList2.Add(new(urls, disableProxyFlag));
+            }
+        }
+
         // A: サーバーの時刻
         // B: ローカル時刻
         List<Pair3<DateTimeOffset, DateTimeOffset, string>> resultsList = new();
 
-        await TaskUtil.ForEachExAsync(urlsList, async (url, c) =>
+        await TaskUtil.ForEachExAsync(urlsList2, async (url, c) =>
         {
             try
             {
-                var dt = await GetCurrentDateTimeFromWebSever(url, commTimeoutMsecs, c);
+                var dt = await GetCurrentDateTimeFromWebSever(url.A, commTimeoutMsecs, url.B, c);
 
                 var now = await getLocalDtProc();
 
@@ -1131,7 +1152,7 @@ https://www.apple.com/
                 {
                     lock (resultsList)
                     {
-                        resultsList.Add(new(dt, now.ToLocalTime(), url));
+                        resultsList.Add(new(dt, now.ToLocalTime(), url.A));
                     }
                 }
             }
@@ -1178,9 +1199,9 @@ https://www.apple.com/
         return new CoresException($"Local clock is different to Internet clock. Local = {nearestResult.B.ToLocalTime()._ToDtStr(withMSsecs: true)}, Internet = {nearestResult.A.ToLocalTime()._ToDtStr(withMSsecs: true)} (from {nearestResult.C})");
     }
 
-    static async Task<DateTimeOffset> GetCurrentDateTimeFromWebSever(string url, int timeoutMsecs = 10 * 1000, CancellationToken cancel = default)
+    static async Task<DateTimeOffset> GetCurrentDateTimeFromWebSever(string url, int timeoutMsecs = 10 * 1000, bool disableProxy = false, CancellationToken cancel = default)
     {
-        await using var web = new WebApi(new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true, AllowAutoRedirect = false, DoNotThrowHttpResultError = true, MaxRecvSize = 1_000_000, Timeout = timeoutMsecs }, doNotUseTcpStack: true));
+        await using var web = new WebApi(new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true, AllowAutoRedirect = false, UseProxy = !disableProxy, DoNotThrowHttpResultError = true, MaxRecvSize = 1_000_000, Timeout = timeoutMsecs }, doNotUseTcpStack: true));
 
         var ret = await web.SimpleQueryAsync(WebMethods.HEAD, url, cancel);
 
