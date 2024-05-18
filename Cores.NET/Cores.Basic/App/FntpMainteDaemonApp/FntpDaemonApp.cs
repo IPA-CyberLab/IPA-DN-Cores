@@ -247,12 +247,9 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                         w.WriteLine();
                     }
 
-                    w.WriteLine();
-                    w.WriteLine();
-
                     lock (App.History)
                     {
-                        var hist = App.History.ToArray();
+                        var hist = App.History.ToArray().Reverse();
 
                         w.WriteLine($"--- FNTP Status Change History Begin ---");
 
