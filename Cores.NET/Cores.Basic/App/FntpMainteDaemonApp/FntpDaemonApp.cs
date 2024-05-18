@@ -502,7 +502,10 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
         {
             try
             {
-                await EasyExec.ExecAsync(cmd, cancel: cancel);
+                if (await Lfs.IsFileExistsAsync(cmd, cancel))
+                {
+                    await EasyExec.ExecAsync(cmd, cancel: cancel);
+                }
             }
             catch (Exception ex)
             {
