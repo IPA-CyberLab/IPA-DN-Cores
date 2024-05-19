@@ -369,11 +369,14 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
             {
                 reqAuth.AddAction("/whoami", WebMethodBits.GET | WebMethodBits.HEAD, async (ctx) =>
                 {
+                    await Task.CompletedTask;
+
                     var status = App.LastStatus;
 
                     StringWriter w = new StringWriter();
 
-                    w.WriteLine($"I am: {PPLinux.GetFileNameWithoutExtension(Env.DnsFqdnHostName)}");
+                    w.WriteLine($"Hello!I am: {PPLinux.GetFileNameWithoutExtension(Env.DnsFqdnHostName, true)}");
+                    w.WriteLine();
                     w.WriteLine($"Current datetime: {DtOffsetNow._ToDtStr()}");
                     w.WriteLine($"Num HealthCheck: {App.NumHealthCheck._ToString3()}");
                     w.WriteLine($"Last HealthCheck: {App.LastHealthCheck._ToDtStr()}");
