@@ -205,6 +205,7 @@ public static partial class Consts
         public const int SyslogServerPort = 514;
         public const int FntpMainteDaemonHealthPort = 7014;
         public const int FntpMainteDaemonHttpAdminPort = 7015;
+        public const int FntpMainteDaemonHttpWhoAmIPort = 7016;
     }
 
     public static partial class DaemonArgKeys

@@ -169,6 +169,8 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
 
     public CgiHttpServer Cgi { get; }
 
+    public CgiHttpServer Whoami { get; }
+
     public FntpMainteDaemonApp()
     {
         try
@@ -191,6 +193,21 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                 ReadTimeoutMsecs = 30 * 1000,
                 DenyRobots = true,
                 UseSimpleBasicAuthentication = true,
+            },
+            true);
+
+            // HTTP サーバーを立ち上げる
+            this.Whoami = new CgiHttpServer(new WhoAmIHandler(this), new HttpServerOptions()
+            {
+                AutomaticRedirectToHttpsIfPossible = false,
+                UseKestrelWithIPACoreStack = false,
+                HttpPortsList = new int[] { Consts.Ports.FntpMainteDaemonHttpWhoAmIPort }.ToList(),
+                HttpsPortsList = new int[] { }.ToList(),
+                UseStaticFiles = false,
+                MaxRequestBodySize = 32 * 1024,
+                ReadTimeoutMsecs = 30 * 1000,
+                DenyRobots = true,
+                UseSimpleBasicAuthentication = false,
             },
             true);
         }
@@ -335,6 +352,47 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
             }
         }
     }
+
+    public class WhoAmIHandler : CgiHandlerBase
+    {
+        public readonly FntpMainteDaemonApp App;
+
+        public WhoAmIHandler(FntpMainteDaemonApp app)
+        {
+            this.App = app;
+        }
+
+        protected override void InitActionListImpl(CgiActionList noAuth, CgiActionList reqAuth)
+        {
+            try
+            {
+                reqAuth.AddAction("/whoami", WebMethodBits.GET | WebMethodBits.HEAD, async (ctx) =>
+                {
+                    var status = App.LastStatus;
+
+                    StringWriter w = new StringWriter();
+
+                    w.WriteLine($"I am: {PPLinux.GetFileNameWithoutExtension(Env.DnsFqdnHostName)}");
+                    w.WriteLine($"Current datetime: {DtOffsetNow._ToDtStr()}");
+                    w.WriteLine($"Num HealthCheck: {App.NumHealthCheck._ToString3()}");
+                    w.WriteLine($"Last HealthCheck: {App.LastHealthCheck._ToDtStr()}");
+                    w.WriteLine();
+                    w.WriteLine($"IsOK: {status?.IsOk() ?? false}");
+
+                    w.WriteLine();
+                    w.WriteLine();
+
+                    return new HttpStringResult(w.ToString(), Consts.MimeTypes.TextUtf8);
+                });
+            }
+            catch
+            {
+                this._DisposeSafe();
+                throw;
+            }
+        }
+    }
+
 
     // 健康状態チェック実行
     public async Task<FntpMainteHealthStatus> CheckHealthAsync(CancellationToken cancel = default)
@@ -814,6 +872,8 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
             await this.LastListener._DisposeSafeAsync();
 
             await this.Cgi._DisposeSafeAsync();
+
+            await this.Whoami._DisposeSafeAsync();
 
             this.SettingsHive._DisposeSafe();
         }
