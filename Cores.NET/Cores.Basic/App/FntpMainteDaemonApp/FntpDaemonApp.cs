@@ -81,7 +81,6 @@ public class FntpMainteDaemonSettings : INormalizable
     public bool SkipCheckDateTimeNow = false;
 
     public int RtcCorrectAllowDiffMsecs = 0;
-    public int NtpClockCorrectAllowDiffMsecs = 0;
     public int SystemClockAllowDiffMsecs = 0;
     public int DateTimeNowAllowDiffMsecs = 0;
     public int NtpServerResultAllowDiffMsecs = 0;
@@ -109,7 +108,6 @@ public class FntpMainteDaemonSettings : INormalizable
 
         if (ClockCheckIntervalMsecs <= 0) ClockCheckIntervalMsecs = 5 * 1000;
         if (RtcCorrectAllowDiffMsecs <= 0) RtcCorrectAllowDiffMsecs = 2 * 1000;
-        if (NtpClockCorrectAllowDiffMsecs <= 0) NtpClockCorrectAllowDiffMsecs = 2 * 1000;
         if (SystemClockAllowDiffMsecs <= 0) SystemClockAllowDiffMsecs = 2 * 1000;
         if (NtpServerResultAllowDiffMsecs <= 0) NtpServerResultAllowDiffMsecs = 2 * 1000;
         if (CheckDateInternelCommTimeoutMsecs <= 0) CheckDateInternelCommTimeoutMsecs = 2 * 1000;
@@ -322,6 +320,17 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                     w.WriteLine();
                     w.WriteLine();
 
+                    w.WriteLine($"--- NTP Daemon (Chrony) Statue Begin ---");
+                    await ExecCommandAndAppendResultAsync(w, "chronyc", "-n sources -a -v");
+                    await ExecCommandAndAppendResultAsync(w, "chronyc", "-n sourcestats -a -v");
+                    await ExecCommandAndAppendResultAsync(w, "chronyc", "-n serverstats");
+                    await ExecCommandAndAppendResultAsync(w, "chronyc", "-n activity");
+                    await ExecCommandAndAppendResultAsync(w, "chronyc", "-n tracking");
+                    await ExecCommandAndAppendResultAsync(w, "timedatectl", "");
+                    w.WriteLine($"--- NTP Daemon (Chrony) Statue End ---");
+                    w.WriteLine();
+                    w.WriteLine();
+
                     try
                     {
                         var bird_v4_result = await EasyExec.ExecAsync("/usr/local/sbin/birdc", "show route all export isp_sinet_v4");
@@ -425,6 +434,22 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
             {
                 this._DisposeSafe();
                 throw;
+            }
+        }
+
+        static async Task ExecCommandAndAppendResultAsync(TextWriter w, string cmd, string args, CancellationToken cancel = default)
+        {
+            w.WriteLine($"$ {cmd} {args}".Trim());
+
+            try
+            {
+                var text = await EasyExec.ExecAsync(Lfs.UnixGetFullPathFromCommandName(cmd), args);
+
+                w.WriteLine(text);
+            }
+            catch (Exception ex)
+            {
+                w.WriteLine($"Error: {ex.Message}");
             }
         }
     }
@@ -576,7 +601,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
             else
             {
                 RefBool commError = new RefBool();
-                var res = await MiscUtil.CompareLocalClockToInternetServersClockAsync(Settings.SystemClockAllowDiffMsecs._ToTimeSpanMSecs(), false, Settings.CheckDateInternelCommTimeoutMsecs,
+                var res = await MiscUtil.CompareLocalClockToInternetServersClockAsync(Settings.DateTimeNowAllowDiffMsecs._ToTimeSpanMSecs(), false, Settings.CheckDateInternelCommTimeoutMsecs,
                     commError,
                     () =>
                     {
@@ -645,7 +670,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
 
                         // この結果を元にインターネット上の HTTP サーバーと比較
                         RefBool commError = new RefBool();
-                        var res = await MiscUtil.CompareLocalClockToInternetServersClockAsync(Settings.SystemClockAllowDiffMsecs._ToTimeSpanMSecs(), false, Settings.CheckDateInternelCommTimeoutMsecs,
+                        var res = await MiscUtil.CompareLocalClockToInternetServersClockAsync(Settings.NtpServerResultAllowDiffMsecs._ToTimeSpanMSecs(), false, Settings.CheckDateInternelCommTimeoutMsecs,
                             commError,
                             () =>
                             {
