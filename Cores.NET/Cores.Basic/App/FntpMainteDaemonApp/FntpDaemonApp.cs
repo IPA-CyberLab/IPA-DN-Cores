@@ -365,9 +365,9 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                     {
 
                         w.WriteLine("---Server Uptime Info Begin ---");
-                        w.WriteLine((await EasyExec.ExecAsync(Lfs.UnixGetFullPathFromCommandName("uptime"), "-s")).ErrorAndOutputStr);
-                        w.WriteLine((await EasyExec.ExecAsync(Lfs.UnixGetFullPathFromCommandName("uptime"), "-p")).ErrorAndOutputStr);
-                        w.WriteLine((await EasyExec.ExecAsync(Lfs.UnixGetFullPathFromCommandName("uptime"), "")).ErrorAndOutputStr);
+                        w.WriteLine((await EasyExec.ExecAsync(Lfs.UnixGetFullPathFromCommandName("uptime"), "-s")).ErrorAndOutputStr._GetFirstFilledLineFromLines().Trim());
+                        w.WriteLine((await EasyExec.ExecAsync(Lfs.UnixGetFullPathFromCommandName("uptime"), "-p")).ErrorAndOutputStr._GetFirstFilledLineFromLines().Trim());
+                        w.WriteLine((await EasyExec.ExecAsync(Lfs.UnixGetFullPathFromCommandName("uptime"), "")).ErrorAndOutputStr._GetFirstFilledLineFromLines().Trim());
                         w.WriteLine("--- Server Uptime Info End ---");
 
                         w.WriteLine();
@@ -495,10 +495,10 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                     try
                     {
 
-                        w.Write("Server uptime: ");
-                        w.Write((await EasyExec.ExecAsync(Lfs.UnixGetFullPathFromCommandName("uptime"), "-s")).ErrorAndOutputStr);
+                        w.Write("Server Uptime: ");
+                        w.Write((await EasyExec.ExecAsync(Lfs.UnixGetFullPathFromCommandName("uptime"), "-s")).ErrorAndOutputStr._GetFirstFilledLineFromLines().Trim());
                         w.Write(" ");
-                        w.WriteLine((await EasyExec.ExecAsync(Lfs.UnixGetFullPathFromCommandName("uptime"), "-p")).ErrorAndOutputStr);
+                        w.WriteLine((await EasyExec.ExecAsync(Lfs.UnixGetFullPathFromCommandName("uptime"), "-p")).ErrorAndOutputStr._GetFirstFilledLineFromLines().Trim());
 
                         w.WriteLine();
                     }
