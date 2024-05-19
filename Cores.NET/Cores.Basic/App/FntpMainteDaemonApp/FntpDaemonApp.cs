@@ -479,7 +479,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                     int clientPort = request.HttpContext.Connection.RemotePort;
 
                     IPAddress serverIp = request.HttpContext.Connection.LocalIpAddress._UnmapIPv4()!;
-                    int serverPort = request.HttpContext.Connection.RemotePort;
+                    int serverPort = request.HttpContext.Connection.LocalPort;
 
 
                     string hostname = "";
