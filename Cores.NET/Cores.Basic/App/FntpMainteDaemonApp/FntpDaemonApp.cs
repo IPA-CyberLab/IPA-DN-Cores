@@ -205,6 +205,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                 DenyRobots = true,
                 UseGlobalCertVault = false,
                 UseSimpleBasicAuthentication = true,
+                DisableHttpKeepAlive = true,
             },
             true);
 
