@@ -56,6 +56,7 @@ using System.Runtime.Serialization;
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Net;
 
 namespace IPA.Cores.Basic;
 
@@ -97,6 +98,8 @@ public class FntpMainteDaemonSettings : INormalizable
 
     public int MaxHistoryQueue = 0;
 
+    public List<string> DnsServerList { get; set; } = new List<string>();
+
     public void Normalize()
     {
         if (this._TestStr._IsFilled() == false)
@@ -117,6 +120,14 @@ public class FntpMainteDaemonSettings : INormalizable
         if (RunCommandWhileError._IsEmpty()) RunCommandWhileError = "/etc/fntp_exec_error.sh";
         if (HealthTcpPort <= 0) HealthTcpPort = Consts.Ports.FntpMainteDaemonHealthPort;
         if (MaxHistoryQueue <= 0) MaxHistoryQueue = 100;
+
+        if (this.DnsServerList.Count == 0)
+        {
+            this.DnsServerList.Add("2001:4860:4860::8888");
+            this.DnsServerList.Add("2606:4700:4700::1111");
+            this.DnsServerList.Add("2001:4860:4860::8844");
+            this.DnsServerList.Add("2606:4700:4700::1001");
+        }
     }
 }
 
@@ -171,6 +182,8 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
 
     public CgiHttpServer Whoami { get; }
 
+    public DnsResolver? GetMyIpDnsResolver { get; }
+
     public FntpMainteDaemonApp()
     {
         try
@@ -187,7 +200,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                 AutomaticRedirectToHttpsIfPossible = false,
                 UseKestrelWithIPACoreStack = false,
                 HttpPortsList = new int[] { Consts.Ports.FntpMainteDaemonHttpAdminPort }.ToList(),
-                HttpsPortsList = new int[] {  }.ToList(),
+                HttpsPortsList = new int[] { }.ToList(),
                 UseStaticFiles = false,
                 MaxRequestBodySize = 32 * 1024,
                 ReadTimeoutMsecs = 30 * 1000,
@@ -211,6 +224,29 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                 HiveName = "WhoAmIServer",
             },
             true);
+
+
+            List<IPEndPoint> dnsServers = new List<IPEndPoint>();
+
+            foreach (var host in this.Settings.DnsServerList)
+            {
+                var ep = host._ToIPEndPoint(53, allowed: AllowedIPVersions.All, true);
+                if (ep != null)
+                {
+                    dnsServers.Add(ep);
+                }
+            }
+
+            if (dnsServers.Count == 0)
+                throw new CoresLibException("dnsServers.Count == 0");
+
+            this.GetMyIpDnsResolver = new DnsClientLibBasedDnsResolver(
+                new DnsResolverSettings(
+                    flags: DnsResolverFlags.RoundRobinServers | DnsResolverFlags.UdpOnly,
+                    dnsServersList: dnsServers
+                    )
+                );
+
         }
         catch
         {
@@ -325,6 +361,45 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                     }
                     catch { }
 
+                    try
+                    {
+
+                        w.WriteLine("---Server Uptime Info Begin ---");
+                        w.WriteLine((await EasyExec.ExecAsync(Lfs.UnixGetFullPathFromCommandName("uptime"), "-s")).ErrorAndOutputStr);
+                        w.WriteLine((await EasyExec.ExecAsync(Lfs.UnixGetFullPathFromCommandName("uptime"), "-p")).ErrorAndOutputStr);
+                        w.WriteLine((await EasyExec.ExecAsync(Lfs.UnixGetFullPathFromCommandName("uptime"), "")).ErrorAndOutputStr);
+                        w.WriteLine("--- Server Uptime Info End ---");
+
+                        w.WriteLine();
+                        w.WriteLine();
+                    }
+                    catch { }
+
+                    try
+                    {
+                        var lsb_release = await EasyExec.ExecAsync(Lfs.UnixGetFullPathFromCommandName("lsb_release"), "-a");
+
+                        w.WriteLine("---Server lsb_release -a Info Begin ---");
+                        w.WriteLine(lsb_release.ErrorAndOutputStr);
+                        w.WriteLine("--- Server lsb_release -a Info End ---");
+
+                        w.WriteLine();
+                        w.WriteLine();
+                    }
+                    catch { }
+
+                    try
+                    {
+                        var uname_result = await EasyExec.ExecAsync(Lfs.UnixGetFullPathFromCommandName("uname"), "-a");
+
+                        w.WriteLine("---Server umame -a Info Begin ---");
+                        w.WriteLine(uname_result.ErrorAndOutputStr);
+                        w.WriteLine("--- Server uname -a Info End ---");
+
+                        w.WriteLine();
+                        w.WriteLine();
+                    }
+                    catch { }
 
                     var banner_result = await Lfs.ReadStringFromFileAsync("/etc/issue");
 
@@ -373,15 +448,61 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
 
                     var status = App.LastStatus;
 
+                    var request = ctx.Request;
+
+                    IPAddress clientIp = request.HttpContext.Connection.RemoteIpAddress._UnmapIPv4()!;
+                    int clientPort = request.HttpContext.Connection.RemotePort;
+
+                    IPAddress serverIp = request.HttpContext.Connection.LocalIpAddress._UnmapIPv4()!;
+                    int serverPort = request.HttpContext.Connection.RemotePort;
+
+
+                    string hostname = "";
+                    try
+                    {
+                        var ipType = clientIp._GetIPAddressType();
+                        if (ipType.BitAny(IPAddressType.IPv4_IspShared | IPAddressType.Loopback | IPAddressType.Zero | IPAddressType.Multicast | IPAddressType.LocalUnicast))
+                        {
+                            // ナーシ
+                        }
+                        else
+                        {
+                            hostname = await App.GetMyIpDnsResolver!.GetHostNameOrIpAsync(clientIp, ctx.Cancel);
+                        }
+                    }
+                    catch { }
+
                     StringWriter w = new StringWriter();
 
                     w.WriteLine($"Hello!I am: {PPLinux.GetFileNameWithoutExtension(Env.DnsFqdnHostName, true)}");
+                    w.WriteLine();
+                    w.WriteLine($"My IP address is {serverIp.ToString()} and my TCP port number is {serverPort}.");
+                    w.WriteLine($"Your IP address is {clientIp.ToString()} and your TCP port number is {clientPort}.");
+                    if (hostname._IsFilled() && hostname != clientIp.ToString())
+                    {
+                        w.WriteLine($"Your DNS FQDN host name is {hostname}.");
+                    }
+                    w.WriteLine();
                     w.WriteLine();
                     w.WriteLine($"Current datetime: {DtOffsetNow._ToDtStr()}");
                     w.WriteLine($"Num HealthCheck: {App.NumHealthCheck._ToString3()}");
                     w.WriteLine($"Last HealthCheck: {App.LastHealthCheck._ToDtStr()}");
                     w.WriteLine();
                     w.WriteLine($"IsOK: {status?.IsOk() ?? false}");
+
+                    w.WriteLine();
+
+                    try
+                    {
+
+                        w.Write("Server uptime: ");
+                        w.Write((await EasyExec.ExecAsync(Lfs.UnixGetFullPathFromCommandName("uptime"), "-s")).ErrorAndOutputStr);
+                        w.Write(" ");
+                        w.WriteLine((await EasyExec.ExecAsync(Lfs.UnixGetFullPathFromCommandName("uptime"), "-p")).ErrorAndOutputStr);
+
+                        w.WriteLine();
+                    }
+                    catch { }
 
                     w.WriteLine();
                     w.WriteLine();
@@ -878,6 +999,8 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
             await this.Cgi._DisposeSafeAsync();
 
             await this.Whoami._DisposeSafeAsync();
+
+            await this.GetMyIpDnsResolver._DisposeSafeAsync();
 
             this.SettingsHive._DisposeSafe();
         }
