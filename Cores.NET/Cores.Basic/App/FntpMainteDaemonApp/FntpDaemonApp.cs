@@ -208,6 +208,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                 ReadTimeoutMsecs = 30 * 1000,
                 DenyRobots = true,
                 UseSimpleBasicAuthentication = false,
+                HiveName = "WhoAmIServer",
             },
             true);
         }
