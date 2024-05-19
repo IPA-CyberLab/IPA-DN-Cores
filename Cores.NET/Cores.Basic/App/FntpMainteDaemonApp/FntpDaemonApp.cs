@@ -203,6 +203,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                 MaxRequestBodySize = 32 * 1024,
                 ReadTimeoutMsecs = 30 * 1000,
                 DenyRobots = true,
+                UseGlobalCertVault = false,
                 UseSimpleBasicAuthentication = true,
             },
             true);
@@ -220,6 +221,8 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                 DenyRobots = true,
                 UseSimpleBasicAuthentication = false,
                 HiveName = "WhoAmIServer",
+                UseGlobalCertVault = false,
+                DisableHttpKeepAlive = true,
             },
             true);
 

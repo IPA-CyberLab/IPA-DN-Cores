@@ -678,6 +678,8 @@ public class HttpServerOptions
 
     public bool DisableExcessiveHtmlEncoding { get; set; } = true;
 
+    public bool DisableHttpKeepAlive { get; set; } = false;
+
     public bool HideKestrelServerHeader { get; set; } = true;
 
     public int MaxRequestBodySize { get; set; } = Consts.Numbers.DefaultMaxNetworkRecvSize; // Kestrel default
@@ -811,6 +813,11 @@ public class HttpServerOptions
         {
             opt.Limits.RequestHeadersTimeout = TimeSpan.FromMilliseconds(this.ReadTimeoutMsecs.Value);
             opt.Limits.KeepAliveTimeout = TimeSpan.FromMilliseconds(this.ReadTimeoutMsecs.Value);
+        }
+
+        if (this.DisableHttpKeepAlive)
+        {
+            opt.Limits.KeepAliveTimeout = TimeSpan.FromTicks(1);
         }
 
         opt.ConfigureHttpsDefaults(s =>
