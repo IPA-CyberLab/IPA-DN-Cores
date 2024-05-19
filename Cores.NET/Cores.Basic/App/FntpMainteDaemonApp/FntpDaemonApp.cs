@@ -321,12 +321,12 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                     w.WriteLine();
 
                     w.WriteLine($"--- NTP Daemon (Chrony) Statue Begin ---");
+                    await ExecCommandAndAppendResultAsync(w, "timedatectl", "");
                     await ExecCommandAndAppendResultAsync(w, "chronyc", "-n sources -a -v");
                     await ExecCommandAndAppendResultAsync(w, "chronyc", "-n sourcestats -a -v");
                     await ExecCommandAndAppendResultAsync(w, "chronyc", "-n serverstats");
                     await ExecCommandAndAppendResultAsync(w, "chronyc", "-n activity");
                     await ExecCommandAndAppendResultAsync(w, "chronyc", "-n tracking");
-                    await ExecCommandAndAppendResultAsync(w, "timedatectl", "");
                     w.WriteLine($"--- NTP Daemon (Chrony) Statue End ---");
                     w.WriteLine();
                     w.WriteLine();
@@ -445,7 +445,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
             {
                 var text = await EasyExec.ExecAsync(Lfs.UnixGetFullPathFromCommandName(cmd), args);
 
-                w.WriteLine(text);
+                w.WriteLine(text.ErrorAndOutputStr);
             }
             catch (Exception ex)
             {
