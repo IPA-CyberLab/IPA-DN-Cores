@@ -277,9 +277,9 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                     w.WriteLine($"Welcome to FntpDaemon Status Screen !!!");
                     w.WriteLine();
                     w.WriteLine($"This Machine name: {Env.DnsFqdnHostName}");
-                    w.WriteLine($"Current datetime: {DtOffsetNow._ToDtStr()}");
+                    w.WriteLine($"Current datetime: {DtOffsetNow._ToDtStr(withMSsecs: true, withNanoSecs: true)}");
                     w.WriteLine($"Num HealthCheck: {App.NumHealthCheck._ToString3()}");
-                    w.WriteLine($"Last HealthCheck: {App.LastHealthCheck._ToDtStr()}");
+                    w.WriteLine($"Last HealthCheck: {App.LastHealthCheck._ToDtStr(withMSsecs: true, withNanoSecs: true)}");
                     w.WriteLine();
                     w.WriteLine($"IsOK: {status?.IsOk() ?? false}");
                     w.WriteLine();
@@ -484,9 +484,9 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                     }
                     w.WriteLine();
                     w.WriteLine();
-                    w.WriteLine($"Current datetime: {DtOffsetNow._ToDtStr()}");
+                    w.WriteLine($"Current datetime: {DtOffsetNow._ToDtStr(withMSsecs: true, withNanoSecs: true)}");
                     w.WriteLine($"Num HealthCheck: {App.NumHealthCheck._ToString3()}");
-                    w.WriteLine($"Last HealthCheck: {App.LastHealthCheck._ToDtStr()}");
+                    w.WriteLine($"Last HealthCheck: {App.LastHealthCheck._ToDtStr(withMSsecs: true, withNanoSecs: true)}");
                     w.WriteLine();
                     w.WriteLine($"IsOK: {status?.IsOk() ?? false}");
 
@@ -495,9 +495,9 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                     try
                     {
 
-                        w.Write("Server Uptime: ");
+                        w.Write("Server Uptime: Boot since ");
                         w.Write((await EasyExec.ExecAsync(Lfs.UnixGetFullPathFromCommandName("uptime"), "-s")).ErrorAndOutputStr._GetFirstFilledLineFromLines().Trim());
-                        w.Write(" ");
+                        w.Write(", ");
                         w.WriteLine((await EasyExec.ExecAsync(Lfs.UnixGetFullPathFromCommandName("uptime"), "-p")).ErrorAndOutputStr._GetFirstFilledLineFromLines().Trim());
 
                         w.WriteLine();
