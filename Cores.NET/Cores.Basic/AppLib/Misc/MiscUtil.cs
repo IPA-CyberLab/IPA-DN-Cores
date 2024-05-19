@@ -1093,6 +1093,8 @@ public static partial class MiscUtil
         internetCommError ??= new RefBool();
         allowDiff ??= TimeSpan.FromSeconds(15); // 15 秒以内のずれを許容
 
+        $"allowDiff = {allowDiff.Value.TotalMilliseconds}"._Error();
+
         if (getLocalDtProc == null)
         {
             getLocalDtProc = () => DateTimeOffset.Now._TR();
