@@ -474,7 +474,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
 
                     StringWriter w = new StringWriter();
 
-                    w.WriteLine($"Hello!I am: {PPLinux.GetFileNameWithoutExtension(Env.DnsFqdnHostName, true)}");
+                    w.WriteLine($"Hello! I am: {PPLinux.GetFileNameWithoutExtension(Env.DnsFqdnHostName, true)}");
                     w.WriteLine();
                     w.WriteLine($"My IP address is {serverIp.ToString()} and my TCP port number is {serverPort}.");
                     w.WriteLine($"Your IP address is {clientIp.ToString()} and your TCP port number is {clientPort}.");
