@@ -277,6 +277,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                     StringWriter w = new StringWriter();
 
                     w.WriteLine($"Welcome to FntpDaemon Status Screen !!!");
+                    w.WriteLine($"Copyright (c) 2019-{DateTime.Now.Year} IPA CyberLab. All rights reserved.");
                     w.WriteLine();
                     w.WriteLine($"This Machine name: {Env.DnsFqdnHostName}");
                     w.WriteLine($"Current datetime: {DtOffsetNow._ToDtStr(withMSsecs: true, withNanoSecs: true)}");
@@ -324,14 +325,14 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                     w.WriteLine();
                     w.WriteLine();
 
-                    w.WriteLine($"--- NTP Daemon (Chrony) Statue Begin ---");
+                    w.WriteLine($"--- NTP Daemon (Chrony) Status Begin ---");
                     await ExecCommandAndAppendResultAsync(w, "timedatectl", "");
                     await ExecCommandAndAppendResultAsync(w, "chronyc", "-n sources -a -v");
                     await ExecCommandAndAppendResultAsync(w, "chronyc", "-n sourcestats -a -v");
                     await ExecCommandAndAppendResultAsync(w, "chronyc", "-n serverstats");
                     await ExecCommandAndAppendResultAsync(w, "chronyc", "-n activity");
                     await ExecCommandAndAppendResultAsync(w, "chronyc", "-n tracking");
-                    w.WriteLine($"--- NTP Daemon (Chrony) Statue End ---");
+                    w.WriteLine($"--- NTP Daemon (Chrony) Status End ---");
                     w.WriteLine();
                     w.WriteLine();
 
@@ -373,6 +374,16 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                         w.WriteLine();
                     }
                     catch { }
+
+                    w.WriteLine($"--- BIRD OSPF Status Begin ---");
+                    await ExecCommandAndAppendResultAsync(w, "birdc", "show ospf state all ospf_v4");
+                    await ExecCommandAndAppendResultAsync(w, "birdc", "show ospf topology all ospf_v4");
+                    await ExecCommandAndAppendResultAsync(w, "birdc", "show ospf neighbors ospf_v4");
+                    await ExecCommandAndAppendResultAsync(w, "birdc", "show ospf interface ospf_v4");
+                    await ExecCommandAndAppendResultAsync(w, "birdc", "show ospf ospf_v4");
+                    w.WriteLine($"--- BIRD OSPF Status End ---");
+                    w.WriteLine();
+                    w.WriteLine();
 
                     try
                     {
