@@ -276,7 +276,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
 
                     StringWriter w = new StringWriter();
 
-                    w.WriteLine($"Welcome to FntpDaemon Status Screen !!!");
+                    w.WriteLine($"Welcome to FntpDaemon Status Screen !");
                     w.WriteLine($"Copyright (c) 2019-{DateTime.Now.Year} IPA CyberLab. All rights reserved.");
                     w.WriteLine();
                     w.WriteLine($"This Machine name: {Env.DnsFqdnHostName}");
