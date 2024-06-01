@@ -153,6 +153,8 @@ namespace IPA.Cores.Basic
                     }
                 }
             }
+            // 暗号強度の強いと思われる順に並び替える
+            list.Reverse();
             return new CipherSuitesPolicy(list);
         }
     }
