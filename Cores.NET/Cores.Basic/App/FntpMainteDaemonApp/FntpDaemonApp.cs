@@ -670,7 +670,7 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                             {
                                 return await LinuxTimeDateCtlUtil.ExecuteNtpDigAndReturnResultDateTimeAsync(Settings.CheckTargetNtpServerAddress, 2000, cancel);
                             },
-                            250, 10, cancel, true);
+                            250, 10, cancel, true, noDebugMessage: true);
                         }
                         catch (Exception ex)
                         {
