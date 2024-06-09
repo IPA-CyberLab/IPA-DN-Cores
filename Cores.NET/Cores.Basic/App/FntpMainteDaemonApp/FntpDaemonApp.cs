@@ -434,6 +434,14 @@ public class FntpMainteDaemonApp : AsyncServiceWithMainLoop
                     w.WriteLine();
                     w.WriteLine();
 
+                    w.WriteLine("--- Linux Packet Statistics Begin ---");
+                    await ExecCommandAndAppendResultAsync(w, "netstat", "-s");
+                    await ExecCommandAndAppendResultAsync(w, "netstat", "-iaev");
+                    w.WriteLine("--- Linux Packet Statistics Begin ---");
+
+                    w.WriteLine();
+                    w.WriteLine();
+
 
                     w.WriteLine("--- Process Version Info Begin ---");
                     w.WriteLine((new EnvInfoSnapshot())._ObjectToJson());
