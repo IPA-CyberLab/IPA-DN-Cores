@@ -99,6 +99,8 @@ public enum DirSuperBackupFlags : long
     IgnoreReadError = 8388608,
 
     UseLegacyXtsAes256 = 16777216,
+
+    BackupIncludeSymbolicLink = 33554432,
 }
 
 public class DirSuperBackupOptions
@@ -556,7 +558,7 @@ public class DirSuperBackup : AsyncService
                 foreach (var subDir in localDirEnum.Where(x => x.IsDirectory && x.IsCurrentOrParentDirectory == false))
                 {
                     // シンボリックリンクは無視する
-                    if (subDir.IsSymbolicLink == false)
+                    if (subDir.IsSymbolicLink == false || this.Options.Flags.Bit(DirSuperBackupFlags.BackupIncludeSymbolicLink))
                     {
                         // 無視リストのいずれにも合致しない場合のみ
                         if (ignoreDirNamesList.Where(x => x._IsSamei(subDir.Name)).Any() == false)
@@ -908,7 +910,7 @@ public class DirSuperBackup : AsyncService
                             await ArchiveFs.CopyFileAsync(srcFilePath, destFilePath,
                                 new CopyFileParams(flags: flags,
                                     metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll),
-                                    encryptOption: isEncrypted ? ( isEncryptedWithLegacyXtsAes256 ? EncryptOption.Decrypt_v1_XtsLts : EncryptOption.Decrypt_v2_SecureCompress) | EncryptOption.Compress : EncryptOption.None,
+                                    encryptOption: isEncrypted ? (isEncryptedWithLegacyXtsAes256 ? EncryptOption.Decrypt_v1_XtsLts : EncryptOption.Decrypt_v2_SecureCompress) | EncryptOption.Compress : EncryptOption.None,
                                     encryptPassword: encryptPassword,
                                     calcDigest: checkMd5,
                                     retryCount: 0,
@@ -1119,7 +1121,7 @@ public class DirSuperBackup : AsyncService
             foreach (var subDir in srcDirEnum.Where(x => x.IsDirectory && x.IsCurrentOrParentDirectory == false))
             {
                 // シンボリックリンクは無視する
-                if (subDir.IsSymbolicLink == false)
+                if (subDir.IsSymbolicLink == false || this.Options.Flags.Bit(DirSuperBackupFlags.BackupIncludeSymbolicLink))
                 {
                     // 無視リストのいずれにも合致しない場合のみ
                     if (ignoreDirNamesList.Where(x => x._IsSamei(subDir.Name)).Any() == false)
@@ -1469,7 +1471,7 @@ public class DirSuperBackup : AsyncService
                 foreach (var subDir in srcDirEnum.Where(x => x.IsDirectory && x.IsCurrentOrParentDirectory == false))
                 {
                     // シンボリックリンクは無視する
-                    if (subDir.IsSymbolicLink == false)
+                    if (subDir.IsSymbolicLink == false || this.Options.Flags.Bit(DirSuperBackupFlags.BackupIncludeSymbolicLink))
                     {
                         // 無視リストのいずれにも合致しない場合のみ
                         if (ignoreDirNamesList.Where(x => x._IsSamei(subDir.Name)).Any() == false)
