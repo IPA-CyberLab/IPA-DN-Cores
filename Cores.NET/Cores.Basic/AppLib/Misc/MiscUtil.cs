@@ -80,6 +80,171 @@ public static partial class CoresConfig
 
 
 
+// e ラーニング用画像教材生成ユーティリティの設定
+public class MovLearnUtilSettings : IValidatable, INormalizable
+{
+    public string FfMpegExePath = "";
+    public string SrcDir = "";
+    public string DestDir = "";
+    public string SrcExtList = "";
+    public double MaxVolume = 0.0;
+    public bool Overwrite = false;
+
+    public void Validate()
+    {
+        FfMpegExePath._NotEmptyCheck(nameof(FfMpegExePath));
+        SrcDir._NotEmptyCheck(nameof(SrcDir));
+        DestDir._NotEmptyCheck(nameof(DestDir));
+    }
+
+    public void Normalize()
+    {
+        if (this.SrcExtList._IsEmpty())
+        {
+            this.SrcExtList = ".mp4";
+        }
+    }
+}
+
+// e ラーニング用教材生成ユーティリティ
+public class MovLearnUtil
+{
+    MovLearnUtilSettings Settings;
+
+    public MovLearnUtil(MovLearnUtilSettings settings)
+    {
+        this.Settings = settings._CloneDeep();
+        this.Settings.Normalize();
+        this.Settings.Validate();
+    }
+
+    public async Task ExecAsync(CancellationToken cancel = default)
+    {
+        // 元ディレクトリのファイルを列挙
+        var items = await Lfs.EnumDirectoryAsync(Settings.SrcDir, recursive: true, cancel: cancel);
+
+        // 指定された拡張子リストに一致するファイル一覧を取得
+        var srcFiles = items.Where(x => x.IsFile && PP.GetExtension(x.FullPath)._IsFilled() && x.FullPath._IsExtensionMatch(Settings.SrcExtList)).OrderBy(x => x.FullPath, StrCmpi);
+
+        int counter = 0;
+
+        foreach (var srcFile in srcFiles)
+        {
+            string relativeFileName = PP.GetRelativeFileName(srcFile.FullPath, Settings.SrcDir);
+            string relativeDirName = PP.GetDirectoryName(relativeFileName);
+            string destDirPath = PP.Combine(Settings.DestDir, relativeDirName);
+            string srcFileMain = PP.GetFileNameWithoutExtension(srcFile.FullPath);
+
+            $"Processing '{relativeFileName}' ({counter + 1} / {srcFiles.Count()}) ..."._Print();
+            try
+            {
+                List<string> audioFilters = new List<string>();
+
+                // 1. まず、音声ファイル群の生成
+
+                // 1.1. ベースの x1.0 ファイルの生成
+
+                audioFilters.Clear();
+
+                // 現在の max_volume 値を取得
+                var result = await EasyExec.ExecAsync(Settings.FfMpegExePath, $"-i \"{srcFile.FullPath._RemoveQuotation()}\" -vn -af volumedetect -f null -", PP.GetDirectoryName(Settings.FfMpegExePath),
+                    flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdOut | ExecFlags.EasyPrintRealtimeStdErr,
+                    timeout: Timeout.Infinite, cancel: cancel, throwOnErrorExitCode: true);
+
+                double currentMaxVolume = double.NaN;
+
+                foreach (var line in result.OutputAndErrorStr._GetLines())
+                {
+                    string tag = "max_volume:";
+                    int a = line._Search(tag, 0, true);
+                    if (a != -1)
+                    {
+                        string tmp = line.Substring(a + tag.Length);
+                        if (tmp.EndsWith(" dB"))
+                        {
+                            tmp = tmp.Substring(0, tmp.Length - 3);
+                            tmp = tmp.Trim();
+
+                            currentMaxVolume = tmp._ToDouble();
+                        }
+                    }
+                }
+
+                if (currentMaxVolume != double.NaN && currentMaxVolume < Settings.MaxVolume)
+                {
+                    // 何 dB 上げるべきか計算
+                    double addVolume = Settings.MaxVolume - currentMaxVolume;
+
+                    audioFilters.Add($"volume={addVolume:F1}dB");
+                }
+
+                // 無音除去を実施、音量調整も実施
+                string audioOnly_base_path = PP.Combine(destDirPath, $"{srcFileMain}.audioonly.x1.0.mp3");
+                audioFilters.Add($"silenceremove=window=5:detection=peak:stop_mode=all:start_mode=all:stop_periods=-1:stop_threshold=-30dB");
+                await ProcessOneFileAsync(srcFile.FullPath, audioOnly_base_path, $"-vn -f mp3 -ab 384k -af \"{audioFilters._Combine(" , ")}\"", cancel);
+
+                // 数倍速再生版も作る
+                string[] xList = { "1.5", "2.0" };
+
+                foreach (var xstr in xList)
+                {
+                    string audioonly_x_path = PP.Combine(destDirPath, $"{srcFileMain}.audioonly.x{xstr}.mp3");
+                    await ProcessOneFileAsync(audioOnly_base_path, audioonly_x_path, $"-vn -f mp3 -ab 384k -af atempo={xstr}", cancel);
+                }
+            }
+            catch (Exception ex)
+            {
+                ex._Error();
+            }
+
+            counter++;
+        }
+    }
+
+    async Task ProcessOneFileAsync(string srcPath, string dstPath, string args, CancellationToken cancel = default)
+    {
+        var now = DtOffsetNow;
+        string okTxtPath = PP.Combine(PP.GetDirectoryName(dstPath), ".okfiles", PP.GetFileName(dstPath)) + ".ok.txt";
+        string okTxtDir = PP.GetDirectoryName(okTxtPath);
+
+        try
+        {
+            await Lfs.CreateDirectoryAsync(PP.GetDirectoryName(dstPath), cancel: cancel);
+        }
+        catch { }
+
+        if (Settings.Overwrite == false)
+        {
+            // 宛先パス + .ok.txt ファイルが存在していれば何もしない
+            if (await Lfs.IsFileExistsAsync(okTxtPath, cancel))
+            {
+                return;
+            }
+        }
+
+        // 変換を実施
+        string cmdLine = $"-y -i \"{srcPath._RemoveQuotation()}\" {args} \"{dstPath._RemoveQuotation()}\"";
+
+        var result = await EasyExec.ExecAsync(Settings.FfMpegExePath, cmdLine, PP.GetDirectoryName(Settings.FfMpegExePath),
+            flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdOut | ExecFlags.EasyPrintRealtimeStdErr,
+            timeout: Timeout.Infinite, cancel: cancel, throwOnErrorExitCode: true);
+
+        // 成功したら ok.txt を保存
+        string okTxtBody = now._ToDtStr(true, DtStrOption.All, true) + "\r\n\r\n" + cmdLine + "\r\n\r\n" + result.ErrorAndOutputStr;
+        try
+        {
+            await Lfs.TryAddOrRemoveAttributeFromExistingFileAsync(okTxtPath, 0, FileAttributes.Hidden, cancel: cancel);
+            await Lfs.WriteStringToFileAsync(okTxtPath, okTxtBody._NormalizeCrlf(CrlfStyle.CrLf, true), writeBom: true, flags: FileFlags.AutoCreateDirectory, cancel: cancel);
+            await Lfs.TryAddOrRemoveAttributeFromExistingDirAsync(okTxtDir, FileAttributes.Hidden, cancel: cancel);
+            await Lfs.TryAddOrRemoveAttributeFromExistingFileAsync(okTxtPath, FileAttributes.Hidden, cancel: cancel);
+        }
+        catch (Exception ex)
+        {
+            ex._Error();
+        }
+    }
+}
+
 // タイムスタンプ・ユーティリティの設定
 public class TimeStampDocsSetting : INormalizable
 {
