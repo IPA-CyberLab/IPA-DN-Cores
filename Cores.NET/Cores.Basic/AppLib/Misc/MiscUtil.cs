@@ -200,7 +200,7 @@ public class MovLearnUtil
                         // 無音除去を実施、音量調整も実施
                         string audio_base_path = PP.Combine(destDirPath, albumBase, albumBase + $" - audio.x1.0", $"{srcFileMain} - audio.x1.0.mp3");
                         audioFilters.Add($"silenceremove=window=5:detection=peak:stop_mode=all:start_mode=all:stop_periods=-1:stop_threshold=-30dB");
-                        await ProcessOneFileAsync(srcFile.FullPath, audio_base_path, $"-vn -f mp3 -ab 384k -af \"{audioFilters._Combine(" , ")}\"",
+                        await ProcessOneFileAsync(srcFile.FullPath, audio_base_path, $"-vn -f mp3 -ab 256k -af \"{audioFilters._Combine(" , ")}\"",
                             artist,
                             albumBase + " - audio.x1.0",
                             titleBase + " - audio.x1.0",
@@ -212,7 +212,7 @@ public class MovLearnUtil
                         foreach (var xstr in xList)
                         {
                             string audio_x_path = PP.Combine(destDirPath, albumBase, albumBase + $" - audio.x{xstr}", $"{srcFileMain} - audio.x{xstr}.mp3");
-                            await ProcessOneFileAsync(audio_base_path, audio_x_path, $"-vn -f mp3 -ab 384k -af atempo={xstr}",
+                            await ProcessOneFileAsync(audio_base_path, audio_x_path, $"-vn -f mp3 -ab 256k -af atempo={xstr}",
                                 artist,
                                 albumBase + $" - audio.x{xstr}",
                                 titleBase + $" - audio.x{xstr}",
