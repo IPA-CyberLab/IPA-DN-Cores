@@ -838,7 +838,7 @@ public partial class LocalFileSystem : FileSystem
     {
         if (flags.Bit(FileFlags.BackupMode) || flags.Bit(FileFlags.ForceClearReadOnlyOrHiddenBitsOnNeed))
         {
-            await this.TryAddOrRemoveAttributeFromExistingFile(path, 0, FileAttributes.ReadOnly, cancel);
+            await this.TryAddOrRemoveAttributeFromExistingFileAsync(path, 0, FileAttributes.ReadOnly, cancel);
         }
 
         File.Delete(path);
@@ -985,7 +985,7 @@ public class LocalFileObject : FileObject
                             attributesToRemove |= FileAttributes.ReadOnly;
 
                         if (attributesToRemove != 0)
-                            await FileSystem.TryAddOrRemoveAttributeFromExistingFile(FileParams.Path, 0, attributesToRemove, cancel);
+                            await FileSystem.TryAddOrRemoveAttributeFromExistingFileAsync(FileParams.Path, 0, attributesToRemove, cancel);
                     }
                 }
 

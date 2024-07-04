@@ -4928,8 +4928,20 @@ HOST: www.google.com
         MiscUtil.ValidateIfMyLocalClockCorrectAsync()._GetResult();
     }
 
+    static async Task Test_240704()
+    {
+        MovLearnUtil u = new MovLearnUtil(new MovLearnUtilSettings { SrcDir = @"C:\Users\yagi\Desktop\test_src\", DestDir = @"C:\Users\yagi\Desktop\test_dst", Overwrite = false, MaxVolume = -0.0, SrcExtList = "mp4", FfMpegExePath = @"C:\git\dndevtools\ffmpeg\240703\ffmpeg.exe" });
+
+        await u.ExecAsync();
+    }
+
     public static void Test_Generic()
     {
+        if (true)
+        {
+            Test_240704()._GetResult();
+            return;
+        }
 
         if (true)
         {

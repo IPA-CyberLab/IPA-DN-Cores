@@ -245,7 +245,7 @@ public abstract partial class FileSystem
         }
     }
 
-    public async Task<bool> TryAddOrRemoveAttributeFromExistingFile(string path, FileAttributes attributesToAdd = 0, FileAttributes attributesToRemove = 0, CancellationToken cancel = default)
+    public async Task<bool> TryAddOrRemoveAttributeFromExistingFileAsync(string path, FileAttributes attributesToAdd = 0, FileAttributes attributesToRemove = 0, CancellationToken cancel = default)
     {
         try
         {
@@ -254,7 +254,7 @@ public abstract partial class FileSystem
 
             var existingFileMetadata = await this.GetFileMetadataAsync(path, FileMetadataGetFlags.NoAlternateStream | FileMetadataGetFlags.NoSecurity | FileMetadataGetFlags.NoTimes, cancel);
             var currentAttributes = existingFileMetadata.Attributes ?? 0;
-            if (currentAttributes.Bit(FileAttributes.Hidden) || currentAttributes.Bit(FileAttributes.ReadOnly))
+            if (currentAttributes.Bit(FileAttributes.Hidden) || currentAttributes.Bit(FileAttributes.ReadOnly) || attributesToAdd.Bit(FileAttributes.Hidden) || attributesToAdd.Bit(FileAttributes.ReadOnly))
             {
                 var newAttributes = (currentAttributes & ~(attributesToRemove)) | attributesToAdd;
                 if (currentAttributes != newAttributes)
@@ -262,6 +262,41 @@ public abstract partial class FileSystem
                     try
                     {
                         await this.SetFileMetadataAsync(path, new FileMetadata(false, attributes: newAttributes), cancel);
+
+                        return true;
+                    }
+                    catch { }
+                }
+                else
+                {
+                    return true;
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        return false;
+    }
+
+    public async Task<bool> TryAddOrRemoveAttributeFromExistingDirAsync(string path, FileAttributes attributesToAdd = 0, FileAttributes attributesToRemove = 0, CancellationToken cancel = default)
+    {
+        try
+        {
+            if (Directory.Exists(path) == false)
+                return false;
+
+            var existingFileMetadata = await this.GetDirectoryMetadataAsync(path, FileMetadataGetFlags.NoAlternateStream | FileMetadataGetFlags.NoSecurity | FileMetadataGetFlags.NoTimes, cancel);
+            var currentAttributes = existingFileMetadata.Attributes ?? 0;
+            if (currentAttributes.Bit(FileAttributes.Hidden) || currentAttributes.Bit(FileAttributes.ReadOnly) || attributesToAdd.Bit(FileAttributes.Hidden) || attributesToAdd.Bit(FileAttributes.ReadOnly))
+            {
+                var newAttributes = (currentAttributes & ~(attributesToRemove)) | attributesToAdd;
+                if (currentAttributes != newAttributes)
+                {
+                    try
+                    {
+                        await this.SetDirectoryMetadataAsync(path, new FileMetadata(true, attributes: newAttributes), cancel);
 
                         return true;
                     }
@@ -1587,7 +1622,7 @@ public class FilePath : FileSystemPath // CloneDeep 禁止
         => MoveFileAsync(destPath, cancel)._GetResult();
 
     public Task<bool> TryAddOrRemoveAttributeFromExistingFile(FileAttributes attributesToAdd = 0, FileAttributes attributesToRemove = 0, CancellationToken cancel = default)
-        => this.FileSystem.TryAddOrRemoveAttributeFromExistingFile(this.PathString, attributesToAdd, attributesToRemove, cancel);
+        => this.FileSystem.TryAddOrRemoveAttributeFromExistingFileAsync(this.PathString, attributesToAdd, attributesToRemove, cancel);
 
     public Task<int> WriteDataToFileAsync(ReadOnlyMemory<byte> srcMemory, FileFlags additionalFlags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default, bool overwriteAndTruncate = false)
         => this.FileSystem.WriteDataToFileAsync(this.PathString, srcMemory, this.Flags | additionalFlags, doNotOverwrite, cancel, overwriteAndTruncate);
