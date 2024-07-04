@@ -198,12 +198,12 @@ public class MovLearnUtil
                         }
 
                         // 無音除去を実施、音量調整も実施
-                        string audio_base_path = PP.Combine(destDirPath, albumBase, albumBase + $" - audio.x1.0", $"{srcFileMain} - audio.x1.0.mp3");
+                        string audio_base_path = PP.Combine(destDirPath, albumBase, albumBase + $" - audio.x1.0", $"{albumBase} - {titleBase} - audio.x1.0.mp3");
                         audioFilters.Add($"silenceremove=window=5:detection=peak:stop_mode=all:start_mode=all:stop_periods=-1:stop_threshold=-30dB");
                         await ProcessOneFileAsync(srcFile.FullPath, audio_base_path, $"-vn -f mp3 -ab 192k -af \"{audioFilters._Combine(" , ")}\"",
                             artist,
                             albumBase + " - audio.x1.0",
-                            titleBase + " - audio.x1.0",
+                            albumBase + " - " + titleBase + " - audio.x1.0",
                             cancel);
 
                         // 2.2. 数倍速再生版も作る
@@ -211,11 +211,11 @@ public class MovLearnUtil
 
                         foreach (var xstr in xList)
                         {
-                            string audio_x_path = PP.Combine(destDirPath, albumBase, albumBase + $" - audio.x{xstr}", $"{srcFileMain} - audio.x{xstr}.mp3");
+                            string audio_x_path = PP.Combine(destDirPath, albumBase, albumBase + $" - audio.x{xstr}", $"{albumBase} - {titleBase} - audio.x{xstr}.mp3");
                             await ProcessOneFileAsync(audio_base_path, audio_x_path, $"-vn -f mp3 -ab 192k -af atempo={xstr}",
                                 artist,
                                 albumBase + $" - audio.x{xstr}",
-                                titleBase + $" - audio.x{xstr}",
+                                albumBase + " - " + titleBase + $" - audio.x{xstr}",
                                 cancel);
                         }
                     }
@@ -264,11 +264,11 @@ public class MovLearnUtil
                         }
 
                         // 無音除去を実施、音量調整実施
-                        string video_base_path = PP.Combine(destDirPath, albumBase, albumBase + $" - video.x1.0", $"{srcFileMain} - video.x1.0.mp4");
+                        string video_base_path = PP.Combine(destDirPath, albumBase, albumBase + $" - video.x1.0", $"{albumBase} - {titleBase} - video.x1.0.mp4");
                         await ProcessOneFileAsync(srcFile.FullPath, video_base_path, $"-af \"{audioFilters._Combine(" , ")}\"",
                             artist,
                             albumBase + " - video.x1.0",
-                            titleBase + " - video.x1.0",
+                            albumBase + " - " + titleBase + " - video.x1.0",
                             cancel);
 
                         // 2.2. 数倍速再生版も作る
@@ -276,11 +276,11 @@ public class MovLearnUtil
 
                         foreach (var xstr in xList)
                         {
-                            string video_x_path = PP.Combine(destDirPath, albumBase, albumBase + $" - video.x{xstr}", $"{srcFileMain} - video.x{xstr}.mp4");
+                            string video_x_path = PP.Combine(destDirPath, albumBase, albumBase + $" - video.x{xstr}", $"{albumBase} - {titleBase} - video.x{xstr}.mp4");
                             await ProcessOneFileAsync(video_base_path, video_x_path, $"-vf setpts=PTS/{xstr} -af atempo={xstr}",
                                 artist,
                                 albumBase + $" - video.x{xstr}",
-                                titleBase + $" - video.x{xstr}",
+                                albumBase + " - " + titleBase + $" - video.x{xstr}",
                                 cancel);
                         }
                     }
