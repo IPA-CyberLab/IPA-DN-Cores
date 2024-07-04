@@ -157,66 +157,128 @@ public class MovLearnUtil
                     string srcFileMain = PP.GetFileNameWithoutExtension(srcFile.FullPath);
 
                     $"Processing '{relativeFileName}' ({counter + 1} / {srcFiles.Count()}) ..."._Print();
-                    List<string> audioFilters = new List<string>();
 
-                    // 1. まず、音声ファイル群の生成
-
-                    // 1.1. ベースの x1.0 ファイルの生成
-
-                    audioFilters.Clear();
-
-                    // 現在の max_volume 値を取得
-                    var result = await EasyExec.ExecAsync(Settings.FfMpegExePath, $"-i \"{srcFile.FullPath._RemoveQuotation()}\" -vn -af volumedetect -f null -", PP.GetDirectoryName(Settings.FfMpegExePath),
-                        flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdOut | ExecFlags.EasyPrintRealtimeStdErr,
-                        timeout: Timeout.Infinite, cancel: cancel, throwOnErrorExitCode: true);
-
-                    double currentMaxVolume = double.NaN;
-
-                    foreach (var line in result.OutputAndErrorStr._GetLines())
+                    if (true)
                     {
-                        string tag = "max_volume:";
-                        int a = line._Search(tag, 0, true);
-                        if (a != -1)
-                        {
-                            string tmp = line.Substring(a + tag.Length);
-                            if (tmp.EndsWith(" dB"))
-                            {
-                                tmp = tmp.Substring(0, tmp.Length - 3);
-                                tmp = tmp.Trim();
+                        // 1. まず、音声ファイル群の生成
+                        List<string> audioFilters = new List<string>();
 
-                                currentMaxVolume = tmp._ToDouble();
+                        // 1.1. ベースの x1.0 ファイルの生成
+
+                        // 現在の max_volume 値を取得
+                        var result = await EasyExec.ExecAsync(Settings.FfMpegExePath, $"-i \"{srcFile.FullPath._RemoveQuotation()}\" -vn -af volumedetect -f null -", PP.GetDirectoryName(Settings.FfMpegExePath),
+                            flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdOut | ExecFlags.EasyPrintRealtimeStdErr,
+                            timeout: Timeout.Infinite, cancel: cancel, throwOnErrorExitCode: true);
+
+                        double currentMaxVolume = double.NaN;
+
+                        foreach (var line in result.OutputAndErrorStr._GetLines())
+                        {
+                            string tag = "max_volume:";
+                            int a = line._Search(tag, 0, true);
+                            if (a != -1)
+                            {
+                                string tmp = line.Substring(a + tag.Length);
+                                if (tmp.EndsWith(" dB"))
+                                {
+                                    tmp = tmp.Substring(0, tmp.Length - 3);
+                                    tmp = tmp.Trim();
+
+                                    currentMaxVolume = tmp._ToDouble();
+                                }
                             }
+                        }
+
+                        if (currentMaxVolume != double.NaN && currentMaxVolume < Settings.MaxVolume)
+                        {
+                            // 何 dB 上げるべきか計算
+                            double addVolume = Settings.MaxVolume - currentMaxVolume;
+
+                            audioFilters.Add($"volume={addVolume:F1}dB");
+                        }
+
+                        // 無音除去を実施、音量調整も実施
+                        string audio_base_path = PP.Combine(destDirPath, albumBase, albumBase + $" - audio.x1.0", $"{srcFileMain} - audio.x1.0.mp3");
+                        audioFilters.Add($"silenceremove=window=5:detection=peak:stop_mode=all:start_mode=all:stop_periods=-1:stop_threshold=-30dB");
+                        await ProcessOneFileAsync(srcFile.FullPath, audio_base_path, $"-vn -f mp3 -ab 384k -af \"{audioFilters._Combine(" , ")}\"",
+                            artist,
+                            albumBase + " - audio.x1.0",
+                            titleBase + " - audio.x1.0",
+                            cancel);
+
+                        // 2.2. 数倍速再生版も作る
+                        string[] xList = { "1.5", "2.0" };
+
+                        foreach (var xstr in xList)
+                        {
+                            string audio_x_path = PP.Combine(destDirPath, albumBase, albumBase + $" - audio.x{xstr}", $"{srcFileMain} - audio.x{xstr}.mp3");
+                            await ProcessOneFileAsync(audio_base_path, audio_x_path, $"-vn -f mp3 -ab 384k -af atempo={xstr}",
+                                artist,
+                                albumBase + $" - audio.x{xstr}",
+                                titleBase + $" - audio.x{xstr}",
+                                cancel);
                         }
                     }
 
-                    if (currentMaxVolume != double.NaN && currentMaxVolume < Settings.MaxVolume)
+                    if (true)
                     {
-                        // 何 dB 上げるべきか計算
-                        double addVolume = Settings.MaxVolume - currentMaxVolume;
+                        // 2. 次に、動画ファイル群の生成
+                        List<string> audioFilters = new List<string>();
 
-                        audioFilters.Add($"volume={addVolume:F1}dB");
-                    }
+                        // 2.1. ベースの x1.0 ファイルの生成
 
-                    // 無音除去を実施、音量調整も実施
-                    string audioOnly_base_path = PP.Combine(destDirPath, $"{srcFileMain} - audioonly.x1.0.mp3");
-                    audioFilters.Add($"silenceremove=window=5:detection=peak:stop_mode=all:start_mode=all:stop_periods=-1:stop_threshold=-30dB");
-                    await ProcessOneFileAsync(srcFile.FullPath, audioOnly_base_path, $"-vn -f mp3 -ab 384k -af \"{audioFilters._Combine(" , ")}\"",
-                        artist,
-                        albumBase + " - audioonly.x1.0",
-                        titleBase + " - audioonly.x1.0",
-                        cancel);
+                        // 現在の max_volume 値を取得
+                        var result = await EasyExec.ExecAsync(Settings.FfMpegExePath, $"-i \"{srcFile.FullPath._RemoveQuotation()}\" -vn -af volumedetect -f null -", PP.GetDirectoryName(Settings.FfMpegExePath),
+                            flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdOut | ExecFlags.EasyPrintRealtimeStdErr,
+                            timeout: Timeout.Infinite, cancel: cancel, throwOnErrorExitCode: true);
 
-                    // 数倍速再生版も作る
-                    string[] xList = { "1.5", "2.0" };
+                        double currentMaxVolume = double.NaN;
 
-                    foreach (var xstr in xList)
-                    {
-                        string audioonly_x_path = PP.Combine(destDirPath, $"{srcFileMain} - audioonly.x{xstr}.mp3");
-                        await ProcessOneFileAsync(audioOnly_base_path, audioonly_x_path, $"-vn -f mp3 -ab 384k -af atempo={xstr}",
+                        foreach (var line in result.OutputAndErrorStr._GetLines())
+                        {
+                            string tag = "max_volume:";
+                            int a = line._Search(tag, 0, true);
+                            if (a != -1)
+                            {
+                                string tmp = line.Substring(a + tag.Length);
+                                if (tmp.EndsWith(" dB"))
+                                {
+                                    tmp = tmp.Substring(0, tmp.Length - 3);
+                                    tmp = tmp.Trim();
+
+                                    currentMaxVolume = tmp._ToDouble();
+                                }
+                            }
+                        }
+
+                        if (currentMaxVolume != double.NaN && currentMaxVolume < Settings.MaxVolume)
+                        {
+                            // 何 dB 上げるべきか計算
+                            double addVolume = Settings.MaxVolume - currentMaxVolume;
+
+                            audioFilters.Add($"volume={addVolume:F1}dB");
+                        }
+
+                        // 無音除去を実施、音量調整実施
+                        string video_base_path = PP.Combine(destDirPath, albumBase, albumBase + $" - video.x1.0", $"{srcFileMain} - video.x1.0.mp4");
+                        await ProcessOneFileAsync(srcFile.FullPath, video_base_path, $"-af \"{audioFilters._Combine(" , ")}\"",
                             artist,
-                            albumBase + $" - audioonly.x{xstr}",
-                            titleBase + $" - audioonly.x{xstr}",
+                            albumBase + " - video.x1.0",
+                            titleBase + " - video.x1.0",
                             cancel);
+
+                        // 2.2. 数倍速再生版も作る
+                        string[] xList = { "1.5", "2.0" };
+
+                        foreach (var xstr in xList)
+                        {
+                            string video_x_path = PP.Combine(destDirPath, albumBase, albumBase + $" - video.x{xstr}", $"{srcFileMain} - video.x{xstr}.mp4");
+                            await ProcessOneFileAsync(video_base_path, video_x_path, $"-vf setpts=PTS/{xstr} -af atempo={xstr}",
+                                artist,
+                                albumBase + $" - video.x{xstr}",
+                                titleBase + $" - video.x{xstr}",
+                                cancel);
+                        }
                     }
                 }
                 else
