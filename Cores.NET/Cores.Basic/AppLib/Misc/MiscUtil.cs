@@ -124,7 +124,7 @@ public class MovLearnUtil
         var items = await Lfs.EnumDirectoryAsync(Settings.SrcDir, recursive: true, cancel: cancel);
 
         // 指定された拡張子リストに一致するファイル一覧を取得
-        var srcFiles = items.Where(x => x.IsFile && PP.GetExtension(x.FullPath)._IsFilled() && x.FullPath._IsExtensionMatch(Settings.SrcExtList)).OrderBy(x => x.FullPath, StrCmpi);
+        var srcFiles = items.Where(x => x.IsFile && PP.GetExtension(x.FullPath)._IsFilled() && x.FullPath._IsExtensionMatch(Settings.SrcExtList)).OrderBy(x => x.FullPath, StrComparer.Get(StringComparison.CurrentCultureIgnoreCase));
 
         int counter = 0;
 
@@ -132,12 +132,29 @@ public class MovLearnUtil
         {
             try
             {
-
                 string relativeFileName = PP.GetRelativeFileName(srcFile.FullPath, Settings.SrcDir);
 
                 var tokens = PP.SplitTokens(relativeFileName);
                 if (tokens.Length == 3)
                 {
+                    // このファイルと同じディレクトリのファイルを列挙
+                    string srcFileDirPath = PP.GetDirectoryName(srcFile.FullPath);
+                    var sameDirFiles = srcFiles.Where(x => PP.GetDirectoryName(x.FullPath) == srcFileDirPath).ToArray();
+
+                    int maxTracks = sameDirFiles.Length;
+                    int trackNumber = 1;
+
+                    for (int i = 0; i < sameDirFiles.Length; i++)
+                    {
+                        if (sameDirFiles[i] == srcFile)
+                        {
+                            trackNumber = (i + 1);
+                            break;
+                        }
+                    }
+
+                    maxTracks = Math.Max(maxTracks, trackNumber);
+
                     string artist = tokens[0]._NormalizeSoftEther(true);
                     string albumBase = tokens[1]._NormalizeSoftEther(true);
                     string titleBase = PP.GetFileNameWithoutExtension(tokens[2]._NormalizeSoftEther(true));
@@ -200,12 +217,13 @@ public class MovLearnUtil
                         }
 
                         // 無音除去を実施、音量調整も実施
-                        string audio_base_path = PP.Combine(destDirPath, albumBase + $" - audio.x1.0", $"{albumSimple} - {titleBase} - audio.x1.0.mp3");
+                        string audio_base_path = PP.Combine(destDirPath, albumBase + $" - audio.x1.0", $"{albumSimple} - {trackNumber:D2} {titleBase} - audio.x1.0.mp3");
                         audioFilters.Add($"silenceremove=window=5:detection=peak:stop_mode=all:start_mode=all:stop_periods=-1:stop_threshold=-30dB");
                         await ProcessOneFileAsync(srcFile.FullPath, audio_base_path, $"-vn -f mp3 -ab 192k -af \"{audioFilters._Combine(" , ")}\"",
                             artist,
                             albumBase + " - audio.x1.0",
-                            albumSimple + " - " + titleBase + " - audio.x1.0",
+                            albumSimple + $" - {trackNumber:D2} - " + titleBase + " - audio.x1.0",
+                            trackNumber, maxTracks,
                             cancel);
 
                         // 2.2. 数倍速再生版も作る
@@ -213,11 +231,12 @@ public class MovLearnUtil
 
                         foreach (var xstr in xList)
                         {
-                            string audio_x_path = PP.Combine(destDirPath, albumBase + $" - audio.x{xstr}", $"{albumSimple} - {titleBase} - audio.x{xstr}.mp3");
+                            string audio_x_path = PP.Combine(destDirPath, albumBase + $" - audio.x{xstr}", $"{albumSimple} - {trackNumber:D2} {titleBase} - audio.x{xstr}.mp3");
                             await ProcessOneFileAsync(audio_base_path, audio_x_path, $"-vn -f mp3 -ab 192k -af atempo={xstr}",
                                 artist,
                                 albumBase + $" - audio.x{xstr}",
-                                albumSimple + " - " + titleBase + $" - audio.x{xstr}",
+                                albumSimple + $" - {trackNumber:D2} - " + titleBase + $" - audio.x{xstr}",
+                                trackNumber, maxTracks,
                                 cancel);
                         }
                     }
@@ -266,11 +285,12 @@ public class MovLearnUtil
                         }
 
                         // 無音除去を実施、音量調整実施
-                        string video_base_path = PP.Combine(destDirPath, albumBase + $" - video.x1.0", $"{albumSimple} - {titleBase} - video.x1.0.mp4");
+                        string video_base_path = PP.Combine(destDirPath, albumBase + $" - video.x1.0", $"{albumSimple} - {trackNumber:D2} {titleBase} - video.x1.0.mp4");
                         await ProcessOneFileAsync(srcFile.FullPath, video_base_path, $"-af \"{audioFilters._Combine(" , ")}\"",
                             artist,
                             albumBase + " - video.x1.0",
-                            albumSimple + " - " + titleBase + " - video.x1.0",
+                            albumSimple + $" - {trackNumber:D2} - " + titleBase + " - video.x1.0",
+                            trackNumber, maxTracks,
                             cancel);
 
                         // 2.2. 数倍速再生版も作る
@@ -278,11 +298,12 @@ public class MovLearnUtil
 
                         foreach (var xstr in xList)
                         {
-                            string video_x_path = PP.Combine(destDirPath, albumBase + $" - video.x{xstr}", $"{albumSimple} - {titleBase} - video.x{xstr}.mp4");
+                            string video_x_path = PP.Combine(destDirPath, albumBase + $" - video.x{xstr}", $"{albumSimple} - {trackNumber:D2} {titleBase} - video.x{xstr}.mp4");
                             await ProcessOneFileAsync(video_base_path, video_x_path, $"-vf setpts=PTS/{xstr} -af atempo={xstr}",
                                 artist,
                                 albumBase + $" - video.x{xstr}",
-                                albumSimple + " - " + titleBase + $" - video.x{xstr}",
+                                albumSimple + $" - {trackNumber:D2} - " + titleBase + $" - video.x{xstr}",
+                                trackNumber, maxTracks,
                                 cancel);
                         }
                     }
@@ -301,7 +322,7 @@ public class MovLearnUtil
         }
     }
 
-    async Task ProcessOneFileAsync(string srcPath, string dstPath, string args, string artist, string album, string title, CancellationToken cancel = default)
+    async Task ProcessOneFileAsync(string srcPath, string dstPath, string args, string artist, string album, string title, int track, int maxTracks, CancellationToken cancel = default)
     {
         var now = DtOffsetNow;
         string okTxtPath = PP.Combine(PP.GetDirectoryName(dstPath), ".okfiles", PP.GetFileName(dstPath)) + ".ok.txt";
@@ -323,7 +344,7 @@ public class MovLearnUtil
         }
 
         // 変換を実施
-        string cmdLine = $"-y -i \"{srcPath._RemoveQuotation()}\" {args} -metadata title=\"{title}\" -metadata album=\"{album}\" -metadata author=\"{artist}\" \"{dstPath._RemoveQuotation()}\"";
+        string cmdLine = $"-y -i \"{srcPath._RemoveQuotation()}\" {args} -metadata title=\"{title}\" -metadata album=\"{album}\" -metadata artist=\"{artist}\" -metadata track=\"{track}/{maxTracks}\" \"{dstPath._RemoveQuotation()}\"";
 
         var result = await EasyExec.ExecAsync(Settings.FfMpegExePath, cmdLine, PP.GetDirectoryName(Settings.FfMpegExePath),
             flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdOut | ExecFlags.EasyPrintRealtimeStdErr,
