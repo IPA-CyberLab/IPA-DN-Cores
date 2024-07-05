@@ -217,12 +217,12 @@ public class MovLearnUtil
                         }
 
                         // 無音除去を実施、音量調整も実施
-                        string audio_base_path = PP.Combine(destDirPath, albumBase + $" - audio.x1.0", $"{albumSimple} - {trackNumber:D2} {titleBase} - audio.x1.0.mp3");
+                        string audio_base_path = PP.Combine(destDirPath, albumBase + $" - audio.x1.0", $"{albumSimple} [{trackNumber:D2}] {titleBase} - audio.x1.0.mp3");
                         audioFilters.Add($"silenceremove=window=5:detection=peak:stop_mode=all:start_mode=all:stop_periods=-1:stop_threshold=-30dB");
                         await ProcessOneFileAsync(srcFile.FullPath, audio_base_path, $"-vn -f mp3 -ab 192k -af \"{audioFilters._Combine(" , ")}\"",
-                            artist,
+                            artist + $" - video.x1.0",
                             albumBase + " - audio.x1.0",
-                            albumSimple + $" - {trackNumber:D2} - " + titleBase + " - audio.x1.0",
+                            albumSimple + $" [{trackNumber:D2}] - " + titleBase + " - audio.x1.0",
                             trackNumber, maxTracks,
                             cancel);
 
@@ -231,11 +231,11 @@ public class MovLearnUtil
 
                         foreach (var xstr in xList)
                         {
-                            string audio_x_path = PP.Combine(destDirPath, albumBase + $" - audio.x{xstr}", $"{albumSimple} - {trackNumber:D2} {titleBase} - audio.x{xstr}.mp3");
+                            string audio_x_path = PP.Combine(destDirPath, albumBase + $" - audio.x{xstr}", $"{albumSimple} [{trackNumber:D2}] {titleBase} - audio.x{xstr}.mp3");
                             await ProcessOneFileAsync(audio_base_path, audio_x_path, $"-vn -f mp3 -ab 192k -af atempo={xstr}",
-                                artist,
+                                artist + $" - video.x{xstr}",
                                 albumBase + $" - audio.x{xstr}",
-                                albumSimple + $" - {trackNumber:D2} - " + titleBase + $" - audio.x{xstr}",
+                                albumSimple + $" [{trackNumber:D2}] - " + titleBase + $" - audio.x{xstr}",
                                 trackNumber, maxTracks,
                                 cancel);
                         }
@@ -285,11 +285,11 @@ public class MovLearnUtil
                         }
 
                         // 無音除去を実施、音量調整実施
-                        string video_base_path = PP.Combine(destDirPath, albumBase + $" - video.x1.0", $"{albumSimple} - {trackNumber:D2} {titleBase} - video.x1.0.mp4");
+                        string video_base_path = PP.Combine(destDirPath, albumBase + $" - video.x1.0", $"{albumSimple} [{trackNumber:D2}] {titleBase} - video.x1.0.mp4");
                         await ProcessOneFileAsync(srcFile.FullPath, video_base_path, $"-af \"{audioFilters._Combine(" , ")}\"",
-                            artist,
+                            artist + $" - video.x1.0",
                             albumBase + " - video.x1.0",
-                            albumSimple + $" - {trackNumber:D2} - " + titleBase + " - video.x1.0",
+                            albumSimple + $" [{trackNumber:D2}] - " + titleBase + " - video.x1.0",
                             trackNumber, maxTracks,
                             cancel);
 
@@ -298,11 +298,11 @@ public class MovLearnUtil
 
                         foreach (var xstr in xList)
                         {
-                            string video_x_path = PP.Combine(destDirPath, albumBase + $" - video.x{xstr}", $"{albumSimple} - {trackNumber:D2} {titleBase} - video.x{xstr}.mp4");
+                            string video_x_path = PP.Combine(destDirPath, albumBase + $" - video.x{xstr}", $"{albumSimple} [{trackNumber:D2}] {titleBase} - video.x{xstr}.mp4");
                             await ProcessOneFileAsync(video_base_path, video_x_path, $"-vf setpts=PTS/{xstr} -af atempo={xstr}",
-                                artist,
+                                artist + $" - video.x{xstr}",
                                 albumBase + $" - video.x{xstr}",
-                                albumSimple + $" - {trackNumber:D2} - " + titleBase + $" - video.x{xstr}",
+                                albumSimple + $" [{trackNumber:D2}] - " + titleBase + $" - video.x{xstr}",
                                 trackNumber, maxTracks,
                                 cancel);
                         }
