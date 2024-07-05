@@ -220,7 +220,7 @@ public class MovLearnUtil
                         string audio_base_path = PP.Combine(destDirPath, albumBase + $" - audio.x1.0", $"{albumSimple} [{trackNumber:D2}] {titleBase} - audio.x1.0.mp3");
                         audioFilters.Add($"silenceremove=window=5:detection=peak:stop_mode=all:start_mode=all:stop_periods=-1:stop_threshold=-30dB");
                         await ProcessOneFileAsync(srcFile.FullPath, audio_base_path, $"-vn -f mp3 -ab 192k -af \"{audioFilters._Combine(" , ")}\"",
-                            artist + $" - video.x1.0",
+                            artist + $" - audio.x1.0",
                             albumBase + " - audio.x1.0",
                             albumSimple + $" [{trackNumber:D2}] - " + titleBase + " - audio.x1.0",
                             trackNumber, maxTracks,
@@ -233,7 +233,7 @@ public class MovLearnUtil
                         {
                             string audio_x_path = PP.Combine(destDirPath, albumBase + $" - audio.x{xstr}", $"{albumSimple} [{trackNumber:D2}] {titleBase} - audio.x{xstr}.mp3");
                             await ProcessOneFileAsync(audio_base_path, audio_x_path, $"-vn -f mp3 -ab 192k -af atempo={xstr}",
-                                artist + $" - video.x{xstr}",
+                                artist + $" - audio.x{xstr}",
                                 albumBase + $" - audio.x{xstr}",
                                 albumSimple + $" [{trackNumber:D2}] - " + titleBase + $" - audio.x{xstr}",
                                 trackNumber, maxTracks,
