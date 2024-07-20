@@ -278,7 +278,8 @@ namespace IPA.Cores.Basic
             string printTag = "",
             Func<string, Task<bool>>? easyOneLineRecvCallbackAsync = null,
             Func<ReadOnlyMemory<byte>, ReadOnlyMemory<byte>, Task<bool>>? easyRealtimeRecvBufCallbackAsync = null,
-            int easyRealtimeRecvBufCallbackDelayTickMsecs = 0, StrDictionary<string>? additionalEnvVars = null)
+            int easyRealtimeRecvBufCallbackDelayTickMsecs = 0, StrDictionary<string>? additionalEnvVars = null,
+            Encoding? inputEncoding = null, Encoding? outputEncoding = null, Encoding? errorEncoding = null)
         {
             if (timeout <= 0) timeout = Timeout.Infinite;
 
@@ -337,7 +338,8 @@ namespace IPA.Cores.Basic
             CancellationToken cancel = default, bool debug = false, bool throwOnErrorExitCode = true, string printTag = "",
             Func<string, Task<bool>>? easyOneLineRecvCallbackAsync = null,
             Func<ReadOnlyMemory<byte>, ReadOnlyMemory<byte>, Task<bool>>? easyRealtimeRecvBufCallbackAsync = null,
-            int easyRealtimeRecvBufCallbackDelayTickMsecs = 0, StrDictionary<string>? additionalEnvVars = null)
+            int easyRealtimeRecvBufCallbackDelayTickMsecs = 0, StrDictionary<string>? additionalEnvVars = null,
+            Encoding? inputEncoding = null, Encoding? outputEncoding = null, Encoding? errorEncoding = null)
         {
             if (timeout <= 0) timeout = Timeout.Infinite;
 
@@ -505,13 +507,17 @@ namespace IPA.Cores.Basic
         public Func<ReadOnlyMemory<byte>, ReadOnlyMemory<byte>, Task<bool>>? EasyRealtimeRecvBufCallbackAsync { get; }
         public int EasyRealtimeRecvBufCallbackDelayTickMsecs { get; }
         public StrDictionary<string>? AdditionalEnvVars { get; }
+        public Encoding InputEncoding { get; }
+        public Encoding OutputEncoding { get; }
+        public Encoding ErrorEncoding { get; }
 
         public ExecOptions(string commandName, string? arguments = null, string? currentDirectory = null, ExecFlags flags = ExecFlags.Default,
             int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null, string printTag = "",
             Func<string, Task<bool>>? easyOneLineRecvCallbackAsync = null,
             Func<ReadOnlyMemory<byte>, ReadOnlyMemory<byte>, Task<bool>>? easyRealtimeRecvBufCallbackAsync = null,
             int easyRealtimeRecvBufCallbackDelayTickMsecs = 0,
-            StrDictionary<string>? additionalEnvVars = null)
+            StrDictionary<string>? additionalEnvVars = null,
+            Encoding? inputEncoding = null, Encoding? outputEncoding = null, Encoding? errorEncoding = null)
         {
             this.CommandName = commandName._NullCheck();
             if (Env.IsUnix == false || flags.Bit(ExecFlags.UnixAutoFullPath) == false)
@@ -541,13 +547,17 @@ namespace IPA.Cores.Basic
             this.EasyRealtimeRecvBufCallbackAsync = easyRealtimeRecvBufCallbackAsync;
             this.EasyRealtimeRecvBufCallbackDelayTickMsecs = easyRealtimeRecvBufCallbackDelayTickMsecs;
             this.AdditionalEnvVars = additionalEnvVars;
+            this.InputEncoding = inputEncoding ?? Console.InputEncoding;
+            this.OutputEncoding = outputEncoding ?? Console.OutputEncoding;
+            this.ErrorEncoding = errorEncoding ?? Console.OutputEncoding;
         }
 
         public ExecOptions(string commandName, IEnumerable<string> argumentsList, string? currentDirectory = null, ExecFlags flags = ExecFlags.Default,
             int easyOutputMaxSize = Consts.Numbers.DefaultLargeBufferSize, string? easyInputStr = null, string printTag = "",
             Func<string, Task<bool>>? easyOneLineRecvCallbackAsync = null,
             Func<ReadOnlyMemory<byte>, ReadOnlyMemory<byte>, Task<bool>>? easyRealtimeRecvBufCallbackAsync = null,
-            int easyRealtimeRecvBufCallbackDelayTickMsecs = 0, StrDictionary<string>? additionalEnvVars = null)
+            int easyRealtimeRecvBufCallbackDelayTickMsecs = 0, StrDictionary<string>? additionalEnvVars = null,
+            Encoding? inputEncoding = null, Encoding? outputEncoding = null, Encoding? errorEncoding = null)
         {
             this.CommandName = commandName._NullCheck();
             if (Env.IsUnix == false || flags.Bit(ExecFlags.UnixAutoFullPath) == false)
@@ -577,6 +587,9 @@ namespace IPA.Cores.Basic
             this.EasyRealtimeRecvBufCallbackAsync = easyRealtimeRecvBufCallbackAsync;
             this.EasyRealtimeRecvBufCallbackDelayTickMsecs = easyRealtimeRecvBufCallbackDelayTickMsecs;
             this.AdditionalEnvVars = additionalEnvVars;
+            this.InputEncoding = inputEncoding ?? Console.InputEncoding;
+            this.OutputEncoding = outputEncoding ?? Console.OutputEncoding;
+            this.ErrorEncoding = errorEncoding ?? Console.OutputEncoding;
         }
     }
 
@@ -587,9 +600,9 @@ namespace IPA.Cores.Basic
 
         public AsyncManualResetEvent ExitEvent { get; } = new AsyncManualResetEvent();
 
-        public Encoding InputEncoding { get; }
-        public Encoding OutputEncoding { get; }
-        public Encoding ErrorEncoding { get; }
+        public Encoding InputEncoding => Options.InputEncoding;
+        public Encoding OutputEncoding => Options.OutputEncoding;
+        public Encoding ErrorEncoding => Options.ErrorEncoding;
 
         PipePoint StandardPipePoint_MySide;
         PipePointStreamWrapper StandardPipeWrapper;
@@ -725,9 +738,6 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                this.InputEncoding = Console.OutputEncoding;
-                this.OutputEncoding = this.ErrorEncoding = Console.InputEncoding;
-
                 this.Options = options._NullCheck();
 
                 ProcessStartInfo info = new ProcessStartInfo()

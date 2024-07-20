@@ -4930,7 +4930,7 @@ HOST: www.google.com
 
     static async Task Test_240704()
     {
-        MovLearnUtil u = new MovLearnUtil(new MovLearnUtilSettings { SrcDir = @"C:\Users\yagi\Desktop\test_src\", DestDir = @"C:\Users\yagi\Desktop\test_dst", Overwrite = false, MaxVolume = -0.0, SrcExtList = "mp4", FfMpegExePath = @"C:\git\dndevtools\ffmpeg\240703\ffmpeg.exe" });
+        MovLearnUtil u = new MovLearnUtil(new MovLearnUtilSettings { SrcDir = @"H:\Books\AudioBook\_src\", DestDir = @"H:\Books\AudioBook\AudioBook\", Overwrite = false, MaxVolume = -0.0, SrcExtList = "mp4", FfMpegExePath = @"C:\git\dndevtools\ffmpeg\240703\ffmpeg.exe" });
 
         await u.ExecAsync();
     }

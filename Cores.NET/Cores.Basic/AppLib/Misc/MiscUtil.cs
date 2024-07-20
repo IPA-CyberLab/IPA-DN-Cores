@@ -120,6 +120,8 @@ public class MovLearnUtil
 
     public async Task ExecAsync(CancellationToken cancel = default)
     {
+        var encoding = Str.Utf8Encoding;
+
         // 元ディレクトリのファイルを列挙
         var items = await Lfs.EnumDirectoryAsync(Settings.SrcDir, recursive: true, cancel: cancel);
 
@@ -187,7 +189,8 @@ public class MovLearnUtil
                         // 現在の max_volume 値を取得
                         var result = await EasyExec.ExecAsync(Settings.FfMpegExePath, $"-i \"{srcFile.FullPath._RemoveQuotation()}\" -vn -af volumedetect -f null -", PP.GetDirectoryName(Settings.FfMpegExePath),
                             flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdOut | ExecFlags.EasyPrintRealtimeStdErr,
-                            timeout: Timeout.Infinite, cancel: cancel, throwOnErrorExitCode: true);
+                            timeout: Timeout.Infinite, cancel: cancel, throwOnErrorExitCode: true,
+                            inputEncoding: encoding, outputEncoding: encoding, errorEncoding: encoding);
 
                         double currentMaxVolume = double.NaN;
 
@@ -224,7 +227,7 @@ public class MovLearnUtil
                             albumBase + " - audio.x1.0",
                             albumSimple + $" [{trackNumber:D2}] - " + titleBase + " - audio.x1.0",
                             trackNumber, maxTracks,
-                            cancel);
+                            encoding, cancel);
 
                         // 2.2. 数倍速再生版も作る
                         string[] xList = { "1.5", "2.0" };
@@ -237,7 +240,7 @@ public class MovLearnUtil
                                 albumBase + $" - audio.x{xstr}",
                                 albumSimple + $" [{trackNumber:D2}] - " + titleBase + $" - audio.x{xstr}",
                                 trackNumber, maxTracks,
-                                cancel);
+                                encoding, cancel);
                         }
                     }
 
@@ -251,7 +254,8 @@ public class MovLearnUtil
                         // 現在の max_volume 値を取得
                         var result = await EasyExec.ExecAsync(Settings.FfMpegExePath, $"-i \"{srcFile.FullPath._RemoveQuotation()}\" -vn -af volumedetect -f null -", PP.GetDirectoryName(Settings.FfMpegExePath),
                             flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdOut | ExecFlags.EasyPrintRealtimeStdErr,
-                            timeout: Timeout.Infinite, cancel: cancel, throwOnErrorExitCode: true);
+                            timeout: Timeout.Infinite, cancel: cancel, throwOnErrorExitCode: true,
+                            inputEncoding: encoding, outputEncoding: encoding, errorEncoding: encoding);
 
                         double currentMaxVolume = double.NaN;
 
@@ -291,7 +295,7 @@ public class MovLearnUtil
                             albumBase + " - video.x1.0",
                             albumSimple + $" [{trackNumber:D2}] - " + titleBase + " - video.x1.0",
                             trackNumber, maxTracks,
-                            cancel);
+                            encoding, cancel);
 
                         // 2.2. 数倍速再生版も作る
                         string[] xList = { "1.5", "2.0" };
@@ -304,7 +308,7 @@ public class MovLearnUtil
                                 albumBase + $" - video.x{xstr}",
                                 albumSimple + $" [{trackNumber:D2}] - " + titleBase + $" - video.x{xstr}",
                                 trackNumber, maxTracks,
-                                cancel);
+                                encoding, cancel);
                         }
                     }
                 }
@@ -322,7 +326,7 @@ public class MovLearnUtil
         }
     }
 
-    async Task ProcessOneFileAsync(string srcPath, string dstPath, string args, string artist, string album, string title, int track, int maxTracks, CancellationToken cancel = default)
+    async Task ProcessOneFileAsync(string srcPath, string dstPath, string args, string artist, string album, string title, int track, int maxTracks, Encoding encoding, CancellationToken cancel = default)
     {
         var now = DtOffsetNow;
         string okTxtPath = PP.Combine(PP.GetDirectoryName(dstPath), ".okfiles", PP.GetFileName(dstPath)) + ".ok.txt";
@@ -348,7 +352,8 @@ public class MovLearnUtil
 
         var result = await EasyExec.ExecAsync(Settings.FfMpegExePath, cmdLine, PP.GetDirectoryName(Settings.FfMpegExePath),
             flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdOut | ExecFlags.EasyPrintRealtimeStdErr,
-            timeout: Timeout.Infinite, cancel: cancel, throwOnErrorExitCode: true);
+            timeout: Timeout.Infinite, cancel: cancel, throwOnErrorExitCode: true,
+            inputEncoding: encoding, outputEncoding: encoding, errorEncoding: encoding);
 
         // 成功したら ok.txt を保存
         string okTxtBody = now._ToDtStr(true, DtStrOption.All, true) + "\r\n\r\n" + cmdLine + "\r\n\r\n" + result.ErrorAndOutputStr;

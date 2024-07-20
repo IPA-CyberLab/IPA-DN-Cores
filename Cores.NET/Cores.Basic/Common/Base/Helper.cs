@@ -1375,12 +1375,6 @@ public static class BasicHelper
 
         while (true)
         {
-            int readSize = Math.Min(tmp.Length, maxBufferSize - buffer.Length);
-            if (readSize <= 0)
-            {
-                break;
-            }
-
             int sz;
 
             try
@@ -1416,7 +1410,11 @@ public static class BasicHelper
                     ex._Debug();
                 }
             }
-            buffer.Write(writeData);
+
+            if (buffer.Length < maxBufferSize)
+            {
+                buffer.Write(writeData);
+            }
         }
 
         if (receivedDataMonitorAsync != null)
