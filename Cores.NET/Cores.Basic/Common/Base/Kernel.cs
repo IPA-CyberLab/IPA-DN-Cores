@@ -289,7 +289,8 @@ namespace IPA.Cores.Basic
 
             ExecOptions opt = new ExecOptions(Lfs.UnixGetFullPathFromCommandName(Consts.LinuxCommands.Bash),
                 args, currentDirectory, flags, easyOutputMaxSize, easyInputStr, printTag,
-                easyOneLineRecvCallbackAsync, easyRealtimeRecvBufCallbackAsync, easyRealtimeRecvBufCallbackDelayTickMsecs, additionalEnvVars);
+                easyOneLineRecvCallbackAsync, easyRealtimeRecvBufCallbackAsync, easyRealtimeRecvBufCallbackDelayTickMsecs, additionalEnvVars,
+                inputEncoding, outputEncoding, errorEncoding);
 
             if (debug)
             {
@@ -344,7 +345,8 @@ namespace IPA.Cores.Basic
             if (timeout <= 0) timeout = Timeout.Infinite;
 
             ExecOptions opt = new ExecOptions(cmdName, arguments, currentDirectory, flags, easyOutputMaxSize, easyInputStr, printTag,
-                easyOneLineRecvCallbackAsync, easyRealtimeRecvBufCallbackAsync, easyRealtimeRecvBufCallbackDelayTickMsecs, additionalEnvVars);
+                easyOneLineRecvCallbackAsync, easyRealtimeRecvBufCallbackAsync, easyRealtimeRecvBufCallbackDelayTickMsecs, additionalEnvVars,
+                inputEncoding, outputEncoding, errorEncoding);
 
             if (debug)
             {
