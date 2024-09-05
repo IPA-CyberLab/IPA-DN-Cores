@@ -230,7 +230,7 @@ public class MovLearnUtil
                             encoding, cancel);
 
                         // 2.2. 数倍速再生版も作る
-                        string[] xList = { "1.5", "2.0" };
+                        string[] xList = { "1.5", "2.0", "2.5", "3.0", "3.5" };
 
                         foreach (var xstr in xList)
                         {
@@ -298,7 +298,7 @@ public class MovLearnUtil
                             encoding, cancel);
 
                         // 2.2. 数倍速再生版も作る
-                        string[] xList = { "1.5", "2.0" };
+                        string[] xList = { "1.5", "2.0", "2.5", "3.0", "3.5" };
 
                         foreach (var xstr in xList)
                         {
