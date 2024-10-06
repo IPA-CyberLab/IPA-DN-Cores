@@ -5032,7 +5032,7 @@ HOST: www.google.com
     static async Task Test_241006_01()
     {
         //string path = @"\\rd-bktmp1\NFS\241001_bk1_d\bk1_d.securecompress";
-        string path = @"/bktmp1/241001_bk1_d/bk1_d.securecompress";
+        string path = @"/bktmp1/241001_bk1_d/test.txt";
 
         await using var f = await Lfs.OpenAsync(path, writeMode: true, flags: FileFlags.Async);
 
