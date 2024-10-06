@@ -4985,14 +4985,14 @@ HOST: www.google.com
 
                     switch (filetype)
                     {
-                        case ArchiveFileType.Gzip:
+                        /*case ArchiveFileType.Gzip:
                             archiveStream = new GZipStream(archiveFileStream, CompressionLevel.Fastest, false);
                             break;
 
                         case ArchiveFileType.SecureCompress:
 
                             archiveStream = new SecureCompressEncoder(archiveFileStream, new SecureCompressOptions(diskName, password._IsFilled(), password, true, CompressionLevel.SmallestSize), Math.Min(diskStream.Length, truncate), true);
-                            break;
+                            break;*/
 
                         default:
                             archiveStream = archiveFileStream;
