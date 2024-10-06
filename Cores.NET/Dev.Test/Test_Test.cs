@@ -4935,8 +4935,34 @@ HOST: www.google.com
         await u.ExecAsync();
     }
 
+    static async Task Test_241006()
+    {
+        //string path = @"\\rd-bktmp1\NFS\241001_bk1_d\bk1_d.securecompress";
+        string path = @"/bktmp1/241001_bk1_d/bk1_d.securecompress";
+
+        await using var f = await Lfs.OpenAsync(path, writeMode: true);
+
+        long size = await f.GetFileSizeAsync();
+        $"Size = {size._ToString3()}"._Print();
+
+        await f.SeekAsync(size, SeekOrigin.Begin);
+
+        byte[] data = "Hello"._GetBytes_Ascii();
+
+        f.WriteRandom(size + 1024 * 1024 * 5, data);
+
+        size = await f.GetFileSizeAsync();
+        $"Size = {size._ToString3()}"._Print();
+    }
+
     public static void Test_Generic()
     {
+        if (true)
+        {
+            Test_241006()._GetResult();
+            return;
+        }
+
         if (true)
         {
             Test_240704()._GetResult();
