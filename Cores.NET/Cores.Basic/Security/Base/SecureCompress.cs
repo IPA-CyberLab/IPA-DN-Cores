@@ -1313,7 +1313,7 @@ public class SecureCompressEncoder : StreamImplBase
     {
         if (LastException != null)
         {
-            throw LastException;
+            LastException._ReThrow();
         }
 
         try

@@ -4966,6 +4966,21 @@ HOST: www.google.com
                     await using var archiveFileStream = archiveFile.GetStream(true);
                     archiveFileStream._SeekToEnd();
 
+                    {
+
+                        long size = await f.GetFileSizeAsync();
+                        $"Size1 = {size._ToString3()}"._Print();
+
+                        byte[] data = "Hello"._GetBytes_Ascii();
+
+                        await archiveFileStream.WriteAsync(data);
+
+                        size = await f.GetFileSizeAsync();
+                        $"Size2 = {size._ToString3()}"._Print();
+                    }
+
+                    archiveFileStream._SeekToEnd();
+
                     Stream archiveStream;
 
                     switch (filetype)
