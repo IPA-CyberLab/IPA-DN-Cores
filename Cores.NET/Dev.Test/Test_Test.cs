@@ -4940,7 +4940,7 @@ HOST: www.google.com
         //string path = @"\\rd-bktmp1\NFS\241001_bk1_d\bk1_d.securecompress";
         string path = @"/bktmp1/241001_bk1_d/bk1_d.securecompress";
 
-        await using var f = await Lfs.OpenAsync(path, writeMode: true);
+        await using var f = await Lfs.OpenAsync(path, writeMode: true, flags: FileFlags.Async);
 
         long size = await f.GetFileSizeAsync();
         $"Size = {size._ToString3()}"._Print();
