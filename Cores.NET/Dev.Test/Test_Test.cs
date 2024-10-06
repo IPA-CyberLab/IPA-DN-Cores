@@ -4968,14 +4968,14 @@ HOST: www.google.com
 
                     {
 
-                        long size = await f.GetFileSizeAsync();
+                        long size = archiveFileStream.Length;
                         $"Size1 = {size._ToString3()}"._Print();
 
                         byte[] data = "Hello"._GetBytes_Ascii();
 
                         await archiveFileStream.WriteAsync(data);
 
-                        size = await f.GetFileSizeAsync();
+                        size = archiveFileStream.Length;
                         $"Size2 = {size._ToString3()}"._Print();
                     }
 
