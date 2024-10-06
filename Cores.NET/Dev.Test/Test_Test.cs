@@ -5037,16 +5037,29 @@ HOST: www.google.com
         await using var f = await Lfs.OpenAsync(path, writeMode: true, flags: FileFlags.Async);
 
         long size = await f.GetFileSizeAsync();
-        $"Size = {size._ToString3()}"._Print();
+        $"Current length = {size._ToString3()}"._Print();
 
         await f.SeekToEndAsync();
 
-        byte[] data = new byte[1024 * 1024 * 16 * 5];
+        int unitSize = 1;
 
-        await f.WriteAsync(data);
+        while (true)
+        {
+            byte[] data = new byte[unitSize];
 
-        size = await f.GetFileSizeAsync();
-        $"Size = {size._ToString3()}"._Print();
+            $"Trying {unitSize._ToString3()} bytes..."._Print();
+
+            await f.WriteAsync(data);
+
+            size = await f.GetFileSizeAsync();
+
+            $"Current length = {size._ToString3()}"._Print();
+
+            if (unitSize < 8 * 1024 * 1024)
+            {
+                unitSize *= 2;
+            }
+        }
     }
 
     public static void Test_Generic()
