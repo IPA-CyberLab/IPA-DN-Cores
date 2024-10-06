@@ -5005,7 +5005,7 @@ HOST: www.google.com
                         {
                             RefBool readErrorIgnored = new();
 
-                            long size = await FileUtil.CopyBetweenStreamAsync(diskStream, archiveStream, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024, ensureBufferSize: true, ignoreReadError: true), reporter: reporter, readErrorIgnored: readErrorIgnored);
+                            long size = await FileUtil.CopyBetweenStreamAsync(diskStream, archiveStream, truncateSize: truncate, param: new CopyFileParams(asyncCopy: false, bufferSize: 16 * 1024 * 1024, ensureBufferSize: true, ignoreReadError: true), reporter: reporter, readErrorIgnored: readErrorIgnored);
 
                             if (readErrorIgnored)
                             {
