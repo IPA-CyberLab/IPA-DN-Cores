@@ -5038,7 +5038,7 @@ HOST: www.google.com
     {
         if (true)
         {
-            Test_241006()._GetResult();
+            Test_241006_02()._GetResult();
             return;
         }
 
