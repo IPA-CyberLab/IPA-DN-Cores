@@ -4935,6 +4935,85 @@ HOST: www.google.com
         await u.ExecAsync();
     }
 
+    static async Task Test_241006_02()
+    {
+        string diskName = "by-disksize-79456884490240";
+        string dstFileName = "/bktmp1/241001_bk1_d/test1.dat";
+        long truncate = 0;
+        string filetypeStr = "securecompress";
+        string password = "microsoft";
+        if (truncate <= 0)
+        {
+            truncate = -1;
+        }
+        else
+        {
+            truncate = (truncate + 4095L) / 4096L * 4096L;
+        }
+
+        ArchiveFileType filetype = ArchiveFileType.Raw.ParseAsDefault(filetypeStr, false, true);
+
+        bool hasError = false;
+
+        await using (var rawFs = new LocalRawDiskFileSystem())
+        {
+            await using (var disk = await rawFs.OpenAsync($"/{diskName}"))
+            {
+                await using var diskStream = disk.GetStream(true);
+
+                await using (var archiveFile = await Lfs.CreateAsync(dstFileName, flags: FileFlags.AutoCreateDirectory))
+                {
+                    await using var archiveFileStream = archiveFile.GetStream(true);
+                    archiveFileStream._SeekToEnd();
+
+                    Stream archiveStream;
+
+                    switch (filetype)
+                    {
+                        case ArchiveFileType.Gzip:
+                            archiveStream = new GZipStream(archiveFileStream, CompressionLevel.Fastest, false);
+                            break;
+
+                        case ArchiveFileType.SecureCompress:
+
+                            archiveStream = new SecureCompressEncoder(archiveFileStream, new SecureCompressOptions(diskName, password._IsFilled(), password, true, CompressionLevel.SmallestSize), Math.Min(diskStream.Length, truncate), true);
+                            break;
+
+                        default:
+                            archiveStream = archiveFileStream;
+                            break;
+                    }
+
+                    await using (archiveStream)
+                    {
+                        using (var reporter = new ProgressReporter(new ProgressReporterSetting(ProgressReporterOutputs.Console, toStr3: true, showEta: true, options: ProgressReporterOptions.EnableThroughput), null))
+                        {
+                            RefBool readErrorIgnored = new();
+
+                            long size = await FileUtil.CopyBetweenStreamAsync(diskStream, archiveStream, truncateSize: truncate, param: new CopyFileParams(asyncCopy: true, bufferSize: 16 * 1024 * 1024, ensureBufferSize: true, ignoreReadError: true), reporter: reporter, readErrorIgnored: readErrorIgnored);
+
+                            if (readErrorIgnored)
+                            {
+                                $"Warning! There were sector read errors on source disk. Please check the error log."._Error();
+                                CoresLib.Report_HasError = true;
+                                hasError = true;
+                            }
+
+                            await archiveStream.FlushAsync();
+                            await archiveFileStream.FlushAsync();
+
+                            string msg = $"Result: Total {size._ToString3()} bytes ({size._GetFileSizeStr()}) copied.";
+
+                            msg._Print();
+                            CoresLib.Report_SimpleResult = msg;
+                        }
+                    }
+                }
+            }
+        }
+
+    }
+
     static async Task Test_241006()
     {
         //string path = @"\\rd-bktmp1\NFS\241001_bk1_d\bk1_d.securecompress";
