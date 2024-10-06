@@ -4961,7 +4961,7 @@ HOST: www.google.com
             {
                 await using var diskStream = disk.GetStream(true);
 
-                await using (var archiveFile = await Lfs.CreateAsync(dstFileName, flags: FileFlags.AutoCreateDirectory))
+                await using (var archiveFile = await Lfs.OpenAsync(dstFileName, flags: FileFlags.AutoCreateDirectory))
                 {
                     await using var archiveFileStream = archiveFile.GetStream(true);
                     archiveFileStream._SeekToEnd();
