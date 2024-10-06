@@ -5029,7 +5029,7 @@ HOST: www.google.com
 
     }
 
-    static async Task Test_241006()
+    static async Task Test_241006_01()
     {
         //string path = @"\\rd-bktmp1\NFS\241001_bk1_d\bk1_d.securecompress";
         string path = @"/bktmp1/241001_bk1_d/bk1_d.securecompress";
@@ -5039,11 +5039,11 @@ HOST: www.google.com
         long size = await f.GetFileSizeAsync();
         $"Size = {size._ToString3()}"._Print();
 
-        await f.SeekAsync(size, SeekOrigin.Begin);
+        await f.SeekToEndAsync();
 
-        byte[] data = "Hello"._GetBytes_Ascii();
+        byte[] data = new byte[1024 * 1024 * 16 * 5];
 
-        f.WriteRandom(size + 1024 * 1024 * 5, data);
+        await f.WriteAsync(data);
 
         size = await f.GetFileSizeAsync();
         $"Size = {size._ToString3()}"._Print();
@@ -5053,7 +5053,7 @@ HOST: www.google.com
     {
         if (true)
         {
-            Test_241006_02()._GetResult();
+            Test_241006_01()._GetResult();
             return;
         }
 
