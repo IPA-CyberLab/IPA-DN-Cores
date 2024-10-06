@@ -4971,7 +4971,7 @@ HOST: www.google.com
                         long size = archiveFileStream.Length;
                         $"Size1 = {size._ToString3()}"._Print();
 
-                        byte[] data = "Hello"._GetBytes_Ascii();
+                        byte[] data = new byte[1024 * 1024 * 16 * 5];
 
                         await archiveFileStream.WriteAsync(data);
 
