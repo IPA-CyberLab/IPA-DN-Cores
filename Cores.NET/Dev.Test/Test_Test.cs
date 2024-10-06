@@ -4938,7 +4938,7 @@ HOST: www.google.com
     static async Task Test_241006_02()
     {
         string diskName = "by-disksize-79456884490240";
-        string dstFileName = "/bktmp1/241001_bk1_d/test1.dat";
+        string dstFileName = "/bktmp1/241001_bk1_d/bk1_d.securecompress";
         long truncate = 0;
         string filetypeStr = "securecompress";
         string password = "microsoft";
