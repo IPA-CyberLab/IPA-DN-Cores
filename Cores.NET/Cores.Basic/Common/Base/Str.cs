@@ -8372,6 +8372,8 @@ namespace IPA.Cores.Basic
         // 指定した文字の列を生成する
         public static string MakeCharArray(char c, int len)
         {
+            if (len < 0) throw new ArgumentOutOfRangeException(nameof(len));
+            if (len == 0) return "";
             return new string(c, len);
         }
 

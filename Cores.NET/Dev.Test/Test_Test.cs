@@ -5062,8 +5062,32 @@ HOST: www.google.com
         }
     }
 
+    static async Task Test_241013()
+    {
+        var files = await Lfs.EnumDirectoryAsync(@"c:\tmp\");
+
+        using var sha1 = SHA1.Create();
+
+        foreach (var file in files.Where(x => x.IsFile).Where(x => x.Size <= 10_000_000).OrderBy(x => x.Name, StrCmpi))
+        {
+            var hash = await Lfs.CalcFileHashAsync(file.FullPath, sha1);
+
+            var pair = MovYaiUtil.GenerateFilePrefixStr(hash, 29, 9999999999);
+
+            string str = pair.A + "-" + pair.B + " " + file.Name;
+
+            str._Print();
+        }
+    }
+
     public static void Test_Generic()
     {
+        if (true)
+        {
+            Test_241013()._GetResult();
+            return;
+        }
+
         if (true)
         {
             Test_241006_02()._GetResult();
