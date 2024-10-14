@@ -5095,6 +5095,15 @@ HOST: www.google.com
 
     public static void Test_Generic()
     {
+        if (true)
+        {
+            string s = Pdf2TxtUtil.ExtractTextFromPdfData(Lfs.ReadDataFromFile(@"H:\aaaa7.pdf"));
+
+            s._Print();
+
+            return;
+        }
+
         if (false)
         {
             string s1 = @"C:\tmp2\241014test\00\.okfiles\00-5354-73938 241 test.mp4.ok.txt";
