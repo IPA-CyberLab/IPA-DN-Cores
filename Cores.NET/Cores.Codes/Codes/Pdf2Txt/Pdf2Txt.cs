@@ -54,6 +54,7 @@ using System.Runtime.CompilerServices;
 
 using UglyToad.PdfPig;
 using UglyToad.PdfPig.Content;
+using UglyToad.PdfPig.Writer;
 using UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor;
 
 using IPA.Cores.Basic;
@@ -66,21 +67,166 @@ using static IPA.Cores.Globals.Codes;
 
 namespace IPA.Cores.Codes;
 
-public static class Pdf2TxtUtil
+public static class Pdf2Txt
 {
-    public static string ExtractTextFromPdfData(ReadOnlyMemory<byte> pdfData)
+    public static async Task<PdfDocument> LoadPdfFromFileAsync(string fileName, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, FileSystem? fs = null, CancellationToken cancel = default)
     {
-        StringWriter w = new StringWriter();
-        using var pdf = PdfDocument.Open(pdfData.ToArray());
+
+        fs ??= Lfs;
+
+        var data = await fs.ReadDataFromFileAsync(fileName, maxSize, flags, cancel);
+
+        return LoadPdf(data);
+    }
+    public static PdfDocument LoadPdfFromFile(string fileName, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, FileSystem? fs = null, CancellationToken cancel = default)
+        => LoadPdfFromFileAsync(fileName, maxSize, flags, fs, cancel)._GetResult();
+
+    public static PdfDocument LoadPdf(ReadOnlyMemory<byte> pdfBody)
+    {
+        return PdfDocument.Open(pdfBody.ToArray());
+    }
+
+    public static byte[] SavePdf_Shitagaki(this PdfDocument pdf)
+    {
+        using var builder = new PdfDocumentBuilder();
 
         foreach (var page in pdf.GetPages())
         {
-            string a = page.Text;
+            builder.AddPage(pdf, page.Number);
+        }
+
+        builder.DocumentInformation.CustomMetadata._PrintAsJson();
+
+        return builder.Build();
+    }
+
+    public static string ExtractTextFromPdf(this PdfDocument pdf)
+    {
+        StringWriter w = new StringWriter();
+
+        foreach (var page in pdf.GetPages())
+        {
+            string a = page.ExtractTextFromPage();
 
             w.WriteLine(a);
         }
 
         return w.ToString();
+    }
+
+    public static string ExtractTextFromPage(this Page page)
+    {
+        string a = page.Text;
+
+        return a;
+    }
+
+    public static bool CalcHasPdfText(this PdfDocument pdf)
+    {
+        int num = 0;
+
+        foreach (var page in pdf.GetPages())
+        {
+            string a = page.ExtractTextFromPage();
+
+            if (a.Length >= 16)
+            {
+                num++;
+            }
+        }
+
+        return num >= Math.Max((pdf.NumberOfPages / 10), 4);
+    }
+
+    public static bool CalcIsPdfVertical(this PdfDocument pdf)
+    {
+        int numVertical = 0;
+
+        foreach (var page in pdf.GetPages())
+        {
+            if (CalcIsPageVertical(page))
+            {
+                numVertical++;
+            }
+        }
+
+        if (numVertical >= (pdf.NumberOfPages / 2))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    public static bool CalcIsPageVertical(this Page page)
+    {
+        var letters = page.Letters;
+
+        int count = letters.Count;
+
+        if (count <= 10)
+        {
+            return false;
+        }
+
+        double totalX = 0, totalY = 0;
+
+        for (int i = 1; i < count - 1; i++)
+        {
+            Letter prev = letters[i - 1];
+            Letter cur = letters[i];
+
+            double relativeX = cur.GlyphRectangle.Left - prev.GlyphRectangle.Left;
+            double relativeY = cur.GlyphRectangle.Top - prev.GlyphRectangle.Top;
+
+            relativeX = Math.Abs(relativeX);
+            relativeY = Math.Abs(relativeY);
+
+            totalX += relativeX;
+            totalY += relativeY;
+        }
+
+        if (totalY > totalX)
+        {
+            return true;
+        }
+
+        return false;
+    }
+}
+
+public static class Pdf2TxtApp
+{
+    public static void CopyAllNonOcrPdfFiles(string srcDir, string destDir)
+    {
+        var srcPdfFiles = Lfs.EnumDirectory(srcDir, true, wildcard: "*.pdf");
+
+        foreach (var srcPdfFile in srcPdfFiles)
+        {
+            try
+            {
+                string relativeFileName = PP.GetRelativeFileName(srcPdfFile.FullPath, srcDir);
+
+                $"Loading '{relativeFileName}' ..."._Print();
+
+                using var pdfDoc = Pdf2Txt.LoadPdf(Lfs.ReadDataFromFile(srcPdfFile.FullPath));
+
+                bool hasText = pdfDoc.CalcHasPdfText();
+
+                if (hasText == false)
+                {
+                    string destFullPath = PP.Combine(destDir, relativeFileName);
+
+                    $"   Copying..."._Print();
+                    Lfs.CopyFile(srcPdfFile.FullPath, destFullPath, new CopyFileParams(flags: FileFlags.AutoCreateDirectory, metadataCopier: new FileMetadataCopier(FileMetadataCopyMode.TimeAll)));
+                }
+            }
+            catch (Exception ex)
+            {
+                srcPdfFile.FullPath._Error();
+                ex._Error();
+            }
+        }
     }
 }
 

@@ -5097,9 +5097,7 @@ HOST: www.google.com
     {
         if (true)
         {
-            string s = Pdf2TxtUtil.ExtractTextFromPdfData(Lfs.ReadDataFromFile(@"H:\aaaa7.pdf"));
-
-            s._Print();
+            Pdf2TxtApp.CopyAllNonOcrPdfFiles(@"H:\Books\Src_PDFs", @"H:\Books\Pre_OCR_241014\");
 
             return;
         }
