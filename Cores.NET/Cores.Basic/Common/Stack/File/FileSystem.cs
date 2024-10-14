@@ -1877,6 +1877,7 @@ public enum EnumDirectoryFlags
     IncludeParentDirectory = 4,
     SkipTooLongFileName = 8,
     AllowRelativePath = 16,
+    AllowDirectFilePath = 32,
 }
 
 [Flags]
@@ -2351,6 +2352,35 @@ public abstract partial class FileSystem : AsyncService
         CheckNotCanceled();
 
         wildcard = wildcard._NonNullTrim();
+
+        if (flags.Bit(EnumDirectoryFlags.AllowDirectFilePath))
+        {
+            if (flags.Bit(EnumDirectoryFlags.AllowRelativePath))
+            {
+                throw new ArgumentException(nameof(flags));
+            }
+
+            if (wildcard._IsFilled() && wildcard != "*" && wildcard != "*.*")
+            {
+                throw new ArgumentException(nameof(wildcard));
+            }
+
+            if (await this.IsFileExistsAsync(directoryPath))
+            {
+                // ファイルパス直接指定を許容する場合で、そのファイルが存在する場合
+                string dir = Lfs.PathParser.GetDirectoryName(directoryPath);
+                string fn = Lfs.PathParser.GetFileName(directoryPath);
+
+                var ret =  await EnumDirectoryAsync(dir, false, flags.BitRemove(EnumDirectoryFlags.AllowDirectFilePath), fn, cancel);
+
+                if (ret.Where(x => x.IsFile).Count() != 1)
+                {
+                    throw new CoresLibException($"ret has {ret.Where(x => x.IsFile).Count()} files.");
+                }
+
+                return ret;
+            }
+        }
 
         await using (CreatePerTaskCancellationToken(out CancellationToken opCancel, cancel))
         {

@@ -196,10 +196,10 @@ public class MovYaiUtil
         var encoding = Str.Utf8Encoding;
 
         // 元ディレクトリのファイルを列挙
-        var items = await Lfs.EnumDirectoryAsync(Settings.SrcDir, recursive: true, cancel: cancel);
+        var items = await Lfs.EnumDirectoryAsync(Settings.SrcDir, recursive: true, cancel: cancel, flags: EnumDirectoryFlags.AllowDirectFilePath);
 
         // 指定された拡張子リストに一致するファイル一覧を取得
-        var srcFiles = items.Where(x => x.IsFile && PP.GetExtension(x.FullPath)._IsFilled() && x.FullPath._IsExtensionMatch(Settings.SrcExtList)).OrderBy(x => x.FullPath, StrComparer.Get(StringComparison.CurrentCultureIgnoreCase));
+        FileSystemEntity[] srcFiles = items.Where(x => x.IsFile && PP.GetExtension(x.FullPath)._IsFilled() && x.FullPath._IsExtensionMatch(Settings.SrcExtList)).OrderBy(x => x.FullPath, StrComparer.Get(StringComparison.CurrentCultureIgnoreCase)).ToArray();
 
         int counter = 0;
 
@@ -210,6 +210,11 @@ public class MovYaiUtil
             try
             {
                 string srcRelativePath = PP.GetRelativeFileName(srcFile.FullPath, Settings.SrcDir);
+                if (srcRelativePath._IsEmpty())
+                {
+                    srcRelativePath = PP.GetFileName(srcFile.FullPath);
+                }
+
                 $"Loading '{srcRelativePath}' ({counter + 1} / {srcFiles.Count()}) ..."._Print();
 
                 byte[] fileHash = await Lfs.CalcFileHashAsync(srcFile.FullPath, sha1Algorithm, cancel: cancel);
