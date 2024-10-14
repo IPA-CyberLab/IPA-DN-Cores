@@ -5083,7 +5083,7 @@ HOST: www.google.com
             SrcDir = @"\\ipa\share\MOVIE\YouTubeから\241012_tom\",
             //SrcDir = @"C:\tmp2\241014sw",
             DestDir = @"c:\tmp\241014test\",
-            ArtistStr = "Tom and Jerry",
+            SeriesStr = "TomJerry",
             Overwrite = false,
             MaxVolume = -0.0,
             FfMpegExePath = @"C:\git\dndevtools\ffmpeg\240703\ffmpeg.exe"

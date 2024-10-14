@@ -88,7 +88,7 @@ public class MovYaiUtilSettings : IValidatable, INormalizable
     public string SrcDir = "";
     public string DestDir = "";
     public string SrcExtList = "";
-    public string ArtistStr = "";
+    public string SeriesStr = "";
     public double MaxVolume = 0.0;
     public bool Overwrite = false;
     public string DestFormatExt = ".mkv";
@@ -107,9 +107,9 @@ public class MovYaiUtilSettings : IValidatable, INormalizable
 
     public void Normalize()
     {
-        if (this.ArtistStr._IsEmpty())
+        if (this.SeriesStr._IsEmpty())
         {
-            this.ArtistStr = "Unknown";
+            this.SeriesStr = "Unknown";
         }
         if (this.SrcExtList._IsEmpty())
         {
@@ -278,7 +278,7 @@ public class MovYaiUtil
 
                     ("********** " + audioFilters._Combine(" / "))._Print();
 
-                    string artist = Settings.ArtistStr._NormalizeSoftEther();
+                    string artist = Settings.SeriesStr._NormalizeSoftEther();
 
                     string destFullPath = Lfs.PP.Combine(Settings.DestDir, destRelativePath);
 
@@ -292,7 +292,7 @@ public class MovYaiUtil
                     await ProcessOneFileAsync(srcFile.FullPath, destFullPath, $"-crf 18 {audioFilterArgs}",
                         artist,
                         artist,
-                        Lfs.PathParser.GetFileNameWithoutExtension(srcFile.Name)._NormalizeSoftEther(true),
+                        Settings.SeriesStr + " - " + fileHashStr + " " + Lfs.PathParser.GetFileNameWithoutExtension(srcFile.Name)._NormalizeSoftEther(true),
                         fileHashInt, int.MaxValue,
                         encoding, cancel);
                 }
