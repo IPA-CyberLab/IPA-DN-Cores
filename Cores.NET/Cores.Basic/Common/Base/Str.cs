@@ -1378,6 +1378,28 @@ namespace IPA.Cores.Basic
             SuitableEncodingListForJapaneseWin32 = suitableEncodingListForJapaneseWin32;
         }
 
+        public static string InsertStrIntoStr(string targetStr, string insertStr, int position, bool allowInsertAtEoL = false)
+        {
+            if (insertStr._IsNullOrZeroLen()) return targetStr;
+
+            if (position < 0) position = 0;
+
+            if (position > targetStr.Length) return targetStr;
+
+            if (position == targetStr.Length)
+            {
+                if (allowInsertAtEoL == false)
+                {
+                    return targetStr;
+                }
+            }
+
+            string s1 = targetStr.Substring(0, position);
+            string s2 = targetStr.Substring(position);
+
+            return s1 + insertStr + s2;
+        }
+
         internal static readonly char[] standardSplitChars =
         {
             ' ', '　', '\t',
@@ -6214,7 +6236,7 @@ namespace IPA.Cores.Basic
             {
                 return true;
             }
-            if (c == '!' || c == '$' || c == '%' || c == '&' || 
+            if (c == '!' || c == '$' || c == '%' || c == '&' ||
                 c == '(' || c == ')' || c == '-' || c == '=' || c == '~' || c == '^' || c == '_' ||
                 c == '{' || c == '}' || c == '[' || c == ']' || c == '@' ||
                 c == '+' || c == '.' || c == '<' || c == '>' ||

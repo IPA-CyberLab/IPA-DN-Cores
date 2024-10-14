@@ -5063,7 +5063,7 @@ HOST: www.google.com
     }
 
     static async Task Test_241013()
-    {
+    {/*
         var files = await Lfs.EnumDirectoryAsync(@"c:\tmp\");
 
         using var sha1 = SHA1.Create();
@@ -5072,16 +5072,38 @@ HOST: www.google.com
         {
             var hash = await Lfs.CalcFileHashAsync(file.FullPath, sha1);
 
-            var pair = MovYaiUtil.GenerateFilePrefixStr(hash, 29, 9999999999);
-
-            string str = pair.A + "-" + pair.B + " " + file.Name;
+            string str = MovYaiUtil.GenerateFilePrefixStr(hash, 29, 999999999) + " " + file.Name;
 
             str._Print();
-        }
+        }*/
+
+        MovYaiUtil u = new MovYaiUtil(new MovYaiUtilSettings
+        {
+            // 実験データ
+            SrcDir = @"\\ipa\share\MOVIE\YouTubeから\241012_tom\",
+            //SrcDir = @"C:\tmp2\241014sw",
+            DestDir = @"c:\tmp\241014test\",
+            ArtistStr = "Tom and Jerry",
+            Overwrite = false,
+            MaxVolume = -0.0,
+            FfMpegExePath = @"C:\git\dndevtools\ffmpeg\240703\ffmpeg.exe"
+        });
+
+        await u.ExecAsync();
+
     }
 
     public static void Test_Generic()
     {
+        if (false)
+        {
+            string s1 = @"C:\tmp2\241014test\00\.okfiles\00-5354-73938 241 test.mp4.ok.txt";
+            string s2 = "*00-5354-73938*.ok.txt";
+
+            s1._WildcardMatch(s2)._Print();
+            return;
+        }
+
         if (true)
         {
             Test_241013()._GetResult();

@@ -3822,7 +3822,7 @@ public static class BasicHelper
     {
         return disposable ?? new EmptyDisposable();
     }
-    
+
     public static XDocument _StrToXDocument(this string xmlBodyStr)
     {
         using StringReader r = new StringReader(xmlBodyStr);
@@ -3895,6 +3895,9 @@ public static class BasicHelper
 
         return childAsText.Value;
     }
+
+    public static string _InsertStrIntoStr(this string targetStr, string insertStr, int position, bool allowInsertAtEoL = false)
+        => Str.InsertStrIntoStr(targetStr, insertStr, position, allowInsertAtEoL);
 }
 
 

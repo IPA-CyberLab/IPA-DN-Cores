@@ -88,9 +88,15 @@ public class MovYaiUtilSettings : IValidatable, INormalizable
     public string SrcDir = "";
     public string DestDir = "";
     public string SrcExtList = "";
+    public string ArtistStr = "";
     public double MaxVolume = 0.0;
     public bool Overwrite = false;
-    public int MaxPrefixDirLevel1Int = 0;
+    public string DestFormatExt = ".mkv";
+
+    public int Hash_MaxPrefixDirLevel1Int = 20;
+    public int Hash_MaxPrefixDirLevel2Int = 99999999;
+    public string Hash_DelimiterStr = "-";
+    public int Hash_InsertStrPositionOnLevel2 = 4;
 
     public void Validate()
     {
@@ -101,13 +107,37 @@ public class MovYaiUtilSettings : IValidatable, INormalizable
 
     public void Normalize()
     {
+        if (this.ArtistStr._IsEmpty())
+        {
+            this.ArtistStr = "Unknown";
+        }
         if (this.SrcExtList._IsEmpty())
         {
-            this.SrcExtList = ".mp4 *.avi";
+            this.SrcExtList = ".mp4 .avi .mkv .m4v";
         }
-        if (this.MaxPrefixDirLevel1Int <= 0)
+        if (this.Hash_MaxPrefixDirLevel1Int <= 0)
         {
-            this.MaxPrefixDirLevel1Int = 30;
+            this.Hash_MaxPrefixDirLevel1Int = 20;
+        }
+        if (this.Hash_MaxPrefixDirLevel2Int <= 0)
+        {
+            this.Hash_MaxPrefixDirLevel2Int = 99999999;
+        }
+        if (this.Hash_DelimiterStr._IsNullOrZeroLen())
+        {
+            this.Hash_DelimiterStr = "-";
+        }
+        if (this.Hash_InsertStrPositionOnLevel2 <= 0)
+        {
+            this.Hash_InsertStrPositionOnLevel2 = 4;
+        }
+        if (this.DestFormatExt._IsEmpty())
+        {
+            this.DestFormatExt = ".mkv";
+        }
+        if (this.DestFormatExt.StartsWith(".") == false)
+        {
+            this.DestFormatExt = "." + this.DestFormatExt;
         }
     }
 }
@@ -124,7 +154,7 @@ public class MovYaiUtil
         this.Settings.Validate();
     }
 
-    public static Pair2<string, string> GenerateFilePrefixStr(byte[] fileHashSha1, int maxLevel1Number, long maxLevel2Number)
+    public static string GenerateFilePrefixStr(byte[] fileHashSha1, int maxLevel1Number, long maxLevel2Number, string delimiterStr = "-", int insertStrPositionOnLevel2 = 4)
     {
         maxLevel1Number += 1;
         maxLevel2Number += 1;
@@ -156,7 +186,9 @@ public class MovYaiUtil
         int level2PadSize = maxLevel2Len - level2Str.Length;
         level2Str = Str.MakeCharArray('0', level2PadSize) + level2Str;
 
-        return new Pair2<string, string>(level1Str, level2Str);
+        level2Str = level2Str._InsertStrIntoStr(delimiterStr, insertStrPositionOnLevel2);
+
+        return level1Str + "-" + level2Str;
     }
 
     public async Task ExecAsync(CancellationToken cancel = default)
@@ -177,191 +209,92 @@ public class MovYaiUtil
         {
             try
             {
-                string relativeFileName = PP.GetRelativeFileName(srcFile.FullPath, Settings.SrcDir);
-                $"Loading '{relativeFileName}' ({counter + 1} / {srcFiles.Count()}) ..."._Print();
+                string srcRelativePath = PP.GetRelativeFileName(srcFile.FullPath, Settings.SrcDir);
+                $"Loading '{srcRelativePath}' ({counter + 1} / {srcFiles.Count()}) ..."._Print();
 
                 byte[] fileHash = await Lfs.CalcFileHashAsync(srcFile.FullPath, sha1Algorithm, cancel: cancel);
+                //byte[] fileHash = Secure.HashSHA1("Hello"._GetBytes_Ascii());
 
+                string fileHashStr = GenerateFilePrefixStr(fileHash, Settings.Hash_MaxPrefixDirLevel1Int, Settings.Hash_MaxPrefixDirLevel2Int, Settings.Hash_DelimiterStr, Settings.Hash_InsertStrPositionOnLevel2);
 
-                var tokens = PP.SplitTokens(relativeFileName);
-                if (tokens.Length == 3)
+                int fileHashInt = fileHashStr._ReplaceStr(Settings.Hash_DelimiterStr, "")._ToInt();
+
+                // 出力先ディレクトリに、fileHashStr を含み、かつ本体および .ok.txt で終わるファイルが存在するかどうか検査
+                try
                 {
-                    // このファイルと同じディレクトリのファイルを列挙
-                    string srcFileDirPath = PP.GetDirectoryName(srcFile.FullPath);
-                    var sameDirFiles = srcFiles.Where(x => PP.GetDirectoryName(x.FullPath) == srcFileDirPath).ToArray();
+                    await Lfs.CreateDirectoryAsync(Settings.DestDir, cancel: cancel);
+                }
+                catch { }
 
-                    int maxTracks = sameDirFiles.Length;
-                    int trackNumber = 1;
-
-                    for (int i = 0; i < sameDirFiles.Length; i++)
-                    {
-                        if (sameDirFiles[i] == srcFile)
-                        {
-                            trackNumber = (i + 1);
-                            break;
-                        }
-                    }
-
-                    maxTracks = Math.Max(maxTracks, trackNumber);
-
-                    string artist = tokens[0]._NormalizeSoftEther(true);
-                    string albumBase = tokens[1]._NormalizeSoftEther(true);
-                    string titleBase = PP.GetFileNameWithoutExtension(tokens[2]._NormalizeSoftEther(true));
-
-                    artist = Str.MakeSafePathNameShiftJis(artist).Replace("\"", "_").Replace("\'", "_");
-                    albumBase = Str.MakeSafePathNameShiftJis(albumBase).Replace("\"", "_").Replace("\'", "_");
-                    titleBase = Str.MakeSafePathNameShiftJis(titleBase).Replace("\"", "_").Replace("\'", "_");
-
-                    string fn = Str.MakeSafePathNameShiftJis(PP.GetFileNameWithoutExtension(srcFile.FullPath)).Replace("\"", "_").Replace("\'", "_")._NormalizeSoftEther(true);
-
-                    string albumSimple = albumBase._FilledOrDefault(fn);
-
-                    artist = artist._FilledOrDefault(fn);
-                    albumBase = artist + " - " + albumBase._FilledOrDefault(fn);
-                    titleBase = titleBase._FilledOrDefault(fn);
-
-                    string relativeDirName = PP.GetDirectoryName(relativeFileName);
-                    string destDirPath = PP.Combine(Settings.DestDir, relativeDirName);
-                    string srcFileMain = PP.GetFileNameWithoutExtension(srcFile.FullPath);
-
-                    $"Processing '{relativeFileName}' ({counter + 1} / {srcFiles.Count()}) ..."._Print();
-
-                    if (true)
-                    {
-                        // 1. まず、音声ファイル群の生成
-                        List<string> audioFilters = new List<string>();
-
-                        // 1.1. ベースの x1.0 ファイルの生成
-
-                        // 現在の max_volume 値を取得
-                        var result = await EasyExec.ExecAsync(Settings.FfMpegExePath, $"-i \"{srcFile.FullPath._RemoveQuotation()}\" -vn -af volumedetect -f null -", PP.GetDirectoryName(Settings.FfMpegExePath),
-                            flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdOut | ExecFlags.EasyPrintRealtimeStdErr,
-                            timeout: Timeout.Infinite, cancel: cancel, throwOnErrorExitCode: true,
-                            inputEncoding: encoding, outputEncoding: encoding, errorEncoding: encoding);
-
-                        double currentMaxVolume = double.NaN;
-
-                        foreach (var line in result.OutputAndErrorStr._GetLines())
-                        {
-                            string tag = "max_volume:";
-                            int a = line._Search(tag, 0, true);
-                            if (a != -1)
-                            {
-                                string tmp = line.Substring(a + tag.Length);
-                                if (tmp.EndsWith(" dB"))
-                                {
-                                    tmp = tmp.Substring(0, tmp.Length - 3);
-                                    tmp = tmp.Trim();
-
-                                    currentMaxVolume = tmp._ToDouble();
-                                }
-                            }
-                        }
-
-                        if (currentMaxVolume != double.NaN && currentMaxVolume < Settings.MaxVolume)
-                        {
-                            // 何 dB 上げるべきか計算
-                            double addVolume = Settings.MaxVolume - currentMaxVolume;
-
-                            audioFilters.Add($"volume={addVolume:F1}dB");
-                        }
-
-                        // 無音除去を実施、音量調整も実施
-                        string audio_base_path = PP.Combine(destDirPath, albumBase + $" - audio.x1.0", $"{albumSimple} [{trackNumber:D2}] {titleBase} - audio.x1.0.mp3");
-                        audioFilters.Add($"silenceremove=window=5:detection=peak:stop_mode=all:start_mode=all:stop_periods=-1:stop_threshold=-30dB");
-                        await ProcessOneFileAsync(srcFile.FullPath, audio_base_path, $"-vn -f mp3 -ab 192k -af \"{audioFilters._Combine(" , ")}\"",
-                            artist + $" - audio.x1.0",
-                            albumBase + " - audio.x1.0",
-                            albumSimple + $" [{trackNumber:D2}] - " + titleBase + " - audio.x1.0",
-                            trackNumber, maxTracks,
-                            encoding, cancel);
-
-                        // 2.2. 数倍速再生版も作る
-                        string[] xList = { "1.5", "2.0", "2.5", "3.0", "3.5" };
-
-                        foreach (var xstr in xList)
-                        {
-                            string audio_x_path = PP.Combine(destDirPath, albumBase + $" - audio.x{xstr}", $"{albumSimple} [{trackNumber:D2}] {titleBase} - audio.x{xstr}.mp3");
-                            await ProcessOneFileAsync(audio_base_path, audio_x_path, $"-vn -f mp3 -ab 192k -af atempo={xstr}",
-                                artist + $" - audio.x{xstr}",
-                                albumBase + $" - audio.x{xstr}",
-                                albumSimple + $" [{trackNumber:D2}] - " + titleBase + $" - audio.x{xstr}",
-                                trackNumber, maxTracks,
-                                encoding, cancel);
-                        }
-                    }
-
-                    if (true)
-                    {
-                        // 2. 次に、動画ファイル群の生成
-                        List<string> audioFilters = new List<string>();
-
-                        // 2.1. ベースの x1.0 ファイルの生成
-
-                        // 現在の max_volume 値を取得
-                        var result = await EasyExec.ExecAsync(Settings.FfMpegExePath, $"-i \"{srcFile.FullPath._RemoveQuotation()}\" -vn -af volumedetect -f null -", PP.GetDirectoryName(Settings.FfMpegExePath),
-                            flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdOut | ExecFlags.EasyPrintRealtimeStdErr,
-                            timeout: Timeout.Infinite, cancel: cancel, throwOnErrorExitCode: true,
-                            inputEncoding: encoding, outputEncoding: encoding, errorEncoding: encoding);
-
-                        double currentMaxVolume = double.NaN;
-
-                        foreach (var line in result.OutputAndErrorStr._GetLines())
-                        {
-                            string tag = "max_volume:";
-                            int a = line._Search(tag, 0, true);
-                            if (a != -1)
-                            {
-                                string tmp = line.Substring(a + tag.Length);
-                                if (tmp.EndsWith(" dB"))
-                                {
-                                    tmp = tmp.Substring(0, tmp.Length - 3);
-                                    tmp = tmp.Trim();
-
-                                    currentMaxVolume = tmp._ToDouble();
-                                }
-                            }
-                        }
-
-                        if (currentMaxVolume != double.NaN && currentMaxVolume < Settings.MaxVolume)
-                        {
-                            // 何 dB 上げるべきか計算
-                            double addVolume = Settings.MaxVolume - currentMaxVolume;
-
-                            audioFilters.Add($"volume={addVolume:F1}dB");
-                        }
-                        else
-                        {
-                            audioFilters.Add($"volume=0.0dB");
-                        }
-
-                        // 無音除去を実施、音量調整実施
-                        string video_base_path = PP.Combine(destDirPath, albumBase + $" - video.x1.0", $"{albumSimple} [{trackNumber:D2}] {titleBase} - video.x1.0.mp4");
-                        await ProcessOneFileAsync(srcFile.FullPath, video_base_path, $"-af \"{audioFilters._Combine(" , ")}\"",
-                            artist + $" - video.x1.0",
-                            albumBase + " - video.x1.0",
-                            albumSimple + $" [{trackNumber:D2}] - " + titleBase + " - video.x1.0",
-                            trackNumber, maxTracks,
-                            encoding, cancel);
-
-                        // 2.2. 数倍速再生版も作る
-                        string[] xList = { "1.5", "2.0", "2.5", "3.0", "3.5" };
-
-                        foreach (var xstr in xList)
-                        {
-                            string video_x_path = PP.Combine(destDirPath, albumBase + $" - video.x{xstr}", $"{albumSimple} [{trackNumber:D2}] {titleBase} - video.x{xstr}.mp4");
-                            await ProcessOneFileAsync(video_base_path, video_x_path, $"-vf setpts=PTS/{xstr} -af atempo={xstr}",
-                                artist + $" - video.x{xstr}",
-                                albumBase + $" - video.x{xstr}",
-                                albumSimple + $" [{trackNumber:D2}] - " + titleBase + $" - video.x{xstr}",
-                                trackNumber, maxTracks,
-                                encoding, cancel);
-                        }
-                    }
+                var dstOkFilesExists = await Lfs.EnumDirectoryAsync(Settings.DestDir, true, wildcard: $"*{fileHashStr}*.ok.txt", cancel: cancel);
+                var dstMovFilesExists = await Lfs.EnumDirectoryAsync(Settings.DestDir, true, wildcard: $"*{fileHashStr}*{Settings.DestFormatExt}", cancel: cancel);
+                if (dstOkFilesExists.Any() && dstMovFilesExists.Any())
+                {
+                    // すでに対象ファイルが存在するので何もしない
+                    $"  Skip. Already exists."._Print();
                 }
                 else
                 {
-                    $"Skip: '{relativeFileName}' ({counter + 1} / {srcFiles.Count()})"._Print();
+                    // 出力先フルパスを決定
+                    string fileHashStrFirstToken = fileHashStr._Split(StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries, Settings.Hash_DelimiterStr)[0];
+                    string destRelativePath = fileHashStrFirstToken + Lfs.PathParser.DirectorySeparator + fileHashStr + " " + Lfs.PathParser.GetFileNameWithoutExtension(srcFile.Name)._NormalizeSoftEther(true) + Settings.DestFormatExt;
+
+                    destRelativePath._Print();
+
+                    List<string> audioFilters = new List<string>();
+                    
+                    // 現在の max_volume 値を取得
+                    var result = await EasyExec.ExecAsync(Settings.FfMpegExePath, $"-i \"{srcFile.FullPath._RemoveQuotation()}\" -vn -af volumedetect -f null -", PP.GetDirectoryName(Settings.FfMpegExePath),
+                        flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdOut | ExecFlags.EasyPrintRealtimeStdErr,
+                        timeout: Timeout.Infinite, cancel: cancel, throwOnErrorExitCode: true,
+                        inputEncoding: encoding, outputEncoding: encoding, errorEncoding: encoding);
+
+                    double currentMaxVolume = double.NaN;
+
+                    foreach (var line in result.OutputAndErrorStr._GetLines())
+                    {
+                        string tag = "max_volume:";
+                        int a = line._Search(tag, 0, true);
+                        if (a != -1)
+                        {
+                            string tmp = line.Substring(a + tag.Length);
+                            if (tmp.EndsWith(" dB"))
+                            {
+                                tmp = tmp.Substring(0, tmp.Length - 3);
+                                tmp = tmp.Trim();
+
+                                currentMaxVolume = tmp._ToDouble();
+                            }
+                        }
+                    }
+
+                    if (currentMaxVolume != double.NaN && currentMaxVolume < Settings.MaxVolume)
+                    {
+                        // 何 dB 上げるべきか計算
+                        double addVolume = Settings.MaxVolume - currentMaxVolume;
+
+                        audioFilters.Add($"volume={addVolume:F1}dB");
+                    }
+
+                    ("********** " + audioFilters._Combine(" / "))._Print();
+
+                    string artist = Settings.ArtistStr._NormalizeSoftEther();
+
+                    string destFullPath = Lfs.PP.Combine(Settings.DestDir, destRelativePath);
+
+                    string audioFilterArgs = " ";
+                    if (audioFilters.Any())
+                    {
+                        audioFilterArgs = $"-af \"{audioFilters._Combine(" , ")}\"";
+                    }
+
+                    // 動画を変換
+                    await ProcessOneFileAsync(srcFile.FullPath, destFullPath, $"-crf 18 {audioFilterArgs}",
+                        artist,
+                        artist,
+                        Lfs.PathParser.GetFileNameWithoutExtension(srcFile.Name)._NormalizeSoftEther(true),
+                        fileHashInt, int.MaxValue,
+                        encoding, cancel);
                 }
             }
             catch (Exception ex)
@@ -388,7 +321,7 @@ public class MovYaiUtil
         if (Settings.Overwrite == false)
         {
             // 宛先パス + .ok.txt ファイルが存在していれば何もしない
-            if (await Lfs.IsFileExistsAsync(okTxtPath, cancel))
+            if (await Lfs.IsFileExistsAsync(okTxtPath, cancel) && await Lfs.IsFileExistsAsync(dstPath, cancel))
             {
                 return;
             }
@@ -396,6 +329,8 @@ public class MovYaiUtil
 
         // 変換を実施
         string cmdLine = $"-y -i \"{srcPath._RemoveQuotation()}\" {args} -metadata title=\"{title}\" -metadata album=\"{album}\" -metadata artist=\"{artist}\" -metadata track=\"{track}/{maxTracks}\" \"{dstPath._RemoveQuotation()}\"";
+
+        (" * cmdline = " + cmdLine)._Print();
 
         var result = await EasyExec.ExecAsync(Settings.FfMpegExePath, cmdLine, PP.GetDirectoryName(Settings.FfMpegExePath),
             flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdOut | ExecFlags.EasyPrintRealtimeStdErr,
@@ -1374,7 +1309,7 @@ public class TimeStampDocsUtil : AsyncService
         allText.WriteLine($"# ハッシュ計算ジョブユニーク ID: {uniqueId}");
         allText.WriteLine();
         allText.WriteLine();
-
+        
         for (int i = 0; i < projectResultsList.Count; i++)
         {
             var proj = projectResultsList[i];

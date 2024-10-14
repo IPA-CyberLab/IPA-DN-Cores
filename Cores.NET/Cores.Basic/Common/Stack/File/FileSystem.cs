@@ -763,6 +763,9 @@ public class FileSystemEntity
     public DateTimeOffset CreationTime { get; set; }
     public DateTimeOffset LastWriteTime { get; set; }
     public DateTimeOffset LastAccessTime { get; set; }
+
+    public override string ToString()
+        => this.FullPath;
 }
 
 [Flags]
@@ -2286,7 +2289,7 @@ public abstract partial class FileSystem : AsyncService
                 throw new ApplicationException("The first entry returned by EnumDirectoryImplAsync() is not a current directory.");
             }
 
-            IEnumerable<FileSystemEntity> ret = list.Skip(1).Where(x => GetSpecialFileNameKind(x.Name) == SpecialFileNameKind.Normal).Where(x => x.Name.Length < 256 || flags.Bit(EnumDirectoryFlags.SkipTooLongFileName)).Where(x => this.PathParser.WildcardMatch(x.Name, wildcard));
+            IEnumerable<FileSystemEntity> ret = list.Skip(1).Where(x => GetSpecialFileNameKind(x.Name) == SpecialFileNameKind.Normal).Where(x => x.Name.Length < 256 || flags.Bit(EnumDirectoryFlags.SkipTooLongFileName));
 
             if (flags.Bit(EnumDirectoryFlags.IncludeParentDirectory))
             {
@@ -2316,13 +2319,16 @@ public abstract partial class FileSystem : AsyncService
     {
         opCancel.ThrowIfCancellationRequested();
 
-        FileSystemEntity[] entityList = await EnumDirectoryInternalAsync(directoryPath, flags, wildcard, opCancel);
+        FileSystemEntity[] entityList = await EnumDirectoryInternalAsync(directoryPath, flags, recursive ? "" : wildcard, opCancel); // ファイルシステムネイティブのワイルドカード指定パラメータは、再帰モードでは使用しない
 
         foreach (FileSystemEntity entity in entityList)
         {
             if (depth == 0 || entity.IsCurrentOrParentDirectory == false)
             {
-                currentList.Add(entity);
+                if (this.PathParser.WildcardMatch(entity.Name, wildcard))
+                {
+                    currentList.Add(entity);
+                }
             }
 
             if (recursive)
