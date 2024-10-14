@@ -216,8 +216,11 @@ public class MovYaiUtil
                 //byte[] fileHash = Secure.HashSHA1("Hello"._GetBytes_Ascii());
 
                 string fileHashStr = GenerateFilePrefixStr(fileHash, Settings.Hash_MaxPrefixDirLevel1Int, Settings.Hash_MaxPrefixDirLevel2Int, Settings.Hash_DelimiterStr, Settings.Hash_InsertStrPositionOnLevel2);
+                string fileHashStrFirstToken = fileHashStr._Split(StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries, Settings.Hash_DelimiterStr)[0];
 
                 int fileHashInt = fileHashStr._ReplaceStr(Settings.Hash_DelimiterStr, "")._ToInt();
+
+                string fileHashStrWithBrakets = "[" + fileHashStr + "]";
 
                 // 出力先ディレクトリに、fileHashStr を含み、かつ本体および .ok.txt で終わるファイルが存在するかどうか検査
                 try
@@ -226,8 +229,8 @@ public class MovYaiUtil
                 }
                 catch { }
 
-                var dstOkFilesExists = await Lfs.EnumDirectoryAsync(Settings.DestDir, true, wildcard: $"*{fileHashStr}*.ok.txt", cancel: cancel);
-                var dstMovFilesExists = await Lfs.EnumDirectoryAsync(Settings.DestDir, true, wildcard: $"*{fileHashStr}*{Settings.DestFormatExt}", cancel: cancel);
+                var dstOkFilesExists = await Lfs.EnumDirectoryAsync(Settings.DestDir, true, wildcard: $"*{fileHashStrWithBrakets}*.ok.txt", cancel: cancel);
+                var dstMovFilesExists = await Lfs.EnumDirectoryAsync(Settings.DestDir, true, wildcard: $"*{fileHashStrWithBrakets}*{Settings.DestFormatExt}", cancel: cancel);
                 if (dstOkFilesExists.Any() && dstMovFilesExists.Any())
                 {
                     // すでに対象ファイルが存在するので何もしない
@@ -236,8 +239,7 @@ public class MovYaiUtil
                 else
                 {
                     // 出力先フルパスを決定
-                    string fileHashStrFirstToken = fileHashStr._Split(StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries, Settings.Hash_DelimiterStr)[0];
-                    string destRelativePath = fileHashStrFirstToken + Lfs.PathParser.DirectorySeparator + fileHashStr + " " + Lfs.PathParser.GetFileNameWithoutExtension(srcFile.Name)._NormalizeSoftEther(true) + Settings.DestFormatExt;
+                    string destRelativePath = fileHashStrFirstToken + Lfs.PathParser.DirectorySeparator + Settings.SeriesStr._MakeVerySafeAsciiOnlyNonSpaceFileName() + " - " + fileHashStrWithBrakets + " " + Lfs.PathParser.GetFileNameWithoutExtension(srcFile.Name)._NormalizeSoftEther(true) + Settings.DestFormatExt;
 
                     destRelativePath._Print();
 
@@ -292,7 +294,7 @@ public class MovYaiUtil
                     await ProcessOneFileAsync(srcFile.FullPath, destFullPath, $"-crf 18 {audioFilterArgs}",
                         artist,
                         artist,
-                        Settings.SeriesStr + " - " + fileHashStr + " " + Lfs.PathParser.GetFileNameWithoutExtension(srcFile.Name)._NormalizeSoftEther(true),
+                        Settings.SeriesStr._MakeVerySafeAsciiOnlyNonSpaceFileName() + " - " + fileHashStrWithBrakets + " " + Lfs.PathParser.GetFileNameWithoutExtension(srcFile.Name)._NormalizeSoftEther(true),
                         fileHashInt, int.MaxValue,
                         encoding, cancel);
                 }
