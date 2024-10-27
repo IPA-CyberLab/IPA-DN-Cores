@@ -652,7 +652,14 @@ partial class TestDevCommands
                 {
                     int page = (pg - vdef.VirtualPageStart) + vdef.Def.PageStart;
 
-                    Con.WriteLine(vdef.Def.BookName._RemoveQuotation());
+                    string fullPath = vdef.Def.BookName._RemoveQuotation();
+
+                    if (fullPath._InStri(" "))
+                    {
+                        fullPath = "\"" + fullPath + "\"";
+                    }
+
+                    Con.WriteLine(fullPath);
                     Con.WriteLine($"   {page}");
                     Con.WriteLine();
                     break;
