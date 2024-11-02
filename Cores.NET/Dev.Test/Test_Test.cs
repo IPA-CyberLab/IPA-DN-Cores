@@ -5097,6 +5097,17 @@ HOST: www.google.com
     {
         if (true)
         {
+            var g = new CertificateHostName("*.cyber.ipa.go.jp");
+
+            bool b = g.IsMatchForHost("telework.cyber.ipa.go.jp");
+
+            b._Print();
+
+            return;
+        }
+
+        if (true)
+        {
             Pdf2TxtApp.CopyAllNonOcrPdfFiles(@"H:\Books\Src_PDFs", @"H:\Books\Pre_OCR_241014\");
 
             return;
