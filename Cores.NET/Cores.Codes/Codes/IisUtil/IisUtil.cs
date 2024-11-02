@@ -259,19 +259,27 @@ public class IisAdmin : AsyncService
                 // すでに登録されている証明書がシングル証明書の場合、その証明書の DNS 名から、この binding が現在どのホスト名での使用を意図しているものであるのか判別する
                 foreach (var certDns in cert.HostNameList)
                 {
-                    if (certDns.Type == CertificateHostnameType.SingleHost)
+                    if (certDns.Type == CertificateHostnameType.Wildcard)
                     {
-                        // aaa.example.org のような普通のホスト名
-                        var candidates = certsList.GetHostnameMatchedCertificatesList(certDns.HostName);
-
-                        candidates._DoForEach(x => newCandidateCerts.Add(x.Item1));
-                    }
-                    else if (certDns.Type == CertificateHostnameType.Wildcard)
-                    {
-                        // *.example.org のようなワイルドカードホスト名
+                        // *.example.org のようなワイルドカードホスト名について、完全一致するものがある場合
                         var candidates = certsList.Where(x => x.PrimaryCertificate.HostNameList.Any(x => x.Type == CertificateHostnameType.Wildcard && x.HostName._IsSamei(certDns.HostName)));
 
                         candidates._DoForEach(x => newCandidateCerts.Add(x));
+                    }
+                }
+
+                if (newCandidateCerts.Any() == false)
+                {
+                    // 既存の証明書のワイルドカードと完全一致するものがない場合
+                    foreach (var certDns in cert.HostNameList)
+                    {
+                        if (certDns.Type == CertificateHostnameType.SingleHost)
+                        {
+                            // aaa.example.org のような普通のホスト名
+                            var candidates = certsList.GetHostnameMatchedCertificatesList(certDns.HostName);
+
+                            candidates._DoForEach(x => newCandidateCerts.Add(x.Item1));
+                        }
                     }
                 }
             }
