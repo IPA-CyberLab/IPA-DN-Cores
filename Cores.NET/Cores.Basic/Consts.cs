@@ -93,7 +93,7 @@ public static partial class Consts
 
         public const int DefaultMaxNetworkRecvSize = 30 * 1000 * 1000; // 30 MB (Kestrel default)
 
-        public const int SignCodeServerMaxFileSize = 300 * 1024 * 1024; // 300 MB
+        public const int SignCodeServerMaxFileSize = 800 * 1024 * 1024; // 800 MB
 
         public const int GcTempFreq = 100;
 
