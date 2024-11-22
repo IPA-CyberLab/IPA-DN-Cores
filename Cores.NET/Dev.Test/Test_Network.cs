@@ -552,7 +552,7 @@ partial class TestDevCommands
             }
         }
 
-        flat.FqdnSet.OrderBy(x => x, FqdnReverseStrComparer.Comparer)._DoForEach(x => x._Print());
+        //flat.FqdnSet.OrderBy(x => x, FqdnReverseStrComparer.Comparer)._DoForEach(x => x._Print());
 
         // 2. FQDN の一覧を入力して FQDN と IP アドレスのペアの一覧を生成する
         DnsIpPairGeneratorUtil pairGenerator = new DnsIpPairGeneratorUtil(100, flat.FqdnSet);
