@@ -720,6 +720,28 @@ static class TestClass
         }
     }
 
+    static void Test_MakeDummyCerts_241110()
+    {
+        string baseDir = @"c:\tmp\241110_dummy_certs_shortexp\";
+
+        if (true)
+        {
+            PkiUtil.GenerateRsaKeyPair(4096, out PrivKey priv, out _);
+
+            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.RootCertiticate, "dummycert-shortexp.example.org", c: "JP", expires: (new DateTime(2024, 10, 31))._AsDateTimeOffset(true), issuedAt: (new DateTime(2023, 11, 1))._AsDateTimeOffset(true), shaSize: PkiShaSize.SHA512));
+
+            CertificateStore store = new CertificateStore(cert, priv);
+
+            Lfs.WriteStringToFile(baseDir + @"00_DummyCert_ShortExp_Memo.txt", $"Created by {Env.AppRealProcessExeFileName} {DateTime.Now._ToDtStr()}", FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
+
+            Lfs.WriteDataToFile(baseDir + @"00_DummyCert_ShortExp.pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteDataToFile(baseDir + @"00_DummyCert_ShortExp.cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteDataToFile(baseDir + @"00_DummyCert_ShortExp.key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+        }
+    }
+
     static void Test_MakeDummyCerts_211115()
     {
         string baseDir = @"c:\tmp\211115_dummy_certs2\";
@@ -5095,6 +5117,12 @@ HOST: www.google.com
 
     public static void Test_Generic()
     {
+        if (true)
+        {
+            Test_MakeDummyCerts_241110();
+            return;
+        }
+
         if (true)
         {
             var g = new CertificateHostName("*.cyber.ipa.go.jp");
