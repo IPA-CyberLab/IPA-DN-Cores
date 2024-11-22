@@ -459,17 +459,19 @@ partial class TestDevCommands
 
     [ConsoleCommand(
         "SslCertChecker command",
-        "SslCertChecker [dnsZonesDir]",
+        "SslCertChecker [dnsZonesDir] [/INCLUDE:includeFile]",
         "SslCertChecker command")]
     static int SslCertChecker(ConsoleService c, string cmdName, string str)
     {
         ConsoleParam[] args =
         {
-                new ConsoleParam("[dnsZonesDir]", ConsoleService.Prompt, "dnsZonesDir: ", ConsoleService.EvalNotEmpty, null),
-            };
+            new ConsoleParam("[dnsZonesDir]", ConsoleService.Prompt, "dnsZonesDir: ", ConsoleService.EvalNotEmpty, null),
+            new ConsoleParam("INCLUDE", ConsoleService.Prompt, "includeFile: "),
+        };
         ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
 
         string dirZonesDir = vl.DefaultParam.StrValue;//@"C:\Users\yagi\Desktop\dnstest";//
+        string includeFile = vl["INCLUDE"].StrValue;
 
         var dirList = Lfs.EnumDirectory(dirZonesDir, false);
         if (dirList.Where(x => x.IsFile && (IgnoreCaseTrim)Lfs.PathParser.GetExtension(x.Name) == ".dns").Any() == false)
@@ -493,6 +495,64 @@ partial class TestDevCommands
                 flat.InputZoneFile(Lfs.PathParser.GetFileNameWithoutExtension(fn), Lfs.ReadDataFromFile(fn).Span);
             }
         }
+
+        // 1-2. include ファイルが指定されていればその include ファイル内の URL 内の txt をすべて取得して FQDN レコードを追加する
+        if (includeFile._IsFilled())
+        {
+            List<string> fqdnList = new List<string>();
+
+            Async(async () =>
+            {
+                var lines = await MiscUtil.ReadIncludesFileLinesAsync(includeFile, new ExpandIncludesSettings { MaxIncludes = 128 });
+
+                foreach (var line in lines.Select(x => x._StripCommentFromLine()).Where(x => x._IsFilled()))
+                {
+                    string[] tokens = line._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ' ', '　', '\t', ',');
+
+                    foreach (var token in tokens)
+                    {
+                        if (token._IsStrIP())
+                        {
+                            fqdnList.Add(token);
+                        }
+                        else if (token.StartsWith("http://", StrCmpi) || token.StartsWith("https://", StrCmpi) || token.StartsWith("ws://", StrCmpi) || token.StartsWith("ftp://", StrCmpi))
+                        {
+                            if (token._TryParseUrl(out var uri, out _))
+                            {
+                                fqdnList.Add(uri.Host);
+                            }
+                        }
+                        else if (token._IsValidFqdn(true, true) && token._Split(StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries, ".").Length >= 2)
+                        {
+                            string fqdn = token._NormalizeFqdn();
+
+                            if (fqdn.StartsWith("*."))
+                            {
+                                List<string> wildCandidates = new List<string>();
+                                wildCandidates.Add("1-2-3-4");
+                                wildCandidates.Add("wildcard-dummy1");
+                                foreach (var candidate in wildCandidates)
+                                {
+                                    string tmp = candidate + "." + fqdn.Substring(2);
+                                    fqdnList.Add(tmp);
+                                }
+                            }
+                            else
+                            {
+                                fqdnList.Add(fqdn);
+                            }
+                        }
+                    }
+                }
+            });
+
+            foreach (var fqdn in fqdnList)
+            {
+                flat.InputFqdn(fqdn);
+            }
+        }
+
+        flat.FqdnSet.OrderBy(x => x, FqdnReverseStrComparer.Comparer)._DoForEach(x => x._Print());
 
         // 2. FQDN の一覧を入力して FQDN と IP アドレスのペアの一覧を生成する
         DnsIpPairGeneratorUtil pairGenerator = new DnsIpPairGeneratorUtil(100, flat.FqdnSet);
