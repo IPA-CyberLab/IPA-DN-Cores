@@ -1205,14 +1205,16 @@ public class DirSuperBackup : AsyncService
                             }
                         }
 
+                        bool usePhysicalFileUpdateDate = false;
+
                         // 日付を比較する。ただし宛先ディレクトリの物理的なファイルの日付は信用できないので、メタデータ上のファイルサイズと比較する
                         if (destDirOldMetaData != null)
                         {
                             DirSuperBackupMetadataFile? existsFileMetadataFromDirMetadata = destDirOldMetaData.FileList.Where(x => x.FileName._IsSamei(srcFile.Name)).SingleOrDefault();
                             if (existsFileMetadataFromDirMetadata == null)
                             {
-                                // メタデータ上に存在しない
-                                fileChangedOrNew = true;
+                                // メタデータ上に存在しない場合、仕方がないので宛先の物理的なファイルの日付と比較する
+                                usePhysicalFileUpdateDate = true;
                             }
                             else
                             {
@@ -1225,8 +1227,20 @@ public class DirSuperBackup : AsyncService
                         }
                         else
                         {
-                            // 宛先ディレクトリ上にメタデータがない
-                            fileChangedOrNew = true;
+                            // 宛先ディレクトリ上にメタデータがない場合、仕方がないので宛先の物理的なファイルの日付と比較する
+                            usePhysicalFileUpdateDate = true;
+                        }
+
+                        if (usePhysicalFileUpdateDate)
+                        {
+                            // 仕方がないので宛先の物理的なファイルの日付と比較する
+                            var diff = destExistsMetadata.LastWriteTime!.Value - srcFileMetadata.LastWriteTime!.Value;
+                            diff = new TimeSpan(Math.Abs(diff.Ticks));
+                            if (diff > TimeSpan.FromSeconds(3))
+                            {
+                                // 宛先の物理的なファイルと比較する場合は、3 秒以上ずれている場合のみ更新があったとみなす
+                                fileChangedOrNew = true;
+                            }
                         }
                     }
                     else
