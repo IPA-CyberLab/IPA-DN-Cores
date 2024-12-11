@@ -80,6 +80,217 @@ public static partial class CoresConfig
 
 
 
+// 動画データ変換ユーティリティの設定
+public class MovEncodeUtilSettings : IValidatable, INormalizable
+{
+    public string FfMpegExePath = "";
+    public string SrcDir = "";
+    public string DestDir = "";
+    public string SrcExtList = "";
+    public double MaxVolume = 0.0;
+    public bool AdjustVolume = false;
+    public bool Overwrite = false;
+    public string DestFormatExt = ".mkv";
+    public string FfmpegParams = "";
+
+    public void Validate()
+    {
+        FfMpegExePath._NotEmptyCheck(nameof(FfMpegExePath));
+        SrcDir._NotEmptyCheck(nameof(SrcDir));
+        DestDir._NotEmptyCheck(nameof(DestDir));
+    }
+
+    public void Normalize()
+    {
+        if (this.SrcExtList._IsEmpty())
+        {
+            this.SrcExtList = ".mp4 .avi .mkv .m4v";
+        }
+        if (this.DestFormatExt._IsEmpty())
+        {
+            this.DestFormatExt = ".mkv";
+        }
+        if (this.DestFormatExt.StartsWith(".") == false)
+        {
+            this.DestFormatExt = "." + this.DestFormatExt;
+        }
+    }
+}
+
+// 動画データ変換ユーティリティ
+public class MovEncodeUtil
+{
+    MovEncodeUtilSettings Settings;
+
+    public MovEncodeUtil(MovEncodeUtilSettings settings)
+    {
+        this.Settings = settings._CloneDeep();
+        this.Settings.Normalize();
+        this.Settings.Validate();
+    }
+
+    public async Task ExecAsync(CancellationToken cancel = default)
+    {
+        if (this.Settings.SrcDir._IsSamei(this.Settings.DestDir))
+        {
+            throw new CoresException("Src is same to dst.");
+        }
+
+        var encoding = Str.Utf8Encoding;
+
+        // 元ディレクトリのファイルを列挙
+        var items = await Lfs.EnumDirectoryAsync(Settings.SrcDir, recursive: true, cancel: cancel, flags: EnumDirectoryFlags.AllowDirectFilePath);
+
+        // 指定された拡張子リストに一致するファイル一覧を取得
+        FileSystemEntity[] srcFiles = items.Where(x => x.IsFile && PP.GetExtension(x.FullPath)._IsFilled() && x.FullPath._IsExtensionMatch(Settings.SrcExtList)).OrderBy(x => x.FullPath, StrComparer.Get(StringComparison.CurrentCultureIgnoreCase)).ToArray();
+
+        int counter = 0;
+
+        foreach (var srcFile in srcFiles)
+        {
+            try
+            {
+                string srcRelativePath = PP.GetRelativeFileName(srcFile.FullPath, Settings.SrcDir);
+                if (srcRelativePath._IsEmpty())
+                {
+                    srcRelativePath = PP.GetFileName(srcFile.FullPath);
+                }
+
+                string destFilePath = PP.Combine(this.Settings.DestDir, srcRelativePath);
+
+                destFilePath = PP.Combine(PP.GetDirectoryName(destFilePath), PP.GetFileNameWithoutExtension(destFilePath) + this.Settings.DestFormatExt);
+
+                $"Loading '{srcRelativePath}' ({counter + 1} / {srcFiles.Count()}) ..."._Print();
+
+                // 出力先ディレクトリに、fileHashStr を含み、かつ本体および .ok.txt で終わるファイルが存在するかどうか検査
+                try
+                {
+                    await Lfs.CreateDirectoryAsync(Settings.DestDir, cancel: cancel);
+                }
+                catch { }
+
+                string okTxtPath = PP.Combine(PP.GetDirectoryName(destFilePath), ".okfiles", PP.GetFileName(destFilePath)) + ".ok.txt";
+                string okTxtDir = PP.GetDirectoryName(okTxtPath);
+
+                bool dstOkFilesExists = await Lfs.IsFileExistsAsync(okTxtPath, cancel);
+                bool dstMovFilesExists = await Lfs.IsFileExistsAsync(destFilePath, cancel: cancel);
+                if (this.Settings.Overwrite == false && dstOkFilesExists && dstMovFilesExists)
+                {
+                    // すでに対象ファイルが存在するので何もしない
+                    $"  Skip. Already exists."._Print();
+                }
+                else
+                {
+                    List<string> audioFilters = new List<string>();
+
+                    if (this.Settings.AdjustVolume)
+                    {
+                        // 現在の max_volume 値を取得
+                        var result = await EasyExec.ExecAsync(Settings.FfMpegExePath, $"-i \"{srcFile.FullPath._RemoveQuotation()}\" -vn -af volumedetect -f null -", PP.GetDirectoryName(Settings.FfMpegExePath),
+                            flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdOut | ExecFlags.EasyPrintRealtimeStdErr,
+                            timeout: Timeout.Infinite, cancel: cancel, throwOnErrorExitCode: true,
+                            inputEncoding: encoding, outputEncoding: encoding, errorEncoding: encoding);
+
+                        double currentMaxVolume = double.NaN;
+
+                        foreach (var line in result.OutputAndErrorStr._GetLines())
+                        {
+                            string tag = "max_volume:";
+                            int a = line._Search(tag, 0, true);
+                            if (a != -1)
+                            {
+                                string tmp = line.Substring(a + tag.Length);
+                                if (tmp.EndsWith(" dB"))
+                                {
+                                    tmp = tmp.Substring(0, tmp.Length - 3);
+                                    tmp = tmp.Trim();
+
+                                    currentMaxVolume = tmp._ToDouble();
+                                }
+                            }
+                        }
+
+                        if (currentMaxVolume != double.NaN && currentMaxVolume < Settings.MaxVolume)
+                        {
+                            // 何 dB 上げるべきか計算
+                            double addVolume = Settings.MaxVolume - currentMaxVolume;
+
+                            audioFilters.Add($"volume={addVolume:F1}dB");
+                        }
+                    }
+
+                    ("********** " + audioFilters._Combine(" / "))._Print();
+
+                    string audioFilterArgs = " ";
+                    if (audioFilters.Any())
+                    {
+                        audioFilterArgs = $"-af \"{audioFilters._Combine(" , ")}\"";
+                    }
+
+                    // 動画を変換
+                    await ProcessOneFileAsync(srcFile.FullPath, destFilePath, $"{this.Settings.FfmpegParams} {audioFilterArgs}",
+                        encoding, cancel);
+                }
+            }
+            catch (Exception ex)
+            {
+                ex._Error();
+            }
+
+            counter++;
+        }
+    }
+
+    async Task ProcessOneFileAsync(string srcPath, string dstPath, string args, Encoding encoding, CancellationToken cancel = default)
+    {
+        var now = DtOffsetNow;
+        string okTxtPath = PP.Combine(PP.GetDirectoryName(dstPath), ".okfiles", PP.GetFileName(dstPath)) + ".ok.txt";
+        string okTxtDir = PP.GetDirectoryName(okTxtPath);
+
+        try
+        {
+            await Lfs.CreateDirectoryAsync(PP.GetDirectoryName(dstPath), cancel: cancel);
+        }
+        catch { }
+
+        if (Settings.Overwrite == false)
+        {
+            // 宛先パス + .ok.txt ファイルが存在していれば何もしない
+            if (await Lfs.IsFileExistsAsync(okTxtPath, cancel) && await Lfs.IsFileExistsAsync(dstPath, cancel))
+            {
+                return;
+            }
+        }
+
+        // 変換を実施
+        string cmdLine = $"-y -i \"{srcPath._RemoveQuotation()}\" {args} \"{dstPath._RemoveQuotation()}\"";
+
+        (" * cmdline = " + cmdLine)._Print();
+
+        var result = await EasyExec.ExecAsync(Settings.FfMpegExePath, cmdLine, PP.GetDirectoryName(Settings.FfMpegExePath),
+            flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdOut | ExecFlags.EasyPrintRealtimeStdErr,
+            timeout: Timeout.Infinite, cancel: cancel, throwOnErrorExitCode: true,
+            inputEncoding: encoding, outputEncoding: encoding, errorEncoding: encoding);
+
+        // 成功したら ok.txt を保存
+        string okTxtBody = now._ToDtStr(true, DtStrOption.All, true) + "\r\n\r\n" + cmdLine + "\r\n\r\n" + result.ErrorAndOutputStr;
+        try
+        {
+            await Lfs.TryAddOrRemoveAttributeFromExistingFileAsync(okTxtPath, 0, FileAttributes.Hidden, cancel: cancel);
+            await Lfs.WriteStringToFileAsync(okTxtPath, okTxtBody._NormalizeCrlf(CrlfStyle.CrLf, true), writeBom: true, flags: FileFlags.AutoCreateDirectory, cancel: cancel);
+            await Lfs.TryAddOrRemoveAttributeFromExistingDirAsync(okTxtDir, FileAttributes.Hidden, cancel: cancel);
+            await Lfs.TryAddOrRemoveAttributeFromExistingFileAsync(okTxtPath, FileAttributes.Hidden, cancel: cancel);
+        }
+        catch (Exception ex)
+        {
+            ex._Error();
+        }
+    }
+}
+
+
+
+
 
 // 動画データ変換整理ユーティリティの設定
 public class MovYaiUtilSettings : IValidatable, INormalizable
@@ -193,6 +404,11 @@ public class MovYaiUtil
 
     public async Task ExecAsync(CancellationToken cancel = default)
     {
+        if (this.Settings.SrcDir._IsSamei(this.Settings.DestDir))
+        {
+            throw new CoresException("Src is same to dst.");
+        }
+
         var encoding = Str.Utf8Encoding;
 
         // 元ディレクトリのファイルを列挙
@@ -249,7 +465,7 @@ public class MovYaiUtil
                     destRelativePath._Print();
 
                     List<string> audioFilters = new List<string>();
-                    
+
                     // 現在の max_volume 値を取得
                     var result = await EasyExec.ExecAsync(Settings.FfMpegExePath, $"-i \"{srcFile.FullPath._RemoveQuotation()}\" -vn -af volumedetect -f null -", PP.GetDirectoryName(Settings.FfMpegExePath),
                         flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdOut | ExecFlags.EasyPrintRealtimeStdErr,
@@ -1316,7 +1532,7 @@ public class TimeStampDocsUtil : AsyncService
         allText.WriteLine($"# ハッシュ計算ジョブユニーク ID: {uniqueId}");
         allText.WriteLine();
         allText.WriteLine();
-        
+
         for (int i = 0; i < projectResultsList.Count; i++)
         {
             var proj = projectResultsList[i];

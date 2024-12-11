@@ -5085,20 +5085,7 @@ HOST: www.google.com
     }
 
     static async Task Test_241013()
-    {/*
-        var files = await Lfs.EnumDirectoryAsync(@"c:\tmp\");
-
-        using var sha1 = SHA1.Create();
-
-        foreach (var file in files.Where(x => x.IsFile).Where(x => x.Size <= 10_000_000).OrderBy(x => x.Name, StrCmpi))
-        {
-            var hash = await Lfs.CalcFileHashAsync(file.FullPath, sha1);
-
-            string str = MovYaiUtil.GenerateFilePrefixStr(hash, 29, 999999999) + " " + file.Name;
-
-            str._Print();
-        }*/
-
+    {
         MovYaiUtil u = new MovYaiUtil(new MovYaiUtilSettings
         {
             // 実験データ
@@ -5110,6 +5097,21 @@ HOST: www.google.com
             MaxVolume = -0.0,
             FfMpegExePath = @"C:\git\dndevtools\ffmpeg\240703\ffmpeg.exe"
         });
+
+        //MovEncodeUtil u = new MovEncodeUtil(new MovEncodeUtilSettings
+        //{
+        //    // 実験データ
+        //    SrcDir = @"C:\tmp2\241212\src\",
+        //    //SrcDir = @"C:\tmp2\241014sw",
+        //    DestDir = @"C:\tmp2\241212\dst\",
+        //    AdjustVolume = false,
+        //    //FfmpegParams = "-ss 00:00:00 -to 00:00:15 -c:v libx264 -pix_fmt yuv420p -profile:v high -crf 18",
+        //    FfmpegParams = "-map 0 -sn -c copy",
+        //    Overwrite = false,
+        //    MaxVolume = -0.0,
+        //    FfMpegExePath = @"C:\git\dndevtools\ffmpeg\240703\ffmpeg.exe"
+        //});
+
 
         await u.ExecAsync();
 
