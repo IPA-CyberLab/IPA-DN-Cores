@@ -296,7 +296,7 @@ public class MovYaiUtil
                     }
 
                     // 動画を変換
-                    await ProcessOneFileAsync(srcFile.FullPath, destFullPath, $"-crf 18 {audioFilterArgs}",
+                    await ProcessOneFileAsync(srcFile.FullPath, destFullPath, $"-c:v libx264 -pix_fmt yuv420p -profile:v high -crf 18 {audioFilterArgs}",
                         artist,
                         artist,
                         Settings.SeriesStr._MakeVerySafeAsciiOnlyNonSpaceFileName() + " - " + fileHashStrWithBrakets + " " + Lfs.PathParser.GetFileNameWithoutExtension(srcFile.Name)._NormalizeSoftEther(true),
