@@ -3802,6 +3802,31 @@ namespace IPA.Cores.Basic
             return true;
         }
 
+        // ⑴ ～ ⒇ の特殊文字を半角文字に置換する
+        public static string KakkoNumberSpecialStrToNormalStr(string str)
+        {
+            return str.Replace("⑴", "(1)")
+                     .Replace("⑵", "(2)")
+                     .Replace("⑶", "(3)")
+                     .Replace("⑷", "(4)")
+                     .Replace("⑸", "(5)")
+                     .Replace("⑹", "(6)")
+                     .Replace("⑺", "(7)")
+                     .Replace("⑻", "(8)")
+                     .Replace("⑼", "(9)")
+                     .Replace("⑽", "(10)")
+                     .Replace("⑾", "(11)")
+                     .Replace("⑿", "(12)")
+                     .Replace("⒀", "(13)")
+                     .Replace("⒁", "(14)")
+                     .Replace("⒂", "(15)")
+                     .Replace("⒃", "(16)")
+                     .Replace("⒄", "(17)")
+                     .Replace("⒅", "(18)")
+                     .Replace("⒆", "(19)")
+                     .Replace("⒇", "(20)");
+        }
+
         // 半角カナを全角カナに変換する
         public static string KanaHankakuToZenkaku(string str)
         {
