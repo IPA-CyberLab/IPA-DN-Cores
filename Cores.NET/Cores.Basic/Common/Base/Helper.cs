@@ -439,8 +439,8 @@ public static class BasicHelper
     public static bool _IsAscii(this char c) => Str.IsAscii(c);
     public static bool _IsAscii(this string str) => Str.IsAscii(str);
 
-    public static string[] _GetLines(this string s, bool removeEmpty = false, bool stripCommentsFromLine = false, IEnumerable<string>? commentStartStrList = null, bool singleLineAtLeast = false, bool trim = false)
-        => Str.GetLines(s, removeEmpty, stripCommentsFromLine, commentStartStrList, singleLineAtLeast, trim);
+    public static string[] _GetLines(this string s, bool removeEmpty = false, bool stripCommentsFromLine = false, IEnumerable<string>? commentStartStrList = null, bool singleLineAtLeast = false, bool trim = false, ICollection<string>? strippedStrList = null, bool commentMustBeWholeLine = false)
+        => Str.GetLines(s, removeEmpty, stripCommentsFromLine, commentStartStrList, singleLineAtLeast, trim, strippedStrList, commentMustBeWholeLine);
     public static bool _GetKeyAndValue(this string s, out string key, out string value, string splitStr = Consts.Strings.DefaultKeyAndValueSplitStr) => Str.GetKeyAndValue(s, out key, out value, splitStr);
     public static bool _GetKeysListAndValue(this string str, int numKeys, out List<string> keys, out string value, string splitStr = Consts.Strings.DefaultKeyAndValueSplitStr)
         => Str.GetKeysListAndValue(str, numKeys, out keys, out value, splitStr);
@@ -529,6 +529,7 @@ public static class BasicHelper
     public static string[] _DivideStringByMultiKeywords(this string str, bool caseSensitive, params string[] keywords) => Str.DivideStringMulti(str, caseSensitive, keywords);
     public static bool _IsSuitableEncodingForString(this string s, Encoding encoding) => Str.IsSuitableEncodingForString(s, encoding);
     public static Encoding _GetBestSuitableEncoding(this string str, IEnumerable<Encoding?>? canditateList = null) => Str.GetBestSuitableEncoding(str, canditateList);
+    public static bool _IsStringNum(this string s) => Str.IsStringNum(s);
     public static bool _IsStringNumOrAlpha(this string s) => Str.IsStringNumOrAlpha(s);
     public static string _GetLeft(this string str, int len) => Str.GetLeft(str, len);
     public static string[] _SplitStringForSearch(this string str) => Str.SplitStringForSearch(str);
@@ -538,7 +539,7 @@ public static class BasicHelper
     public static int _FindStringsMulti2(this string str, int findStartIndex, StringComparison comparison, out string foundString, params string[] keys) => Str.FindStrings(str, findStartIndex, comparison, out foundString, keys);
     public static int _GetCountSearchKeywordInStr(this string str, string keyword, bool caseSensitive = false) => Str.GetCountSearchKeywordInStr(str, keyword, caseSensitive);
     public static int[] _FindStringIndexes(this string str, string keyword, bool caseSensitive = false) => Str.FindStringIndexes(str, keyword, caseSensitive);
-    public static string _StripCommentFromLine(this string str, IEnumerable<string>? commentStartStrList = null) => Str.StripCommentFromLine(str, commentStartStrList);
+    public static string _StripCommentFromLine(this string str, IEnumerable<string>? commentStartStrList = null, Ref<string>? strippedStr = null, bool commentMustBeWholeLine = false) => Str.StripCommentFromLine(str, commentStartStrList, strippedStr, commentMustBeWholeLine);
     public static string _RemoveSpace(this string str) { Str.RemoveSpace(ref str); return str; }
     public static string _Normalize(this string? str, bool space = true, bool toHankaku = true, bool toZenkaku = false, bool toZenkakuKana = true) { Str.NormalizeString(ref str, space, toHankaku, toZenkaku, toZenkakuKana); return str; }
     public static string _EncodeUrl(this string? str, Encoding? e = null, UrlEncodeParam? param = null) => Str.EncodeUrl(str, e, param);
@@ -615,6 +616,7 @@ public static class BasicHelper
     public static string? _GetDirectoryName(this string? str) => Path.GetDirectoryName(str);
     [return: NotNullIfNotNull("str")]
     public static string? _GetFileName(this string? str) => Path.GetFileName(str);
+    public static string _GetFileNameWithoutExtension(this string str, bool longExtension = false) => PathParser.Linux.GetFileNameWithoutExtension(str, longExtension);
     public static bool _IsExtensionMatch(this string str, string extensionsList) => IPA.Cores.Basic.Legacy.IO.IsExtensionsMatch(str, extensionsList);
     public static bool _IsExtensionMatch(this string str, IEnumerable<string> extensionsList) => IPA.Cores.Basic.Legacy.IO.IsExtensionsMatch(str, extensionsList);
     public static string _ReplaceStrWithReplaceClass(this string str, object replaceClass, bool caseSensitive = false) => Str.ReplaceStrWithReplaceClass(str, replaceClass, caseSensitive);
@@ -646,6 +648,7 @@ public static class BasicHelper
     public static string _MakeStrArray(this string str, int count, string sepstr = "") => Str.MakeStrArray(str, count, sepstr);
     public static bool _IsZenkaku(this char c) => Str.IsZenkaku(c);
     public static bool _IsCharNumOrAlpha(this char c) => Str.IsCharNumOrAlpha(c);
+    public static bool _IsCharNum(this char c) => Str.IsCharNum(c);
     //public static bool _IsSafeAndPrintable(this char c, bool crlIsOk = true, bool html_tag_ng = false) => Str.IsSafeAndPrintable(c, crlIsOk, html_tag_ng);
 
     [return: NotNullIfNotNull("str")]

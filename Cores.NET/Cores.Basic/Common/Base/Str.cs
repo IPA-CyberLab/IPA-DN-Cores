@@ -2826,6 +2826,27 @@ namespace IPA.Cores.Basic
             return true;
         }
 
+        // 文字が数字のみかどうか
+        public static bool IsCharNum(char c)
+        {
+            if (c >= '0' && c <= '9')
+            {
+                return true;
+            }
+            return false;
+        }
+        public static bool IsStringNum(string s)
+        {
+            foreach (char c in s)
+            {
+                if (IsCharNum(c) == false)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         // 文字列を項目リストに分割する
         public static string[] StrToStrLineBySplitting(string str)
         {
@@ -7951,7 +7972,7 @@ namespace IPA.Cores.Basic
         }
 
         // テキストから複数行を取り出す
-        public static string[] GetLines(string str, bool removeEmpty = false, bool stripCommentsFromLine = false, IEnumerable<string>? commentStartStrList = null, bool singleLineAtLeast = false, bool trim = false)
+        public static string[] GetLines(string str, bool removeEmpty = false, bool stripCommentsFromLine = false, IEnumerable<string>? commentStartStrList = null, bool singleLineAtLeast = false, bool trim = false, ICollection<string>? strippedStrList = null, bool commentMustBeWholeLine = false)
         {
             List<string> a = new List<string>();
             StringReader sr = new StringReader(str);
@@ -7984,7 +8005,14 @@ namespace IPA.Cores.Basic
                 }
                 if (stripCommentsFromLine)
                 {
-                    s = s._StripCommentFromLine(commentStartStrList);
+                    Ref<string>? strippedStr = strippedStrList == null ? null : new Ref<string>("");
+
+                    s = s._StripCommentFromLine(commentStartStrList, strippedStr, commentMustBeWholeLine);
+
+                    if (strippedStrList != null && strippedStr != null && strippedStr.Value._IsFilled())
+                    {
+                        strippedStrList.Add(strippedStr.Value);
+                    }
                 }
                 if (trim)
                 {
@@ -9141,8 +9169,9 @@ namespace IPA.Cores.Basic
             return 0;
         }
 
-        public static string StripCommentFromLine(string srcLine, IEnumerable<string>? commentStartStrList = null)
+        public static string StripCommentFromLine(string srcLine, IEnumerable<string>? commentStartStrList = null, Ref<string>? strippedStr = null, bool commentMustBeWholeLine = false)
         {
+            strippedStr?.Set("");
             if (srcLine == null) return "";
             if (commentStartStrList == null) commentStartStrList = Consts.Strings.CommentStartString;
 
@@ -9150,8 +9179,14 @@ namespace IPA.Cores.Basic
             {
                 if (srcLine.Trim().StartsWith(keyword, StringComparison.OrdinalIgnoreCase))
                 {
+                    strippedStr?.Set(srcLine);
                     return "";
                 }
+            }
+
+            if (commentMustBeWholeLine)
+            {
+                return srcLine;
             }
 
             int minStart = int.MaxValue;
@@ -9184,6 +9219,8 @@ namespace IPA.Cores.Basic
                 string ret = srcLine.Substring(0, minStart);
 
                 ret = ret.TrimEnd();
+
+                strippedStr?.Set(srcLine.Substring(minStart));
 
                 return ret;
             }
