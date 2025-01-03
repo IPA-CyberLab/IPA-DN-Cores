@@ -1193,6 +1193,29 @@ public class TimeStampDocsUtil : AsyncService
 
             return true;
         }
+
+        public List<FileSystemEntity> ProcessFilterForSubDirectoryList(IEnumerable<FileSystemEntity> subDirs)
+        {
+            var tmpList = subDirs.ToList();
+
+            int maxYyyymmddDirs = this.Settings._GetOrDefault("MaxYYMMDDDirs")._ToInt();
+            if (maxYyyymmddDirs >= 1)
+            {
+                var yyyymmddDirs = tmpList.Where(x => x.IsDirectory && x.IsCurrentOrParentDirectory == false && Str.TryParseYYMMDDDirName(x.Name, out _));
+                yyyymmddDirs = yyyymmddDirs.OrderBy(x =>
+                {
+                    Str.TryParseYYMMDDDirName(x.Name, out var dt);
+                    return dt;
+                });
+
+                tmpList = tmpList.Except(yyyymmddDirs).Concat(yyyymmddDirs.TakeLast(maxYyyymmddDirs)).ToList();
+            }
+
+            tmpList = tmpList.OrderBy(x => x.Name, StrCmpi).ToList();
+
+            return tmpList;
+        }
+
     }
 
     public FileSystem Fs { get; }
@@ -1638,7 +1661,11 @@ public class TimeStampDocsUtil : AsyncService
         }
 
         // サブディレクトリの処理
-        foreach (var subDirEntry in dirEntityList.Where(x => x.IsDirectory && x.IsSymbolicLink == false && x.IsCurrentOrParentDirectory == false).OrderBy(x => x.Name, this.Fs.PathParser.PathStringComparer))
+        var subDirList = dirEntityList.Where(x => x.IsDirectory && x.IsSymbolicLink == false && x.IsCurrentOrParentDirectory == false).OrderBy(x => x.Name, this.Fs.PathParser.PathStringComparer).ToList();
+
+        subDirList = config.ProcessFilterForSubDirectoryList(subDirList).OrderBy(x => x.Name, this.Fs.PathParser.PathStringComparer).ToList();
+
+        foreach (var subDirEntry in subDirList)
         {
             try
             {
