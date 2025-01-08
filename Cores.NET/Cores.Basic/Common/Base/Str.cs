@@ -2022,24 +2022,31 @@ namespace IPA.Cores.Basic
 
             name = name._TrimNonNull();
 
-            int r = name.IndexOfAny(YymmddSplitChars);
-            if ((r == 6 || r == 8) && name.Substring(0, r).All(x => x >= '0' && x <= '9'))
+            try
             {
-                name = name.Substring(0, r);
-            }
-            else
-            {
-                if (name.Length >= 7 && name.Substring(0, 6).All(x => x >= '0' && x <= '9') && (!(name[6] >= '0' && name[6] <= '9')))
+                int r = name.IndexOfAny(YymmddSplitChars);
+                if ((r == 6 || r == 8) && name.Substring(0, r).All(x => x >= '0' && x <= '9'))
                 {
-                    name = name.Substring(0, 6);
+                    name = name.Substring(0, r);
                 }
-                else if (name.Length >= 9 && name.Substring(0, 8).All(x => x >= '0' && x <= '9') && (!(name[8] >= '0' && name[8] <= '9')))
+                else
                 {
-                    name = name.Substring(0, 8);
+                    if (name.Length >= 7 && name.Substring(0, 6).All(x => x >= '0' && x <= '9') && (!(name[6] >= '0' && name[6] <= '9')))
+                    {
+                        name = name.Substring(0, 6);
+                    }
+                    else if (name.Length >= 9 && name.Substring(0, 8).All(x => x >= '0' && x <= '9') && (!(name[8] >= '0' && name[8] <= '9')))
+                    {
+                        name = name.Substring(0, 8);
+                    }
                 }
-            }
 
-            return TryParseYYMMDD(name, out date);
+                return TryParseYYMMDD(name, out date);
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         // YYMMDD または YYYYMMDD をパースする
