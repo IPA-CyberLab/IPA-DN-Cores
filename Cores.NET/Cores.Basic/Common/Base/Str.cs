@@ -8565,6 +8565,42 @@ namespace IPA.Cores.Basic
             return ret.Memory;
         }
 
+        public static string RemoveDoubleNewLines(string src, CrlfStyle style = CrlfStyle.LocalPlatform, bool removeEmpty = false, bool stripCommentsFromLine = false, IEnumerable<string>? commentStartStrList = null, bool singleLineAtLeast = false, bool trim = false, ICollection<string>? strippedStrList = null, bool commentMustBeWholeLine = false)
+        {
+            string[] lines = src._GetLines(removeEmpty, stripCommentsFromLine, commentStartStrList, singleLineAtLeast, trim, strippedStrList, commentMustBeWholeLine);
+
+            List<string> tmp = new List<string>();
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string line = lines[i];
+
+                if (line._IsFilled())
+                {
+                    tmp.Add(line);
+                }
+                else
+                {
+                    if (tmp.Any())
+                    {
+                        if (tmp.Last()._IsFilled())
+                        {
+                            tmp.Add("");
+                        }
+                    }
+                }
+            }
+
+            StringWriter w = new StringWriter();
+            w.NewLine = Str.GetNewLineStr(style);
+            foreach (var line in tmp)
+            {
+                w.WriteLine(line);
+            }
+
+            return w.ToString();
+        }
+
         // トークンリストを重複の無いものに変換する
         public static string[] UniqueToken(IEnumerable<string> t)
         {
