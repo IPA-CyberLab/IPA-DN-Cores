@@ -352,6 +352,8 @@ public static partial class Basic
     public static PathParser PPMac => PathParser.Mac;
     public static PathParser PPWin => PathParser.Windows;
 
+    public static string _RandStr => Str.GenRandStr();
+
 #if CORES_BASIC_GIT
         public static GitFileSystem GitFs(string url, string commitIdOrRefName = "") => GitGlobalFs.GetFileSystem(url, commitIdOrRefName);
 #endif // CORES_BASIC_GIT
