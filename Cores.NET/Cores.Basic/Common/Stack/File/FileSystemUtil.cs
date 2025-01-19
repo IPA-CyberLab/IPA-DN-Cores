@@ -583,8 +583,29 @@ public abstract partial class FileSystem
     public int ReadDataFromFile(string path, Memory<byte> destMemory, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
         => ReadDataFromFileAsync(path, destMemory, flags, cancel)._GetResult();
 
+    SyncCache<string, byte[]> FullBodyReadDataFromFileCache = new SyncCache<string, byte[]>(0);
+
     public async Task<Memory<byte>> ReadDataFromFileAsync(string path, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
     {
+        if (flags.Bit(FileFlags.ReadDataFileCache))
+        {
+            var flags2 = flags.BitRemove(FileFlags.ReadDataFileCache);
+
+            string cacheKey = $"{path}: {maxSize}: {(ulong)flags2}";
+
+            byte[]? cachedData = FullBodyReadDataFromFileCache.Get(cacheKey);
+            if (cachedData != null)
+            {
+                return cachedData.ToArray();
+            }
+
+            var tmp = await ReadDataFromFileAsync(path, maxSize, flags2, cancel);
+
+            FullBodyReadDataFromFileCache.Set(cacheKey, tmp.ToArray());
+
+            return tmp;
+        }
+
         await using (var file = await OpenAsync(path, false, false, false, flags, cancel))
         {
             try

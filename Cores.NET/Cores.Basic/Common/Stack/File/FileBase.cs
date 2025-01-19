@@ -473,6 +473,7 @@ public enum FileFlags : ulong
     NoCheckFileSize = 32768,
     LargeFs_ProhibitWriteWithCrossBorder = 65536,
     ReadStr_ExpandIncludes = 131072,
+    ReadDataFileCache = 262144,
 }
 
 
