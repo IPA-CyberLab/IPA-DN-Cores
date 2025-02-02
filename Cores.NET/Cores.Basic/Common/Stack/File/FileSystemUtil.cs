@@ -1216,7 +1216,7 @@ public class DirectoryWalker
                 {
                     opCancel.ThrowIfCancellationRequested();
 
-                    if (await WalkDirectoryInternalAsync(entity.FullPath, FileSystem.PathParser.Combine(directoryRelativePath, entity.Name), callback, callbackForDirectoryAgain, exceptionHandler, true, opCancel, entity) == false)
+                    if (await WalkDirectoryInternalAsync(entity.FullPath, FileSystem.PathParser.Combine(directoryRelativePath, entity.Name), callback, callbackForDirectoryAgain, exceptionHandler, true, opCancel, entity, entityFilter) == false)
                     {
                         return false;
                     }
