@@ -3850,7 +3850,7 @@ namespace IPA.Cores.Basic
                      .Replace("(f)", "⒡")
                      .Replace("(g)", "⒢")
                      .Replace("(h)", "⒣")
-                     .Replace("(i)", "⒤")
+                     //.Replace("(i)", "⒤")
                      .Replace("(j)", "⒥")
                      .Replace("(k)", "⒦")
                      .Replace("(l)", "⒧")
@@ -3863,9 +3863,9 @@ namespace IPA.Cores.Basic
                      .Replace("(s)", "⒮")
                      .Replace("(t)", "⒯")
                      .Replace("(u)", "⒰")
-                     .Replace("(v)", "⒱")
+                     //.Replace("(v)", "⒱")
                      .Replace("(w)", "⒲")
-                     .Replace("(x)", "⒳")
+                     //.Replace("(x)", "⒳")
                      .Replace("(y)", "⒴")
                      .Replace("(z)", "⒵")
                      .Replace("(１)", "⑴")
@@ -3896,7 +3896,7 @@ namespace IPA.Cores.Basic
                      .Replace("(ｆ)", "⒡")
                      .Replace("(ｇ)", "⒢")
                      .Replace("(ｈ)", "⒣")
-                     .Replace("(ｉ)", "⒤")
+                     //.Replace("(ｉ)", "⒤")
                      .Replace("(ｊ)", "⒥")
                      .Replace("(ｋ)", "⒦")
                      .Replace("(ｌ)", "⒧")
@@ -3909,9 +3909,9 @@ namespace IPA.Cores.Basic
                      .Replace("(ｓ)", "⒮")
                      .Replace("(ｔ)", "⒯")
                      .Replace("(ｕ)", "⒰")
-                     .Replace("(ｖ)", "⒱")
+                     //.Replace("(ｖ)", "⒱")
                      .Replace("(ｗ)", "⒲")
-                     .Replace("(ｘ)", "⒳")
+                     //.Replace("(ｘ)", "⒳")
                      .Replace("(ｙ)", "⒴")
                      .Replace("(ｚ)", "⒵")
                      .Replace("（1）", "⑴")
@@ -3952,7 +3952,7 @@ namespace IPA.Cores.Basic
                      .Replace("（f）", "⒡")
                      .Replace("（g）", "⒢")
                      .Replace("（h）", "⒣")
-                     .Replace("（i）", "⒤")
+                     //.Replace("（i）", "⒤")
                      .Replace("（j）", "⒥")
                      .Replace("（k）", "⒦")
                      .Replace("（l）", "⒧")
@@ -3965,9 +3965,9 @@ namespace IPA.Cores.Basic
                      .Replace("（s）", "⒮")
                      .Replace("（t）", "⒯")
                      .Replace("（u）", "⒰")
-                     .Replace("（v）", "⒱")
+                     //.Replace("（v）", "⒱")
                      .Replace("（w）", "⒲")
-                     .Replace("（x）", "⒳")
+                     //.Replace("（x）", "⒳")
                      .Replace("（y）", "⒴")
                      .Replace("（z）", "⒵")
                      .Replace("（１）", "⑴")
@@ -3998,7 +3998,7 @@ namespace IPA.Cores.Basic
                      .Replace("（ｆ）", "⒡")
                      .Replace("（ｇ）", "⒢")
                      .Replace("（ｈ）", "⒣")
-                     .Replace("（ｉ）", "⒤")
+                     //.Replace("（ｉ）", "⒤")
                      .Replace("（ｊ）", "⒥")
                      .Replace("（ｋ）", "⒦")
                      .Replace("（ｌ）", "⒧")
@@ -4011,9 +4011,9 @@ namespace IPA.Cores.Basic
                      .Replace("（ｓ）", "⒮")
                      .Replace("（ｔ）", "⒯")
                      .Replace("（ｕ）", "⒰")
-                     .Replace("（ｖ）", "⒱")
+                     //.Replace("（ｖ）", "⒱")
                      .Replace("（ｗ）", "⒲")
-                     .Replace("（ｘ）", "⒳")
+                     //.Replace("（ｘ）", "⒳")
                      .Replace("（ｙ）", "⒴")
                      .Replace("（ｚ）", "⒵");
 
@@ -8504,7 +8504,7 @@ namespace IPA.Cores.Basic
         // 指定された文字が区切り文字に該当するかどうかチェックする
         public static bool IsSplitChar(char c, string splitStr = Consts.Strings.DefaultSplitStr)
         {
-            splitStr = splitStr._FilledOrDefault(Consts.Strings.DefaultSplitStr);
+            splitStr = splitStr._NotEmptyOrDefault(Consts.Strings.DefaultSplitStr);
 
             return (splitStr.IndexOf(c, StringComparison.OrdinalIgnoreCase) != -1);
         }
@@ -8539,7 +8539,7 @@ namespace IPA.Cores.Basic
             uint mode = 0;
             string keystr = "", valuestr = "";
 
-            splitStr = splitStr._FilledOrDefault(Consts.Strings.DefaultKeyAndValueSplitStr);
+            splitStr = splitStr._NotEmptyOrDefault(Consts.Strings.DefaultKeyAndValueSplitStr);
 
             foreach (char c in str)
             {
@@ -8603,7 +8603,7 @@ namespace IPA.Cores.Basic
 
             if (numKeys <= 0) throw new ArgumentOutOfRangeException(nameof(numKeys));
 
-            splitStr = splitStr._FilledOrDefault(Consts.Strings.DefaultKeyAndValueSplitStr);
+            splitStr = splitStr._NotEmptyOrDefault(Consts.Strings.DefaultKeyAndValueSplitStr);
 
             foreach (char c in str)
             {
@@ -9966,7 +9966,7 @@ namespace IPA.Cores.Basic
             public StrToken(string str, string splitStr = Consts.Strings.DefaultSplitStr)
             {
                 // トークンの切り出し
-                splitStr = splitStr._FilledOrDefault(Consts.Strings.DefaultSplitStr);
+                splitStr = splitStr._NotEmptyOrDefault(Consts.Strings.DefaultSplitStr);
 
                 int i, len;
                 len = splitStr.Length;

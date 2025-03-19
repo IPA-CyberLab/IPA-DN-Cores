@@ -2024,6 +2024,10 @@ public static class BasicHelper
 
     [MethodImpl(Inline)]
     [return: NotNullIfNotNull("defaultValue")]
+    public static string? _NotEmptyOrDefault(this string? str, string? defaultValue = null) => (str._IsNotZeroLen() ? str : defaultValue);
+
+    [MethodImpl(Inline)]
+    [return: NotNullIfNotNull("defaultValue")]
     [return: MaybeNull]
     public static T _FilledOrDefault<T>(this T obj, T? defaultValue = default, bool zeroValueIsEmpty = true) => (obj._IsFilled(zeroValueIsEmpty) ? obj : defaultValue);
 
