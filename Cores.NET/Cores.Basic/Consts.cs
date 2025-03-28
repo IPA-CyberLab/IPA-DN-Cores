@@ -894,3 +894,4 @@ public enum VpnError
     ERR_DESK_GOVFW_HTML5_NO_SUPPORT = 336, // 完全閉域化 FW が強制されているが HTML5 版でサポートされていない
 }
 
+
