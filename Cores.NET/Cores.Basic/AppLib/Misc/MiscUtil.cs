@@ -97,6 +97,15 @@ public class FfmpegUtilOptions
     }
 }
 
+public class MediaMetaData
+{
+    public string Album = "";
+    public string AlbumArtist = "";
+    public string Title = "";
+    public string Artist = "";
+    public int Track = 0;
+    public int TrackTotal = 0;
+}
 
 public class FfmpegParsed
 {
@@ -168,36 +177,42 @@ public class FfmpegParsedList
         ParseMain();
     }
 
-    public string Meta_Album = "";
-    public string Meta_AlbumArtist = "";
-    public string Meta_Title = "";
-    public string Meta_Artist = "";
-    public int Meta_Track = 0;
-    public int Meta_TrackTotal = 0;
+    public MediaMetaData Meta = new MediaMetaData();
 
     public double VolumeDetect_MeanVolume;
     public double VolumeDetect_MaxVolume;
 
     void ParseMain()
     {
-        this.Meta_Album = this.All.Select(x => x.Items._GetStrFirst("album")).Where(x => x._IsFilled()).FirstOrDefault("");
-        this.Meta_AlbumArtist = this.All.Select(x => x.Items._GetStrFirst("album_artist")).Where(x => x._IsFilled()).FirstOrDefault("");
-        this.Meta_Title = this.All.Select(x => x.Items._GetStrFirst("title")).Where(x => x._IsFilled()).FirstOrDefault("");
-        this.Meta_Artist = this.All.Select(x => x.Items._GetStrFirst("artist")).Where(x => x._IsFilled()).FirstOrDefault("");
+        this.Meta.Album = this.All.Select(x => x.Items._GetStrFirst("album")).Where(x => x._IsFilled()).FirstOrDefault("");
+        this.Meta.AlbumArtist = this.All.Select(x => x.Items._GetStrFirst("album_artist")).Where(x => x._IsFilled()).FirstOrDefault("");
+        this.Meta.Title = this.All.Select(x => x.Items._GetStrFirst("title")).Where(x => x._IsFilled()).FirstOrDefault("");
+        this.Meta.Artist = this.All.Select(x => x.Items._GetStrFirst("artist")).Where(x => x._IsFilled()).FirstOrDefault("");
 
         string trackStr = this.All.Select(x => x.Items._GetStrFirst("track")).Where(x => x._IsFilled()).FirstOrDefault("");
 
         if (trackStr._GetKeyAndValueExact(out var currentTrackStr, out var totalTrackStr, "/"))
         {
-            this.Meta_Track = currentTrackStr._ToInt();
-            this.Meta_TrackTotal = totalTrackStr._ToInt();
+            this.Meta.Track = currentTrackStr._ToInt();
+            this.Meta.TrackTotal = totalTrackStr._ToInt();
+        }
+        else
+        {
+            this.Meta.Track = trackStr._ToInt();
         }
 
         string meanVolumeStr = this.All.Select(x => x.Items._GetStrFirst("mean_volume")).Where(x => x._IsFilled() && x.EndsWith(" dB")).FirstOrDefault("");
         string maxVolumeStr = this.All.Select(x => x.Items._GetStrFirst("max_volume")).Where(x => x._IsFilled() && x.EndsWith(" dB")).FirstOrDefault("");
 
-        this.VolumeDetect_MeanVolume = meanVolumeStr.Substring(0, meanVolumeStr.Length - 3).Trim()._ToDouble();
-        this.VolumeDetect_MaxVolume = maxVolumeStr.Substring(0, meanVolumeStr.Length - 3).Trim()._ToDouble();
+        if (meanVolumeStr._IsFilled())
+        {
+            this.VolumeDetect_MeanVolume = meanVolumeStr.Substring(0, meanVolumeStr.Length - 3).Trim()._ToDouble();
+        }
+
+        if (maxVolumeStr._IsFilled())
+        {
+            this.VolumeDetect_MaxVolume = maxVolumeStr.Substring(0, meanVolumeStr.Length - 3).Trim()._ToDouble();
+        }
     }
 }
 
@@ -210,11 +225,55 @@ public class FfmpegUtil
         this.Options = options;
     }
 
-    public async Task<FfmpegParsedList> AnalyzeAudioVolumeDetectAsync(string filename, CancellationToken cancel = default)
+    public async Task<(FfmpegParsedList Src, FfmpegParsedList Dst)> AdjustAudioVolumeAsync(string srcFilePath, string dstWavFilePath, double targetMaxVolume, double targetMeanVolume, CancellationToken cancel = default)
     {
-        string cmdLine = $"-i {filename._EnsureQuotation()} -vn -af volumedetect -f null -";
+        (FfmpegParsedList Src, FfmpegParsedList Dst) ret = new();
+
+        // まず、入力オーディオファイルの音量を検出
+        var srcParsed = await AnalyzeAudioVolumeDetectAsync(srcFilePath, cancel);
+        ret.Src = srcParsed;
+
+        // 平均音量をどれだけ調整するか (増加量)
+        double meanVolumeDelta = targetMeanVolume - srcParsed.VolumeDetect_MeanVolume;
+
+        // 最大音量をどれだけ調整するか (増加量)
+        double maxVolumeDelta = targetMaxVolume - srcParsed.VolumeDetect_MaxVolume;
+
+        // この 2 つの値のうち小さいほうを採用
+        double adjustDelta = Math.Min(meanVolumeDelta, maxVolumeDelta);
+
+        string cmdLine = $"-y -i {srcFilePath._EnsureQuotation()} -vn -af \"volume={adjustDelta:F1}dB\" -ar 44100 -ac 2 -c:a pcm_s16le -f wav {dstWavFilePath._EnsureQuotation()}";
+
+        await EnsureCreateDirForFileAsync(dstWavFilePath, cancel);
+
+        await RunAndParseAsync(cmdLine, cancel);
+
+        ret.Dst = await AnalyzeAudioVolumeDetectAsync(dstWavFilePath, cancel);
+
+        return ret;
+    }
+
+    async Task EnsureCreateDirForFileAsync(string filePath, CancellationToken cancel = default)
+    {
+        try
+        {
+            await Lfs.CreateDirectoryAsync(PP.GetDirectoryName(filePath), cancel: cancel);
+        }
+        catch { }
+    }
+
+    public async Task<FfmpegParsedList> AnalyzeAudioVolumeDetectAsync(string filePath, CancellationToken cancel = default)
+    {
+        string cmdLine = $"-i {filePath._EnsureQuotation()} -vn -af volumedetect -f null -";
 
         var parsed = await RunAndParseAsync(cmdLine, cancel);
+
+        try
+        {
+            var mp3MetaData = await MiscUtil.ReadMP3MetaDataAsync(filePath, cancel);
+            parsed.Meta = mp3MetaData;
+        }
+        catch { }
 
         return parsed;
     }
@@ -1967,6 +2026,335 @@ public class ExpandIncludesSettings
 // 色々なおまけユーティリティ
 public static partial class MiscUtil
 {
+
+
+    // 取得したいフレームIDと、それを格納するためのキーを紐づける辞書
+    private static readonly Dictionary<string, string> FrameToKeyMap = new Dictionary<string, string>
+        {
+            { "TALB", "album" },
+            { "TPE2", "album_artist" },
+            { "TIT2", "title" },
+            { "TPE1", "artist" },
+            { "TRCK", "track" }
+        };
+
+    public static MediaMetaData ReadMP3MetaData(ReadOnlySpan<byte> data, CancellationToken cancel = default)
+    {
+        MemoryStream ms = new MemoryStream();
+        ms.Write(data);
+
+        return ReadMP3MetaDataAsync(ms, cancel)._GetResult();
+    }
+
+    public static async Task<MediaMetaData> ReadMP3MetaDataAsync(string filePath, CancellationToken cancel = default, FileSystem? fs = null)
+    {
+        fs ??= Lfs;
+
+        await using (var file = await fs.OpenAsync(filePath, cancel: cancel))
+        {
+            return await ReadMP3MetaDataAsync(file.GetStream(true), cancel);
+        }
+    }
+
+    public static async Task<MediaMetaData> ReadMP3MetaDataAsync(Stream fs, CancellationToken cancel = default)
+    {
+        fs._SeekToBegin();
+
+        // 取得するメタデータを格納するディクショナリ
+        Dictionary<string, string> metadata = new Dictionary<string, string>
+            {
+                { "album",         "" },
+                { "album_artist",  "" },
+                { "title",         "" },
+                { "artist",        "" },
+                { "track",         "" }
+            };
+
+        // ID3v2 タグをパースしてメタデータを取得する
+        bool success = await ParseID3v2TagAsync(fs, metadata);
+
+        // ID3v2で取得できなかったものがある場合、ID3v1 (TAG) を最後にチェックする
+        if (!success || IsAnyFieldEmpty(metadata))
+        {
+            await ParseID3v1TagAsync(fs, metadata);
+        }
+
+        MediaMetaData meta = new MediaMetaData();
+
+        meta.Album = metadata["album"];
+        meta.AlbumArtist = metadata["album_artist"];
+        meta.Title = metadata["title"];
+        meta.Artist = metadata["artist"];
+        string trackStr = metadata["track"];
+
+        if (trackStr._GetKeyAndValueExact(out var currentTrackStr, out var totalTrackStr, "/"))
+        {
+            meta.Track = currentTrackStr._ToInt();
+            meta.TrackTotal = totalTrackStr._ToInt();
+        }
+        else
+        {
+            meta.Track = trackStr._ToInt();
+        }
+
+        return meta;
+    }
+
+    /// <summary>
+    /// ID3v2 タグをパースしてメタデータをディクショナリに格納する。
+    /// </summary>
+    /// <param name="fs">ファイルストリーム</param>
+    /// <param name="metadata">メタデータを格納するディクショナリ</param>
+    /// <returns>ID3v2 タグが存在してパースが行われた場合 true、無い場合やエラーの場合は false</returns>
+    private static async Task<bool> ParseID3v2TagAsync(Stream fs, Dictionary<string, string> metadata, CancellationToken cancel = default)
+    {
+        // MP3 ファイルの先頭 10 バイトが ID3v2 ヘッダ
+        byte[] header = new byte[10];
+        if (await fs.ReadAsync(header, 0, 10, cancel) < 10)
+        {
+            // ファイルサイズが小さすぎる
+            return false;
+        }
+
+        // "ID3" かどうかをチェック
+        if (header[0] != 'I' || header[1] != 'D' || header[2] != '3')
+        {
+            // ID3v2 ではない
+            return false;
+        }
+
+        // バージョン
+        byte version = header[3];    // 例: 3 => ID3v2.3, 4 => ID3v2.4
+        byte revision = header[4];   // 副バージョン
+                                     // フラグ (header[5]) は今回あまり使わない
+
+        // タグサイズ (4 バイト SyncSafe Integer)
+        // 7ビットずつ使う合計28ビットがタグ全体のサイズ(ヘッダ除く)
+        int tagSize = (header[6] & 0x7F) << 21
+                    | (header[7] & 0x7F) << 14
+                    | (header[8] & 0x7F) << 7
+                    | (header[9] & 0x7F);
+
+        // タグの末尾位置 (先頭10バイト + タグサイズ)
+        long tagEnd = fs.Position + tagSize;
+
+        // ID3v2.3 または ID3v2.4 を想定してフレームを順次読み込む
+        while (fs.Position < tagEnd)
+        {
+            // フレームヘッダは 10 バイト (ID3v2.3/2.4 共通)
+            // [0..3]: Frame ID (ASCII 4文字)
+            // [4..7]: Size (ID3v2.3なら通常整数, ID3v2.4ならSyncSafeだが多くの場合通常でOKとする)
+            // [8..9]: Flags
+            byte[] frameHeader = new byte[10];
+            int read = await fs.ReadAsync(frameHeader, 0, 10, cancel);
+            if (read < 10)
+            {
+                // フレームヘッダが読み取れなかった -> タグのパディング域など
+                break;
+            }
+
+            // フレームID (ASCII)
+            string frameID = Encoding.ASCII.GetString(frameHeader, 0, 4);
+
+            // フレームサイズ
+            // ID3v2.3 の場合は通常の 32bit 整数
+            // ID3v2.4 の場合は sync-safe (ただし多くのファイルはID3v2.3が多い)
+            int frameSize;
+            if (version == 4)
+            {
+                // ID3v2.4 の sync-safe 取得
+                frameSize = (frameHeader[4] & 0x7F) << 21
+                          | (frameHeader[5] & 0x7F) << 14
+                          | (frameHeader[6] & 0x7F) << 7
+                          | (frameHeader[7] & 0x7F);
+            }
+            else
+            {
+                // ID3v2.3 の通常整数
+                frameSize = (frameHeader[4] << 24)
+                          | (frameHeader[5] << 16)
+                          | (frameHeader[6] << 8)
+                          | (frameHeader[7]);
+            }
+
+            // フレームサイズが 0 以下なら異常、もしくはタグ終了
+            if (frameSize <= 0)
+            {
+                // パディングや異常フレームなので次へ
+                // （通常はフレームサイズが0の場合は読み飛ばし）
+                break;
+            }
+
+            // フレームデータ領域を読み込む
+            byte[] frameData = new byte[frameSize];
+            int frameDataRead = await fs.ReadAsync(frameData, 0, frameSize, cancel);
+            if (frameDataRead < frameSize)
+            {
+                // 途中で終わった -> タグがおかしい
+                break;
+            }
+
+            // 目的のフレーム (TALB, TPE2, TIT2, TPE1, TRCK) のみを対象にパース
+            if (FrameToKeyMap.ContainsKey(frameID))
+            {
+                string encodingType = "";
+                // frameData[0] がテキストのエンコーディングを表す
+                // 0x00: ISO-8859-1
+                // 0x01: UTF-16 (with BOM)
+                // 0x02: UTF-16BE
+                // 0x03: UTF-8
+
+                switch (frameData[0])
+                {
+                    case 0x00:
+                        encodingType = "shift_jis";
+                        break;
+                    case 0x01:
+                        // UTF-16 with BOM として扱う
+                        encodingType = "UTF-16";
+                        break;
+                    case 0x02:
+                        // UTF-16 BE (BOMなし) は読み取りが少し面倒なので簡易的にはUTF-16にしてしまう場合も
+                        encodingType = "UTF-16BE";
+                        break;
+                    case 0x03:
+                        encodingType = "UTF-8";
+                        break;
+                    default:
+                        // 不明なエンコーディングは ISO-8859-1 として扱う
+                        encodingType = "ISO-8859-1";
+                        break;
+                }
+
+                // 先頭1バイト(エンコーディング情報)を除いたデータを文字列化する
+                byte[] textData = new byte[frameSize - 1];
+                Array.Copy(frameData, 1, textData, 0, frameSize - 1);
+
+                string value = DecodeTextData(textData, encodingType);
+                metadata[FrameToKeyMap[frameID]] = value;
+            }
+
+            // タグの終わり近くで何か処理したい場合や、特定条件で break したい場合はここで可能
+            // 今回は最後までフレームを読み取る
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// フレームデータをエンコーディングに基づき文字列化する。
+    /// </summary>
+    private static string DecodeTextData(byte[] data, string encodingType)
+    {
+        try
+        {
+            Encoding encoding = Str.ShiftJisEncoding;
+
+            switch (encodingType)
+            {
+                case "shift_jis":
+                    encoding = Str.ShiftJisEncoding;
+                    break;
+
+                case "UTF-16":
+                    encoding = Encoding.Unicode;
+                    break;
+
+                case "UTF-16BE":
+                    encoding = Encoding.BigEndianUnicode;
+                    break;
+
+                case "UTF-8":
+                    encoding = Encoding.UTF8;
+                    break;
+
+                default:
+                    encoding = Str.ShiftJisEncoding;
+                    break;
+            }
+
+            return Str.DecodeString(data, encoding, out _, true);
+        }
+        catch
+        {
+            // 予期しないエンコーディングエラーが起きた場合、ASCII fallback
+            return Encoding.ASCII.GetString(data).TrimEnd('\0');
+        }
+    }
+
+    /// <summary>
+    /// ID3v1 (TAG) をパースしてメタデータが埋まっていない項目を補完する。
+    /// </summary>
+    /// <param name="fs">ファイルストリーム</param>
+    /// <param name="metadata">メタデータ</param>
+    private static async Task ParseID3v1TagAsync(Stream fs, Dictionary<string, string> metadata)
+    {
+        if (fs.Length < 128) return; // ID3v1が格納できるサイズ以下
+
+        // ファイル末尾128バイトがID3v1
+        fs.Seek(-128, SeekOrigin.End);
+
+        byte[] tag = new byte[128];
+        if (await fs.ReadAsync(tag, 0, 128) < 128)
+            return;
+
+        // "TAG" かどうか
+        if (tag[0] == 'T' && tag[1] == 'A' && tag[2] == 'G')
+        {
+            // 順に[3..32]: Title (30 bytes), [33..62]: Artist (30 bytes), [63..92]: Album (30 bytes),
+            // [93..96]: Year (4 bytes), [97..126]: Comment (30 bytes), [127]: Genre
+            // Track番号はID3v1.1の仕様でCommentの最後1バイトを使うが、混在があるので注意
+
+            string title = Encoding.GetEncoding("ISO-8859-1").GetString(tag, 3, 30).TrimEnd('\0', ' ');
+            string artist = Encoding.GetEncoding("ISO-8859-1").GetString(tag, 33, 30).TrimEnd('\0', ' ');
+            string album = Encoding.GetEncoding("ISO-8859-1").GetString(tag, 63, 30).TrimEnd('\0', ' ');
+            // 年やコメントは省略
+
+            // Track (ID3v1.1の場合: コメントの29バイト目が0で 30バイト目がトラック番号)
+            byte track = 0;
+            // コメント領域
+            byte[] comment = new byte[30];
+            Array.Copy(tag, 97, comment, 0, 30);
+            // ID3v1.1 形式かの簡易判定
+            if (comment[28] == 0 && comment[29] != 0)
+            {
+                // トラック番号を取得
+                track = comment[29];
+            }
+
+            // album_artist は ID3v1 には無いので設定できない
+            if (string.IsNullOrEmpty(metadata["title"]) && !string.IsNullOrEmpty(title))
+            {
+                metadata["title"] = title;
+            }
+            if (string.IsNullOrEmpty(metadata["artist"]) && !string.IsNullOrEmpty(artist))
+            {
+                metadata["artist"] = artist;
+            }
+            if (string.IsNullOrEmpty(metadata["album"]) && !string.IsNullOrEmpty(album))
+            {
+                metadata["album"] = album;
+            }
+            if (string.IsNullOrEmpty(metadata["track"]) && track > 0)
+            {
+                metadata["track"] = track.ToString();
+            }
+        }
+    }
+
+    /// <summary>
+    /// メタデータ辞書のいずれかが空かどうかをチェックする。
+    /// </summary>
+    private static bool IsAnyFieldEmpty(Dictionary<string, string> metadata)
+    {
+        foreach (var key in metadata.Keys)
+        {
+            if (string.IsNullOrEmpty(metadata[key]))
+                return true;
+        }
+        return false;
+    }
+
     public static async Task HttpFileSpiderAsync(string baseUrl, FileDownloadOption? options = null, CancellationToken cancel = default)
     {
         options ??= new FileDownloadOption();
