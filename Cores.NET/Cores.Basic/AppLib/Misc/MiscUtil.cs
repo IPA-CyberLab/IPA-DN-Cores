@@ -77,6 +77,167 @@ public static partial class CoresConfig
         public static readonly Copenhagen<int> WebTryCount = 2;
         public static readonly Copenhagen<int> WebRetryIntervalMsecs = 100;
     }
+
+    public static partial class DefaultFfmpegExecSettings
+    {
+        public static readonly Copenhagen<int> FfmpegDefaultMaxStdOutBufferSize = 32 * 1024 * 1024;
+    }
+}
+
+
+public class FfmpegUtilOptions
+{
+    public string ExePath = "";
+    public Encoding Encoding = Str.Utf8Encoding;
+    public int MaxStdOutBufferSize = CoresConfig.DefaultFfmpegExecSettings.FfmpegDefaultMaxStdOutBufferSize;
+
+    public FfmpegUtilOptions(string exePath)
+    {
+        this.ExePath = exePath;
+    }
+}
+
+
+public class FfmpegParsed
+{
+    public KeyValueList<string, string> Items = new KeyValueList<string, string>();
+}
+
+public class FfmpegParsedList
+{
+    public FfmpegParsed? Input = new FfmpegParsed();
+    public FfmpegParsed? Output = new FfmpegParsed();
+
+    public List<FfmpegParsed> All = new List<FfmpegParsed>();
+
+    public FfmpegParsedList()
+    {
+        this.All.Add(this.Input);
+        this.All.Add(this.Output);
+    }
+
+    public FfmpegParsedList(string body)
+    {
+        this.All.Add(this.Input);
+        this.All.Add(this.Output);
+
+        var lines = body._GetLines();
+
+        int mode = 0;
+
+        foreach (var line in lines)
+        {
+            if (line.StartsWith("Input #0"))
+            {
+                mode = 1;
+            }
+            else if (line.StartsWith("Input #"))
+            {
+                mode = 0;
+            }
+            else if (line.StartsWith("Output #0"))
+            {
+                mode = 2;
+            }
+            else if (line.StartsWith("Output #"))
+            {
+                mode = 0;
+            }
+
+            FfmpegParsed? current = null;
+            if (mode == 1) current = this.Input;
+            if (mode == 2) current = this.Output;
+
+            if (current != null)
+            {
+                if (line._GetKeyAndValueExact(out var key, out var value, ": "))
+                {
+                    key = key._Split(StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries, " ").LastOrDefault();
+
+                    key = key._NonNullTrim();
+                    value = value._NonNullTrim();
+
+                    if (key._IsFilled() && value._IsFilled())
+                    {
+                        current.Items.Add(key, value);
+                    }
+                }
+            }
+        }
+
+        ParseMain();
+    }
+
+    public string Meta_Album = "";
+    public string Meta_AlbumArtist = "";
+    public string Meta_Title = "";
+    public string Meta_Artist = "";
+    public int Meta_Track = 0;
+    public int Meta_TrackTotal = 0;
+
+    public double VolumeDetect_MeanVolume;
+    public double VolumeDetect_MaxVolume;
+
+    void ParseMain()
+    {
+        this.Meta_Album = this.All.Select(x => x.Items._GetStrFirst("album")).Where(x => x._IsFilled()).FirstOrDefault("");
+        this.Meta_AlbumArtist = this.All.Select(x => x.Items._GetStrFirst("album_artist")).Where(x => x._IsFilled()).FirstOrDefault("");
+        this.Meta_Title = this.All.Select(x => x.Items._GetStrFirst("title")).Where(x => x._IsFilled()).FirstOrDefault("");
+        this.Meta_Artist = this.All.Select(x => x.Items._GetStrFirst("artist")).Where(x => x._IsFilled()).FirstOrDefault("");
+
+        string trackStr = this.All.Select(x => x.Items._GetStrFirst("track")).Where(x => x._IsFilled()).FirstOrDefault("");
+
+        if (trackStr._GetKeyAndValueExact(out var currentTrackStr, out var totalTrackStr, "/"))
+        {
+            this.Meta_Track = currentTrackStr._ToInt();
+            this.Meta_TrackTotal = totalTrackStr._ToInt();
+        }
+
+        string meanVolumeStr = this.All.Select(x => x.Items._GetStrFirst("mean_volume")).Where(x => x._IsFilled() && x.EndsWith(" dB")).FirstOrDefault("");
+        string maxVolumeStr = this.All.Select(x => x.Items._GetStrFirst("max_volume")).Where(x => x._IsFilled() && x.EndsWith(" dB")).FirstOrDefault("");
+
+        this.VolumeDetect_MeanVolume = meanVolumeStr.Substring(0, meanVolumeStr.Length - 3).Trim()._ToDouble();
+        this.VolumeDetect_MaxVolume = maxVolumeStr.Substring(0, meanVolumeStr.Length - 3).Trim()._ToDouble();
+    }
+}
+
+public class FfmpegUtil
+{
+    public FfmpegUtilOptions Options;
+
+    public FfmpegUtil(FfmpegUtilOptions options)
+    {
+        this.Options = options;
+    }
+
+    public async Task<FfmpegParsedList> AnalyzeAudioVolumeDetectAsync(string filename, CancellationToken cancel = default)
+    {
+        string cmdLine = $"-i {filename._EnsureQuotation()} -vn -af volumedetect -f null -";
+
+        var parsed = await RunAndParseAsync(cmdLine, cancel);
+
+        return parsed;
+    }
+
+    public async Task<FfmpegParsedList> RunAndParseAsync(string arguments, CancellationToken cancel = default)
+    {
+        var ret = await RunAsync(arguments, cancel);
+
+        var parsed = new FfmpegParsedList(ret.ErrorStr);
+
+        return parsed;
+    }
+
+    public async Task<EasyExecResult> RunAsync(string arguments, CancellationToken cancel = default)
+    {
+        EasyExecResult ret = await EasyExec.ExecAsync(Options.ExePath, arguments, PP.GetDirectoryName(Options.ExePath),
+            flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdOut | ExecFlags.EasyPrintRealtimeStdErr,
+            timeout: Timeout.Infinite, cancel: cancel, throwOnErrorExitCode: true,
+            easyOutputMaxSize: Options.MaxStdOutBufferSize,
+            inputEncoding: Options.Encoding, outputEncoding: Options.Encoding, errorEncoding: Options.Encoding);
+
+        return ret;
+    }
 }
 
 
@@ -730,7 +891,7 @@ public class MovLearnUtil
                             encoding, cancel);
 
                         // 2.2. 数倍速再生版も作る
-                        string[] xList = { "1.25", "1.50", "2.00"};
+                        string[] xList = { "1.25", "1.50", "2.00" };
 
                         foreach (var xstr in xList)
                         {

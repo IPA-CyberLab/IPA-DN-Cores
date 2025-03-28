@@ -442,6 +442,8 @@ public static class BasicHelper
     public static string[] _GetLines(this string s, bool removeEmpty = false, bool stripCommentsFromLine = false, IEnumerable<string>? commentStartStrList = null, bool singleLineAtLeast = false, bool trim = false, ICollection<string>? strippedStrList = null, bool commentMustBeWholeLine = false)
         => Str.GetLines(s, removeEmpty, stripCommentsFromLine, commentStartStrList, singleLineAtLeast, trim, strippedStrList, commentMustBeWholeLine);
     public static bool _GetKeyAndValue(this string s, out string key, out string value, string splitStr = Consts.Strings.DefaultKeyAndValueSplitStr) => Str.GetKeyAndValue(s, out key, out value, splitStr);
+    public static bool _GetKeyAndValueExact(this string str, out string key, out string value, string splitStrExact, StringComparison comparison = StringComparison.OrdinalIgnoreCase)
+        => Str.GetKeyAndValueExact(str, out key, out value, splitStrExact, comparison);
     public static bool _GetKeysListAndValue(this string str, int numKeys, out List<string> keys, out string value, string splitStr = Consts.Strings.DefaultKeyAndValueSplitStr)
         => Str.GetKeysListAndValue(str, numKeys, out keys, out value, splitStr);
     public static void _SplitUrlAndQueryString(this string src, out string url, out string queryString) => Str.SplitUrlAndQueryString(src, out url, out queryString);
@@ -3726,6 +3728,18 @@ public static class BasicHelper
         }
 
         return str;
+    }
+
+    public static string _EnsureQuotation(this string str)
+    {
+        string tmp = str._RemoveQuotation();
+
+        if (tmp._InStri("\""))
+        {
+            throw new CoresLibException($"string '{tmp}' contains '\"'.");
+        }
+
+        return "\"" + tmp + "\"";
     }
 
     public static bool _IsNone(this string str)

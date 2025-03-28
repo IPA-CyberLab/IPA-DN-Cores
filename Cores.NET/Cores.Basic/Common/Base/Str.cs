@@ -8533,6 +8533,29 @@ namespace IPA.Cores.Basic
             }
         }
 
+        // 文字列からキーと値を取得する (正確な分割)
+        public static bool GetKeyAndValueExact(string str, out string key, out string value, string splitStrExact, StringComparison comparison = StringComparison.OrdinalIgnoreCase)
+        {
+            str = str._NonNull();
+            splitStrExact = splitStrExact._NonNull();
+            if (splitStrExact._IsNullOrZeroLen())
+            {
+                throw new CoresLibException(nameof(splitStrExact) + " is empty.");
+            }
+
+            int i = str.IndexOf(splitStrExact, comparison);
+            if (i == -1)
+            {
+                key = "";
+                value = "";
+                return false;
+            }
+
+            key = str.Substring(0, i);
+            value = str.Substring(i + splitStrExact.Length);
+            return true;
+        }
+
         // 文字列からキーと値を取得する
         public static bool GetKeyAndValue(string str, out string key, out string value, string splitStr = Consts.Strings.DefaultKeyAndValueSplitStr)
         {
