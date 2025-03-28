@@ -2114,4 +2114,9 @@ woff application/font-woff
 .md text/plain;charset=UTF-8 #overwrite
 .config text/plain;charset=UTF-8 #overwrite
 
+# OpenVPN
+.ovpn application/x-openvpn-profile
+
+
+
 

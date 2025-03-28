@@ -34,6 +34,7 @@
 // Description
 
 #if true
+#pragma warning disable CS0162 // 到達できないコードが検出されました
 
 #pragma warning disable CA2235 // Mark all non-serializable fields
 
@@ -683,7 +684,7 @@ public class MovLearnUtil
                         // 1. まず、音声ファイル群の生成
                         List<string> audioFilters = new List<string>();
 
-                        // 1.1. ベースの x1.0 ファイルの生成
+                        // 1.1. ベースの x1.00 ファイルの生成
 
                         // 現在の max_volume 値を取得
                         var result = await EasyExec.ExecAsync(Settings.FfMpegExePath, $"-i \"{srcFile.FullPath._RemoveQuotation()}\" -vn -af volumedetect -f null -", PP.GetDirectoryName(Settings.FfMpegExePath),
@@ -719,22 +720,22 @@ public class MovLearnUtil
                         }
 
                         // 無音除去を実施、音量調整も実施
-                        string audio_base_path = PP.Combine(destDirPath, albumBase + $" - audio.x1.0", $"{albumSimple} [{trackNumber:D2}] {titleBase} - audio.x1.0.mp3");
+                        string audio_base_path = PP.Combine(destDirPath, albumBase + $" - audio.x1.00", $"{albumSimple} [{trackNumber:D2}] {titleBase} - audio.x1.00.m4a");
                         audioFilters.Add($"silenceremove=window=5:detection=peak:stop_mode=all:start_mode=all:stop_periods=-1:stop_threshold=-30dB");
-                        await ProcessOneFileAsync(srcFile.FullPath, audio_base_path, $"-vn -f mp3 -ab 192k -af \"{audioFilters._Combine(" , ")}\"",
-                            artist + $" - audio.x1.0",
-                            albumBase + " - audio.x1.0",
-                            albumSimple + $" [{trackNumber:D2}] - " + titleBase + " - audio.x1.0",
+                        await ProcessOneFileAsync(srcFile.FullPath, audio_base_path, $"-vn -f mp4 -b:a 192k -aac_coder twoloop -af \"{audioFilters._Combine(" , ")}\"",
+                            artist + $" - audio.x1.00",
+                            albumBase + " - audio.x1.00",
+                            albumSimple + $" [{trackNumber:D2}] - " + titleBase + " - audio.x1.00",
                             trackNumber, maxTracks,
                             encoding, cancel);
 
                         // 2.2. 数倍速再生版も作る
-                        string[] xList = { "1.5", "2.0", "2.5", "3.0", "3.5" };
+                        string[] xList = { "1.25", "1.50", "2.00"};
 
                         foreach (var xstr in xList)
                         {
-                            string audio_x_path = PP.Combine(destDirPath, albumBase + $" - audio.x{xstr}", $"{albumSimple} [{trackNumber:D2}] {titleBase} - audio.x{xstr}.mp3");
-                            await ProcessOneFileAsync(audio_base_path, audio_x_path, $"-vn -f mp3 -ab 192k -af atempo={xstr}",
+                            string audio_x_path = PP.Combine(destDirPath, albumBase + $" - audio.x{xstr}", $"{albumSimple} [{trackNumber:D2}] {titleBase} - audio.x{xstr}.m4a");
+                            await ProcessOneFileAsync(audio_base_path, audio_x_path, $"-vn -f mp4 -b:a 192k -aac_coder twoloop -af atempo={xstr}",
                                 artist + $" - audio.x{xstr}",
                                 albumBase + $" - audio.x{xstr}",
                                 albumSimple + $" [{trackNumber:D2}] - " + titleBase + $" - audio.x{xstr}",
@@ -743,7 +744,7 @@ public class MovLearnUtil
                         }
                     }
 
-                    if (true)
+                    if (false)
                     {
                         // 2. 次に、動画ファイル群の生成
                         List<string> audioFilters = new List<string>();

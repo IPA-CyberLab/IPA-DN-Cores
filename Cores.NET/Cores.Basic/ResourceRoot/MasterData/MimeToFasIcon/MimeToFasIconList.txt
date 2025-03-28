@@ -59,6 +59,10 @@ application/x-javascript far fa-file-code
 text/directory fas fa-folder
 text/directory-open fas fa-folder-open
 
+## Added by dnobori 2025/1/24
+# OpenVPN
+application/x-openvpn-profile fas fa-network-wired
+
 # Wildcard
 * fas fa-file-download
 

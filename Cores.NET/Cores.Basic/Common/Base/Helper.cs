@@ -2024,6 +2024,10 @@ public static class BasicHelper
 
     [MethodImpl(Inline)]
     [return: NotNullIfNotNull("defaultValue")]
+    public static string? _NotEmptyOrDefault(this string? str, string? defaultValue = null) => (str._IsNotZeroLen() ? str : defaultValue);
+
+    [MethodImpl(Inline)]
+    [return: NotNullIfNotNull("defaultValue")]
     [return: MaybeNull]
     public static T _FilledOrDefault<T>(this T obj, T? defaultValue = default, bool zeroValueIsEmpty = true) => (obj._IsFilled(zeroValueIsEmpty) ? obj : defaultValue);
 
@@ -2348,6 +2352,8 @@ public static class BasicHelper
         }
     }
 
+    // ★ 優秀関数。list の項目を、numCpus の数のタスクリストに分割し、各タスクリストを並列に実行する。1 つのタスクリスト内のタスクは、直接に for ループで実行される。
+    //    つまり、大量の処理を、最大 numCpus のスレッドを消費するような形で実行できる。
     public static async Task _DoForEachParallelAsync<T>(this IEnumerable<T> list, Func<T, int, Task> action, int? numCpus = null, MultitaskDivideOperation operation = MultitaskDivideOperation.Split, CancellationToken cancel = default)
     {
         list._NullCheck();
@@ -2362,6 +2368,8 @@ public static class BasicHelper
         cancel);
     }
 
+    // ★ 優秀関数。list の項目を、numCpus の数のタスクリストに分割し、各タスクリストを並列に実行する。1 つのタスクリスト内のタスクは、直接に for ループで実行される。
+    //    つまり、大量の処理を、最大 numCpus のスレッドを消費するような形で実行できる。
     public static async Task _DoForEachParallelAsync<T>(this IEnumerable<T> list, Func<T, Task> action, int? numCpus = null, MultitaskDivideOperation operation = MultitaskDivideOperation.Split, CancellationToken cancel = default)
     {
         list._NullCheck();
@@ -2434,17 +2442,27 @@ public static class BasicHelper
         else
         {
             int countPerTask = srcList.Count / numTasks;
-            int countForLastTask = srcList.Count - (countPerTask * (numTasks - 1));
+            if (countPerTask == 0) countPerTask = 1;
             for (int i = 0; i < numTasks; i++)
             {
                 int startIndex = countPerTask * i;
-                int count = countPerTask;
+                int count = Math.Min(countPerTask, srcList.Count - startIndex);
+
                 if (i == (numTasks - 1))
                 {
-                    count = countForLastTask;
+                    count = srcList.Count - (countPerTask * i);
                 }
 
-                srcListList[i] = srcList.GetRange(startIndex, count);
+                if (count < 0) count = 0;
+
+                if (count >= 1)
+                {
+                    srcListList[i] = srcList.GetRange(startIndex, count);
+                }
+                else
+                {
+                    srcListList[i] = new List<T>();
+                }
             }
         }
 

@@ -1351,49 +1351,49 @@ public class PathParser
         return fileName;
     }
 
-    public string GetRelativeDirectoryName(string directoryName, string baseDirName)
+    public string GetRelativeDirectoryName(string dirPath, string baseDirPath)
     {
-        directoryName = directoryName._TrimNonNull();
-        baseDirName = baseDirName._TrimNonNull();
+        dirPath = dirPath._TrimNonNull();
+        baseDirPath = baseDirPath._TrimNonNull();
 
-        directoryName = this.NormalizeDirectorySeparator(directoryName);
-        directoryName = this.RemoveLastSeparatorChar(directoryName);
+        dirPath = this.NormalizeDirectorySeparator(dirPath);
+        dirPath = this.RemoveLastSeparatorChar(dirPath);
 
-        baseDirName = this.NormalizeDirectorySeparator(baseDirName);
-        baseDirName = this.RemoveLastSeparatorChar(baseDirName);
+        baseDirPath = this.NormalizeDirectorySeparator(baseDirPath);
+        baseDirPath = this.RemoveLastSeparatorChar(baseDirPath);
 
-        if (this.PathStringComparer.Equals(directoryName, baseDirName))
+        if (this.PathStringComparer.Equals(dirPath, baseDirPath))
         {
             return this.NormalizeDirectorySeparator("./");
         }
 
-        return GetRelativeFileName(directoryName, baseDirName);
+        return GetRelativeFileName(dirPath, baseDirPath);
     }
 
-    public string GetRelativeFileName(string fileName, string baseDirName)
+    public string GetRelativeFileName(string filePath, string baseDirPath)
     {
-        fileName = fileName._TrimNonNull();
-        baseDirName = baseDirName._TrimNonNull();
+        filePath = filePath._TrimNonNull();
+        baseDirPath = baseDirPath._TrimNonNull();
 
-        baseDirName = this.NormalizeDirectorySeparator(baseDirName);
-        baseDirName = this.RemoveLastSeparatorChar(baseDirName);
+        baseDirPath = this.NormalizeDirectorySeparator(baseDirPath);
+        baseDirPath = this.RemoveLastSeparatorChar(baseDirPath);
 
-        if (baseDirName.Length == 0) throw new ArgumentException("baseDirName is empty.");
+        if (baseDirPath.Length == 0) throw new ArgumentException("baseDirName is empty.");
 
-        fileName = this.NormalizeDirectorySeparator(fileName);
-        fileName = this.RemoveLastSeparatorChar(fileName);
+        filePath = this.NormalizeDirectorySeparator(filePath);
+        filePath = this.RemoveLastSeparatorChar(filePath);
 
-        if (fileName.Length < baseDirName.Length)
+        if (filePath.Length < baseDirPath.Length)
         {
-            throw new ArgumentException($"fileName.Length < baseDirName.Length: \"{fileName}\" < \"{baseDirName}\"");
+            throw new ArgumentException($"fileName.Length < baseDirName.Length: \"{filePath}\" < \"{baseDirPath}\"");
         }
 
-        if (fileName.StartsWith(baseDirName, this.PathStringComparison) == false)
+        if (filePath.StartsWith(baseDirPath, this.PathStringComparison) == false)
         {
-            throw new ArgumentException($"The fileName \"{fileName}\" does not include the baseDirName \"{baseDirName}\".");
+            throw new ArgumentException($"The fileName \"{filePath}\" does not include the baseDirName \"{baseDirPath}\".");
         }
 
-        string ret = fileName.Substring(baseDirName.Length);
+        string ret = filePath.Substring(baseDirPath.Length);
 
         if (ret.Length >= 1 && this.PossibleDirectorySeparators.Where(x => x == ret[0]).Any())
         {
