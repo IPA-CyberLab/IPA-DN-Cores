@@ -92,14 +92,14 @@ public class AiTask
 
         var artistsDirList = await Lfs.EnumDirectoryAsync(srcDirPath, cancel: cancel);
 
-        foreach (var artistDir in artistsDirList.Where(x => x.IsDirectory && x.IsCurrentOrParentDirectory == false).OrderBy(x => x.Name, StrCmpi).Take(1))
+        foreach (var artistDir in artistsDirList.Where(x => x.IsDirectory && x.IsCurrentOrParentDirectory == false).OrderBy(x => x.Name, StrCmpi))
         {
             string artistName = artistDir.Name._NormalizeSoftEther(true);
             string safeArtistName = PPWin.MakeSafeFileName(artistName, true, true, true);
 
             var srcMusicList = await Lfs.EnumDirectoryAsync(artistDir.FullPath, true, cancel: cancel);
 
-            foreach (var srcMusicFile in srcMusicList.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Filter_MusicFiles)).OrderBy(x => x.Name, StrCmpi).Take(1))
+            foreach (var srcMusicFile in srcMusicList.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Filter_MusicFiles)).OrderBy(x => x.Name, StrCmpi))
             {
                 try
                 {
@@ -124,7 +124,7 @@ public class AiTask
                         Artist = musicOnlyAlbumName + " - " + artistName,
                     };
 
-                    string dstMusicAacPath = PP.Combine(dstMusicDirPath, $"{safeArtistName} - {safeSongTitle}.m4a");
+                    string dstMusicAacPath = PP.Combine(dstMusicDirPath, $"{musicOnlyAlbumName} - {safeArtistName} - {safeSongTitle}.m4a");
 
                     await FfMpeg.EncodeAudioAsync(tmpMusicWavPath, dstMusicAacPath, FfMpegAudioCodec.Aac, 0, meta, safeSongTitle, cancel: cancel);
                 }
