@@ -74,20 +74,82 @@ public static class AiUtilOkFileVersion
     public const int CurrentVersion = 20250329_02;
 }
 
-public static class AiTask
+public class AiTask
 {
-    public static async Task ExtractMusicAndVocal(string srcDirPath, string dstDirPath, CancellationToken cancel = default)
+    public FfMpegUtil FfMpeg { get; }
+    public AiUtilBasicSettings Settings { get; }
+
+    public AiTask(AiUtilBasicSettings settings, FfMpegUtil ffMpeg)
     {
-        var groupDirList = await Lfs.EnumDirectoryAsync(srcDirPath, cancel: cancel);
+        this.Settings = settings;
+        this.FfMpeg = ffMpeg;
+    }
 
-        foreach (var groupDir in groupDirList.Where(x => x.IsDirectory && x.IsCurrentOrParentDirectory == false).OrderBy(x => x.Name, StrCmpi))
+    public async Task ExtractAllMusicAndVocalAsync(string srcDirPath, string dstMusicDirPath, string tmpBaseDir, string musicOnlyAlbumName, CancellationToken cancel = default)
+    {
+        string tmpMusicDirPath = PP.Combine(tmpBaseDir, "1_MusicOnly_TMP");
+        string tmpVocalDirPath = PP.Combine(tmpBaseDir, "2_VocalOnly_TMP");
+
+        var artistsDirList = await Lfs.EnumDirectoryAsync(srcDirPath, cancel: cancel);
+
+        foreach (var artistDir in artistsDirList.Where(x => x.IsDirectory && x.IsCurrentOrParentDirectory == false).OrderBy(x => x.Name, StrCmpi).Take(1))
         {
-            string groupName = groupDir.Name._NormalizeSoftEther(true);
+            string artistName = artistDir.Name._NormalizeSoftEther(true);
+            string safeArtistName = PPWin.MakeSafeFileName(artistName, true, true, true);
 
-            var srcMusicList = await Lfs.EnumDirectoryAsync(groupDir.FullPath, true, cancel: cancel);
+            var srcMusicList = await Lfs.EnumDirectoryAsync(artistDir.FullPath, true, cancel: cancel);
 
-            //foreach (var srcMusic in srcMusicList.Where(x=>x.IsFile && x.Name._IsExtensionMatch(
+            foreach (var srcMusicFile in srcMusicList.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Filter_MusicFiles)).OrderBy(x => x.Name, StrCmpi).Take(1))
+            {
+                try
+                {
+                    string songTitle = PPWin.GetFileNameWithoutExtension(srcMusicFile.Name)._NormalizeSoftEther(true);
+                    string safeSongTitle = PPWin.MakeSafeFileName(songTitle, true, true, true);
+
+                    string tmpMusicWavPath = PP.Combine(tmpMusicDirPath, $"MusicOnly - {safeArtistName} - {safeSongTitle}.wav");
+                    string tmpVocalWavPath = PP.Combine(tmpVocalDirPath, $"VocalOnly - {safeArtistName} - {safeSongTitle}.wav");
+
+                    var result = await ExtractMusicAndVocalAsync(srcMusicFile.FullPath, tmpMusicWavPath, tmpVocalWavPath, safeSongTitle, cancel);
+
+                    string formalSongTitle = (result?.Meta?.Title)._NonNullTrimSe();
+                    if (formalSongTitle._IsEmpty())
+                    {
+                        formalSongTitle = songTitle;
+                    }
+
+                    MediaMetaData meta = new MediaMetaData
+                    {
+                        Album = musicOnlyAlbumName,
+                        Title = musicOnlyAlbumName + " - " + artistName + " - " + formalSongTitle,
+                        Artist = musicOnlyAlbumName + " - " + artistName,
+                    };
+
+                    string dstMusicAacPath = PP.Combine(dstMusicDirPath, $"{safeArtistName} - {safeSongTitle}.m4a");
+
+                    await FfMpeg.EncodeAudioAsync(tmpMusicWavPath, dstMusicAacPath, FfMpegAudioCodec.Aac, 0, meta, safeSongTitle, cancel: cancel);
+                }
+                catch (Exception ex)
+                {
+                    ex._Error();
+                }
+            }
         }
+    }
+
+    public async Task<FfMpegParsedList> ExtractMusicAndVocalAsync(string srcFilePath, string dstMusicWavPath, string dstVocalWavPath, string tagTitle, CancellationToken cancel = default)
+    {
+        FfMpegParsedList ret = await TaskUtil.RetryAsync(async c =>
+        {
+            await using var uvr = new AiUtilUvrEngine(this.Settings, this.FfMpeg);
+
+            return await uvr.ExtractAsync(srcFilePath, dstMusicWavPath, dstVocalWavPath, tagTitle, true, cancel);
+        },
+        1000,
+        3,
+        cancel,
+        true);
+
+        return ret;
     }
 }
 
@@ -103,7 +165,7 @@ public class AiUtilUvrEngine : AiUtilBasicEngine
 {
     public FfMpegUtil FfMpeg { get; }
 
-    public AiUtilUvrEngine(AiUtilBasicSettings basicSettings, FfMpegUtil ffMpeg) : base(basicSettings, "UVR", basicSettings.AiTest_UvrCli_BaseDir)
+    public AiUtilUvrEngine(AiUtilBasicSettings settings, FfMpegUtil ffMpeg) : base(settings, "UVR", settings.AiTest_UvrCli_BaseDir)
     {
         this.FfMpeg = ffMpeg;
     }
@@ -224,10 +286,10 @@ public class AiUtilBasicEngine : AsyncService
     public string SimpleAiName { get; }
     public string BaseDirPath { get; }
 
-    public AiUtilBasicEngine(AiUtilBasicSettings basicSettings, string simpleAiName, string baseDirPath)
+    public AiUtilBasicEngine(AiUtilBasicSettings settings, string simpleAiName, string baseDirPath)
     {
         this.SimpleAiName = simpleAiName._NonNullTrim()._NotEmptyOrDefault("AI");
-        this.Settings = basicSettings;
+        this.Settings = settings;
         this.BaseDirPath = baseDirPath;
     }
 
