@@ -81,9 +81,15 @@ public static partial class CoresConfig
     public static partial class DefaultFfMpegExecSettings
     {
         public static readonly Copenhagen<int> FfMpegDefaultMaxStdOutBufferSize = 32 * 1024 * 1024;
+        public static readonly Copenhagen<int> FfMpegDefaultAudioKbps = 192;
     }
 }
 
+
+public static class FfMpegUtilOkFileVersion
+{
+    public const int CurrentVersion = 20250329_06;
+}
 
 public class FfMpegUtilOptions
 {
@@ -218,6 +224,14 @@ public class FfMpegParsedList
     }
 }
 
+public enum FfMpegAudioCodec
+{
+    Wav = 0,
+    Flac,
+    Mp3,
+    Aac,
+}
+
 public class FfMpegUtil
 {
     public FfMpegUtilOptions Options;
@@ -227,13 +241,111 @@ public class FfMpegUtil
         this.Options = options;
     }
 
-    public async Task<(FfMpegParsedList Src, FfMpegParsedList Dst)> AdjustAudioVolumeAsync(string srcFilePath, string dstWavFilePath, double targetMaxVolume, double targetMeanVolume, CancellationToken cancel = default)
+    public async Task<FfMpegParsedList> EncodeAudioAsync(string srcFilePath, string dstFilePath, FfMpegAudioCodec codec, int kbps = 0, MediaMetaData? metaData = null, string tagTitle = "", bool useOkFile = true, CancellationToken cancel = default)
     {
-        (FfMpegParsedList Src, FfMpegParsedList Dst) ret = new();
+        if (kbps <= 0) kbps = CoresConfig.DefaultFfMpegExecSettings.FfMpegDefaultAudioKbps;
+        if (tagTitle._IsEmpty()) tagTitle = PP.GetFileNameWithoutExtension(srcFilePath);
+
+        string digest = $"codec={codec.ToString()},kbps={kbps},metaData={metaData._ObjectToJson()._Digest()}";
+
+        if (useOkFile)
+        {
+            var okResult = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstFilePath, digest, FfMpegUtilOkFileVersion.CurrentVersion, cancel);
+            if (okResult.IsOk && okResult.Value != null) return okResult.Value;
+        }
+
+        string cmdLine = $"-y -i {srcFilePath._EnsureQuotation()} -vn ";
+
+        switch (codec)
+        {
+            case FfMpegAudioCodec.Wav:
+                cmdLine += $"-reset_timestamps 1 -ar 44100 -ac 2 -c:a pcm_s16le -map_metadata -1 -f wav ";
+                break;
+
+            case FfMpegAudioCodec.Flac:
+                cmdLine += $"-reset_timestamps 1 -ar 44100 -ac 2 -c:a flac -f flac ";
+                break;
+
+            case FfMpegAudioCodec.Mp3:
+                cmdLine += $"-reset_timestamps 1 -ar 44100 -ac 2 -c:a libmp3lame -b:a {kbps}k -f mp3 ";
+                break;
+
+            case FfMpegAudioCodec.Aac:
+                cmdLine += $"-reset_timestamps 1 -ar 44100 -ac 2 -c:a aac -aac_coder twoloop -b:a {kbps}k -f mp4 ";
+                break;
+
+            default:
+                throw new CoresLibException(nameof(codec));
+        }
+
+        if (metaData != null && codec != FfMpegAudioCodec.Wav)
+        {
+            KeyValueList<string, string> ml = new KeyValueList<string, string>();
+
+            if (metaData.Title._IsFilled()) ml.Add("title", metaData.Title);
+            if (metaData.Album._IsFilled()) ml.Add("album", metaData.Album);
+            if (metaData.Artist._IsFilled()) ml.Add("artist", metaData.Artist);
+            if (metaData.AlbumArtist._IsFilled()) ml.Add("album_artist", metaData.AlbumArtist);
+
+            if (metaData.Track >= 1)
+            {
+                if (metaData.TrackTotal >= 1 && metaData.Track <= metaData.TrackTotal)
+                {
+                    ml.Add("track", $"{metaData.Track}/{metaData.TrackTotal}");
+                }
+                else
+                {
+                    ml.Add("track", $"{metaData.Track}");
+                }
+            }
+
+            foreach (var kv in ml)
+            {
+                string value = kv.Value._NonNullTrim();
+
+                value = PPWin.MakeSafeFileName(value, false, true, true);
+
+                cmdLine += $"-metadata {kv.Key}=\"{value}\" ";
+            }
+        }
+
+        cmdLine += $"{dstFilePath._EnsureQuotation()}";
+
+        await EnsureCreateDirectoryForFileAsync(dstFilePath, cancel);
+
+        await Lfs.DeleteFileIfExistsAsync(dstFilePath, cancel: cancel);
+
+        FfMpegParsedList ret = await RunFfMpegAndParseAsync(cmdLine, cancel);
+
+        try
+        {
+            var mp3MetaData = await MiscUtil.ReadMP3MetaDataAsync(dstFilePath, cancel);
+            ret.Meta = mp3MetaData;
+        }
+        catch { }
+
+        if (useOkFile)
+        {
+            await Lfs.WriteOkFileAsync(dstFilePath, ret, digest, FfMpegUtilOkFileVersion.CurrentVersion, cancel);
+        }
+
+        return ret;
+    }
+
+    public async Task<Tuple<FfMpegParsedList, FfMpegParsedList>> AdjustAudioVolumeAsync(string srcFilePath, string dstWavFilePath, double targetMaxVolume, double targetMeanVolume, string tagTitle = "", bool useOkFile = true, CancellationToken cancel = default)
+    {
+        if (tagTitle._IsEmpty()) tagTitle = PP.GetFileNameWithoutExtension(srcFilePath);
+
+        string digest = $"targetMaxVolume={targetMaxVolume},targetMeanVolume={targetMeanVolume}";
+
+        if (useOkFile)
+        {
+            var okResult = await Lfs.ReadOkFileAsync<Tuple<FfMpegParsedList, FfMpegParsedList>>(dstWavFilePath, digest, FfMpegUtilOkFileVersion.CurrentVersion, cancel);
+            if (okResult.IsOk && okResult.Value != null) return okResult.Value;
+        }
 
         // まず、入力オーディオファイルの音量を検出
         var srcParsed = await AnalyzeAudioVolumeDetectAsync(srcFilePath, cancel);
-        ret.Src = srcParsed;
 
         // 平均音量をどれだけ調整するか (増加量)
         double meanVolumeDelta = targetMeanVolume - srcParsed.VolumeDetect_MeanVolume;
@@ -244,13 +356,22 @@ public class FfMpegUtil
         // この 2 つの値のうち小さいほうを採用
         double adjustDelta = Math.Min(meanVolumeDelta, maxVolumeDelta);
 
-        string cmdLine = $"-y -i {srcFilePath._EnsureQuotation()} -vn -af \"volume={adjustDelta:F1}dB\" -ar 44100 -ac 2 -c:a pcm_s16le -f wav {dstWavFilePath._EnsureQuotation()}";
+        string cmdLine = $"-y -i {srcFilePath._EnsureQuotation()} -reset_timestamps 1 -vn -af \"volume={adjustDelta:F1}dB\" -ar 44100 -ac 2 -c:a pcm_s16le -map_metadata -1 -f wav {dstWavFilePath._EnsureQuotation()}";
+
+        await Lfs.DeleteFileIfExistsAsync(dstWavFilePath, cancel: cancel);
 
         await EnsureCreateDirectoryForFileAsync(dstWavFilePath, cancel);
 
         await RunFfMpegAndParseAsync(cmdLine, cancel);
 
-        ret.Dst = await AnalyzeAudioVolumeDetectAsync(dstWavFilePath, cancel);
+        var dstParsed = await AnalyzeAudioVolumeDetectAsync(dstWavFilePath, cancel);
+
+        var ret = new Tuple<FfMpegParsedList, FfMpegParsedList>(srcParsed, dstParsed);
+
+        if (useOkFile)
+        {
+            await Lfs.WriteOkFileAsync(dstWavFilePath, ret, digest, FfMpegUtilOkFileVersion.CurrentVersion, cancel);
+        }
 
         return ret;
     }
@@ -292,7 +413,7 @@ public class FfMpegUtil
             parsed.Meta = mp3MetaData;
         }
         catch { }
-        
+
         return parsed;
     }
 

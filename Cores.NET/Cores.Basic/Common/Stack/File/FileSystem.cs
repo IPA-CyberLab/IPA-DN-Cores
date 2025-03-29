@@ -1700,7 +1700,7 @@ public class PathParser
         return true;
     }
 
-    public string MakeSafeFileName(string? name, bool nonSpace = false, bool additionalCheck = false, bool simpleReplaceToUnderscore = false)
+    public string MakeSafeFileName(string? name, bool prohititSpace = false, bool additionalCheck = false, bool simpleReplaceToUnderscore = false)
     {
         name = name._NonNull();
 
@@ -1713,7 +1713,7 @@ public class PathParser
             int j;
             bool ok = true;
 
-            if (nonSpace)
+            if (prohititSpace)
             {
                 if (a[i] == ' ' || a[i] == '　' || a[i] == '\t')
                 {

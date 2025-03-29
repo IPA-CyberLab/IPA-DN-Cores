@@ -177,6 +177,8 @@ namespace IPA.Cores.Basic
     public class OkFileData<T>
     {
         public int Version;
+        public string FileName = "";
+        public string Digest = "";
         public DateTimeOffset TimeStamp;
         public T? MetaData;
     }
@@ -185,14 +187,14 @@ namespace IPA.Cores.Basic
 
     public abstract partial class FileSystem
     {
-        public async Task<bool> IsOkFileExists(string targetFilePath, int minVersion = 0, CancellationToken cancel = default)
+        public async Task<bool> IsOkFileExists(string targetFilePath, string digest = "", int minVersion = 0, CancellationToken cancel = default)
         {
-            var result = await this.ReadOkFileAsync<OkFileEmptyMetaData>(targetFilePath, minVersion, cancel);
+            var result = await this.ReadOkFileAsync<OkFileEmptyMetaData>(targetFilePath, digest, minVersion, cancel);
 
             return result.IsOk;
         }
 
-        public async Task<ResultOrError<T>> ReadOkFileAsync<T>(string targetFilePath, int minVersion = 0, CancellationToken cancel = default)
+        public async Task<ResultOrError<T>> ReadOkFileAsync<T>(string targetFilePath, string digest = "", int minVersion = 0, CancellationToken cancel = default)
         {
             try
             {
@@ -215,6 +217,14 @@ namespace IPA.Cores.Basic
                     return false;
                 }
 
+                if (digest._IsFilled())
+                {
+                    if (okData.Digest._IsDiffi(digest))
+                    {
+                        return false;
+                    }
+                }
+
                 return okData.MetaData;
             }
             catch
@@ -223,7 +233,7 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public async Task WriteOkFileAsync<T>(string targetFilePath, T? metaData, int version, CancellationToken cancel = default)
+        public async Task WriteOkFileAsync<T>(string targetFilePath, T? metaData, string digest = "", int version = 0, CancellationToken cancel = default)
         {
             var now = DtOffsetNow;
 
@@ -239,7 +249,9 @@ namespace IPA.Cores.Basic
             OkFileData<T> data = new OkFileData<T>();
             data.Version = version;
             data.TimeStamp = now;
+            data.FileName = PP.GetFileName(targetFilePath);
             data.MetaData = metaData;
+            data.Digest = digest;
 
             await Lfs.TryAddOrRemoveAttributeFromExistingFileAsync(okFilePath, 0, FileAttributes.Hidden, cancel: cancel);
             await this.WriteJsonToFileAsync(okFilePath, data, FileFlags.AutoCreateDirectory, cancel: cancel);
@@ -253,9 +265,9 @@ namespace IPA.Cores.Basic
 
             string okDirPath = PP.Combine(dirPath, Consts.FileNames.OkFileDirName);
 
-            string fileNameBase = PP.GetFileNameWithoutExtension(filePath);
+            string fileName = PP.GetFileName(filePath);
 
-            return PP.Combine(okDirPath, fileNameBase, Consts.FileNames.OkFileExt);
+            return PP.Combine(okDirPath, fileName + Consts.FileNames.OkFileExt);
         }
 
         public async Task<long> WriteJsonToFileEncryptedAsync<T>(string path, [AllowNull] T obj, string password, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default,

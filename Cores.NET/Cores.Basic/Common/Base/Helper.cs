@@ -608,6 +608,7 @@ public static class BasicHelper
 
     public static byte[] _HashSHA256(this string? str) => Str.HashStrSHA256(str);
     public static byte[] _HashSHA1(this string? str) => Str.HashStrSHA1(str);
+    public static string _Digest(this string str) => str._HashSHA256()._GetHexString().Substring(0, 32).ToLowerInvariant();
     public static string _CombinePath(this string str, string p1) => Path.Combine(str, p1);
     public static string _CombinePath(this string str, string p1, string p2) => Path.Combine(str, p1, p2);
     public static string _CombinePath(this string str, string p1, string p2, string p3) => Path.Combine(str, p1, p2, p3);

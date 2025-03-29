@@ -69,18 +69,17 @@ public static partial class CoresConfig
     }
 }
 
+public static class AiUtilOkFileVersion
+{
+    public const int CurrentVersion = 20250329_01;
+}
+
 public class AiUtilBasicSettings
 {
-    public int OkFileVersion;
     public string AiTest_UvrCli_BaseDir = "";
     public int AiTest_UvrCli_Timeout = 60 * 1000;
     public double AdjustAudioTargetMaxVolume = CoresConfig.DefaultAiUtilSettings.AdjustAudioTargetMaxVolume;
     public double AdjustAudioTargetMeanVolume = CoresConfig.DefaultAiUtilSettings.AdjustAudioTargetMeanVolume;
-}
-
-public class AiUtilOkMetaData
-{
-    public FfMpegParsedList? SrcFfMpegParsedData;
 }
 
 public class AiUtilUvrEngine : AiUtilBasicEngine
@@ -96,16 +95,40 @@ public class AiUtilUvrEngine : AiUtilBasicEngine
     {
         if (tagTitle._IsEmpty()) tagTitle = PP.GetFileNameWithoutExtension(srcFilePath);
 
+        if (dstMusicWavPath._IsEmpty() && dstVocalWavPath._IsEmpty()) throw new CoresLibException("dstMusicWavPath and dstVocalWavPath are both empty.");
+
         if (useOkFile)
         {
-            await Lfs.IsOkFileExists(
-        }
+            FfMpegParsedList? savedResult = null;
+            if (dstMusicWavPath._IsFilled())
+            {
+                var okFileForDstMusicWavPath = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstMusicWavPath, "", AiUtilOkFileVersion.CurrentVersion, cancel);
+                if (okFileForDstMusicWavPath.IsOk)
+                {
+                    dstMusicWavPath = null;
+                    savedResult = okFileForDstMusicWavPath;
+                }
+            }
 
-        if (dstMusicWavPath._IsEmpty() && dstVocalWavPath._IsEmpty()) throw new CoresLibException("dstMusicWavPath and dstVocalWavPath are both empty.");
+            if (dstVocalWavPath._IsFilled())
+            {
+                var okFileForDstVocalWavPath = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstVocalWavPath, "", AiUtilOkFileVersion.CurrentVersion, cancel);
+                if (okFileForDstVocalWavPath.IsOk)
+                {
+                    dstVocalWavPath = null;
+                    savedResult = okFileForDstVocalWavPath;
+                }
+            }
+
+            if (dstMusicWavPath == null && dstVocalWavPath == null && savedResult != null)
+            {
+                return savedResult;
+            }
+        }
 
         // 音量調整
         string adjustedWavFile = await Lfs.GenerateUniqueTempFilePathAsync(srcFilePath, cancel: cancel);
-        var result = await FfMpeg.AdjustAudioVolumeAsync(srcFilePath, adjustedWavFile, BasicSettings.AdjustAudioTargetMaxVolume, BasicSettings.AdjustAudioTargetMeanVolume, cancel);
+        var result = await FfMpeg.AdjustAudioVolumeAsync(srcFilePath, adjustedWavFile, Settings.AdjustAudioTargetMaxVolume, Settings.AdjustAudioTargetMeanVolume, tagTitle, false, cancel);
 
         if (dstMusicWavPath._IsFilled())
         {
@@ -114,11 +137,7 @@ public class AiUtilUvrEngine : AiUtilBasicEngine
 
             if (useOkFile)
             {
-                AiUtilOkMetaData meta = new AiUtilOkMetaData
-                {
-                    SrcFfMpegParsedData = result.Src
-                };
-                await Lfs.WriteOkFileAsync(dstMusicWavPath, meta, BasicSettings.OkFileVersion, cancel);
+                await Lfs.WriteOkFileAsync(dstMusicWavPath, result.Item1, "", AiUtilOkFileVersion.CurrentVersion, cancel);
             }
         }
 
@@ -129,15 +148,11 @@ public class AiUtilUvrEngine : AiUtilBasicEngine
 
             if (useOkFile)
             {
-                AiUtilOkMetaData meta = new AiUtilOkMetaData
-                {
-                    SrcFfMpegParsedData = result.Src
-                };
-                await Lfs.WriteOkFileAsync(dstMusicWavPath, meta, BasicSettings.OkFileVersion, cancel);
+                await Lfs.WriteOkFileAsync(dstVocalWavPath, result.Item1, "", AiUtilOkFileVersion.CurrentVersion, cancel);
             }
         }
 
-        return result.Src;
+        return result.Item1;
     }
 
     async Task ExtractInternalAsync(string srcWavPath, string dstWavPath, bool music, string tagTitle = "", CancellationToken cancel = default)
@@ -156,7 +171,7 @@ public class AiUtilUvrEngine : AiUtilBasicEngine
         }
         string tag = $"{(music ? "get_music" : "get_vocal")} ('{tagTitle._TruncStrEx(16)}')";
 
-        var result = await this.RunVEnvPythonCommandsAsync($"python {(music ? "get_music" : "get_vocal")}_wav.py", BasicSettings.AiTest_UvrCli_Timeout, printTag: tag, cancel: cancel);
+        var result = await this.RunVEnvPythonCommandsAsync($"python {(music ? "get_music" : "get_vocal")}_wav.py", Settings.AiTest_UvrCli_Timeout, printTag: tag, cancel: cancel);
 
         if (result.OutputAndErrorStr._GetLines().Where(x => x._InStr("instruments done")).Any() == false)
         {
@@ -188,14 +203,14 @@ public class AiUtilUvrEngine : AiUtilBasicEngine
 
 public class AiUtilBasicEngine : AsyncService
 {
-    public AiUtilBasicSettings BasicSettings { get; }
+    public AiUtilBasicSettings Settings { get; }
     public string SimpleAiName { get; }
     public string BaseDirPath { get; }
 
     public AiUtilBasicEngine(AiUtilBasicSettings basicSettings, string simpleAiName, string baseDirPath)
     {
         this.SimpleAiName = simpleAiName._NonNullTrim()._NotEmptyOrDefault("AI");
-        this.BasicSettings = basicSettings;
+        this.Settings = basicSettings;
         this.BaseDirPath = baseDirPath;
     }
 
