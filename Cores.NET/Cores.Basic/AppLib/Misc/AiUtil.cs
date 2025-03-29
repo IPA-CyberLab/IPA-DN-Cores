@@ -64,13 +64,23 @@ public static partial class CoresConfig
     public static partial class DefaultAiUtilSettings
     {
         public static readonly Copenhagen<int> DefaultMaxStdOutBufferSize = 256 * 1024 * 1024;
+        public static readonly Copenhagen<double> AdjustAudioTargetMaxVolume = 0.0;
+        public static readonly Copenhagen<double> AdjustAudioTargetMeanVolume = -15.0;
     }
 }
 
 public class AiUtilBasicSettings
 {
+    public int OkFileVersion;
     public string AiTest_UvrCli_BaseDir = "";
     public int AiTest_UvrCli_Timeout = 60 * 1000;
+    public double AdjustAudioTargetMaxVolume = CoresConfig.DefaultAiUtilSettings.AdjustAudioTargetMaxVolume;
+    public double AdjustAudioTargetMeanVolume = CoresConfig.DefaultAiUtilSettings.AdjustAudioTargetMeanVolume;
+}
+
+public class AiUtilOkMetaData
+{
+    public FfMpegParsedList? SrcFfMpegParsedData;
 }
 
 public class AiUtilUvrEngine : AiUtilBasicEngine
@@ -82,7 +92,55 @@ public class AiUtilUvrEngine : AiUtilBasicEngine
         this.FfMpeg = ffMpeg;
     }
 
-    public async Task ExtractInternalAsync(string srcWavPath, string dstWavPath, bool music, CancellationToken cancel = default)
+    public async Task<FfMpegParsedList> ExtractAsync(string srcFilePath, string? dstMusicWavPath = null, string? dstVocalWavPath = null, string tagTitle = "", bool useOkFile = true, CancellationToken cancel = default)
+    {
+        if (tagTitle._IsEmpty()) tagTitle = PP.GetFileNameWithoutExtension(srcFilePath);
+
+        if (useOkFile)
+        {
+            await Lfs.IsOkFileExists(
+        }
+
+        if (dstMusicWavPath._IsEmpty() && dstVocalWavPath._IsEmpty()) throw new CoresLibException("dstMusicWavPath and dstVocalWavPath are both empty.");
+
+        // 音量調整
+        string adjustedWavFile = await Lfs.GenerateUniqueTempFilePathAsync(srcFilePath, cancel: cancel);
+        var result = await FfMpeg.AdjustAudioVolumeAsync(srcFilePath, adjustedWavFile, BasicSettings.AdjustAudioTargetMaxVolume, BasicSettings.AdjustAudioTargetMeanVolume, cancel);
+
+        if (dstMusicWavPath._IsFilled())
+        {
+            // 音楽分離実行
+            await ExtractInternalAsync(adjustedWavFile, dstMusicWavPath, true, tagTitle, cancel);
+
+            if (useOkFile)
+            {
+                AiUtilOkMetaData meta = new AiUtilOkMetaData
+                {
+                    SrcFfMpegParsedData = result.Src
+                };
+                await Lfs.WriteOkFileAsync(dstMusicWavPath, meta, BasicSettings.OkFileVersion, cancel);
+            }
+        }
+
+        if (dstVocalWavPath._IsFilled())
+        {
+            // ボーカル分離実行
+            await ExtractInternalAsync(adjustedWavFile, dstVocalWavPath, false, tagTitle, cancel);
+
+            if (useOkFile)
+            {
+                AiUtilOkMetaData meta = new AiUtilOkMetaData
+                {
+                    SrcFfMpegParsedData = result.Src
+                };
+                await Lfs.WriteOkFileAsync(dstMusicWavPath, meta, BasicSettings.OkFileVersion, cancel);
+            }
+        }
+
+        return result.Src;
+    }
+
+    async Task ExtractInternalAsync(string srcWavPath, string dstWavPath, bool music, string tagTitle = "", CancellationToken cancel = default)
     {
         string aiSrcPath = BaseDirPath._CombinePath("_src.wav");
 
@@ -92,7 +150,11 @@ public class AiUtilUvrEngine : AiUtilBasicEngine
 
         await DeleteAllAiProcessOutputFilesAsync(cancel);
 
-        string tag = $"{(music ? "get_music" : "get_vocal")} ('{srcWavPath._GetFileNameWithoutExtension()._TruncStrEx(16)}')";
+        if (tagTitle._IsEmpty())
+        {
+            tagTitle = srcWavPath._GetFileNameWithoutExtension();
+        }
+        string tag = $"{(music ? "get_music" : "get_vocal")} ('{tagTitle._TruncStrEx(16)}')";
 
         var result = await this.RunVEnvPythonCommandsAsync($"python {(music ? "get_music" : "get_vocal")}_wav.py", BasicSettings.AiTest_UvrCli_Timeout, printTag: tag, cancel: cancel);
 

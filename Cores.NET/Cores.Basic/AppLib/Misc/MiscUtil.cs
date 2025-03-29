@@ -78,21 +78,21 @@ public static partial class CoresConfig
         public static readonly Copenhagen<int> WebRetryIntervalMsecs = 100;
     }
 
-    public static partial class DefaultFfmpegExecSettings
+    public static partial class DefaultFfMpegExecSettings
     {
-        public static readonly Copenhagen<int> FfmpegDefaultMaxStdOutBufferSize = 32 * 1024 * 1024;
+        public static readonly Copenhagen<int> FfMpegDefaultMaxStdOutBufferSize = 32 * 1024 * 1024;
     }
 }
 
 
-public class FfmpegUtilOptions
+public class FfMpegUtilOptions
 {
     public string FfMpegExePath = "";
     public string FfProbeExePath = "";
     public Encoding Encoding = Str.Utf8Encoding;
-    public int MaxStdOutBufferSize = CoresConfig.DefaultFfmpegExecSettings.FfmpegDefaultMaxStdOutBufferSize;
+    public int MaxStdOutBufferSize = CoresConfig.DefaultFfMpegExecSettings.FfMpegDefaultMaxStdOutBufferSize;
 
-    public FfmpegUtilOptions(string ffMpegExePath, string ffProbeExePath)
+    public FfMpegUtilOptions(string ffMpegExePath, string ffProbeExePath)
     {
         this.FfMpegExePath = ffMpegExePath;
         this.FfProbeExePath = ffProbeExePath;
@@ -109,25 +109,25 @@ public class MediaMetaData
     public int TrackTotal = 0;
 }
 
-public class FfmpegParsed
+public class FfMpegParsed
 {
     public KeyValueList<string, string> Items = new KeyValueList<string, string>();
 }
 
-public class FfmpegParsedList
+public class FfMpegParsedList
 {
-    public FfmpegParsed? Input = new FfmpegParsed();
-    public FfmpegParsed? Output = new FfmpegParsed();
+    public FfMpegParsed? Input = new FfMpegParsed();
+    public FfMpegParsed? Output = new FfMpegParsed();
 
-    public List<FfmpegParsed> All = new List<FfmpegParsed>();
+    public List<FfMpegParsed> All = new List<FfMpegParsed>();
 
-    public FfmpegParsedList()
+    public FfMpegParsedList()
     {
         this.All.Add(this.Input);
         this.All.Add(this.Output);
     }
 
-    public FfmpegParsedList(string body)
+    public FfMpegParsedList(string body)
     {
         this.All.Add(this.Input);
         this.All.Add(this.Output);
@@ -155,7 +155,7 @@ public class FfmpegParsedList
                 mode = 0;
             }
 
-            FfmpegParsed? current = null;
+            FfMpegParsed? current = null;
             if (mode == 1) current = this.Input;
             if (mode == 2) current = this.Output;
 
@@ -220,16 +220,16 @@ public class FfmpegParsedList
 
 public class FfMpegUtil
 {
-    public FfmpegUtilOptions Options;
+    public FfMpegUtilOptions Options;
 
-    public FfMpegUtil(FfmpegUtilOptions options)
+    public FfMpegUtil(FfMpegUtilOptions options)
     {
         this.Options = options;
     }
 
-    public async Task<(FfmpegParsedList Src, FfmpegParsedList Dst)> AdjustAudioVolumeAsync(string srcFilePath, string dstWavFilePath, double targetMaxVolume, double targetMeanVolume, CancellationToken cancel = default)
+    public async Task<(FfMpegParsedList Src, FfMpegParsedList Dst)> AdjustAudioVolumeAsync(string srcFilePath, string dstWavFilePath, double targetMaxVolume, double targetMeanVolume, CancellationToken cancel = default)
     {
-        (FfmpegParsedList Src, FfmpegParsedList Dst) ret = new();
+        (FfMpegParsedList Src, FfMpegParsedList Dst) ret = new();
 
         // まず、入力オーディオファイルの音量を検出
         var srcParsed = await AnalyzeAudioVolumeDetectAsync(srcFilePath, cancel);
@@ -280,7 +280,7 @@ public class FfMpegUtil
         catch { }
     }
 
-    public async Task<FfmpegParsedList> AnalyzeAudioVolumeDetectAsync(string filePath, CancellationToken cancel = default)
+    public async Task<FfMpegParsedList> AnalyzeAudioVolumeDetectAsync(string filePath, CancellationToken cancel = default)
     {
         string cmdLine = $"-i {filePath._EnsureQuotation()} -vn -af volumedetect -f null -";
 
@@ -296,7 +296,7 @@ public class FfMpegUtil
         return parsed;
     }
 
-    public async Task<FfmpegParsedList> ReadMetaDataWithFfProbeAsync(string filePath, bool useMP3OwnImplOverride = true, CancellationToken cancel = default)
+    public async Task<FfMpegParsedList> ReadMetaDataWithFfProbeAsync(string filePath, bool useMP3OwnImplOverride = true, CancellationToken cancel = default)
     {
         string cmdLine = $"-i {filePath._EnsureQuotation()}";
 
@@ -315,20 +315,20 @@ public class FfMpegUtil
         return parsed;
     }
 
-    public async Task<FfmpegParsedList> RunFfMpegAndParseAsync(string arguments, CancellationToken cancel = default)
+    public async Task<FfMpegParsedList> RunFfMpegAndParseAsync(string arguments, CancellationToken cancel = default)
     {
         var ret = await RunFfMpegAsync(arguments, cancel);
 
-        var parsed = new FfmpegParsedList(ret.ErrorStr);
+        var parsed = new FfMpegParsedList(ret.ErrorStr);
 
         return parsed;
     }
 
-    public async Task<FfmpegParsedList> RunFfProbeAndParseAsync(string arguments, CancellationToken cancel = default)
+    public async Task<FfMpegParsedList> RunFfProbeAndParseAsync(string arguments, CancellationToken cancel = default)
     {
         var ret = await RunFfProbeAsync(arguments, cancel);
 
-        var parsed = new FfmpegParsedList(ret.ErrorStr);
+        var parsed = new FfMpegParsedList(ret.ErrorStr);
 
         return parsed;
     }

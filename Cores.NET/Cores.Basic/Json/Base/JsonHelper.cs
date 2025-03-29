@@ -174,8 +174,90 @@ namespace IPA.Cores.Basic
             => Con.WriteDebug(obj._ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling, type: type, jsonFlags: jsonFlags));
     }
 
+    public class OkFileData<T>
+    {
+        public int Version;
+        public DateTimeOffset TimeStamp;
+        public T? MetaData;
+    }
+
+    public class OkFileEmptyMetaData { }
+
     public abstract partial class FileSystem
     {
+        public async Task<bool> IsOkFileExists(string targetFilePath, int minVersion = 0, CancellationToken cancel = default)
+        {
+            var result = await this.ReadOkFileAsync<OkFileEmptyMetaData>(targetFilePath, minVersion, cancel);
+
+            return result.IsOk;
+        }
+
+        public async Task<ResultOrError<T>> ReadOkFileAsync<T>(string targetFilePath, int minVersion = 0, CancellationToken cancel = default)
+        {
+            try
+            {
+                if (await this.IsFileExistsAsync(targetFilePath, cancel) == false)
+                {
+                    return new ResultOrError<T>(EnsureError.Error);
+                }
+
+                string okPath = GenerateOkFilePath(targetFilePath);
+
+                if (await this.IsFileExistsAsync(okPath, cancel) == false)
+                {
+                    return new ResultOrError<T>(EnsureError.Error);
+                }
+
+                var okData = await this.ReadJsonFromFileAsync<OkFileData<T>>(okPath, cancel: cancel);
+
+                if (okData.Version < minVersion)
+                {
+                    return false;
+                }
+
+                return okData.MetaData;
+            }
+            catch
+            {
+                return new ResultOrError<T>(EnsureError.Error);
+            }
+        }
+
+        public async Task WriteOkFileAsync<T>(string targetFilePath, T? metaData, int version, CancellationToken cancel = default)
+        {
+            var now = DtOffsetNow;
+
+            string okFilePath = GenerateOkFilePath(targetFilePath);
+
+            string okDirPath = PP.GetDirectoryName(okFilePath);
+
+            if (await this.IsDirectoryExistsAsync(okDirPath, cancel) == false)
+            {
+                await this.CreateDirectoryAsync(okDirPath, cancel: cancel);
+            }
+
+            OkFileData<T> data = new OkFileData<T>();
+            data.Version = version;
+            data.TimeStamp = now;
+            data.MetaData = metaData;
+
+            await Lfs.TryAddOrRemoveAttributeFromExistingFileAsync(okFilePath, 0, FileAttributes.Hidden, cancel: cancel);
+            await this.WriteJsonToFileAsync(okFilePath, data, FileFlags.AutoCreateDirectory, cancel: cancel);
+            await Lfs.TryAddOrRemoveAttributeFromExistingDirAsync(okDirPath, FileAttributes.Hidden, cancel: cancel);
+            await Lfs.TryAddOrRemoveAttributeFromExistingFileAsync(okFilePath, FileAttributes.Hidden, cancel: cancel);
+        }
+
+        public string GenerateOkFilePath(string filePath)
+        {
+            string dirPath = PP.GetDirectoryName(filePath);
+
+            string okDirPath = PP.Combine(dirPath, Consts.FileNames.OkFileDirName);
+
+            string fileNameBase = PP.GetFileNameWithoutExtension(filePath);
+
+            return PP.Combine(okDirPath, fileNameBase, Consts.FileNames.OkFileExt);
+        }
+
         public async Task<long> WriteJsonToFileEncryptedAsync<T>(string path, [AllowNull] T obj, string password, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default,
             bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, JsonFlags jsonFlags = JsonFlags.None)
         {
