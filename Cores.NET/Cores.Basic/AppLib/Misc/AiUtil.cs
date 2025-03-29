@@ -99,6 +99,69 @@ public class AiTask
         }
     }
 
+    public async Task ConvertAllTextToVoiceAsync(string srcDirPath, string srcSampleVoicePath, int speakerId, int diffusionSteps, string dstVoiceDirPath, string tmpVoiceBoxDir, string tmpVoiceWavDir, CancellationToken cancel = default)
+    {
+        var seriesDirList = await Lfs.EnumDirectoryAsync(srcDirPath, cancel: cancel);
+
+        foreach (var seriesDir in seriesDirList.Where(x => x.IsDirectory && x.IsCurrentOrParentDirectory == false).OrderBy(x => x.Name, StrCmpi))
+        {
+            var srcTextList = await Lfs.EnumDirectoryAsync(seriesDir.FullPath, true, cancel: cancel);
+
+            foreach (var srcTextFile in srcTextList.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Text)).OrderBy(x => x.Name, StrCmpi))
+            {
+                try
+                {
+                    await ConvertTextToVoiceAsync(srcTextFile.FullPath, srcSampleVoicePath, dstVoiceDirPath, tmpVoiceBoxDir, tmpVoiceWavDir, speakerId, diffusionSteps, cancel);
+                }
+                catch (Exception ex)
+                {
+                    srcTextFile.FullPath._Error();
+                    ex._Error();
+                }
+            }
+        }
+    }
+
+    public async Task ConvertTextToVoiceAsync(string srcTextPath, string srcSampleVoicePath, string dstVoiceDirPath, string tmpVoiceBoxDir, string tmpVoiceWavDir, int speakerId, int diffusionSteps, CancellationToken cancel = default)
+    {
+        string seriesName = PP.GetFileName(PP.GetDirectoryName(srcTextPath))._Normalize(false, true, false, true);
+        string safeSeriesName = PPWin.MakeSafeFileName(seriesName, true, true, true);
+
+        string storyTitle = PPWin.GetFileNameWithoutExtension(srcTextPath)._Normalize(false, true, false, true);
+        string safeStoryTitle = PPWin.MakeSafeFileName(storyTitle, true, true, true);
+
+        string safeVoiceTitle = PPWin.GetFileNameWithoutExtension(srcSampleVoicePath)._Normalize(false, true, false, true);
+
+        string tmpVoiceBoxWavPath = PP.Combine(tmpVoiceBoxDir, $"{safeSeriesName} - {safeStoryTitle} - {speakerId:D3}.wav");
+
+        string tagTitle = $"{safeSeriesName} - {safeStoryTitle} - {speakerId:D3}";
+
+        await using (var vv = new AiUtilVoiceVoxEngine(this.Settings, this.FfMpeg))
+        {
+            await vv.TextToWavAsync(srcTextPath, speakerId, tmpVoiceBoxWavPath, tagTitle, true, cancel);
+        }
+
+        MediaMetaData meta = new MediaMetaData
+        {
+            Album = safeSeriesName,
+            Title = $"{safeStoryTitle} - {safeVoiceTitle} - {speakerId:D3}",
+            Artist = $"{safeSeriesName} - {safeVoiceTitle}",
+        };
+
+        string tmpVoiceWavPath = PP.Combine(tmpVoiceWavDir, $"{safeSeriesName} - {safeStoryTitle} - {safeVoiceTitle} - {speakerId:D3}.wav");
+
+        tagTitle = $"{safeSeriesName} - {safeStoryTitle} - {safeVoiceTitle} - {speakerId:D3}";
+
+        await using (var seedvc = new AiUtilSeedVcEngine(this.Settings, this.FfMpeg))
+        {
+            await seedvc.ConvertAsync(tmpVoiceBoxWavPath, tmpVoiceWavPath, srcSampleVoicePath, diffusionSteps, tagTitle, true, cancel);
+        }
+
+        string dstVoiceFlacPath = PP.Combine(dstVoiceDirPath, safeSeriesName, $"{safeSeriesName} - {safeStoryTitle} - {safeVoiceTitle} - {speakerId:D3}.flac");
+
+        await FfMpeg.EncodeAudioAsync(tmpVoiceWavPath, dstVoiceFlacPath, FfMpegAudioCodec.Flac, 0, meta, tagTitle, true, cancel);
+    }
+
     public async Task ExtractAllMusicAndVocalAsync(string srcDirPath, string dstMusicDirPath, string tmpBaseDir, string musicOnlyAlbumName, CancellationToken cancel = default)
     {
         string tmpMusicDirPath = PP.Combine(tmpBaseDir, "1_MusicOnly_TMP");
@@ -188,7 +251,35 @@ public class AiUtilSeedVcEngine : AiUtilBasicEngine
         this.FfMpeg = ffMpeg;
     }
 
-    public async Task ConvertInternalAsync(string srcWavPath, string dstWavPath, string voiceSamplePath, int diffusionSteps, string tagTitle = "", CancellationToken cancel = default)
+    public async Task ConvertAsync(string srcWavPath, string dstWavPath, string voiceSamplePath, int diffusionSteps, string tagTitle = "", bool useOkFile = true, CancellationToken cancel = default)
+    {
+        if (tagTitle._IsEmpty()) tagTitle = PP.GetFileNameWithoutExtension(srcWavPath);
+
+        string digest = $"voiceSamplePath={voiceSamplePath},diffusionSteps={diffusionSteps},targetMaxVolume={Settings.AdjustAudioTargetMaxVolume},targetMeanVolume={Settings.AdjustAudioTargetMeanVolume}";
+
+        if (useOkFile)
+        {
+            if (await Lfs.IsOkFileExists(dstWavPath, digest, FfMpegUtilOkFileVersion.CurrentVersion, cancel))
+            {
+                return;
+            }
+        }
+
+        await TaskUtil.RetryAsync(async c =>
+        {
+            await ConvertInternalAsync(srcWavPath, dstWavPath, voiceSamplePath, diffusionSteps, tagTitle, cancel);
+
+            return true;
+        },
+        5, 200, cancel, true);
+
+        if (useOkFile)
+        {
+            await Lfs.WriteOkFileAsync(dstWavPath, new OkFileEmptyMetaData(), digest, FfMpegUtilOkFileVersion.CurrentVersion, cancel);
+        }
+    }
+
+    async Task ConvertInternalAsync(string srcWavPath, string dstWavPath, string voiceSamplePath, int diffusionSteps, string tagTitle = "", CancellationToken cancel = default)
     {
         string aiSrcPath = BaseDirPath._CombinePath("test_in_data", "_aiutil_src.wav");
 
@@ -228,7 +319,7 @@ public class AiUtilSeedVcEngine : AiUtilBasicEngine
 
         var files = await Lfs.EnumDirectoryAsync(aiOutDir, wildcard: "*.wav", cancel: cancel);
         var aiDstFile = files.Single();
-         
+
         await Lfs.DeleteFileIfExistsAsync(dstWavPath, cancel: cancel);
 
         await FfMpeg.AdjustAudioVolumeAsync(aiDstFile.FullPath, dstWavPath, Settings.AdjustAudioTargetMaxVolume, Settings.AdjustAudioTargetMeanVolume, tagTitle, false, cancel);
@@ -251,6 +342,7 @@ public class AiUtilSeedVcEngine : AiUtilBasicEngine
 
 public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
 {
+    // アルゴリズムの参考元: https://qiita.com/BB-KING777/items/34c3cbb3b4ecc5043a2a BB-KING777
     public FfMpegUtil FfMpeg { get; }
 
     public AiUtilVoiceVoxEngine(AiUtilBasicSettings settings, FfMpegUtil ffMpeg) : base(settings, "VoiceBox", settings.AiTest_UvrCli_BaseDir)
@@ -258,7 +350,7 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
         this.FfMpeg = ffMpeg;
     }
 
-    public async Task<FfMpegParsedList> TextToWavAsync(string srcTxtPath, int speakerId, string dstWavPath, string tagTitle = "", bool useOkFile = true, CancellationToken cancel = default)
+    public async Task<FfMpegParsedList> TextToWavAsync(string srcTxtPath, int speakerId /* 0 ～ 98 */, string dstWavPath, string tagTitle = "", bool useOkFile = true, CancellationToken cancel = default)
     {
         if (tagTitle._IsEmpty()) tagTitle = PP.GetFileNameWithoutExtension(srcTxtPath)._TruncStrEx(16);
 
@@ -271,7 +363,7 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
         200, 5, cancel, true);
     }
 
-    async Task<FfMpegParsedList> TextToWavMainAsync(string text, int speakerId, string dstWavPath, string tagTitle = "", bool useOkFile = true, CancellationToken cancel = default)
+    async Task<FfMpegParsedList> TextToWavMainAsync(string text, int speakerId /* 0 ～ 98 */, string dstWavPath, string tagTitle = "", bool useOkFile = true, CancellationToken cancel = default)
     {
         if (tagTitle._IsEmpty()) tagTitle = "voicetext";
 
@@ -419,7 +511,7 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
 
         string queryJsonStr = result1.ToString();
 
-        string url2 = $"http://localhost:{this.Settings.VoiceBoxLocalhostPort}/synthesis?speaker={speakerId}";
+        string url2 = $"http://127.0.0.1:{this.Settings.VoiceBoxLocalhostPort}/synthesis?speaker={speakerId}";
 
         var result2 = await http.SimplePostDataAsync(url2, queryJsonStr._GetBytes_UTF8(), cancel, "application/json");
 
