@@ -357,7 +357,7 @@ namespace IPA.Cores.Basic
 
             try
             {
-                using ExecInstance exec = new ExecInstance(opt);
+                await using ExecInstance exec = new ExecInstance(opt);
 
                 try
                 {

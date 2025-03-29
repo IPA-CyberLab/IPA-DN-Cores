@@ -97,6 +97,23 @@ public static partial class Basic
 
     public static T UnixOrWindows<T>(T unix, T windows) => Env.IsUnix ? unix : windows;
 
+    public static string BuildLines(params string[] lines)
+        => BuildLines(CrlfStyle.LocalPlatform, lines);
+
+    public static string BuildLines(CrlfStyle crlfStyle, params string[] lines)
+    {
+        StringWriter w = new StringWriter();
+        w.NewLine = Str.GetCrlfStr(crlfStyle);
+        foreach (var line in lines)
+        {
+            foreach (var line2 in line._GetLines())
+            {
+                w.WriteLine(line2);
+            }
+        }
+        return w.ToString();
+    }
+
     public static DateTime DtUtcNow
     {
         [MethodImpl(Inline)]

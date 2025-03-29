@@ -218,11 +218,11 @@ public class FfmpegParsedList
     }
 }
 
-public class FfmpegUtil
+public class FfMpegUtil
 {
     public FfmpegUtilOptions Options;
 
-    public FfmpegUtil(FfmpegUtilOptions options)
+    public FfMpegUtil(FfmpegUtilOptions options)
     {
         this.Options = options;
     }
@@ -255,11 +255,15 @@ public class FfmpegUtil
         return ret;
     }
 
-    public async Task<string> GenerateNewTmpFilePathAsync(string sampleFileName, CancellationToken cancel = default)
+    public async Task<string> GenerateNewTmpFilePathAsync(string sampleFileName, string ext = "", CancellationToken cancel = default)
     {
         if (sampleFileName._IsEmpty()) sampleFileName = "test.dat";
 
-        string ext = PPWin.GetExtension(sampleFileName, emptyWhenNoExtension: true);
+        if (ext._IsEmpty())
+        {
+            ext = PPWin.GetExtension(sampleFileName, emptyWhenNoExtension: true);
+        }
+
         if (ext._IsEmpty()) ext = ".dat";
 
         string baseFileName = PPWin.GetFileNameWithoutExtension(sampleFileName);

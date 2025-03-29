@@ -2559,6 +2559,30 @@ public abstract partial class FileSystem : AsyncService
     public void DeleteFile(string path, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
         => DeleteFileAsync(path, flags, cancel)._GetResult();
 
+    public async Task DeleteFileIfExistsAsync(string path, FileFlags flags = FileFlags.None, bool raiseException = false, CancellationToken cancel = default)
+    {
+        try
+        {
+            if (await Lfs.IsFileExistsAsync(path, cancel) == false)
+            {
+                return;
+            }
+
+            await this.DeleteFileAsync(path, flags, cancel);
+        }
+        catch (Exception ex)
+        {
+            if (raiseException)
+            {
+                throw;
+            }
+            else
+            {
+                ex._Error();
+            }
+        }
+    }
+
     public async Task MoveFileAsync(string srcPath, string destPath, CancellationToken cancel = default)
     {
         CheckWriteable(srcPath);

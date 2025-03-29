@@ -59,7 +59,144 @@ using static IPA.Cores.Globals.Basic;
 
 namespace IPA.Cores.Basic;
 
+public static partial class CoresConfig
+{
+    public static partial class DefaultAiUtilSettings
+    {
+        public static readonly Copenhagen<int> DefaultMaxStdOutBufferSize = 256 * 1024 * 1024;
+    }
+}
 
+public class AiUtilBasicSettings
+{
+    public string AiTest_UvrCli_BaseDir = "";
+    public int AiTest_UvrCli_Timeout = 60 * 1000;
+}
+
+public class AiUtilUvrEngine : AiUtilBasicEngine
+{
+    public FfMpegUtil FfMpeg { get; }
+
+    public AiUtilUvrEngine(AiUtilBasicSettings basicSettings, FfMpegUtil ffMpeg) : base(basicSettings, "UVR", basicSettings.AiTest_UvrCli_BaseDir)
+    {
+        this.FfMpeg = ffMpeg;
+    }
+
+    public async Task ExtractInternalAsync(string srcWavPath, string dstWavPath, bool music, CancellationToken cancel = default)
+    {
+        string aiSrcPath = BaseDirPath._CombinePath("_src.wav");
+
+        await Lfs.DeleteFileIfExistsAsync(aiSrcPath, cancel: cancel);
+
+        await Lfs.CopyFileAsync(srcWavPath, aiSrcPath, new CopyFileParams(flags: FileFlags.AutoCreateDirectory), cancel: cancel);
+
+        await DeleteAllAiProcessOutputFilesAsync(cancel);
+
+        string tag = $"{(music ? "get_music" : "get_vocal")} ('{srcWavPath._GetFileNameWithoutExtension()._TruncStrEx(16)}')";
+
+        var result = await this.RunVEnvPythonCommandsAsync($"python {(music ? "get_music" : "get_vocal")}_wav.py", BasicSettings.AiTest_UvrCli_Timeout, printTag: tag, cancel: cancel);
+
+        if (result.OutputAndErrorStr._GetLines().Where(x => x._InStr("instruments done")).Any() == false)
+        {
+            throw new CoresLibException($"{tag} failed.");
+        }
+
+        string aiOutDir = PP.Combine(this.BaseDirPath, "opt");
+
+        var files = await Lfs.EnumDirectoryAsync(aiOutDir, wildcard: "instrument*.wav", cancel: cancel);
+        var aiDstFile = files.Single();
+
+        await Lfs.CopyFileAsync(aiDstFile.FullPath, dstWavPath, new CopyFileParams(flags: FileFlags.AutoCreateDirectory), cancel: cancel);
+    }
+
+    async Task DeleteAllAiProcessOutputFilesAsync(CancellationToken cancel = default)
+    {
+        string aiOutDir = PP.Combine(this.BaseDirPath, "opt");
+
+        await Lfs.CreateDirectoryAsync(aiOutDir, cancel: cancel);
+
+        var list = await Lfs.EnumDirectoryAsync(aiOutDir, false, wildcard: "*.wav", cancel: cancel);
+
+        foreach (var f in list)
+        {
+            await Lfs.DeleteFileIfExistsAsync(f.FullPath, raiseException: true, cancel: cancel);
+        }
+    }
+}
+
+public class AiUtilBasicEngine : AsyncService
+{
+    public AiUtilBasicSettings BasicSettings { get; }
+    public string SimpleAiName { get; }
+    public string BaseDirPath { get; }
+
+    public AiUtilBasicEngine(AiUtilBasicSettings basicSettings, string simpleAiName, string baseDirPath)
+    {
+        this.SimpleAiName = simpleAiName._NonNullTrim()._NotEmptyOrDefault("AI");
+        this.BasicSettings = basicSettings;
+        this.BaseDirPath = baseDirPath;
+    }
+
+    public async Task<EasyExecResult> RunVEnvPythonCommandsAsync(string commandLines,
+        int timeout = Timeout.Infinite, bool throwOnErrorExitCode = true, string printTag = "",
+        int easyOutputMaxSize = 0,
+        Encoding? inputEncoding = null, Encoding? outputEncoding = null, Encoding? errorEncoding = null,
+        CancellationToken cancel = default)
+    {
+        return await RunBatchCommandsDirectAsync(
+            BuildLines(@".\venv\Scripts\activate",
+            commandLines),
+            timeout,
+            throwOnErrorExitCode,
+            printTag,
+            easyOutputMaxSize,
+            inputEncoding,
+            outputEncoding,
+            errorEncoding,
+            cancel);
+    }
+
+    public async Task<EasyExecResult> RunBatchCommandsDirectAsync(string commandLines,
+        int timeout = Timeout.Infinite, bool throwOnErrorExitCode = true, string printTag = "",
+        int easyOutputMaxSize = 0,
+        Encoding? inputEncoding = null, Encoding? outputEncoding = null, Encoding? errorEncoding = null,
+        CancellationToken cancel = default)
+    {
+        if (easyOutputMaxSize <= 0) easyOutputMaxSize = CoresConfig.DefaultAiUtilSettings.DefaultMaxStdOutBufferSize;
+
+        string win32cmd = Env.Win32_SystemDir._CombinePath("cmd.exe");
+
+        commandLines = BuildLines(commandLines, "exit");
+
+        string tmp1 = "";
+        if (printTag._IsFilled())
+        {
+            tmp1 += ": " + printTag.Trim();
+        }
+        string printTagMain = $"[{this.SimpleAiName}{tmp1}]";
+
+        EasyExecResult ret = await EasyExec.ExecAsync(win32cmd, "", this.BaseDirPath,
+            easyInputStr: commandLines,
+            flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdOut | ExecFlags.EasyPrintRealtimeStdErr,
+            timeout: timeout, cancel: cancel, throwOnErrorExitCode: true,
+            easyOutputMaxSize: easyOutputMaxSize,
+            printTag: printTagMain,
+            inputEncoding: inputEncoding, outputEncoding: outputEncoding, errorEncoding: errorEncoding);
+
+        return ret;
+    }
+
+    protected override async Task CleanupImplAsync(Exception? ex)
+    {
+        try
+        {
+        }
+        finally
+        {
+            await base.CleanupImplAsync(ex);
+        }
+    }
+}
 
 #endif
 

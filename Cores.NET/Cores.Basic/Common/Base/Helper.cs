@@ -618,7 +618,7 @@ public static class BasicHelper
     public static string? _GetDirectoryName(this string? str) => Path.GetDirectoryName(str);
     [return: NotNullIfNotNull("str")]
     public static string? _GetFileName(this string? str) => Path.GetFileName(str);
-    public static string _GetFileNameWithoutExtension(this string str, bool longExtension = false) => PathParser.Linux.GetFileNameWithoutExtension(str, longExtension);
+    public static string _GetFileNameWithoutExtension(this string str, bool longExtension = false) => PathParser.Windows.GetFileNameWithoutExtension(str, longExtension);
     public static bool _IsExtensionMatch(this string str, string extensionsList) => IPA.Cores.Basic.Legacy.IO.IsExtensionsMatch(str, extensionsList);
     public static bool _IsExtensionMatch(this string str, IEnumerable<string> extensionsList) => IPA.Cores.Basic.Legacy.IO.IsExtensionsMatch(str, extensionsList);
     public static string _ReplaceStrWithReplaceClass(this string str, object replaceClass, bool caseSensitive = false) => Str.ReplaceStrWithReplaceClass(str, replaceClass, caseSensitive);
