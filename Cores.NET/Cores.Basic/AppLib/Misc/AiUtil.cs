@@ -222,7 +222,7 @@ public class AiTask
     public async Task GenerateRandomSampleOfTextToVoiceAsync(int maxTryCount, string srcText, int textLengthOfRandomPart, string sampleVoiceWavDirName, int speakerId, int diffusionSteps, string dstVoiceDirPath, string tmpVoiceBoxDir, string tmpVoiceWavDir, string testName, CancellationToken cancel = default)
     {
         var now = DtOffsetNow;
-        string seriesName = $"{now._ToYymmddInt(yearTwoDigits: true)}{now._ToHhmmssInt()}_{testName}";
+        string seriesName = $"{now._ToYymmddInt(yearTwoDigits: true)}_{now._ToHhmmssInt()}_{testName}";
 
         ShuffleQueue<string> sampleVoiceFileNameShuffleQueue;
 
@@ -246,71 +246,79 @@ public class AiTask
 
         for (int i = 0; i < maxTryCount;i++)
         {
-            var sampleVoicePath = sampleVoiceFileNameShuffleQueue.GetNext();
-
-            string thisText = srcText.Substring(Secure.RandSInt31() % (srcText.Length - textLengthOfRandomPart), textLengthOfRandomPart);
-
-            int speakerIdToUse = speakerId;
-
-            if (speakerIdToUse < 0)
+            try
             {
-                if (speakerIdToUse == -2)
+                var sampleVoicePath = sampleVoiceFileNameShuffleQueue.GetNext();
+
+                string thisText = srcText.Substring(Secure.RandSInt31() % (srcText.Length - textLengthOfRandomPart), textLengthOfRandomPart);
+
+                int speakerIdToUse = speakerId;
+
+                if (speakerIdToUse < 0)
                 {
-                    int rand1 = Secure.RandSInt31() % 3;
-                    if (rand1 == 0)
+                    if (speakerIdToUse == -2)
                     {
-                        switch (Secure.RandSInt31() % 8)
+                        int rand1 = Secure.RandSInt31() % 3;
+                        if (rand1 == 0)
                         {
-                            case 0:
-                                speakerIdToUse = 0;
-                                break;
-                            case 1:
-                                speakerIdToUse = 4;
-                                break;
-                            case 2:
-                                speakerIdToUse = 43;
-                                break;
-                            case 3:
-                                speakerIdToUse = 48;
-                                break;
-                            case 4:
-                                speakerIdToUse = 58;
-                                break;
-                            case 5:
-                                speakerIdToUse = 60;
-                                break;
-                            case 6:
-                                speakerIdToUse = 68;
-                                break;
-                            case 7:
-                                speakerIdToUse = 90;
-                                break;
+                            switch (Secure.RandSInt31() % 8)
+                            {
+                                case 0:
+                                    speakerIdToUse = 0;
+                                    break;
+                                case 1:
+                                    speakerIdToUse = 4;
+                                    break;
+                                case 2:
+                                    speakerIdToUse = 43;
+                                    break;
+                                case 3:
+                                    speakerIdToUse = 48;
+                                    break;
+                                case 4:
+                                    speakerIdToUse = 58;
+                                    break;
+                                case 5:
+                                    speakerIdToUse = 60;
+                                    break;
+                                case 6:
+                                    speakerIdToUse = 68;
+                                    break;
+                                case 7:
+                                    speakerIdToUse = 90;
+                                    break;
+                            }
                         }
-                    }
-                    else if (rand1 == 1)
-                    {
-                        speakerIdToUse = 58;
+                        else if (rand1 == 1)
+                        {
+                            speakerIdToUse = 58;
+                        }
+                        else
+                        {
+                            speakerIdToUse = speakerIdShuffleQueue.GetNext();
+                        }
                     }
                     else
                     {
                         speakerIdToUse = speakerIdShuffleQueue.GetNext();
                     }
                 }
-                else
-                {
-                    speakerIdToUse = speakerIdShuffleQueue.GetNext();
-                }
+
+                if (speakerIdToUse < 0) speakerIdToUse = 58;
+
+                string storyTitle = testName + "_" + i.ToString("D5");
+
+                await ConvertTextToVoiceAsync(thisText, sampleVoicePath, dstVoiceDirPath, tmpVoiceBoxDir, tmpVoiceWavDir, speakerIdToUse, diffusionSteps, seriesName, storyTitle, new int[] { 125 }, cancel);
             }
-
-            if (speakerIdToUse < 0) speakerIdToUse = 58;
-
-            string storyTitle = testName + "_" + i.ToString("D5");
-
-            await ConvertTextToVoiceAsync(thisText, sampleVoicePath, dstVoiceDirPath, tmpVoiceBoxDir, tmpVoiceWavDir, speakerIdToUse, diffusionSteps, seriesName, storyTitle, cancel);
+            catch (Exception ex)
+            {
+                ex._Error();
+                await Task.Delay(1000);
+            }
         }
     }
 
-    public async Task ConvertAllTextToVoiceAsync(string srcDirPath, string srcSampleVoiceFileNameOrRandDir, int speakerId, int diffusionSteps, string dstVoiceDirPath, string tmpVoiceBoxDir, string tmpVoiceWavDir, CancellationToken cancel = default)
+    public async Task ConvertAllTextToVoiceAsync(string srcDirPath, string srcSampleVoiceFileNameOrRandDir, int speakerId, int diffusionSteps, string dstVoiceDirPath, string tmpVoiceBoxDir, string tmpVoiceWavDir, int[]? speedPercentList = null, CancellationToken cancel = default)
     {
         ShuffleQueue<string>? sampleVoiceFileNameShuffleQueue = null;
         if (await Lfs.IsDirectoryExistsAsync(srcSampleVoiceFileNameOrRandDir, cancel))
@@ -355,7 +363,7 @@ public class AiTask
                     string seriesName = PP.GetFileName(PP.GetDirectoryName(srcTextFile.FullPath))._Normalize(false, true, false, true);
                     string storyTitle = PPWin.GetFileNameWithoutExtension(srcTextFile.FullPath)._Normalize(false, true, false, true);
 
-                    await ConvertTextToVoiceAsync(srcText, srcSampleVoiceFile, dstVoiceDirPath, tmpVoiceBoxDir, tmpVoiceWavDir, speakerIdToUse, diffusionSteps, seriesName, storyTitle, cancel);
+                    await ConvertTextToVoiceAsync(srcText, srcSampleVoiceFile, dstVoiceDirPath, tmpVoiceBoxDir, tmpVoiceWavDir, speakerIdToUse, diffusionSteps, seriesName, storyTitle, speedPercentList, cancel);
                 }
                 catch (Exception ex)
                 {
@@ -366,8 +374,11 @@ public class AiTask
         }
     }
 
-    public async Task ConvertTextToVoiceAsync(string srcText, string srcSampleVoicePath, string dstVoiceDirPath, string tmpVoiceBoxDir, string tmpVoiceWavDir, int speakerId, int diffusionSteps, string seriesName, string storyTitle, CancellationToken cancel = default)
+    public async Task ConvertTextToVoiceAsync(string srcText, string srcSampleVoicePath, string dstVoiceDirPath, string tmpVoiceBoxDir, string tmpVoiceWavDir, int speakerId, int diffusionSteps, string seriesName, string storyTitle, int[]? speedPercentList = null, CancellationToken cancel = default)
     {
+        if (speedPercentList == null || speedPercentList.Any() == false)
+            speedPercentList = new int[] { 100 };
+
         string safeSeriesName = PPWin.MakeSafeFileName(seriesName, true, true, true);
 
         string safeStoryTitle = PPWin.MakeSafeFileName(storyTitle, true, true, true);
@@ -385,13 +396,6 @@ public class AiTask
             await vv.TextToWavAsync(srcText, speakerId, tmpVoiceBoxWavPath, tagTitle, true, cancel);
         }
 
-        MediaMetaData meta = new MediaMetaData
-        {
-            Album = safeSeriesName,
-            Title = $"{safeStoryTitle} - {safeVoiceTitle} - {speakerId:D3}",
-            Artist = $"{safeSeriesName} - {safeVoiceTitle}",
-        };
-
         string tmpVoiceWavPath = PP.Combine(tmpVoiceWavDir, $"{safeSeriesName} - {safeStoryTitle} - {safeVoiceTitle} - {speakerId:D3}.wav");
 
         tagTitle = $"{safeSeriesName} - {safeStoryTitle} - {safeVoiceTitle} - {speakerId:D3}";
@@ -401,9 +405,21 @@ public class AiTask
             await seedvc.ConvertAsync(tmpVoiceBoxWavPath, tmpVoiceWavPath, srcSampleVoicePath, diffusionSteps, tagTitle, true, cancel);
         }
 
-        string dstVoiceFlacPath = PP.Combine(dstVoiceDirPath, safeSeriesName, $"{safeSeriesName} - {safeStoryTitle} - {safeVoiceTitle} - {speakerId:D3}.flac");
+        foreach (int speed in speedPercentList)
+        {
+            string speedStr = "x" + ((double)speed / 100.0).ToString(".00");
 
-        await FfMpeg.EncodeAudioAsync(tmpVoiceWavPath, dstVoiceFlacPath, FfMpegAudioCodec.Flac, 0, meta, tagTitle, true, cancel);
+            MediaMetaData meta = new MediaMetaData
+            {
+                Album = safeSeriesName + $" - {speedStr}",
+                Title = $"{safeStoryTitle} - {safeVoiceTitle} - {speakerId:D3} - {speedStr}",
+                Artist = $"{safeSeriesName} - {safeVoiceTitle} - {speedStr}",
+            };
+
+            string dstVoiceFlacPath = PP.Combine(dstVoiceDirPath, safeSeriesName, $"{safeSeriesName} - {speedStr} - {safeStoryTitle} - {safeVoiceTitle} - {speakerId:D3}.flac");
+
+            await FfMpeg.EncodeAudioAsync(tmpVoiceWavPath, dstVoiceFlacPath, FfMpegAudioCodec.Flac, 0, speed, meta, tagTitle, true, cancel);
+        }
     }
 
     public async Task ExtractAllMusicAndVocalAsync(string srcDirPath, string dstMusicDirPath, string tmpBaseDir, string musicOnlyAlbumName, CancellationToken cancel = default)
@@ -447,7 +463,7 @@ public class AiTask
 
                     string dstMusicAacPath = PP.Combine(dstMusicDirPath, $"{musicOnlyAlbumName} - {safeArtistName} - {safeSongTitle}.m4a");
 
-                    await FfMpeg.EncodeAudioAsync(tmpMusicWavPath, dstMusicAacPath, FfMpegAudioCodec.Aac, 0, meta, safeSongTitle, cancel: cancel);
+                    await FfMpeg.EncodeAudioAsync(tmpMusicWavPath, dstMusicAacPath, FfMpegAudioCodec.Aac, 0, 100, meta, safeSongTitle, cancel: cancel);
                 }
                 catch (Exception ex)
                 {

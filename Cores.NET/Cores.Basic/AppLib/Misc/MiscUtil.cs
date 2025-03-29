@@ -241,12 +241,13 @@ public class FfMpegUtil
         this.Options = options;
     }
 
-    public async Task<FfMpegParsedList> EncodeAudioAsync(string srcFilePath, string dstFilePath, FfMpegAudioCodec codec, int kbps = 0, MediaMetaData? metaData = null, string tagTitle = "", bool useOkFile = true, CancellationToken cancel = default)
+    public async Task<FfMpegParsedList> EncodeAudioAsync(string srcFilePath, string dstFilePath, FfMpegAudioCodec codec, int kbps = 0, int speedPercent = 100, MediaMetaData? metaData = null, string tagTitle = "", bool useOkFile = true, CancellationToken cancel = default)
     {
         if (kbps <= 0) kbps = CoresConfig.DefaultFfMpegExecSettings.FfMpegDefaultAudioKbps;
+        if (speedPercent <= 0) speedPercent = 100;
         if (tagTitle._IsEmpty()) tagTitle = PP.GetFileNameWithoutExtension(srcFilePath);
 
-        string digest = $"codec={codec.ToString()},kbps={kbps},metaData={metaData._ObjectToJson()._Digest()}";
+        string digest = $"codec={codec.ToString()},kbps={kbps},metaData={metaData._ObjectToJson()._Digest()},speed={speedPercent}";
 
         if (useOkFile)
         {
@@ -255,6 +256,13 @@ public class FfMpegUtil
         }
 
         string cmdLine = $"-y -i {srcFilePath._EnsureQuotation()} -vn ";
+
+        if (speedPercent != 100)
+        {
+            double p = (double)speedPercent / 100.0;
+            string xstr = p.ToString(".00");
+            cmdLine += $"-af atempo={xstr} ";
+        }
 
         switch (codec)
         {
