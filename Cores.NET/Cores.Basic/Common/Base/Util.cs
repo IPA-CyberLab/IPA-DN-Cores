@@ -9194,3 +9194,37 @@ public class ShouldWarn
     }
 }
 
+
+public class ShuffleQueue<T>
+{
+    readonly List<T> AllItemsList;
+    readonly Queue<T> CurrentQueue = new Queue<T>();
+
+    public ShuffleQueue(IEnumerable<T> elements)
+    {
+        this.AllItemsList = new List<T>(elements.ToArray());
+        if (this.AllItemsList.Any() == false)
+        {
+            throw new CoresLibException("elements is empty.");
+        }
+    }
+
+    public T GetNext()
+    {
+        if (this.CurrentQueue.Count == 0)
+        {
+            var shuffled = this.AllItemsList.ToArray()._Shuffle().ToArray();
+            foreach (var item in shuffled)
+            {
+                this.CurrentQueue.Enqueue(item);
+            }
+        }
+
+        var ret = this.CurrentQueue.Dequeue();
+        if (ret == null) throw new CoresLibException("Queue is empty.");
+
+        return ret;
+    }
+}
+
+

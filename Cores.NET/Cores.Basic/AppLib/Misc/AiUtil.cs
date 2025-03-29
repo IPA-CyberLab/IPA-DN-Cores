@@ -88,6 +88,126 @@ public class AiTask
         this.FfMpeg = ffMpeg;
     }
 
+    public class RandomSegmentMetaData
+    {
+        public string SrcFileName = "";
+        public int DurationMsecs;
+        public int TotalLengthMsecs;
+        public int Number;
+        public int TotalCount;
+    }
+
+    public async Task ExtractRandomSpeechSegmentsFromAllWavAsync(string wavFileDir, string dstDirName, int durationMsecs, CancellationToken cancel = default)
+    {
+        var wavFilesList = await Lfs.EnumDirectoryAsync(wavFileDir, wildcard: "*.wav", cancel: cancel);
+
+        foreach (var wavFile in wavFilesList.Where(x => x.IsFile).OrderBy(x => x.Name, StrCmpi))
+        {
+            string[] tokens = wavFile.Name._Split(StringSplitOptions.None, " - ");
+            if (tokens.Length >= 3 && tokens[0]._IsSamei("vocalonly"))
+            {
+                string tmp1 = tokens[2];
+
+                string[] tokens2 = tmp1._Split(StringSplitOptions.None, "_");
+                if (tokens2.Length >= 2)
+                {
+                    string prefix = tokens2[0].Trim();
+                    if (prefix._IsFilled())
+                    {
+                        Con.WriteLine(wavFile.FullPath);
+                        await ExtractRandomSegmentsFromWavAsync(wavFile.FullPath, dstDirName, prefix, durationMsecs, cancel);
+                    }
+                }
+            }
+        }
+    }
+
+    public async Task ExtractRandomSegmentsFromWavAsync(string wavFilePath, string dstDirName, string dstBaseFileName, int durationMsecs, CancellationToken cancel = default)
+    {
+        int waveLengthMsecs;
+        await using (var reader = new WaveFileReader(wavFilePath))
+        {
+            waveLengthMsecs = (int)reader.TotalTime.TotalMilliseconds;
+        }
+
+        if (durationMsecs > waveLengthMsecs)
+        {
+            durationMsecs = waveLengthMsecs;
+        }
+
+        await Lfs.CreateDirectoryAsync(dstDirName, cancel: cancel);
+
+        int count;
+        if (waveLengthMsecs <= 1.5 * durationMsecs)
+            count = 1;
+        else if (waveLengthMsecs <= 2.0 * durationMsecs)
+            count = 2;
+        else if (waveLengthMsecs <= 3.0 * durationMsecs)
+            count = 3;
+        else if (waveLengthMsecs <= 4.0 * durationMsecs)
+            count = 4;
+        else
+            count = 5;
+
+        Random rand = new Random(Secure.RandSInt31());
+
+        for (int i = 1; i <= count; i++)
+        {
+            int startMsec = rand.Next(waveLengthMsecs - durationMsecs + 1);
+
+            await using (var reader = new WaveFileReader(wavFilePath))
+            {
+                reader.CurrentTime = TimeSpan.FromMilliseconds(startMsec);
+
+                string outputPath;
+
+                for (int j = 1; ; j++)
+                {
+                    string outputFileNameTmp = $"{dstBaseFileName}_{j.ToString("D3")}.wav";
+                    string outputFilePathTmp = PP.Combine(dstDirName, outputFileNameTmp);
+
+                    if (await Lfs.IsFileExistsAsync(outputFilePathTmp, cancel) == false || await Lfs.IsOkFileExists(outputFilePathTmp, cancel: cancel) == false)
+                    {
+                        outputPath = outputFilePathTmp;
+                        break;
+                    }
+                }
+
+                await using (var writer = new WaveFileWriter(outputPath, reader.WaveFormat))
+                {
+                    int bytesPerMillisecond = reader.WaveFormat.AverageBytesPerSecond / 1000;
+                    int bytesToRead = bytesPerMillisecond * durationMsecs;
+
+                    byte[] buffer = new byte[65536];
+                    int bytesRemaining = bytesToRead;
+
+                    while (bytesRemaining > 0)
+                    {
+                        int readBytes = await reader.ReadAsync(buffer, 0, Math.Min(buffer.Length, bytesRemaining), cancel);
+                        if (readBytes == 0)
+                        {
+                            break;
+                        }
+
+                        await writer.WriteAsync(buffer, 0, readBytes, cancel);
+                        bytesRemaining -= readBytes;
+                    }
+                }
+
+                var meta = new RandomSegmentMetaData
+                {
+                    DurationMsecs = durationMsecs,
+                    TotalLengthMsecs = waveLengthMsecs,
+                    SrcFileName = wavFilePath,
+                    Number = i,
+                    TotalCount = count,
+                };
+
+                await Lfs.WriteOkFileAsync(outputPath, meta, "", 0, cancel);
+            }
+        }
+    }
+
     public static async Task<int> GetWavFileLengthMSecAsync(string wavFilePath)
     {
         checked
@@ -99,8 +219,22 @@ public class AiTask
         }
     }
 
-    public async Task ConvertAllTextToVoiceAsync(string srcDirPath, string srcSampleVoicePath, int speakerId, int diffusionSteps, string dstVoiceDirPath, string tmpVoiceBoxDir, string tmpVoiceWavDir, CancellationToken cancel = default)
+    public async Task ConvertAllTextToVoiceAsync(string srcDirPath, string srcSampleVoiceFileNameOrRandDir, int speakerId, int diffusionSteps, string dstVoiceDirPath, string tmpVoiceBoxDir, string tmpVoiceWavDir, CancellationToken cancel = default)
     {
+        ShuffleQueue<string>? sampleVoiceFileNameShuffleQueue = null;
+        if (await Lfs.IsDirectoryExistsAsync(srcSampleVoiceFileNameOrRandDir, cancel))
+        {
+            var randSampleVoiceFilesList = await Lfs.EnumDirectoryAsync(srcSampleVoiceFileNameOrRandDir, false, wildcard: Consts.Extensions.Filter_MusicFiles, cancel: cancel);
+            if (randSampleVoiceFilesList.Any())
+            {
+                sampleVoiceFileNameShuffleQueue = new ShuffleQueue<string>(randSampleVoiceFilesList.Select(x => x.FullPath));
+            }
+            else
+            {
+                throw new CoresLibException($"Directory '{srcSampleVoiceFileNameOrRandDir}' has no music files.");
+            }
+        }
+
         var seriesDirList = await Lfs.EnumDirectoryAsync(srcDirPath, cancel: cancel);
 
         foreach (var seriesDir in seriesDirList.Where(x => x.IsDirectory && x.IsCurrentOrParentDirectory == false).OrderBy(x => x.Name, StrCmpi))
@@ -111,7 +245,21 @@ public class AiTask
             {
                 try
                 {
-                    await ConvertTextToVoiceAsync(srcTextFile.FullPath, srcSampleVoicePath, dstVoiceDirPath, tmpVoiceBoxDir, tmpVoiceWavDir, speakerId, diffusionSteps, cancel);
+                    string srcSampleVoiceFile = srcSampleVoiceFileNameOrRandDir;
+
+                    if (sampleVoiceFileNameShuffleQueue != null)
+                    {
+                        srcSampleVoiceFile = sampleVoiceFileNameShuffleQueue.GetNext();
+                    }
+
+                    int speakerIdToUse = speakerId;
+
+                    if (speakerIdToUse < 0)
+                    {
+                        speakerIdToUse = Secure.RandSInt31() % 99; /* 0 ～ 98 */
+                    }
+
+                    await ConvertTextToVoiceAsync(srcTextFile.FullPath, srcSampleVoiceFile, dstVoiceDirPath, tmpVoiceBoxDir, tmpVoiceWavDir, speakerIdToUse, diffusionSteps, cancel);
                 }
                 catch (Exception ex)
                 {
