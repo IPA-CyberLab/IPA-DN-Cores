@@ -97,6 +97,26 @@ public class AiTask
         public int TotalCount;
     }
 
+    public async Task ExtractRandomVocalSegmentsFromAllWavAsync(string wavFileDir, string dstDirName, int durationMsecs, CancellationToken cancel = default)
+    {
+        var wavFilesList = await Lfs.EnumDirectoryAsync(wavFileDir, wildcard: "*.wav", cancel: cancel);
+
+        foreach (var wavFile in wavFilesList.Where(x => x.IsFile).OrderBy(x => x.Name, StrCmpi))
+        {
+            string[] tokens = wavFile.Name._Split(StringSplitOptions.None, " - ");
+            if (tokens.Length >= 3 && tokens[0]._IsSamei("vocalonly"))
+            {
+                string artistName = tokens[1].Replace("_", "");
+
+                if (artistName._IsFilled())
+                {
+                    Con.WriteLine(wavFile.FullPath);
+                    await ExtractRandomSegmentsFromWavAsync(wavFile.FullPath, dstDirName, artistName, durationMsecs, cancel);
+                }
+            }
+        }
+    }
+
     public async Task ExtractRandomSpeechSegmentsFromAllWavAsync(string wavFileDir, string dstDirName, int durationMsecs, CancellationToken cancel = default)
     {
         var wavFilesList = await Lfs.EnumDirectoryAsync(wavFileDir, wildcard: "*.wav", cancel: cancel);
@@ -308,7 +328,7 @@ public class AiTask
 
                 string storyTitle = testName + "_" + i.ToString("D5");
 
-                await ConvertTextToVoiceAsync(thisText, sampleVoicePath, dstVoiceDirPath, tmpVoiceBoxDir, tmpVoiceWavDir, speakerIdToUse, diffusionSteps, seriesName, storyTitle, new int[] { 125 }, cancel);
+                await ConvertTextToVoiceAsync(thisText, sampleVoicePath, dstVoiceDirPath, tmpVoiceBoxDir, tmpVoiceWavDir, speakerIdToUse, diffusionSteps, seriesName, storyTitle, new int[] { 100, 125 }, cancel);
             }
             catch (Exception ex)
             {
