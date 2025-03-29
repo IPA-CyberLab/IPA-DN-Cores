@@ -3379,9 +3379,9 @@ public static class BasicHelper
     public static long _ToYymmddHhmmssLong(this DateTimeOffset dt, long zeroValue = 0, bool yearTwoDigits = false) => Str.DateTimeToYymmddHHmmssLong(dt.DateTime, zeroValue, yearTwoDigits);
 
     public static string _ToYymmddStr(this DateTime dt, string zeroValue = "", bool yearTwoDigits = false) => Str.DateTimeToYymmddStr(dt, zeroValue, yearTwoDigits);
-    public static string _ToHhmmssStr(this DateTime dt, string zeroValue = "") => Str.DateTimeToHhmmssStr(dt, zeroValue);
+    public static string _ToHhmmssStr(this DateTime dt, string zeroValue = "", bool millisecs = false) => Str.DateTimeToHhmmssStr(dt, zeroValue, millisecs);
     public static string _ToYymmddStr(this DateTimeOffset dt, string zeroValue = "", bool yearTwoDigits = false) => Str.DateTimeToYymmddStr(dt.DateTime, zeroValue, yearTwoDigits);
-    public static string _ToHhmmssStr(this DateTimeOffset dt, string zeroValue = "") => Str.DateTimeToHhmmssStr(dt.DateTime, zeroValue);
+    public static string _ToHhmmssStr(this DateTimeOffset dt, string zeroValue = "", bool millisecs = false) => Str.DateTimeToHhmmssStr(dt.DateTime, zeroValue, millisecs);
 
     public static PalX509Certificate AsPalX509Certificate(this X509Certificate cert) => new PalX509Certificate(cert);
     public static Certificate AsPkiCertificate(this X509Certificate cert) => new Certificate(new PalX509Certificate(cert));

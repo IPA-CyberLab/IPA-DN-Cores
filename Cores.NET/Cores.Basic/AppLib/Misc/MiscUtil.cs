@@ -87,13 +87,15 @@ public static partial class CoresConfig
 
 public class FfmpegUtilOptions
 {
-    public string ExePath = "";
+    public string FfMpegExePath = "";
+    public string FfProbeExePath = "";
     public Encoding Encoding = Str.Utf8Encoding;
     public int MaxStdOutBufferSize = CoresConfig.DefaultFfmpegExecSettings.FfmpegDefaultMaxStdOutBufferSize;
 
-    public FfmpegUtilOptions(string exePath)
+    public FfmpegUtilOptions(string ffMpegExePath, string ffProbeExePath)
     {
-        this.ExePath = exePath;
+        this.FfMpegExePath = ffMpegExePath;
+        this.FfProbeExePath = ffProbeExePath;
     }
 }
 
@@ -244,16 +246,28 @@ public class FfmpegUtil
 
         string cmdLine = $"-y -i {srcFilePath._EnsureQuotation()} -vn -af \"volume={adjustDelta:F1}dB\" -ar 44100 -ac 2 -c:a pcm_s16le -f wav {dstWavFilePath._EnsureQuotation()}";
 
-        await EnsureCreateDirForFileAsync(dstWavFilePath, cancel);
+        await EnsureCreateDirectoryForFileAsync(dstWavFilePath, cancel);
 
-        await RunAndParseAsync(cmdLine, cancel);
+        await RunFfMpegAndParseAsync(cmdLine, cancel);
 
         ret.Dst = await AnalyzeAudioVolumeDetectAsync(dstWavFilePath, cancel);
 
         return ret;
     }
 
-    async Task EnsureCreateDirForFileAsync(string filePath, CancellationToken cancel = default)
+    public async Task<string> GenerateNewTmpFilePathAsync(string sampleFileName, CancellationToken cancel = default)
+    {
+        if (sampleFileName._IsEmpty()) sampleFileName = "test.dat";
+
+        string ext = PPWin.GetExtension(sampleFileName, emptyWhenNoExtension: true);
+        if (ext._IsEmpty()) ext = ".dat";
+
+        string baseFileName = PPWin.GetFileNameWithoutExtension(sampleFileName);
+
+        return await Lfs.GenerateUniqueTempFilePathAsync(baseFileName, ext, cancel: cancel);
+    }
+
+    async Task EnsureCreateDirectoryForFileAsync(string filePath, CancellationToken cancel = default)
     {
         try
         {
@@ -266,7 +280,7 @@ public class FfmpegUtil
     {
         string cmdLine = $"-i {filePath._EnsureQuotation()} -vn -af volumedetect -f null -";
 
-        var parsed = await RunAndParseAsync(cmdLine, cancel);
+        var parsed = await RunFfMpegAndParseAsync(cmdLine, cancel);
 
         try
         {
@@ -278,18 +292,57 @@ public class FfmpegUtil
         return parsed;
     }
 
-    public async Task<FfmpegParsedList> RunAndParseAsync(string arguments, CancellationToken cancel = default)
+    public async Task<FfmpegParsedList> ReadMetaDataWithFfProbeAsync(string filePath, bool useMP3OwnImpl = true, CancellationToken cancel = default)
     {
-        var ret = await RunAsync(arguments, cancel);
+        string cmdLine = $"-i {filePath._EnsureQuotation()}";
+
+        var parsed = await RunFfProbeAndParseAsync(cmdLine, cancel);
+
+        if (useMP3OwnImpl)
+        {
+            try
+            {
+                var mp3MetaData = await MiscUtil.ReadMP3MetaDataAsync(filePath, cancel);
+                parsed.Meta = mp3MetaData;
+            }
+            catch { }
+        }
+
+        return parsed;
+    }
+
+    public async Task<FfmpegParsedList> RunFfMpegAndParseAsync(string arguments, CancellationToken cancel = default)
+    {
+        var ret = await RunFfMpegAsync(arguments, cancel);
 
         var parsed = new FfmpegParsedList(ret.ErrorStr);
 
         return parsed;
     }
 
-    public async Task<EasyExecResult> RunAsync(string arguments, CancellationToken cancel = default)
+    public async Task<FfmpegParsedList> RunFfProbeAndParseAsync(string arguments, CancellationToken cancel = default)
     {
-        EasyExecResult ret = await EasyExec.ExecAsync(Options.ExePath, arguments, PP.GetDirectoryName(Options.ExePath),
+        var ret = await RunFfProbeAsync(arguments, cancel);
+
+        var parsed = new FfmpegParsedList(ret.ErrorStr);
+
+        return parsed;
+    }
+
+    public async Task<EasyExecResult> RunFfMpegAsync(string arguments, CancellationToken cancel = default)
+    {
+        EasyExecResult ret = await EasyExec.ExecAsync(Options.FfMpegExePath, arguments, PP.GetDirectoryName(Options.FfMpegExePath),
+            flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdOut | ExecFlags.EasyPrintRealtimeStdErr,
+            timeout: Timeout.Infinite, cancel: cancel, throwOnErrorExitCode: true,
+            easyOutputMaxSize: Options.MaxStdOutBufferSize,
+            inputEncoding: Options.Encoding, outputEncoding: Options.Encoding, errorEncoding: Options.Encoding);
+
+        return ret;
+    }
+
+    public async Task<EasyExecResult> RunFfProbeAsync(string arguments, CancellationToken cancel = default)
+    {
+        EasyExecResult ret = await EasyExec.ExecAsync(Options.FfProbeExePath, arguments, PP.GetDirectoryName(Options.FfMpegExePath),
             flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdOut | ExecFlags.EasyPrintRealtimeStdErr,
             timeout: Timeout.Infinite, cancel: cancel, throwOnErrorExitCode: true,
             easyOutputMaxSize: Options.MaxStdOutBufferSize,

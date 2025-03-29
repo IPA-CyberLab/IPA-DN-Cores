@@ -7733,7 +7733,7 @@ namespace IPA.Cores.Basic
             return Str.StrToInt(ret);
         }
 
-        public static string DateTimeToHhmmssStr(DateTime dt, string zeroValue = "")
+        public static string DateTimeToHhmmssStr(DateTime dt, string zeroValue = "", bool millisecs = false)
         {
             zeroValue = zeroValue._NonNull();
 
@@ -7743,6 +7743,19 @@ namespace IPA.Cores.Basic
             }
 
             string ret = dt.ToString("HHmmss");
+
+            if (millisecs)
+            {
+                long ticks = dt.Ticks % 10000000;
+                if (ticks >= 9990000)
+                {
+                    ticks = 9990000;
+                }
+
+                string msecStr = ((decimal)ticks / (decimal)10000000).ToString(".000");
+
+                ret += msecStr;
+            }
 
             return ret;
         }

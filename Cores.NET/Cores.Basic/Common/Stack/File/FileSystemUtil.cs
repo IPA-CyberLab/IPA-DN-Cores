@@ -62,6 +62,52 @@ public abstract partial class FileSystem
 {
     readonly NamedAsyncLocks ConcurrentAppendLock = new NamedAsyncLocks(StrComparer.IgnoreCaseComparer);
 
+    public async Task<string> GenerateUniqueTempFilePathAsync(string fileNameBase = "", string ext = "", string dirName = "", FileFlags createDirFlags = FileFlags.None, CancellationToken cancel = default)
+    {
+        if (dirName._IsEmpty())
+        {
+            if (this is LocalFileSystem)
+            {
+                dirName = Env.MyLocalTempDir;
+            }
+            else
+            {
+                throw new CoresLibException(nameof(dirName) + " is empty.");
+            }
+        }
+
+        ext = ext._NonNull().Trim('.');
+        if (ext._IsEmpty()) ext = "tmp";
+        ext = PPWin.MakeSafeFileName(ext, true, true, true);
+        if (ext._IsEmpty()) ext = "tmp";
+
+        if (fileNameBase._IsEmpty())
+        {
+            fileNameBase = "temp_";
+        }
+        else
+        {
+            fileNameBase = PPWin.MakeSafeFileName(PPWin.GetFileNameWithoutExtension(fileNameBase), true, true, true);
+        }
+
+        var now = DtNow;
+        string dtStr = now._ToYymmddStr(yearTwoDigits: true) + "_" + now._ToHhmmssStr(millisecs: true);
+
+        await this.CreateDirectoryAsync(dirName, createDirFlags, cancel);
+
+        while (true)
+        {
+            string rand = Str.GenRandStr().Substring(0, 16).ToLowerInvariant();
+            string generatedFileName = dtStr + "_" + fileNameBase + "_" + rand + "." + ext;
+            string generatedFullPath = PathParser.Combine(dirName, generatedFileName);
+
+            if (await this.IsFileExistsAsync(generatedFullPath, cancel) == false)
+            {
+                return generatedFullPath;
+            }
+        }
+    }
+
     // 古いログファイルを削除する
     public async Task DeleteOldFilesAsync(string dirName, string extensionList, long maxTotalSize, CancellationToken cancel = default(CancellationToken))
     {

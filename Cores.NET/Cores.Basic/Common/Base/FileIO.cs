@@ -919,7 +919,7 @@ namespace IPA.Cores.Basic
                 return IO.FileCreate(CreateTempFileNameByExt(ext));
             }
 
-            // 拡張子を指定するとその拡張子を持つ一時ファイルを作成する
+            // 拡張子を指定するとその拡張子を持つ一時ファイル名を作成する
             public static string CreateTempFileNameByExt(string ext)
             {
                 if (Str.IsEmptyStr(ext))

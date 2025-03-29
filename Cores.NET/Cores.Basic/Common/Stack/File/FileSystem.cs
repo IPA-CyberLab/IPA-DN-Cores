@@ -1492,14 +1492,20 @@ public class PathParser
     }
 
     // 拡張子を取得する (. を含む)
-    public string GetExtension(string path, bool longExtension = false)
+    public string GetExtension(string path, bool longExtension = false, bool emptyWhenNoExtension = false)
     {
         if (path == null) throw new ArgumentNullException(nameof(path));
         if (path == "") return "";
         path = GetFileName(path);
         int[] dots = path._FindStringIndexes(".", true);
         if (dots.Length == 0)
+        {
+            if (emptyWhenNoExtension)
+            {
+                return "";
+            }
             return path;
+        }
 
         int i = longExtension ? dots.First() : dots.Last();
         return path.Substring(i);
@@ -1694,7 +1700,7 @@ public class PathParser
         return true;
     }
 
-    public string MakeSafeFileName(string? name)
+    public string MakeSafeFileName(string? name, bool nonSpace = false, bool additionalCheck = false, bool simpleReplaceToUnderscore = false)
     {
         name = name._NonNull();
 
@@ -1707,6 +1713,14 @@ public class PathParser
             int j;
             bool ok = true;
 
+            if (nonSpace)
+            {
+                if (a[i] == ' ' || a[i] == '　' || a[i] == '\t')
+                {
+                    a[i] = '_';
+                }
+            }
+
             for (j = 0; j < InvalidFileNameChars.Length; j++)
             {
                 if (InvalidFileNameChars[j] == a[i])
@@ -1716,11 +1730,31 @@ public class PathParser
                 }
             }
 
+            if (additionalCheck)
+            {
+                if (Str.IsSafeAndPrintable(a[i]) == false)
+                {
+                    ok = false;
+                }
+
+                if (a[i] == '\'' || a[i] == '\"' || a[i] == '/' || a[i] == '\\')
+                {
+                    ok = false;
+                }
+            }
+
             string s;
 
             if (ok == false)
             {
-                s = "_" + ((int)a[i]).ToString() + "_";
+                if (simpleReplaceToUnderscore == false)
+                {
+                    s = "_" + ((int)a[i]).ToString() + "_";
+                }
+                else
+                {
+                    s = "_";
+                }
             }
             else
             {
