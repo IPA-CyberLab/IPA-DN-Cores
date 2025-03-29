@@ -98,7 +98,7 @@ public class AiTask
             string safeArtistName = PPWin.MakeSafeFileName(artistName, true, true, true);
 
             var srcMusicList = await Lfs.EnumDirectoryAsync(artistDir.FullPath, true, cancel: cancel);
-
+            
             foreach (var srcMusicFile in srcMusicList.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Filter_MusicFiles)).OrderBy(x => x.Name, StrCmpi))
             {
                 try
@@ -130,6 +130,7 @@ public class AiTask
                 }
                 catch (Exception ex)
                 {
+                    srcMusicFile.FullPath._Error();
                     ex._Error();
                 }
             }
@@ -156,7 +157,7 @@ public class AiTask
 public class AiUtilBasicSettings
 {
     public string AiTest_UvrCli_BaseDir = "";
-    public int AiTest_UvrCli_Timeout = 60 * 1000;
+    public int AiTest_UvrCli_Timeout = 5 * 60 * 1000;
     public double AdjustAudioTargetMaxVolume = CoresConfig.DefaultAiUtilSettings.AdjustAudioTargetMaxVolume;
     public double AdjustAudioTargetMeanVolume = CoresConfig.DefaultAiUtilSettings.AdjustAudioTargetMeanVolume;
 }
