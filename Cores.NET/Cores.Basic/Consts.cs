@@ -185,6 +185,8 @@ public static partial class Consts
         public const int Dns = 53;
         public const int MsSqlServer = 1433;
 
+        public const int VoiceVox = 50021;
+
         public const int DynamicPortMin = 10000;
         public const int DynamicPortMax = 19999;
         public const int DynamicPortCheckRetryMaxCount = 200;

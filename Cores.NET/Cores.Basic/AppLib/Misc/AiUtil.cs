@@ -53,9 +53,12 @@ using System.Runtime.CompilerServices;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
 
+using NAudio.Wave;
+
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
+using System.Text.RegularExpressions;
 
 namespace IPA.Cores.Basic;
 
@@ -98,7 +101,7 @@ public class AiTask
             string safeArtistName = PPWin.MakeSafeFileName(artistName, true, true, true);
 
             var srcMusicList = await Lfs.EnumDirectoryAsync(artistDir.FullPath, true, cancel: cancel);
-            
+
             foreach (var srcMusicFile in srcMusicList.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Filter_MusicFiles)).OrderBy(x => x.Name, StrCmpi))
             {
                 try
@@ -158,8 +161,202 @@ public class AiUtilBasicSettings
 {
     public string AiTest_UvrCli_BaseDir = "";
     public int AiTest_UvrCli_Timeout = 5 * 60 * 1000;
+    public string AiTest_VoiceBox_ExePath = "";
+    public string AiTest_VoiceBox_ExeArgs = "";
     public double AdjustAudioTargetMaxVolume = CoresConfig.DefaultAiUtilSettings.AdjustAudioTargetMaxVolume;
     public double AdjustAudioTargetMeanVolume = CoresConfig.DefaultAiUtilSettings.AdjustAudioTargetMeanVolume;
+    public int VoiceBoxLocalhostPort = Consts.Ports.VoiceVox;
+}
+
+public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
+{
+    public FfMpegUtil FfMpeg { get; }
+
+    public AiUtilVoiceVoxEngine(AiUtilBasicSettings settings, FfMpegUtil ffMpeg) : base(settings, "VoiceBox", settings.AiTest_UvrCli_BaseDir)
+    {
+        this.FfMpeg = ffMpeg;
+    }
+
+    public async Task<FfMpegParsedList> TextToWavMainAsync(string text, int speakerId, string dstWavPath, string tagTitle = "", bool useOkFile = true, CancellationToken cancel = default)
+    {
+        if (tagTitle._IsEmpty()) tagTitle = "voicetext";
+
+        text = PreProcessText(text);
+
+        var textBlockList = SplitText(text);
+
+        string digest = $"text={textBlockList._LinesToStr()._Digest()},speakerId={speakerId},targetMaxVolume={Settings.AdjustAudioTargetMaxVolume},targetMeanVolume={Settings.AdjustAudioTargetMeanVolume}";
+
+        if (useOkFile)
+        {
+            var okResult = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstWavPath, digest, FfMpegUtilOkFileVersion.CurrentVersion, cancel);
+            if (okResult.IsOk && okResult.Value != null) return okResult.Value;
+        }
+
+        await using ExecInstance exec = new ExecInstance(new ExecOptions(Settings.AiTest_VoiceBox_ExePath, Settings.AiTest_VoiceBox_ExeArgs,
+            PP.GetDirectoryName(Settings.AiTest_VoiceBox_ExePath)));
+
+        await TaskUtil.RetryAsync(async c =>
+        {
+            await using var http = new WebApi(new WebApiOptions(new WebApiSettings { DoNotThrowHttpResultError = true }, doNotUseTcpStack: true));
+
+            string url1 = $"http://127.0.0.1:{this.Settings.VoiceBoxLocalhostPort}/";
+
+            await http.SimpleQueryAsync(WebMethods.GET, url1, cancel);
+
+            return true;
+
+        },
+        1000, 10, cancel, true);
+
+        List<string> blockWavFileNameList = new List<string>();
+
+        long totalFileSize = 0;
+
+        Con.WriteLine($"{tagTitle}: Start text to wav");
+
+        for (int i = 0; i < textBlockList.Count; i++)
+        {
+            string block = textBlockList[i];
+
+            byte[] blockWavData = await TextBlockToWavAsync(block, speakerId);
+
+            var tmpPath = await Lfs.GenerateUniqueTempFilePathAsync($"{tagTitle}_{i:D8}", ".wav", cancel: cancel);
+
+            await Lfs.WriteDataToFileAsync(tmpPath, blockWavData, FileFlags.AutoCreateDirectory, cancel: cancel);
+
+            blockWavFileNameList.Add(tmpPath);
+
+            totalFileSize += blockWavData.LongLength;
+
+            Con.WriteLine($"{tagTitle}: Text to Wav: {(i + 1)._ToString3()}/{textBlockList.Count._ToString3()}, Size: {totalFileSize._ToString3()} bytes");
+        }
+
+        Con.WriteLine($"{tagTitle}: Combining...");
+
+        string concatFile = await Lfs.GenerateUniqueTempFilePathAsync($"{tagTitle}_concat", ".wav", cancel: cancel);
+
+        if (blockWavFileNameList.Any() == false)
+        {
+            WaveFormat waveFormat = new WaveFormat(24000, 16, 1);
+
+            await using var writer = new WaveFileWriter(concatFile, waveFormat);
+
+            int bytesPerSample = waveFormat.BitsPerSample / 8;
+            int bytesPerSecond = waveFormat.SampleRate * waveFormat.Channels * bytesPerSample;
+            double silenceDurationSeconds = 2.0; // 2.0 秒
+            int silenceBytes = (int)(bytesPerSecond * silenceDurationSeconds);
+
+            var silenceBuffer = new byte[silenceBytes];
+            writer.Write(silenceBuffer, 0, silenceBuffer.Length);
+        }
+        else
+        {
+            WaveFormat? waveFormat = null;
+            using (var reader = new WaveFileReader(blockWavFileNameList.First()))
+            {
+                waveFormat = reader.WaveFormat;
+            }
+
+            if (waveFormat == null)
+            {
+                throw new CoresLibException($"{tagTitle}: WaveFormat not found");
+            }
+
+            await using var writer = new WaveFileWriter(concatFile, waveFormat);
+
+            for (int i = 0; i < blockWavFileNameList.Count; i++)
+            {
+                string srcFileName = blockWavFileNameList[i];
+
+                await using (var reader = new WaveFileReader(srcFileName))
+                {
+                    var buffer = new byte[reader.WaveFormat.AverageBytesPerSecond * 4];
+                    int bytesRead;
+                    while ((bytesRead = reader.Read(buffer, 0, buffer.Length)) > 0)
+                    {
+                        writer.Write(buffer, 0, bytesRead);
+                    }
+
+                    int bytesPerSample = waveFormat.BitsPerSample / 8;
+                    int bytesPerSecond = waveFormat.SampleRate * waveFormat.Channels * bytesPerSample;
+                    double silenceDurationSeconds = 0.5; // 0.5 秒
+                    int silenceBytes = (int)(bytesPerSecond * silenceDurationSeconds);
+
+                    var silenceBuffer = new byte[silenceBytes];
+                    writer.Write(silenceBuffer, 0, silenceBuffer.Length);
+                }
+
+                Con.WriteLine($"{tagTitle}: Concat wav: {(i + 1)._ToString3()}/{textBlockList.Count._ToString3()}, Size: {writer.Length._ToString3()} bytes");
+            }
+        }
+
+        var results = await this.FfMpeg.AdjustAudioVolumeAsync(concatFile, dstWavPath, Settings.AdjustAudioTargetMaxVolume, Settings.AdjustAudioTargetMeanVolume, tagTitle, false, cancel);
+
+        if (useOkFile)
+        {
+            await Lfs.WriteOkFileAsync(dstWavPath, results.Item2, digest, FfMpegUtilOkFileVersion.CurrentVersion, cancel);
+        }
+
+        return results.Item2;
+    }
+
+    // 音声合成
+    async Task<byte[]> TextBlockToWavAsync(string text, int speakerId, CancellationToken cancel = default)
+    {
+        await using var http = new WebApi(new WebApiOptions(doNotUseTcpStack: true));
+
+        string url1 = $"http://127.0.0.1:{this.Settings.VoiceBoxLocalhostPort}/audio_query?text={Uri.EscapeDataString(text)}&speaker={speakerId}";
+
+        var result1 = await http.SimplePostDataAsync(url1, new byte[0], cancel);
+
+        string queryJsonStr = result1.ToString();
+
+        string url2 = $"http://localhost:{this.Settings.VoiceBoxLocalhostPort}/synthesis?speaker={speakerId}";
+
+        var result2 = await http.SimplePostDataAsync(url2, queryJsonStr._GetBytes_UTF8(), cancel, "application/json");
+
+        return result2.Data;
+    }
+
+    // テキスト分割
+    static List<string> SplitText(string text, int maxLen = 100)
+    {
+        var sentences = Regex.Split(text, @"(?<=[。！？])");
+        var chunks = new List<string>();
+        var current = "";
+
+        foreach (var sentence in sentences)
+        {
+            if (current.Length + sentence.Length > maxLen)
+            {
+                if (current._IsFilled())
+                {
+                    chunks.Add(current);
+                }
+                current = sentence;
+            }
+            else
+            {
+                current += sentence;
+            }
+        }
+
+        if (current._IsFilled())
+        {
+            chunks.Add(current);
+        }
+
+        return chunks;
+    }
+
+    // テキスト前処理
+    static string PreProcessText(string text)
+    {
+        text = text._ReplaceStr("　", " ")._ReplaceStr("\t", " ");
+
+        return text;
+    }
 }
 
 public class AiUtilUvrEngine : AiUtilBasicEngine
