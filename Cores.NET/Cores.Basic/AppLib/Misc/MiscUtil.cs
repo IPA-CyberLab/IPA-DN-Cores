@@ -320,7 +320,10 @@ public class FfMpegUtil
         try
         {
             var mp3MetaData = await MiscUtil.ReadMP3MetaDataAsync(dstFilePath, cancel);
-            ret.Meta = mp3MetaData;
+            if (mp3MetaData != null)
+            {
+                ret.Meta = mp3MetaData;
+            }
         }
         catch { }
 
@@ -410,7 +413,10 @@ public class FfMpegUtil
         try
         {
             var mp3MetaData = await MiscUtil.ReadMP3MetaDataAsync(filePath, cancel);
-            parsed.Meta = mp3MetaData;
+            if (mp3MetaData != null)
+            {
+                parsed.Meta = mp3MetaData;
+            }
         }
         catch { }
 
@@ -428,7 +434,10 @@ public class FfMpegUtil
             try
             {
                 var mp3MetaData = await MiscUtil.ReadMP3MetaDataAsync(filePath, cancel);
-                parsed.Meta = mp3MetaData;
+                if (mp3MetaData != null)
+                {
+                    parsed.Meta = mp3MetaData;
+                }
             }
             catch { }
         }
@@ -2216,7 +2225,7 @@ public static partial class MiscUtil
             { "TRCK", "track" }
         };
 
-    public static MediaMetaData ReadMP3MetaData(ReadOnlySpan<byte> data, CancellationToken cancel = default)
+    public static MediaMetaData? ReadMP3MetaData(ReadOnlySpan<byte> data, CancellationToken cancel = default)
     {
         MemoryStream ms = new MemoryStream();
         ms.Write(data);
@@ -2224,7 +2233,7 @@ public static partial class MiscUtil
         return ReadMP3MetaDataAsync(ms, cancel)._GetResult();
     }
 
-    public static async Task<MediaMetaData> ReadMP3MetaDataAsync(string filePath, CancellationToken cancel = default, FileSystem? fs = null)
+    public static async Task<MediaMetaData?> ReadMP3MetaDataAsync(string filePath, CancellationToken cancel = default, FileSystem? fs = null)
     {
         fs ??= Lfs;
 
@@ -2234,7 +2243,7 @@ public static partial class MiscUtil
         }
     }
 
-    public static async Task<MediaMetaData> ReadMP3MetaDataAsync(Stream fs, CancellationToken cancel = default)
+    public static async Task<MediaMetaData?> ReadMP3MetaDataAsync(Stream fs, CancellationToken cancel = default)
     {
         fs._SeekToBegin();
 
@@ -2275,7 +2284,14 @@ public static partial class MiscUtil
             meta.Track = trackStr._ToInt();
         }
 
-        return meta;
+        if (meta.Album._IsFilled() || meta.AlbumArtist._IsFilled() || meta.Title._IsFilled() || meta.Artist._IsFilled())
+        {
+            return meta;
+        }
+        else
+        {
+            return null;
+        }
     }
 
     /// <summary>
