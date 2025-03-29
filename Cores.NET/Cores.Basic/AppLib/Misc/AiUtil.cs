@@ -120,7 +120,7 @@ public class AiTask
                     MediaMetaData meta = new MediaMetaData
                     {
                         Album = musicOnlyAlbumName,
-                        Title = musicOnlyAlbumName + " - " + artistName + " - " + formalSongTitle,
+                        Title = formalSongTitle + " - " + musicOnlyAlbumName,
                         Artist = musicOnlyAlbumName + " - " + artistName,
                     };
 
