@@ -71,7 +71,24 @@ public static partial class CoresConfig
 
 public static class AiUtilOkFileVersion
 {
-    public const int CurrentVersion = 20250329_01;
+    public const int CurrentVersion = 20250329_02;
+}
+
+public static class AiTask
+{
+    public static async Task ExtractMusicAndVocal(string srcDirPath, string dstDirPath, CancellationToken cancel = default)
+    {
+        var groupDirList = await Lfs.EnumDirectoryAsync(srcDirPath, cancel: cancel);
+
+        foreach (var groupDir in groupDirList.Where(x => x.IsDirectory && x.IsCurrentOrParentDirectory == false).OrderBy(x => x.Name, StrCmpi))
+        {
+            string groupName = groupDir.Name._NormalizeSoftEther(true);
+
+            var srcMusicList = await Lfs.EnumDirectoryAsync(groupDir.FullPath, true, cancel: cancel);
+
+            //foreach (var srcMusic in srcMusicList.Where(x=>x.IsFile && x.Name._IsExtensionMatch(
+        }
+    }
 }
 
 public class AiUtilBasicSettings

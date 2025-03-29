@@ -408,6 +408,8 @@ public static partial class Consts
         public const string Filter_Certificates = "*.cer;*.crt";
         public const string Filter_Keys = "*.key;*.pem";
 
+        public const string Filter_MusicFiles = "*.wav;*.mp3;*.m4a;*.aac;*.flac;*.wma";
+
         public const string Zip = ".zip";
 
         public const string Data = ".dat";
