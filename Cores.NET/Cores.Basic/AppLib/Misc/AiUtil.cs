@@ -177,7 +177,20 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
         this.FfMpeg = ffMpeg;
     }
 
-    public async Task<FfMpegParsedList> TextToWavMainAsync(string text, int speakerId, string dstWavPath, string tagTitle = "", bool useOkFile = true, CancellationToken cancel = default)
+    public async Task<FfMpegParsedList> TextToWavAsync(string srcTxtPath, int speakerId, string dstWavPath, string tagTitle = "", bool useOkFile = true, CancellationToken cancel = default)
+    {
+        if (tagTitle._IsEmpty()) tagTitle = PP.GetFileNameWithoutExtension(srcTxtPath);
+
+        string text = await Lfs.ReadStringFromFileAsync(srcTxtPath, maxSize: 2 * 1024 * 1024, cancel: cancel);
+
+        return await TaskUtil.RetryAsync(async c =>
+        {
+            return await TextToWavMainAsync(text, speakerId, dstWavPath, tagTitle, useOkFile, cancel);
+        },
+        200, 5, cancel, true);
+    }
+
+    async Task<FfMpegParsedList> TextToWavMainAsync(string text, int speakerId, string dstWavPath, string tagTitle = "", bool useOkFile = true, CancellationToken cancel = default)
     {
         if (tagTitle._IsEmpty()) tagTitle = "voicetext";
 
@@ -226,7 +239,7 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
 
         long totalFileSize = 0;
 
-        Con.WriteLine($"{tagTitle}: Start text to wav");
+        Con.WriteLine($"{SimpleAiName}: {tagTitle}: Start text to wav");
 
         for (int i = 0; i < textBlockList.Count; i++)
         {
@@ -242,10 +255,10 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
 
             totalFileSize += blockWavData.LongLength;
 
-            Con.WriteLine($"{tagTitle}: Text to Wav: {(i + 1)._ToString3()}/{textBlockList.Count._ToString3()}, Size: {totalFileSize._ToString3()} bytes");
+            Con.WriteLine($"{SimpleAiName}: {tagTitle}: Text to Wav: {(i + 1)._ToString3()}/{textBlockList.Count._ToString3()}, Size: {totalFileSize._ToString3()} bytes");
         }
 
-        Con.WriteLine($"{tagTitle}: Combining...");
+        Con.WriteLine($"{SimpleAiName}: {tagTitle}: Combining...");
 
         string concatFile = await Lfs.GenerateUniqueTempFilePathAsync($"{tagTitle}_concat", ".wav", cancel: cancel);
 
@@ -273,7 +286,7 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
 
             if (waveFormat == null)
             {
-                throw new CoresLibException($"{tagTitle}: WaveFormat not found");
+                throw new CoresLibException($"{SimpleAiName}: {tagTitle}: WaveFormat not found");
             }
 
             await using var writer = new WaveFileWriter(concatFile, waveFormat);
@@ -300,7 +313,7 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
                     writer.Write(silenceBuffer, 0, silenceBuffer.Length);
                 }
 
-                Con.WriteLine($"{tagTitle}: Concat wav: {(i + 1)._ToString3()}/{textBlockList.Count._ToString3()}, Size: {writer.Length._ToString3()} bytes");
+                Con.WriteLine($"{SimpleAiName}: {tagTitle}: Concat wav: {(i + 1)._ToString3()}/{textBlockList.Count._ToString3()}, Size: {writer.Length._ToString3()} bytes");
             }
         }
 
