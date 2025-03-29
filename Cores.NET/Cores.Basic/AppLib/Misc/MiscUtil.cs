@@ -288,17 +288,17 @@ public class FfmpegUtil
             parsed.Meta = mp3MetaData;
         }
         catch { }
-
+        
         return parsed;
     }
 
-    public async Task<FfmpegParsedList> ReadMetaDataWithFfProbeAsync(string filePath, bool useMP3OwnImpl = true, CancellationToken cancel = default)
+    public async Task<FfmpegParsedList> ReadMetaDataWithFfProbeAsync(string filePath, bool useMP3OwnImplOverride = true, CancellationToken cancel = default)
     {
         string cmdLine = $"-i {filePath._EnsureQuotation()}";
 
         var parsed = await RunFfProbeAndParseAsync(cmdLine, cancel);
 
-        if (useMP3OwnImpl)
+        if (useMP3OwnImplOverride)
         {
             try
             {
