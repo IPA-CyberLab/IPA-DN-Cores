@@ -193,21 +193,34 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
             if (okResult.IsOk && okResult.Value != null) return okResult.Value;
         }
 
-        await using ExecInstance exec = new ExecInstance(new ExecOptions(Settings.AiTest_VoiceBox_ExePath, Settings.AiTest_VoiceBox_ExeArgs,
-            PP.GetDirectoryName(Settings.AiTest_VoiceBox_ExePath)));
 
-        await TaskUtil.RetryAsync(async c =>
+        await using var exec = await TaskUtil.RetryAsync(async c =>
         {
-            await using var http = new WebApi(new WebApiOptions(new WebApiSettings { DoNotThrowHttpResultError = true }, doNotUseTcpStack: true));
+            ExecInstance exec = new ExecInstance(new ExecOptions(Settings.AiTest_VoiceBox_ExePath, Settings.AiTest_VoiceBox_ExeArgs, PP.GetDirectoryName(Settings.AiTest_VoiceBox_ExePath)));
+            try
+            {
+                await TaskUtil.RetryAsync(async c2 =>
+                {
+                    await using var http = new WebApi(new WebApiOptions(new WebApiSettings { DoNotThrowHttpResultError = true }, doNotUseTcpStack: true));
 
-            string url1 = $"http://127.0.0.1:{this.Settings.VoiceBoxLocalhostPort}/";
+                    string url1 = $"http://127.0.0.1:{this.Settings.VoiceBoxLocalhostPort}/";
 
-            await http.SimpleQueryAsync(WebMethods.GET, url1, cancel);
+                    await http.SimpleQueryAsync(WebMethods.GET, url1, c);
 
-            return true;
+                    return true;
+                },
+                200, 5, c, true);
+
+                return exec;
+            }
+            catch
+            {
+                await exec._DisposeSafeAsync();
+                throw;
+            }
 
         },
-        1000, 10, cancel, true);
+        1000, 5, cancel, true);
 
         List<string> blockWavFileNameList = new List<string>();
 
