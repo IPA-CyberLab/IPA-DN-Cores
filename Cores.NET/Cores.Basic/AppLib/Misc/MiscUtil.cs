@@ -279,6 +279,12 @@ public enum FfMpegAudioCodec
     Aac,
 }
 
+public enum FfmpegAdjustVolumeOptiono
+{
+    MeanAndMax = 0,
+    MeanOnly,
+}
+
 public class FfMpegUtil
 {
     public FfMpegUtilOptions Options;
@@ -442,7 +448,7 @@ public class FfMpegUtil
         return ret;
     }
 
-    public async Task<Tuple<FfMpegParsedList, FfMpegParsedList>> AdjustAudioVolumeAsync(string srcFilePath, string dstWavFilePath, double targetMaxVolume, double targetMeanVolume, string tagTitle = "", bool useOkFile = true, CancellationToken cancel = default)
+    public async Task<Tuple<FfMpegParsedList, FfMpegParsedList>> AdjustAudioVolumeAsync(string srcFilePath, string dstWavFilePath, double targetMaxVolume, double targetMeanVolume, FfmpegAdjustVolumeOptiono mode, string tagTitle = "", bool useOkFile = true, CancellationToken cancel = default)
     {
         if (tagTitle._IsEmpty()) tagTitle = PP.GetFileNameWithoutExtension(srcFilePath);
 
@@ -463,8 +469,17 @@ public class FfMpegUtil
         // 最大音量をどれだけ調整するか (増加量)
         double maxVolumeDelta = targetMaxVolume - srcParsed.VolumeDetect_MaxVolume;
 
-        // この 2 つの値のうち小さいほうを採用
-        double adjustDelta = Math.Min(meanVolumeDelta, maxVolumeDelta);
+        double adjustDelta;
+        if (mode == FfmpegAdjustVolumeOptiono.MeanOnly)
+        {
+            // 平均音量のみに着目
+            adjustDelta = meanVolumeDelta;
+        }
+        else
+        {
+            // この 2 つの値のうち小さいほうを採用
+            adjustDelta = Math.Min(meanVolumeDelta, maxVolumeDelta);
+        }
 
         string cmdLine = $"-y -i {srcFilePath._EnsureQuotation()} -reset_timestamps 1 -vn -af \"volume={adjustDelta:F1}dB\" -ar 44100 -ac 2 -c:a pcm_s16le -map_metadata -1 -f wav {dstWavFilePath._EnsureQuotation()}";
 

@@ -80,9 +80,9 @@ public static class AiUtilVersion
 public class AiTask
 {
     public const double BgmVolumeDeltaForConstant = -9.3;
-    public const double BgmVolumeDeltaForSmooth = -1.0;
+    public const double BgmVolumeDeltaForSmooth = -0.0;
 
-    public const int DefaultFadeoutSecs = 30;
+    public const int DefaultFadeoutSecs = 10;
 
     public FfMpegUtil FfMpeg { get; }
     public AiUtilBasicSettings Settings { get; }
@@ -572,7 +572,23 @@ public class AiTask
         return ret;
     }
 
-    public async Task<FfMpegParsedList> AddRandomBgmToVoiceFileAsync(string srcVoiceFilePath, string dstDir, string srcMusicWavsDirPath, FfMpegAudioCodec codec, AiRandomBgmSettings settings, bool smoothMode, int kbps = 0, int fadeOutSecs = AiTask.DefaultFadeoutSecs, bool useOkFile = true, CancellationToken cancel = default)
+    public async Task AddRandomBgpToAllVoiceFilesAsync(string srcVoiceDirRoot, string dstDirRoot, string srcMusicWavsDirPath, FfMpegAudioCodec codec, AiRandomBgmSettings settings, bool smoothMode, int kbps = 0, int fadeOutSecs = AiTask.DefaultFadeoutSecs, CancellationToken cancel = default)
+    {
+        var srcFiles = await Lfs.EnumDirectoryAsync(srcVoiceDirRoot, true, cancel: cancel);
+
+        foreach (var srcFile in srcFiles.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Filter_MusicFiles) && x.Name._InStri("bgm") == false).OrderBy(x => x.FullPath, StrCmpi))
+        {
+            string relativeDirPth = PP.GetRelativeDirectoryName(PP.GetDirectoryName(srcFile.FullPath), srcVoiceDirRoot);
+
+            string dstDirPath = PP.Combine(dstDirRoot, relativeDirPth);
+
+            Con.WriteLine($"Add BGM: '{srcFile.FullPath}' -> '{dstDirPath}'");
+
+            var result = await AddRandomBgmToVoiceFileAsync(srcFile.FullPath, dstDirPath, srcMusicWavsDirPath, codec, settings, smoothMode, kbps, fadeOutSecs, true, cancel);
+        }
+    }
+
+    public async Task<(FfMpegParsedList Parsed, string DestFileName)> AddRandomBgmToVoiceFileAsync(string srcVoiceFilePath, string dstDir, string srcMusicWavsDirPath, FfMpegAudioCodec codec, AiRandomBgmSettings settings, bool smoothMode, int kbps = 0, int fadeOutSecs = AiTask.DefaultFadeoutSecs, bool useOkFile = true, CancellationToken cancel = default)
     {
         var srcVoiceFileMetaData = await FfMpeg.ReadMetaDataWithFfProbeAsync(srcVoiceFilePath, cancel: cancel);
 
@@ -634,7 +650,7 @@ public class AiTask
             var okParsed = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstFilePath, digest, AiUtilVersion.CurrentVersion, cancel);
             if (okParsed.IsOk && okParsed.Value != null)
             {
-                return okParsed.Value;
+                return (okParsed.Value, dstFilePath);
             }
         }
 
@@ -660,7 +676,7 @@ public class AiTask
             await Lfs.WriteOkFileAsync(dstFilePath, parsed, digest, AiUtilVersion.CurrentVersion, cancel);
         }
 
-        return parsed;
+        return (parsed, dstFilePath);
     }
 
     public async Task CreateRandomBgmFileAsync(string srcMusicWavsDirPath, string dstWavFilePath, int totalDurationMsecs, AiRandomBgmSettings settings, int fadeOutSecs = AiTask.DefaultFadeoutSecs, double adjustDelta = AiTask.BgmVolumeDeltaForConstant, CancellationToken cancel = default)
@@ -892,10 +908,10 @@ public class AiUtilSeedVcEngine : AiUtilBasicEngine
         await Lfs.DeleteFileIfExistsAsync(aiSrcPath, cancel: cancel);
 
         await Lfs.DeleteFileIfExistsAsync(aiSamplePath, cancel: cancel);
-        await FfMpeg.AdjustAudioVolumeAsync(voiceSamplePath, aiSamplePath, Settings.AdjustAudioTargetMaxVolume, Settings.AdjustAudioTargetMeanVolume, voiceSamplePath, false, cancel);
+        await FfMpeg.AdjustAudioVolumeAsync(voiceSamplePath, aiSamplePath, Settings.AdjustAudioTargetMaxVolume, Settings.AdjustAudioTargetMeanVolume, FfmpegAdjustVolumeOptiono.MeanOnly, voiceSamplePath, false, cancel);
 
         await Lfs.DeleteFileIfExistsAsync(aiSrcPath, cancel: cancel);
-        await FfMpeg.AdjustAudioVolumeAsync(srcWavPath, aiSrcPath, Settings.AdjustAudioTargetMaxVolume, Settings.AdjustAudioTargetMeanVolume, tagTitle, false, cancel);
+        await FfMpeg.AdjustAudioVolumeAsync(srcWavPath, aiSrcPath, Settings.AdjustAudioTargetMaxVolume, Settings.AdjustAudioTargetMeanVolume, FfmpegAdjustVolumeOptiono.MeanOnly, tagTitle, false, cancel);
 
         await DeleteAllAiProcessOutputFilesAsync(cancel);
 
@@ -926,7 +942,7 @@ public class AiUtilSeedVcEngine : AiUtilBasicEngine
 
         await Lfs.DeleteFileIfExistsAsync(dstWavPath, cancel: cancel);
 
-        await FfMpeg.AdjustAudioVolumeAsync(aiDstFile.FullPath, dstWavPath, Settings.AdjustAudioTargetMaxVolume, Settings.AdjustAudioTargetMeanVolume, tagTitle, false, cancel);
+        await FfMpeg.AdjustAudioVolumeAsync(aiDstFile.FullPath, dstWavPath, Settings.AdjustAudioTargetMaxVolume, Settings.AdjustAudioTargetMeanVolume, FfmpegAdjustVolumeOptiono.MeanOnly, tagTitle, false, cancel);
     }
 
     async Task DeleteAllAiProcessOutputFilesAsync(CancellationToken cancel = default)
@@ -1092,7 +1108,7 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
             }
         }
 
-        var results = await this.FfMpeg.AdjustAudioVolumeAsync(concatFile, dstWavPath, Settings.AdjustAudioTargetMaxVolume, Settings.AdjustAudioTargetMeanVolume, tagTitle, false, cancel);
+        var results = await this.FfMpeg.AdjustAudioVolumeAsync(concatFile, dstWavPath, Settings.AdjustAudioTargetMaxVolume, Settings.AdjustAudioTargetMeanVolume, FfmpegAdjustVolumeOptiono.MeanOnly, tagTitle, false, cancel);
 
         if (useOkFile)
         {
@@ -1206,7 +1222,7 @@ public class AiUtilUvrEngine : AiUtilBasicEngine
 
         // 音量調整
         string adjustedWavFile = await Lfs.GenerateUniqueTempFilePathAsync(srcFilePath, cancel: cancel);
-        var result = await FfMpeg.AdjustAudioVolumeAsync(srcFilePath, adjustedWavFile, Settings.AdjustAudioTargetMaxVolume, Settings.AdjustAudioTargetMeanVolume, tagTitle, false, cancel);
+        var result = await FfMpeg.AdjustAudioVolumeAsync(srcFilePath, adjustedWavFile, Settings.AdjustAudioTargetMaxVolume, Settings.AdjustAudioTargetMeanVolume, FfmpegAdjustVolumeOptiono.MeanOnly /* ! */, tagTitle, false, cancel);
 
         if (dstMusicWavPath._IsFilled())
         {
@@ -1359,7 +1375,7 @@ public class AiUtilBasicEngine : AsyncService
 public class AiRandomBgmSettings
 {
     public bool Medley = false;
-    public int SingleFilePartMSecs = 60 * 1000;
+    public int SingleFilePartMSecs = 100 * 1000;
     public int FadeoutMsecs = 5 * 1000;
     public int PlusMinusPercentage = 44;
     public int MarginMsecs = 15 * 1000;
