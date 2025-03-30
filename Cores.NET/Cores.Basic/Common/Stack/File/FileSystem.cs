@@ -2559,6 +2559,15 @@ public abstract partial class FileSystem : AsyncService
     public void DeleteFile(string path, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
         => DeleteFileAsync(path, flags, cancel)._GetResult();
 
+    public async Task EnsureCreateDirectoryForFileAsync(string filePath, FileFlags flags = FileFlags.None, CancellationToken cancel = default)
+    {
+        try
+        {
+            await Lfs.CreateDirectoryAsync(PP.GetDirectoryName(filePath), flags, cancel: cancel);
+        }
+        catch { }
+    }
+
     public async Task DeleteFileIfExistsAsync(string path, FileFlags flags = FileFlags.None, bool raiseException = false, CancellationToken cancel = default)
     {
         try

@@ -108,11 +108,63 @@ public class MediaMetaData
     public string Artist = "";
     public int Track = 0;
     public int TrackTotal = 0;
+
+    public bool HasValue()
+    {
+        if (this.Album._IsFilled() ||
+            this.AlbumArtist._IsFilled() ||
+            this.Title._IsFilled() ||
+            this.Artist._IsFilled())
+        {
+            return true;
+        }
+
+        return false;
+    }
 }
 
 public class FfMpegParsed
 {
     public KeyValueList<string, string> Items = new KeyValueList<string, string>();
+
+    public int GetDurationMsecs()
+    {
+        try
+        {
+            string ffprobeDuration = Items._GetFirstValueOrDefault("Duration", StrCmpi);
+            if (ffprobeDuration._IsFilled())
+            {
+                // カンマ以降の文字列を除去し、duration 部分のみを取り出す
+                int commaIndex = ffprobeDuration.IndexOf(',');
+                string durationPart = commaIndex >= 0 ? ffprobeDuration.Substring(0, commaIndex).Trim() : ffprobeDuration.Trim();
+
+                // TimeSpan でパースする。ffprobe の出力は "HH:mm:ss.ff" 形式となるため、
+                // TimeSpan.Parse は柔軟に解釈してくれます。
+                if (TimeSpan.TryParse(durationPart, out TimeSpan duration))
+                {
+                    // ミリ秒の合計値を計算
+                    double totalMilliseconds = duration.TotalMilliseconds;
+
+                    // int の範囲内か確認
+                    if (totalMilliseconds > int.MaxValue)
+                        throw new OverflowException("duration のミリ秒値が int の範囲を超えています。");
+
+                    return (int)totalMilliseconds;
+                }
+                else
+                {
+                    throw new FormatException("duration の形式が正しくありません。");
+                }
+            }
+
+            return -1;
+        }
+        catch (Exception ex)
+        {
+            ex._Error();
+            return -1;
+        }
+    }
 }
 
 public class FfMpegParsedList
@@ -234,6 +286,27 @@ public class FfMpegUtil
     public FfMpegUtil(FfMpegUtilOptions options)
     {
         this.Options = options;
+    }
+
+    public async Task<FfMpegParsedList> AddBgmToVoiceFileAsync(string srcVoiceFilePath, string srcBgmFilePath, string dstWavFilePath, CancellationToken cancel = default)
+    {
+        string cmdLine = $"-y -i {srcVoiceFilePath._EnsureQuotation()} -i {srcBgmFilePath._EnsureQuotation()} -vn ";
+
+        cmdLine += "-reset_timestamps 1 -ar 44100 -ac 2 -c:a pcm_s16le -map_metadata -1 -f wav ";
+
+        string filterStr = "-filter_complex \"[1:a][0:a]sidechaincompress=threshold=0.1:ratio=10:attack=20:release=200[ducked]; [0:a][ducked]amix=inputs=2:duration=longest[out]\" -map \"[out]\" ";
+
+        cmdLine += filterStr;
+
+        cmdLine += $"{dstWavFilePath._EnsureQuotation()}";
+
+        await EnsureCreateDirectoryForFileAsync(dstWavFilePath, cancel);
+
+        await Lfs.DeleteFileIfExistsAsync(dstWavFilePath, cancel: cancel);
+
+        FfMpegParsedList ret = await RunFfMpegAndParseAsync(cmdLine, cancel);
+
+        return ret;
     }
 
     public async Task<FfMpegParsedList> EncodeAudioAsync(string srcFilePath, string dstFilePath, FfMpegAudioCodec codec, int kbps = 0, int speedPercent = 100, MediaMetaData? metaData = null, string tagTitle = "", bool useOkFile = true, CancellationToken cancel = default)
@@ -382,6 +455,21 @@ public class FfMpegUtil
         return ret;
     }
 
+    public async Task<FfMpegParsedList> AdjustAudioVolumeAsync(string srcFilePath, string dstWavFilePath, double adjustDelta, CancellationToken cancel = default)
+    {
+        string cmdLine = $"-y -i {srcFilePath._EnsureQuotation()} -reset_timestamps 1 -vn -af \"volume={adjustDelta:F1}dB\" -ar 44100 -ac 2 -c:a pcm_s16le -map_metadata -1 -f wav {dstWavFilePath._EnsureQuotation()}";
+
+        await Lfs.DeleteFileIfExistsAsync(dstWavFilePath, cancel: cancel);
+
+        await EnsureCreateDirectoryForFileAsync(dstWavFilePath, cancel);
+
+        await RunFfMpegAndParseAsync(cmdLine, cancel);
+
+        var dstParsed = await AnalyzeAudioVolumeDetectAsync(dstWavFilePath, cancel);
+
+        return dstParsed;
+    }
+
     public async Task<string> GenerateNewTmpFilePathAsync(string sampleFileName, string ext = "", CancellationToken cancel = default)
     {
         if (sampleFileName._IsEmpty()) sampleFileName = "test.dat";
@@ -468,6 +556,8 @@ public class FfMpegUtil
 
     public async Task<EasyExecResult> RunFfMpegAsync(string arguments, CancellationToken cancel = default)
     {
+        Con.WriteLine($"[*Run*] {Options.FfMpegExePath} {arguments}");
+
         EasyExecResult ret = await EasyExec.ExecAsync(Options.FfMpegExePath, arguments, PP.GetDirectoryName(Options.FfMpegExePath),
             flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdOut | ExecFlags.EasyPrintRealtimeStdErr,
             timeout: Timeout.Infinite, cancel: cancel, throwOnErrorExitCode: true,
@@ -479,6 +569,8 @@ public class FfMpegUtil
 
     public async Task<EasyExecResult> RunFfProbeAsync(string arguments, CancellationToken cancel = default)
     {
+        Con.WriteLine($"[*Run*] {Options.FfProbeExePath} {arguments}");
+
         EasyExecResult ret = await EasyExec.ExecAsync(Options.FfProbeExePath, arguments, PP.GetDirectoryName(Options.FfMpegExePath),
             flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdOut | ExecFlags.EasyPrintRealtimeStdErr,
             timeout: Timeout.Infinite, cancel: cancel, throwOnErrorExitCode: true,

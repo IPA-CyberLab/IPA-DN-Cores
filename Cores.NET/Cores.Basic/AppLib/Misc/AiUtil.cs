@@ -79,6 +79,8 @@ public static class AiUtilVersion
 
 public class AiTask
 {
+    public const double BgmVolumeDelta = -0.3;
+
     public FfMpegUtil FfMpeg { get; }
     public AiUtilBasicSettings Settings { get; }
 
@@ -566,6 +568,223 @@ public class AiTask
 
         return ret;
     }
+
+    public async Task AddRandomBgmToVoiceFileAsync(string srcVoiceFilePath, string dstFilePath, string srcMusicWavsDirPath, FfMpegAudioCodec codec, int kbps = 0, int fadeOutSecs = 0, double adjustDelta = AiTask.BgmVolumeDelta, CancellationToken cancel = default)
+    {
+        var srcVoiceFileMetaData = await FfMpeg.ReadMetaDataWithFfProbeAsync(srcVoiceFilePath, cancel: cancel);
+
+        int srcDurationMsecs = srcVoiceFileMetaData.Input?.GetDurationMsecs() ?? -1;
+
+        if (srcDurationMsecs < 0)
+        {
+            throw new CoresLibException($"Failed to get duration '{srcVoiceFilePath}'");
+        }
+
+        MediaMetaData srcMeta = srcVoiceFileMetaData.Meta;
+        if (srcMeta == null) srcMeta = new MediaMetaData();
+
+        var okFileMeta = await Lfs.ReadOkFileAsync<FfMpegParsedList>(srcVoiceFilePath, cancel: cancel);
+
+        if (okFileMeta.IsOk && okFileMeta.Value != null && okFileMeta.Value.Meta != null)
+        {
+            if (okFileMeta.Value.Meta.HasValue())
+            {
+                srcMeta = okFileMeta.Value.Meta;
+            }
+        }
+
+        MediaMetaData newMeta = srcMeta._CloneDeep();
+
+        newMeta.Album = newMeta.Album._ReplaceStr(" - x", " - bgm_x");
+        newMeta.AlbumArtist = newMeta.AlbumArtist._ReplaceStr(" - x", " - bgm_x");
+        newMeta.Title = newMeta.Title._ReplaceStr(" - x", " - bgm_x");
+        newMeta.Artist = newMeta.Artist._ReplaceStr(" - x", " - bgm_x");
+
+        string voiceWavTmpPath = await Lfs.GenerateUniqueTempFilePathAsync("voicefile", ".wav", cancel: cancel);
+
+        await FfMpeg.EncodeAudioAsync(srcVoiceFilePath, voiceWavTmpPath, FfMpegAudioCodec.Wav, useOkFile: false, cancel: cancel);
+
+        string bgmWavTmpPath = await Lfs.GenerateUniqueTempFilePathAsync("bgmfile", ".wav", cancel: cancel);
+
+        await CreateRandomBgmFileAsync(srcMusicWavsDirPath, bgmWavTmpPath, srcDurationMsecs, fadeOutSecs, adjustDelta, cancel);
+
+        string outWavTmpPath = await Lfs.GenerateUniqueTempFilePathAsync("bgmadded_file", ".wav", cancel: cancel);
+
+        await FfMpeg.AddBgmToVoiceFileAsync(voiceWavTmpPath, bgmWavTmpPath, outWavTmpPath, cancel);
+
+        await FfMpeg.EncodeAudioAsync(outWavTmpPath, dstFilePath, codec, kbps, useOkFile: false, metaData: newMeta, cancel: cancel);
+    }
+
+    public async Task CreateRandomBgmFileAsync(string srcMusicWavsDirPath, string dstWavFilePath, int totalDurationMsecs, int fadeOutSecs = 0, double adjustDelta = AiTask.BgmVolumeDelta, CancellationToken cancel = default)
+    {
+        string dstTmpFileName = await Lfs.GenerateUniqueTempFilePathAsync("concat2", ".wav", cancel: cancel);
+
+        await ConcatWavFileFromRandomDirAsync(srcMusicWavsDirPath, dstTmpFileName, totalDurationMsecs, fadeOutSecs, cancel);
+
+        await FfMpeg.AdjustAudioVolumeAsync(dstTmpFileName, dstWavFilePath, adjustDelta, cancel);
+    }
+
+    public async Task ConcatWavFileFromRandomDirAsync(string srcMusicWavsDirPath, string dstWavFilePath, int totalDurationMsecs, int fadeOutSecs = 0, CancellationToken cancel = default)
+    {
+        var srcWavList = await Lfs.EnumDirectoryAsync(srcMusicWavsDirPath, true, wildcard: "*.wav", cancel: cancel);
+
+        List<string> fileNamesList = new List<string>();
+
+        foreach (var srcWav in srcWavList.Where(x => x.IsFile).OrderBy(x => x.FullPath, StrCmpi))
+        {
+            if (await Lfs.IsOkFileExists(srcWav.FullPath, cancel: cancel))
+            {
+                fileNamesList.Add(srcWav.FullPath);
+            }
+        }
+
+        //fileNamesList = fileNamesList._Shuffle().ToList();
+
+        string dstTmpFileName;
+
+        if (fadeOutSecs <= 0)
+        {
+            dstTmpFileName = dstWavFilePath;
+        }
+        else
+        {
+            dstTmpFileName = await Lfs.GenerateUniqueTempFilePathAsync("concat", ".wav", cancel: cancel);
+        }
+
+        await ConcatWavFileFromQueueAsync(fileNamesList, totalDurationMsecs, dstTmpFileName, cancel);
+
+        if (fadeOutSecs > 0)
+        {
+            await Lfs.DeleteFileIfExistsAsync(dstWavFilePath, cancel: cancel);
+            await Lfs.EnsureCreateDirectoryForFileAsync(dstWavFilePath, cancel: cancel);
+
+            int totalSecs = totalDurationMsecs / 1000;
+            int startSecs = Math.Max(totalSecs - fadeOutSecs, 0);
+            int fadeSecs = Math.Min(fadeOutSecs, totalSecs - startSecs);
+
+            await FfMpeg.RunFfMpegAsync($"-y -i {dstTmpFileName._EnsureQuotation()} -vn -reset_timestamps 1 -ar 44100 -ac 2 -c:a pcm_s16le " +
+                $"-map_metadata -1 -f wav -af \"afade=t=out:st={startSecs}:d={fadeSecs}\" {dstWavFilePath._EnsureQuotation()}",
+                cancel: cancel);
+        }
+    }
+
+    public static async Task ConcatWavFileFromQueueAsync(
+        IEnumerable<string> srcWavFilesList,
+        int totalDurationMsecs,
+        string dstWavFilePath, CancellationToken cancel = default)
+    {
+        Queue<string> srcWavFilesQueue = new Queue<string>();
+
+        foreach (var srcFile in srcWavFilesList)
+        {
+            srcWavFilesQueue.Enqueue(srcFile);
+        }
+
+        await Lfs.DeleteFileIfExistsAsync(dstWavFilePath, cancel: cancel);
+        await Lfs.EnsureCreateDirectoryForFileAsync(dstWavFilePath, cancel: cancel);
+
+        // 1. キューが空なら何もできないので無音の WAV を生成するか、そのまま return
+        if (srcWavFilesQueue.Count == 0)
+        {
+            // 無音で書き出したい場合は下記のように処理する
+            // （フォーマットがわからないので、ここでは 44.1kHz / 16bit / stereo の例として無音を作る）
+            await CreateSilentWavAsync(44100, 16, 2, totalDurationMsecs, dstWavFilePath, cancel);
+            // return;
+
+            // 何もしない場合
+            return;
+        }
+
+        // 2. まずキューの先頭を覗いてフォーマットを取得する
+        string firstWavPath = srcWavFilesQueue.Peek();
+
+        // File.Open は async メソッドがあるのでそちらを使う（NAudio ではコンストラクタが同期的だが、可能な部分のみ async 化）
+        await using var firstFileStream = File.Open(firstWavPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        await using var firstReader = new WaveFileReader(firstFileStream);
+        WaveFormat waveFormat = firstReader.WaveFormat;
+
+        // 3. 書き出し先 WaveFileWriter を準備
+        //    WaveFileWriter はコンストラクタが同期的だが、FileStream は async で開く。
+        await using var destFileStream = File.Create(dstWavFilePath);
+        using var writer = new WaveFileWriter(destFileStream, waveFormat);
+
+        // 4. 書き出すべき合計バイト数を計算する
+        //    (サンプリング数 = サンプルレート * (totalDurationMsecs / 1000.0) を丸める)
+        long totalSamples = (long)Math.Round(waveFormat.SampleRate * (totalDurationMsecs / 1000.0));
+        long totalBytesToWrite = totalSamples * waveFormat.BlockAlign;
+        long writtenBytes = 0;
+
+        // 5. ソース WAV ファイルを順番に読み込み、合計サイズに達するまで書き込む
+        var buffer = new byte[65536];
+        while (srcWavFilesQueue.Count > 0 && writtenBytes < totalBytesToWrite)
+        {
+            string currentWavPath = srcWavFilesQueue.Dequeue();
+
+            await using var sourceStream = File.Open(currentWavPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            await using var readerWav = new WaveFileReader(sourceStream);
+
+            int bytesRead;
+            // WaveFileReader は通常同期的な Read しか提供しないが、Stream としての ReadAsync は呼び出せる場合がある。
+            // ただし内部実装次第で実質同期になる可能性あり。
+            while ((bytesRead = await readerWav.ReadAsync(buffer, 0, buffer.Length, cancel)) > 0
+                   && writtenBytes < totalBytesToWrite)
+            {
+                // まだ書けるバイト数
+                long bytesRemaining = totalBytesToWrite - writtenBytes;
+
+                // 今回読み込んだ分が書き込める残り容量を超える場合は切り詰め
+                if (bytesRead > bytesRemaining)
+                {
+                    bytesRead = (int)bytesRemaining;
+                }
+
+                // dst へ書き込み (これは async メソッド)
+                await writer.WriteAsync(buffer, 0, bytesRead, cancel);
+
+                writtenBytes += bytesRead;
+            }
+        }
+
+        // 6. まだ必要なバイト数が残っていたら無音(0)で埋める
+        if (writtenBytes < totalBytesToWrite)
+        {
+            long bytesToFill = totalBytesToWrite - writtenBytes;
+            var silenceBuffer = new byte[8192];
+
+            while (bytesToFill > 0)
+            {
+                int writeSize = (int)Math.Min(silenceBuffer.Length, bytesToFill);
+
+                await writer.WriteAsync(silenceBuffer, 0, writeSize, cancel);
+
+                bytesToFill -= writeSize;
+            }
+        }
+
+        // WaveFileWriter / Stream を using により閉じる (Disposeされる) ことで
+        //  WAV ヘッダが正しく書き込まれる。
+    }
+
+    private static async Task CreateSilentWavAsync(int sampleRate, int bitsPerSample, int channels,
+        int durationMsecs, string filePath, CancellationToken cancel = default)
+    {
+        var waveFormat = new WaveFormat(sampleRate, bitsPerSample, channels);
+        long totalSamples = (long)Math.Round(waveFormat.SampleRate * (durationMsecs / 1000.0));
+        long totalBytesToWrite = totalSamples * waveFormat.BlockAlign;
+
+        await using var fs = File.Create(filePath);
+        await using var writer = new WaveFileWriter(fs, waveFormat);
+
+        var silenceBuffer = new byte[65536];
+        long written = 0;
+        while (written < totalBytesToWrite)
+        {
+            int toWrite = (int)Math.Min(silenceBuffer.Length, totalBytesToWrite - written);
+            await writer.WriteAsync(silenceBuffer, 0, toWrite, cancel);
+            written += toWrite;
+        }
+    }
+
 }
 
 public class AiUtilBasicSettings
