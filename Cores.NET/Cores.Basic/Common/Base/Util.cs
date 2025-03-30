@@ -9199,9 +9199,11 @@ public class ShuffleQueue<T>
 {
     readonly List<T> AllItemsList;
     readonly Queue<T> CurrentQueue = new Queue<T>();
+    readonly int RandContinueCount = 0;
 
-    public ShuffleQueue(IEnumerable<T> elements)
+    public ShuffleQueue(IEnumerable<T> elements, int randContinueCount = 0)
     {
+        this.RandContinueCount = randContinueCount;
         this.AllItemsList = new List<T>(elements.ToArray());
         if (this.AllItemsList.Any() == false)
         {
@@ -9214,9 +9216,25 @@ public class ShuffleQueue<T>
         if (this.CurrentQueue.Count == 0)
         {
             var shuffled = this.AllItemsList.ToArray()._Shuffle().ToArray();
-            foreach (var item in shuffled)
+
+            if (RandContinueCount <= 1)
             {
-                this.CurrentQueue.Enqueue(item);
+                foreach (var item in shuffled)
+                {
+                    this.CurrentQueue.Enqueue(item);
+                }
+            }
+            else
+            {
+                foreach (var item in shuffled)
+                {
+                    int count = (Secure.RandSInt31() % RandContinueCount) + 1;
+
+                    for (int j = 0; j < count; j++)
+                    {
+                        this.CurrentQueue.Enqueue(item);
+                    }
+                }
             }
         }
 

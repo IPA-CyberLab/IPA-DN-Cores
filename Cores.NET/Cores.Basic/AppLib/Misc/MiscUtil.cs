@@ -86,11 +86,6 @@ public static partial class CoresConfig
 }
 
 
-public static class FfMpegUtilOkFileVersion
-{
-    public const int CurrentVersion = 20250329_06;
-}
-
 public class FfMpegUtilOptions
 {
     public string FfMpegExePath = "";
@@ -251,7 +246,7 @@ public class FfMpegUtil
 
         if (useOkFile)
         {
-            var okResult = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstFilePath, digest, FfMpegUtilOkFileVersion.CurrentVersion, cancel);
+            var okResult = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstFilePath, digest, AiUtilVersion.CurrentVersion, cancel);
             if (okResult.IsOk && okResult.Value != null) return okResult.Value;
         }
 
@@ -337,7 +332,7 @@ public class FfMpegUtil
 
         if (useOkFile)
         {
-            await Lfs.WriteOkFileAsync(dstFilePath, ret, digest, FfMpegUtilOkFileVersion.CurrentVersion, cancel);
+            await Lfs.WriteOkFileAsync(dstFilePath, ret, digest, AiUtilVersion.CurrentVersion, cancel);
         }
 
         return ret;
@@ -351,7 +346,7 @@ public class FfMpegUtil
 
         if (useOkFile)
         {
-            var okResult = await Lfs.ReadOkFileAsync<Tuple<FfMpegParsedList, FfMpegParsedList>>(dstWavFilePath, digest, FfMpegUtilOkFileVersion.CurrentVersion, cancel);
+            var okResult = await Lfs.ReadOkFileAsync<Tuple<FfMpegParsedList, FfMpegParsedList>>(dstWavFilePath, digest, AiUtilVersion.CurrentVersion, cancel);
             if (okResult.IsOk && okResult.Value != null) return okResult.Value;
         }
 
@@ -381,7 +376,7 @@ public class FfMpegUtil
 
         if (useOkFile)
         {
-            await Lfs.WriteOkFileAsync(dstWavFilePath, ret, digest, FfMpegUtilOkFileVersion.CurrentVersion, cancel);
+            await Lfs.WriteOkFileAsync(dstWavFilePath, ret, digest, AiUtilVersion.CurrentVersion, cancel);
         }
 
         return ret;

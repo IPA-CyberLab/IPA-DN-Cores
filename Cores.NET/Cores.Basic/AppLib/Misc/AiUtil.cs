@@ -72,9 +72,9 @@ public static partial class CoresConfig
     }
 }
 
-public static class AiUtilOkFileVersion
+public static class AiUtilVersion
 {
-    public const int CurrentVersion = 20250329_02;
+    public const int CurrentVersion = 20250330_03;
 }
 
 public class AiTask
@@ -282,7 +282,7 @@ public class AiTask
             throw new CoresLibException($"Directory '{sampleVoiceWavDirName}' has no music files.");
         }
 
-        for (int i = 0; i < maxTryCount;i++)
+        for (int i = 0; i < maxTryCount; i++)
         {
             try
             {
@@ -316,7 +316,7 @@ public class AiTask
 
                 string storyTitle = testName + "_" + i.ToString("D5");
 
-                await ConvertTextToVoiceAsync(thisText, sampleVoicePath, dstVoiceDirPath, tmpVoiceBoxDir, tmpVoiceWavDir, speakerIdToUse, diffusionSteps, seriesName, storyTitle, new int[] { 100, 125 }, cancel);
+                await ConvertTextToVoiceAsync(thisText, sampleVoicePath, dstVoiceDirPath, tmpVoiceBoxDir, tmpVoiceWavDir, speakerIdToUse._SingleArray(), diffusionSteps, seriesName, storyTitle, new int[] { 100, 125 }, cancel);
             }
             catch (Exception ex)
             {
@@ -326,7 +326,29 @@ public class AiTask
         }
     }
 
-    public async Task ConvertAllTextToVoiceAsync(string srcDirPath, string srcSampleVoiceFileNameOrRandDir, int speakerId, int diffusionSteps, string dstVoiceDirPath, string tmpVoiceBoxDir, string tmpVoiceWavDir, int[]? speedPercentList = null, CancellationToken cancel = default)
+    public static async Task<List<int>> ReadSpeakerIDListAsync(string listFileName, CancellationToken cancel = default)
+    {
+        List<int> ret = new List<int>();
+        var body = await Lfs.ReadStringFromFileAsync(listFileName, cancel: cancel);
+        foreach (var line in body._GetLines(true, true, trim: true))
+        {
+            var tokens = line._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, " ");
+            if (tokens.Length >= 2 && tokens[0]._IsFilled())
+            {
+                int speakerId = tokens[0]._ToInt();
+                int num = tokens[1]._ToInt();
+
+                for (int i = 0; i < num; i++)
+                {
+                    ret.Add(speakerId);
+                }
+            }
+        }
+
+        return ret;
+    }
+
+    public async Task ConvertAllTextToVoiceAsync(string srcDirPath, string srcSampleVoiceFileNameOrRandDir, string speakerIdStrOrListFilePath, bool mixedMode, int diffusionSteps, string dstVoiceDirPath, string tmpVoiceBoxDir, string tmpVoiceWavDir, int[]? speedPercentList = null, CancellationToken cancel = default)
     {
         ShuffleQueue<string>? sampleVoiceFileNameShuffleQueue = null;
         if (await Lfs.IsDirectoryExistsAsync(srcSampleVoiceFileNameOrRandDir, cancel))
@@ -342,13 +364,34 @@ public class AiTask
             }
         }
 
+        ShuffleQueue<int>? speakerIdShuffleForRotatin = null;
+
+        List<int> speakerIdListInOneFile = new List<int>();
+
+        if (speakerIdStrOrListFilePath._IsNumber())
+        {
+            speakerIdListInOneFile.Add(speakerIdStrOrListFilePath._ToInt());
+            mixedMode = false;
+        }
+        else
+        {
+            if (mixedMode == false)
+            {
+                speakerIdShuffleForRotatin = new ShuffleQueue<int>(await ReadSpeakerIDListAsync(speakerIdStrOrListFilePath, cancel));
+            }
+            else
+            {
+                speakerIdListInOneFile = await ReadSpeakerIDListAsync(speakerIdStrOrListFilePath, cancel);
+            }
+        }
+
         var seriesDirList = await Lfs.EnumDirectoryAsync(srcDirPath, cancel: cancel);
 
         foreach (var seriesDir in seriesDirList.Where(x => x.IsDirectory && x.IsCurrentOrParentDirectory == false).OrderBy(x => x.Name, StrCmpi))
         {
             var srcTextList = await Lfs.EnumDirectoryAsync(seriesDir.FullPath, true, cancel: cancel);
 
-            foreach (var srcTextFile in srcTextList.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Text)).OrderBy(x => x.Name, StrCmpi))
+            foreach (var srcTextFile in srcTextList.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Text) && x.Name.StartsWith("_") == false).OrderBy(x => x.Name, StrCmpi))
             {
                 try
                 {
@@ -359,19 +402,35 @@ public class AiTask
                         srcSampleVoiceFile = sampleVoiceFileNameShuffleQueue.GetNext();
                     }
 
-                    int speakerIdToUse = speakerId;
+                    /*int speakerIdToUse = speakerId;
 
                     if (speakerIdToUse < 0)
                     {
                         speakerIdToUse = Secure.RandSInt31() % 99; /* 0 ～ 98 */
-                    }
+                    //}*/
 
                     string srcText = await Lfs.ReadStringFromFileAsync(srcTextFile.FullPath, maxSize: 2 * 1024 * 1024, cancel: cancel);
 
                     string seriesName = PP.GetFileName(PP.GetDirectoryName(srcTextFile.FullPath))._Normalize(false, true, false, true);
                     string storyTitle = PPWin.GetFileNameWithoutExtension(srcTextFile.FullPath)._Normalize(false, true, false, true);
 
-                    await ConvertTextToVoiceAsync(srcText, srcSampleVoiceFile, dstVoiceDirPath, tmpVoiceBoxDir, tmpVoiceWavDir, speakerIdToUse, diffusionSteps, seriesName, storyTitle, speedPercentList, cancel);
+                    List<int> speakerIdListForThisFile;
+
+                    if (mixedMode == false)
+                    {
+                        speakerIdListForThisFile = speakerIdShuffleForRotatin!.GetNext()._SingleList();
+                    }
+                    else
+                    {
+                        speakerIdListForThisFile = speakerIdListInOneFile.ToList();
+                    }
+
+                    await ConvertTextToVoiceAsync(srcText, srcSampleVoiceFile, dstVoiceDirPath, tmpVoiceBoxDir, tmpVoiceWavDir, speakerIdListForThisFile, diffusionSteps, seriesName, storyTitle, speedPercentList, cancel);
+
+                    // テキストファイルの先頭に _ を付ける
+                    string newFilePath = PP.Combine(PP.GetDirectoryName(srcTextFile.FullPath), "_" + PP.GetFileName(srcTextFile.FullPath));
+
+                    await Lfs.MoveFileAsync(srcTextFile.FullPath, newFilePath);
                 }
                 catch (Exception ex)
                 {
@@ -382,10 +441,20 @@ public class AiTask
         }
     }
 
-    public async Task ConvertTextToVoiceAsync(string srcText, string srcSampleVoicePath, string dstVoiceDirPath, string tmpVoiceBoxDir, string tmpVoiceWavDir, int speakerId, int diffusionSteps, string seriesName, string storyTitle, int[]? speedPercentList = null, CancellationToken cancel = default)
+    public async Task ConvertTextToVoiceAsync(string srcText, string srcSampleVoicePath, string dstVoiceDirPath, string tmpVoiceBoxDir, string tmpVoiceWavDir, IEnumerable<int> speakerIdList, int diffusionSteps, string seriesName, string storyTitle, int[]? speedPercentList = null, CancellationToken cancel = default)
     {
         if (speedPercentList == null || speedPercentList.Any() == false)
             speedPercentList = new int[] { 100 };
+
+        string speakerIdStr;
+        if (speakerIdList.Count() == 1)
+        {
+            speakerIdStr = speakerIdList.Single().ToString("D3");
+        }
+        else
+        {
+            speakerIdStr = "mixed";
+        }
 
         string safeSeriesName = PPWin.MakeSafeFileName(seriesName, true, true, true);
 
@@ -393,20 +462,20 @@ public class AiTask
 
         string safeVoiceTitle = PPWin.GetFileNameWithoutExtension(srcSampleVoicePath)._Normalize(false, true, false, true);
 
-        string tmpVoiceBoxWavPath = PP.Combine(tmpVoiceBoxDir, $"{safeSeriesName} - {safeStoryTitle} - {speakerId:D3}.wav");
+        string tmpVoiceBoxWavPath = PP.Combine(tmpVoiceBoxDir, $"{safeSeriesName} - {safeStoryTitle} - {speakerIdStr}.wav");
 
-        string tagTitle = $"{safeSeriesName} - {safeStoryTitle} - {speakerId:D3}";
+        string tagTitle = $"{safeSeriesName} - {safeStoryTitle} - {speakerIdStr}";
 
         await using (var vv = new AiUtilVoiceVoxEngine(this.Settings, this.FfMpeg))
         {
             if (tagTitle._IsEmpty()) tagTitle = storyTitle._TruncStrEx(16);
 
-            await vv.TextToWavAsync(srcText, speakerId, tmpVoiceBoxWavPath, tagTitle, true, cancel);
+            await vv.TextToWavAsync(srcText, speakerIdList, tmpVoiceBoxWavPath, tagTitle, true, cancel);
         }
 
-        string tmpVoiceWavPath = PP.Combine(tmpVoiceWavDir, $"{safeSeriesName} - {safeStoryTitle} - {safeVoiceTitle} - {speakerId:D3}.wav");
+        string tmpVoiceWavPath = PP.Combine(tmpVoiceWavDir, $"{safeSeriesName} - {safeStoryTitle} - {safeVoiceTitle} - {speakerIdStr}.wav");
 
-        tagTitle = $"{safeSeriesName} - {safeStoryTitle} - {safeVoiceTitle} - {speakerId:D3}";
+        tagTitle = $"{safeSeriesName} - {safeStoryTitle} - {safeVoiceTitle} - {speakerIdStr}";
 
         await using (var seedvc = new AiUtilSeedVcEngine(this.Settings, this.FfMpeg))
         {
@@ -420,11 +489,11 @@ public class AiTask
             MediaMetaData meta = new MediaMetaData
             {
                 Album = safeSeriesName + $" - {speedStr}",
-                Title = $"{safeStoryTitle} - {safeVoiceTitle} - {speakerId:D3} - {speedStr}",
+                Title = $"{safeStoryTitle} - {safeVoiceTitle} - {speakerIdStr} - {speedStr}",
                 Artist = $"{safeSeriesName} - {safeVoiceTitle} - {speedStr}",
             };
 
-            string dstVoiceFlacPath = PP.Combine(dstVoiceDirPath, safeSeriesName, $"{safeSeriesName} - {speedStr} - {safeStoryTitle} - {safeVoiceTitle} - {speakerId:D3}.flac");
+            string dstVoiceFlacPath = PP.Combine(dstVoiceDirPath, safeSeriesName, $"{safeSeriesName} - {speedStr} - {safeStoryTitle} - {safeVoiceTitle} - {speakerIdStr}.flac");
 
             await FfMpeg.EncodeAudioAsync(tmpVoiceWavPath, dstVoiceFlacPath, FfMpegAudioCodec.Flac, 0, speed, meta, tagTitle, true, cancel);
         }
@@ -527,7 +596,7 @@ public class AiUtilSeedVcEngine : AiUtilBasicEngine
 
         if (useOkFile)
         {
-            if (await Lfs.IsOkFileExists(dstWavPath, digest, FfMpegUtilOkFileVersion.CurrentVersion, cancel))
+            if (await Lfs.IsOkFileExists(dstWavPath, digest, AiUtilVersion.CurrentVersion, cancel))
             {
                 return;
             }
@@ -543,7 +612,7 @@ public class AiUtilSeedVcEngine : AiUtilBasicEngine
 
         if (useOkFile)
         {
-            await Lfs.WriteOkFileAsync(dstWavPath, new OkFileEmptyMetaData(), digest, FfMpegUtilOkFileVersion.CurrentVersion, cancel);
+            await Lfs.WriteOkFileAsync(dstWavPath, new OkFileEmptyMetaData(), digest, AiUtilVersion.CurrentVersion, cancel);
         }
     }
 
@@ -618,16 +687,16 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
         this.FfMpeg = ffMpeg;
     }
 
-    public async Task<FfMpegParsedList> TextToWavAsync(string text, int speakerId /* 0 ～ 98 */, string dstWavPath, string tagTitle, bool useOkFile = true, CancellationToken cancel = default)
+    public async Task<FfMpegParsedList> TextToWavAsync(string text, IEnumerable<int> speakerIdList /* 0 ～ 98 */, string dstWavPath, string tagTitle, bool useOkFile = true, CancellationToken cancel = default)
     {
         return await TaskUtil.RetryAsync(async c =>
         {
-            return await TextToWavMainAsync(text, speakerId, dstWavPath, tagTitle, useOkFile, cancel);
+            return await TextToWavMainAsync(text, speakerIdList, dstWavPath, tagTitle, useOkFile, cancel);
         },
         200, 5, cancel, true);
     }
 
-    async Task<FfMpegParsedList> TextToWavMainAsync(string text, int speakerId /* 0 ～ 98 */, string dstWavPath, string tagTitle = "", bool useOkFile = true, CancellationToken cancel = default)
+    async Task<FfMpegParsedList> TextToWavMainAsync(string text, IEnumerable<int> speakerIdList /* 0 ～ 98 */, string dstWavPath, string tagTitle = "", bool useOkFile = true, CancellationToken cancel = default)
     {
         if (tagTitle._IsEmpty()) tagTitle = "voicetext";
 
@@ -635,14 +704,15 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
 
         var textBlockList = SplitText(text);
 
-        string digest = $"text={textBlockList._LinesToStr()._Digest()},speakerId={speakerId},targetMaxVolume={Settings.AdjustAudioTargetMaxVolume},targetMeanVolume={Settings.AdjustAudioTargetMeanVolume}";
+        string digest = $"text={textBlockList._LinesToStr()._Digest()},speakerId={speakerIdList.Select(x => x.ToString())._Combine("+")},targetMaxVolume={Settings.AdjustAudioTargetMaxVolume},targetMeanVolume={Settings.AdjustAudioTargetMeanVolume}";
 
         if (useOkFile)
         {
-            var okResult = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstWavPath, digest, FfMpegUtilOkFileVersion.CurrentVersion, cancel);
+            var okResult = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstWavPath, digest, AiUtilVersion.CurrentVersion, cancel);
             if (okResult.IsOk && okResult.Value != null) return okResult.Value;
         }
 
+        ShuffleQueue<int> speakerIdShuffleQueue = new ShuffleQueue<int>(speakerIdList, 3);
 
         await using var exec = await TaskUtil.RetryAsync(async c =>
         {
@@ -681,10 +751,11 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
         for (int i = 0; i < textBlockList.Count; i++)
         {
             string block = textBlockList[i];
+            int speakerId = speakerIdShuffleQueue.GetNext();
 
             byte[] blockWavData = await TextBlockToWavAsync(block, speakerId);
 
-            var tmpPath = await Lfs.GenerateUniqueTempFilePathAsync($"{tagTitle}_{i:D8}", ".wav", cancel: cancel);
+            var tmpPath = await Lfs.GenerateUniqueTempFilePathAsync($"{tagTitle}_{i:D8}_speaker{speakerId:D3}", ".wav", cancel: cancel);
 
             await Lfs.WriteDataToFileAsync(tmpPath, blockWavData, FileFlags.AutoCreateDirectory, cancel: cancel);
 
@@ -692,7 +763,7 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
 
             totalFileSize += blockWavData.LongLength;
 
-            Con.WriteLine($"{SimpleAiName}: {tagTitle}: Text to Wav: {(i + 1)._ToString3()}/{textBlockList.Count._ToString3()}, Size: {totalFileSize._ToString3()} bytes");
+            Con.WriteLine($"{SimpleAiName}: {tagTitle}: Text to Wav: {(i + 1)._ToString3()}/{textBlockList.Count._ToString3()}, Size: {totalFileSize._ToString3()} bytes, Speaker: {speakerId:D3}");
         }
 
         Con.WriteLine($"{SimpleAiName}: {tagTitle}: Combining...");
@@ -758,7 +829,7 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
 
         if (useOkFile)
         {
-            await Lfs.WriteOkFileAsync(dstWavPath, results.Item2, digest, FfMpegUtilOkFileVersion.CurrentVersion, cancel);
+            await Lfs.WriteOkFileAsync(dstWavPath, results.Item2, digest, AiUtilVersion.CurrentVersion, cancel);
         }
 
         return results.Item2;
@@ -842,7 +913,7 @@ public class AiUtilUvrEngine : AiUtilBasicEngine
             FfMpegParsedList? savedResult = null;
             if (dstMusicWavPath._IsFilled())
             {
-                var okFileForDstMusicWavPath = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstMusicWavPath, "", AiUtilOkFileVersion.CurrentVersion, cancel);
+                var okFileForDstMusicWavPath = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstMusicWavPath, "", AiUtilVersion.CurrentVersion, cancel);
                 if (okFileForDstMusicWavPath.IsOk)
                 {
                     dstMusicWavPath = null;
@@ -852,7 +923,7 @@ public class AiUtilUvrEngine : AiUtilBasicEngine
 
             if (dstVocalWavPath._IsFilled())
             {
-                var okFileForDstVocalWavPath = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstVocalWavPath, "", AiUtilOkFileVersion.CurrentVersion, cancel);
+                var okFileForDstVocalWavPath = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstVocalWavPath, "", AiUtilVersion.CurrentVersion, cancel);
                 if (okFileForDstVocalWavPath.IsOk)
                 {
                     dstVocalWavPath = null;
@@ -877,7 +948,7 @@ public class AiUtilUvrEngine : AiUtilBasicEngine
 
             if (useOkFile)
             {
-                await Lfs.WriteOkFileAsync(dstMusicWavPath, result.Item1, "", AiUtilOkFileVersion.CurrentVersion, cancel);
+                await Lfs.WriteOkFileAsync(dstMusicWavPath, result.Item1, "", AiUtilVersion.CurrentVersion, cancel);
             }
         }
 
@@ -888,7 +959,7 @@ public class AiUtilUvrEngine : AiUtilBasicEngine
 
             if (useOkFile)
             {
-                await Lfs.WriteOkFileAsync(dstVocalWavPath, result.Item1, "", AiUtilOkFileVersion.CurrentVersion, cancel);
+                await Lfs.WriteOkFileAsync(dstVocalWavPath, result.Item1, "", AiUtilVersion.CurrentVersion, cancel);
             }
         }
 
