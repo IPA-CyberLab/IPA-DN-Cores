@@ -247,12 +247,30 @@ public class AiTask
         ShuffleQueue<string> sampleVoiceFileNameShuffleQueue;
 
 
-        List<int> randIntList = new();
+        List<int> randIntListAll = new();
         for (int i = 0; i <= 98; i++)
         {
-            randIntList.Add(i);
+            randIntListAll.Add(i);
         }
-        ShuffleQueue<int> speakerIdShuffleQueue = new ShuffleQueue<int>(randIntList);
+        ShuffleQueue<int> speakerIdShuffleQueueAll = new ShuffleQueue<int>(randIntListAll);
+
+        List<int> randIntListTokutei = new();
+        randIntListTokutei.Add(8);
+        randIntListTokutei.Add(4);
+        randIntListTokutei.Add(4);
+        randIntListTokutei.Add(43);
+        randIntListTokutei.Add(43);
+        randIntListTokutei.Add(48);
+        randIntListTokutei.Add(58);
+        randIntListTokutei.Add(58);
+        randIntListTokutei.Add(58);
+        randIntListTokutei.Add(60);
+        randIntListTokutei.Add(60);
+        randIntListTokutei.Add(68);
+        randIntListTokutei.Add(90);
+        randIntListTokutei.Add(90);
+        ShuffleQueue<int> speakerIdShuffleQueueTokutei = new ShuffleQueue<int>(randIntListTokutei);
+
 
         var randSampleVoiceFilesList = await Lfs.EnumDirectoryAsync(sampleVoiceWavDirName, false, wildcard: "*.wav", cancel: cancel);
         if (randSampleVoiceFilesList.Any())
@@ -279,48 +297,18 @@ public class AiTask
                     if (speakerIdToUse == -2)
                     {
                         int rand1 = Secure.RandSInt31() % 3;
-                        if (rand1 == 0)
+                        if (rand1 != 0)
                         {
-                            switch (Secure.RandSInt31() % 8)
-                            {
-                                case 0:
-                                    speakerIdToUse = 0;
-                                    break;
-                                case 1:
-                                    speakerIdToUse = 4;
-                                    break;
-                                case 2:
-                                    speakerIdToUse = 43;
-                                    break;
-                                case 3:
-                                    speakerIdToUse = 48;
-                                    break;
-                                case 4:
-                                    speakerIdToUse = 58;
-                                    break;
-                                case 5:
-                                    speakerIdToUse = 60;
-                                    break;
-                                case 6:
-                                    speakerIdToUse = 68;
-                                    break;
-                                case 7:
-                                    speakerIdToUse = 90;
-                                    break;
-                            }
-                        }
-                        else if (rand1 == 1)
-                        {
-                            speakerIdToUse = 58;
+                            speakerIdToUse = speakerIdShuffleQueueTokutei.GetNext();
                         }
                         else
                         {
-                            speakerIdToUse = speakerIdShuffleQueue.GetNext();
+                            speakerIdToUse = speakerIdShuffleQueueAll.GetNext();
                         }
                     }
                     else
                     {
-                        speakerIdToUse = speakerIdShuffleQueue.GetNext();
+                        speakerIdToUse = speakerIdShuffleQueueAll.GetNext();
                     }
                 }
 
