@@ -74,12 +74,15 @@ public static partial class CoresConfig
 
 public static class AiUtilVersion
 {
-    public const int CurrentVersion = 20250330_03;
+    public const int CurrentVersion = 20250330_04;
 }
 
 public class AiTask
 {
-    public const double BgmVolumeDelta = -0.3;
+    public const double BgmVolumeDeltaForConstant = -9.3;
+    public const double BgmVolumeDeltaForSmooth = -1.0;
+
+    public const int DefaultFadeoutSecs = 30;
 
     public FfMpegUtil FfMpeg { get; }
     public AiUtilBasicSettings Settings { get; }
@@ -288,7 +291,7 @@ public class AiTask
         {
             try
             {
-                var sampleVoicePath = sampleVoiceFileNameShuffleQueue.GetNext();
+                var sampleVoicePath = sampleVoiceFileNameShuffleQueue.Dequeue();
 
                 string thisText = srcText.Substring(Secure.RandSInt31() % (srcText.Length - textLengthOfRandomPart), textLengthOfRandomPart);
 
@@ -301,16 +304,16 @@ public class AiTask
                         int rand1 = Secure.RandSInt31() % 3;
                         if (rand1 != 0)
                         {
-                            speakerIdToUse = speakerIdShuffleQueueTokutei.GetNext();
+                            speakerIdToUse = speakerIdShuffleQueueTokutei.Dequeue();
                         }
                         else
                         {
-                            speakerIdToUse = speakerIdShuffleQueueAll.GetNext();
+                            speakerIdToUse = speakerIdShuffleQueueAll.Dequeue();
                         }
                     }
                     else
                     {
-                        speakerIdToUse = speakerIdShuffleQueueAll.GetNext();
+                        speakerIdToUse = speakerIdShuffleQueueAll.Dequeue();
                     }
                 }
 
@@ -401,7 +404,7 @@ public class AiTask
 
                     if (sampleVoiceFileNameShuffleQueue != null)
                     {
-                        srcSampleVoiceFile = sampleVoiceFileNameShuffleQueue.GetNext();
+                        srcSampleVoiceFile = sampleVoiceFileNameShuffleQueue.Dequeue();
                     }
 
                     /*int speakerIdToUse = speakerId;
@@ -420,7 +423,7 @@ public class AiTask
 
                     if (mixedMode == false)
                     {
-                        speakerIdListForThisFile = speakerIdShuffleForRotatin!.GetNext()._SingleList();
+                        speakerIdListForThisFile = speakerIdShuffleForRotatin!.Dequeue()._SingleList();
                     }
                     else
                     {
@@ -569,7 +572,7 @@ public class AiTask
         return ret;
     }
 
-    public async Task AddRandomBgmToVoiceFileAsync(string srcVoiceFilePath, string dstFilePath, string srcMusicWavsDirPath, FfMpegAudioCodec codec, int kbps = 0, int fadeOutSecs = 0, double adjustDelta = AiTask.BgmVolumeDelta, CancellationToken cancel = default)
+    public async Task<FfMpegParsedList> AddRandomBgmToVoiceFileAsync(string srcVoiceFilePath, string dstDir, string srcMusicWavsDirPath, FfMpegAudioCodec codec, AiRandomBgmSettings settings, bool smoothMode, int kbps = 0, int fadeOutSecs = AiTask.DefaultFadeoutSecs, bool useOkFile = true, CancellationToken cancel = default)
     {
         var srcVoiceFileMetaData = await FfMpeg.ReadMetaDataWithFfProbeAsync(srcVoiceFilePath, cancel: cancel);
 
@@ -600,31 +603,76 @@ public class AiTask
         newMeta.Title = newMeta.Title._ReplaceStr(" - x", " - bgm_x");
         newMeta.Artist = newMeta.Artist._ReplaceStr(" - x", " - bgm_x");
 
+        string dstFileName;
+        string dstExtension = FfMpegUtil.GetExtensionFromCodec(codec);
+
+        if (newMeta.HasValue())
+        {
+            dstFileName = $"{newMeta.Album} - {newMeta.Title}{dstExtension}";
+        }
+        else
+        {
+            string tmp1 = PP.GetFileNameWithoutExtension(srcVoiceFilePath);
+            string tmp2 = tmp1._ReplaceStr(" - x", " - bgm_x");
+
+            if (tmp1._IsSamei(tmp2))
+            {
+                tmp2 = tmp1 + " - bgm";
+            }
+
+            dstFileName = tmp2;
+        }
+
+        string dstFilePath = PP.Combine(dstDir, dstFileName);
+
+        double adjustDelta = smoothMode ? AiTask.BgmVolumeDeltaForSmooth : AiTask.BgmVolumeDeltaForConstant;
+
+        string digest = $"srcDurationMsecs={srcDurationMsecs},fadeOutSecs={fadeOutSecs},smoothMode={smoothMode},adjustDelta ={adjustDelta},codec={codec},kbps={kbps},meta={newMeta._ObjectToJson()._Digest()}";
+
+        if (useOkFile)
+        {
+            var okParsed = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstFilePath, digest, AiUtilVersion.CurrentVersion, cancel);
+            if (okParsed.IsOk && okParsed.Value != null)
+            {
+                return okParsed.Value;
+            }
+        }
+
+        await Lfs.DeleteFileIfExistsAsync(dstFilePath, cancel: cancel);
+        await Lfs.EnsureCreateDirectoryForFileAsync(dstFilePath, cancel: cancel);
+
         string voiceWavTmpPath = await Lfs.GenerateUniqueTempFilePathAsync("voicefile", ".wav", cancel: cancel);
 
         await FfMpeg.EncodeAudioAsync(srcVoiceFilePath, voiceWavTmpPath, FfMpegAudioCodec.Wav, useOkFile: false, cancel: cancel);
 
         string bgmWavTmpPath = await Lfs.GenerateUniqueTempFilePathAsync("bgmfile", ".wav", cancel: cancel);
 
-        await CreateRandomBgmFileAsync(srcMusicWavsDirPath, bgmWavTmpPath, srcDurationMsecs, fadeOutSecs, adjustDelta, cancel);
+        await CreateRandomBgmFileAsync(srcMusicWavsDirPath, bgmWavTmpPath, srcDurationMsecs, settings, fadeOutSecs, adjustDelta, cancel);
 
         string outWavTmpPath = await Lfs.GenerateUniqueTempFilePathAsync("bgmadded_file", ".wav", cancel: cancel);
 
-        await FfMpeg.AddBgmToVoiceFileAsync(voiceWavTmpPath, bgmWavTmpPath, outWavTmpPath, cancel);
+        await FfMpeg.AddBgmToVoiceFileAsync(voiceWavTmpPath, bgmWavTmpPath, outWavTmpPath, smoothMode: smoothMode, cancel: cancel);
 
-        await FfMpeg.EncodeAudioAsync(outWavTmpPath, dstFilePath, codec, kbps, useOkFile: false, metaData: newMeta, cancel: cancel);
+        var parsed = await FfMpeg.EncodeAudioAsync(outWavTmpPath, dstFilePath, codec, kbps, useOkFile: false, metaData: newMeta, cancel: cancel);
+
+        if (useOkFile)
+        {
+            await Lfs.WriteOkFileAsync(dstFilePath, parsed, digest, AiUtilVersion.CurrentVersion, cancel);
+        }
+
+        return parsed;
     }
 
-    public async Task CreateRandomBgmFileAsync(string srcMusicWavsDirPath, string dstWavFilePath, int totalDurationMsecs, int fadeOutSecs = 0, double adjustDelta = AiTask.BgmVolumeDelta, CancellationToken cancel = default)
+    public async Task CreateRandomBgmFileAsync(string srcMusicWavsDirPath, string dstWavFilePath, int totalDurationMsecs, AiRandomBgmSettings settings, int fadeOutSecs = AiTask.DefaultFadeoutSecs, double adjustDelta = AiTask.BgmVolumeDeltaForConstant, CancellationToken cancel = default)
     {
         string dstTmpFileName = await Lfs.GenerateUniqueTempFilePathAsync("concat2", ".wav", cancel: cancel);
 
-        await ConcatWavFileFromRandomDirAsync(srcMusicWavsDirPath, dstTmpFileName, totalDurationMsecs, fadeOutSecs, cancel);
+        await ConcatWavFileFromRandomDirAsync(srcMusicWavsDirPath, dstTmpFileName, totalDurationMsecs, settings, fadeOutSecs, cancel);
 
         await FfMpeg.AdjustAudioVolumeAsync(dstTmpFileName, dstWavFilePath, adjustDelta, cancel);
     }
 
-    public async Task ConcatWavFileFromRandomDirAsync(string srcMusicWavsDirPath, string dstWavFilePath, int totalDurationMsecs, int fadeOutSecs = 0, CancellationToken cancel = default)
+    public async Task ConcatWavFileFromRandomDirAsync(string srcMusicWavsDirPath, string dstWavFilePath, int totalDurationMsecs, AiRandomBgmSettings settings, int fadeOutSecs = AiTask.DefaultFadeoutSecs, CancellationToken cancel = default)
     {
         var srcWavList = await Lfs.EnumDirectoryAsync(srcMusicWavsDirPath, true, wildcard: "*.wav", cancel: cancel);
 
@@ -638,8 +686,6 @@ public class AiTask
             }
         }
 
-        //fileNamesList = fileNamesList._Shuffle().ToList();
-
         string dstTmpFileName;
 
         if (fadeOutSecs <= 0)
@@ -651,7 +697,14 @@ public class AiTask
             dstTmpFileName = await Lfs.GenerateUniqueTempFilePathAsync("concat", ".wav", cancel: cancel);
         }
 
-        await ConcatWavFileFromQueueAsync(fileNamesList, totalDurationMsecs, dstTmpFileName, cancel);
+        if (settings.Medley == false)
+        {
+            await ConcatWavFileFromQueueAsync(fileNamesList, totalDurationMsecs, dstTmpFileName, cancel);
+        }
+        else
+        {
+            await AiWaveConcatenateWithCrossFadeUtil.ConcatenateAsync(fileNamesList, totalDurationMsecs, settings, dstTmpFileName, cancel);
+        }
 
         if (fadeOutSecs > 0)
         {
@@ -673,12 +726,7 @@ public class AiTask
         int totalDurationMsecs,
         string dstWavFilePath, CancellationToken cancel = default)
     {
-        Queue<string> srcWavFilesQueue = new Queue<string>();
-
-        foreach (var srcFile in srcWavFilesList)
-        {
-            srcWavFilesQueue.Enqueue(srcFile);
-        }
+        ShuffleQueue<string> srcWavFilesQueue = new ShuffleQueue<string>(srcWavFilesList);
 
         await Lfs.DeleteFileIfExistsAsync(dstWavFilePath, cancel: cancel);
         await Lfs.EnsureCreateDirectoryForFileAsync(dstWavFilePath, cancel: cancel);
@@ -970,7 +1018,7 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
         for (int i = 0; i < textBlockList.Count; i++)
         {
             string block = textBlockList[i];
-            int speakerId = speakerIdShuffleQueue.GetNext();
+            int speakerId = speakerIdShuffleQueue.Dequeue();
 
             byte[] blockWavData = await TextBlockToWavAsync(block, speakerId);
 
@@ -1304,6 +1352,355 @@ public class AiUtilBasicEngine : AsyncService
         finally
         {
             await base.CleanupImplAsync(ex);
+        }
+    }
+}
+
+public class AiRandomBgmSettings
+{
+    public bool Medley = false;
+    public int SingleFilePartMSecs = 60 * 1000;
+    public int FadeoutMsecs = 5 * 1000;
+    public int PlusMinusPercentage = 44;
+    public int MarginMsecs = 15 * 1000;
+}
+
+public static class AiWaveConcatenateWithCrossFadeUtil
+{
+    /// <summary>
+    /// srcWavFilesQueue に含まれる WAV ファイルを順次読み込み、
+    /// 部分的に切り取ってフェードイン・フェードアウトを施し、
+    /// クロスフェードしながら合成した WAV ファイルを作成する。
+    /// </summary>
+    /// <param name="srcWaveFilesList">ソースの wav ファイル パスを格納したキュー</param>
+    /// <param name="singleFilePartMSecs">切り出し目安の長さ（ミリ秒）</param>
+    /// <param name="totalDurationMsecs">出力 WAV の合計長さ（ミリ秒）</param>
+    /// <param name="fadeoutMsecs">フェードイン／フェードアウトの時間（ミリ秒）</param>
+    /// <param name="dstWavFilePath">出力先 wav ファイル パス</param>
+    /// <param name="cancel">キャンセル用トークン</param>
+    /// <returns></returns>
+    public static async Task ConcatenateAsync(
+        IEnumerable<string> srcWaveFilesList,
+        int totalDurationMsecs,
+        AiRandomBgmSettings settings,
+        string dstWavFilePath,
+        CancellationToken cancel = default)
+    {
+        if (srcWaveFilesList == null || srcWaveFilesList.Any() == false)
+        {
+            throw new ArgumentException("ソースの WAV ファイル キューが空です。");
+        }
+        if (settings.SingleFilePartMSecs <= 0 ||
+            totalDurationMsecs <= 0 ||
+            settings.FadeoutMsecs <= 0)
+        {
+            throw new ArgumentException("パラメータが不正です。");
+        }
+
+        ShuffleQueue<string> srcWavFilesQueue = new(srcWaveFilesList);
+
+        //------------------------------------------------------------
+        // まずは1つ目の WAV ファイルからフォーマット情報を取得する
+        // キューをいったん取り出し、また戻す
+        //------------------------------------------------------------
+        string firstWav = srcWavFilesQueue.Peek();
+        WaveFormat? waveFormat;
+        await using (var firstFs = new FileStream(firstWav, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, useAsync: true))
+        using (var firstReader = new WaveFileReader(firstFs))
+        {
+            waveFormat = firstReader.WaveFormat;
+        }
+
+        // 以降の処理では、全ファイルが同じ waveFormat である前提
+
+        //------------------------------------------------------------
+        // 必要な変数を用意
+        //------------------------------------------------------------
+        var random = new Random(Secure.RandSInt31());
+        int currentTotalLengthMsecs = 0;
+        var partialDataList = new List<float[]>();  // 各「部分音声データ」（すでにフェードイン・アウトが施されているもの）を格納
+
+        // fade 時のサンプル数
+        int fadeSamples = (int)((long)settings.FadeoutMsecs * waveFormat.SampleRate / 1000) * waveFormat.Channels;
+
+        //------------------------------------------------------------
+        // ソース WAV のキューを消費しながら部分的に読み取る
+        //------------------------------------------------------------
+        while (srcWavFilesQueue.Count > 0)
+        {
+            cancel.ThrowIfCancellationRequested();
+
+            string wavPath = srcWavFilesQueue.Dequeue();
+
+            // WAV の総再生時間などを取得
+            // （NAudio は完全な async 読み込みではないが、FileStream を useAsync: true で開く）
+            int fileTotalMs;
+            await using (var fs = new FileStream(wavPath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096))
+            using (var reader = new WaveFileReader(fs))
+            {
+                fileTotalMs = (int)reader.TotalTime.TotalMilliseconds;
+
+                // ファイルが 2*fadeoutMsecs 未満ならスキップ
+                if (fileTotalMs < (settings.FadeoutMsecs * 2))
+                {
+                    continue;
+                }
+
+                // singleFilePartMSecs に対して上下30% の乱数を加味して thisFilePartMSecs を求める
+                //int variation = (int)((double)singleFilePartMSecs * 0.3);
+                int thisFilePartMSecs = Util.GenRandInterval(settings.SingleFilePartMSecs);
+                if (thisFilePartMSecs < 0) thisFilePartMSecs = 0;
+
+                // もし thisFilePartMSecs > fileTotalMs ならクリップ
+                if (thisFilePartMSecs > fileTotalMs)
+                {
+                    thisFilePartMSecs = fileTotalMs;
+                }
+
+                if (fileTotalMs < (thisFilePartMSecs + settings.MarginMsecs * 2))
+                {
+                    continue;
+                }
+
+                // ランダム開始位置 (0 ～ (fileTotalMs - thisFilePartMSecs))
+                int maxStartMs = fileTotalMs - thisFilePartMSecs;
+                if (maxStartMs < 0) maxStartMs = 0; // 念のため
+
+                int randStartMs = settings.MarginMsecs;
+                int randEndMs = maxStartMs - settings.MarginMsecs;
+                if (randEndMs < 0) randEndMs = 0; // 念のため
+
+                int startMs = random.Next(randStartMs, randEndMs + 1);
+
+                // 必要サンプル数の計算
+                int readSamples = MsecToSamples(thisFilePartMSecs, waveFormat);
+                int startOffsetSamples = MsecToSamples(startMs, waveFormat);
+
+                // WaveFileReader をサンプルプロバイダ化して読み取る
+                // まず、開始位置までシーク
+                reader.CurrentTime = TimeSpan.FromMilliseconds(startMs);
+                var sampleProvider = reader.ToSampleProvider();  // 32-bit float 変換プロバイダ
+
+                // 部分波形を取得
+                float[] partBuffer = new float[readSamples];
+                int actuallyRead = 0;
+                int totalRead = 0;
+                do
+                {
+                    cancel.ThrowIfCancellationRequested();
+
+                    // sampleProvider.Read は同期的に読み取るが、ファイルストリーム自体は async で開いている
+                    actuallyRead = sampleProvider.Read(partBuffer, totalRead, readSamples - totalRead);
+                    totalRead += actuallyRead;
+                } while (actuallyRead > 0 && totalRead < readSamples);
+
+                if (totalRead < readSamples)
+                {
+                    // 端数しか読めなかった場合、足りない分は 0 で埋める
+                    for (int i = totalRead; i < readSamples; i++)
+                    {
+                        partBuffer[i] = 0f;
+                    }
+                }
+
+                // フェードイン／フェードアウトを適用
+                ApplyFadeInOut(partBuffer, fadeSamples);
+
+                // この部分波形をリストに追加
+                partialDataList.Add(partBuffer);
+
+                // 加算
+                currentTotalLengthMsecs += (thisFilePartMSecs - settings.FadeoutMsecs);
+            }
+
+            // もし合計長が totalDurationMsecs を超えたらループを抜ける
+            if (currentTotalLengthMsecs >= (totalDurationMsecs + settings.FadeoutMsecs * 2))
+            {
+                break;
+            }
+        }
+
+        //------------------------------------------------------------
+        // partialDataList に「部分音声データ」が集まったので、
+        // これをクロスフェードしながら最終波形を作ってファイルに書き込む。
+        //------------------------------------------------------------
+        int totalDurationSamples = MsecToSamples(totalDurationMsecs, waveFormat);
+
+        // 最終出力用バッファ（float で一度合成）
+        float[] finalMixBuffer = new float[totalDurationSamples];
+        // ゼロ埋めされていると仮定
+
+        // クロスフェード重ね合わせ用
+        // ある部分音声データ i と i+1 のフェードアウト／フェードイン部を overlap する。
+        int overlapSamples = fadeSamples; // fadeoutMsecs に相当するサンプル数
+
+        // 現在の書き込み先位置（サンプル単位）
+        int currentPos = 0;
+
+        for (int i = 0; i < partialDataList.Count; i++)
+        {
+            cancel.ThrowIfCancellationRequested();
+
+            float[] partData = partialDataList[i];
+            int partLen = partData.Length;
+
+            if (i == 0)
+            {
+                // 最初の部分音声データはそのまま貼り付け開始
+                WriteOverlapAdd(
+                    source: partData,
+                    sourceOffset: 0,
+                    sourceCount: partLen,
+                    dest: finalMixBuffer,
+                    destOffset: 0);
+
+                currentPos = partLen;  // 貼り付け終わりの次のサンプル位置
+            }
+            else
+            {
+                // 2 個目以降は overlapSamples だけ前に重ね合わせる
+                int startPos = currentPos - overlapSamples;
+                if (startPos < 0) startPos = 0;
+
+                // 重ね合わせる分（partData の先頭 overlapSamples と、finalMix の後ろ overlapSamples）
+                int overlapCount = overlapSamples;
+                if (overlapCount > partLen) overlapCount = partLen;
+
+                // オーバーラップ部分
+                WriteOverlapAdd(
+                    source: partData,
+                    sourceOffset: 0,
+                    sourceCount: overlapCount,
+                    dest: finalMixBuffer,
+                    destOffset: startPos);
+
+                // オーバーラップ後の残り部分をコピー
+                int remain = partLen - overlapCount;
+                if (remain > 0)
+                {
+                    int writeDestPos = startPos + overlapCount;
+                    // finalMixBuffer が残り書ける長さ
+                    int canWrite = finalMixBuffer.Length - writeDestPos;
+                    if (canWrite < 0) canWrite = 0;
+                    if (remain > canWrite)
+                    {
+                        remain = canWrite;
+                    }
+
+                    if (remain > 0)
+                    {
+                        WriteOverlapAdd(
+                            source: partData,
+                            sourceOffset: overlapCount,
+                            sourceCount: remain,
+                            dest: finalMixBuffer,
+                            destOffset: writeDestPos);
+                    }
+                }
+
+                // 次の書き込み先位置は「(前回の終端) + (今回パート長) - overlap」
+                currentPos += (partLen - overlapSamples);
+            }
+
+            // もし finalMixBuffer の長さを超える場合、そこで打ち切る
+            if (currentPos >= totalDurationSamples)
+            {
+                break;
+            }
+        }
+
+        // もしまだ totalDurationSamples より短ければ、残りは無音(0)ですでに埋まっているので OK
+
+        //------------------------------------------------------------
+        // finalMixBuffer を waveFormat のフォーマット(例: 16bit PCM) でファイルに書き込む
+        //------------------------------------------------------------
+        await using (var outFs = new FileStream(dstWavFilePath, FileMode.Create, FileAccess.Write, FileShare.None, 4096, useAsync: true))
+        using (var writer = new WaveFileWriter(outFs, waveFormat))
+        {
+            // フォーマットが 16bit PCM の場合を想定した例。
+            // （もしオリジナルが IEEE Float だった場合はそのまま float -> バイト列変換で書き込んでも良いです。
+            //   あるいは NAudio の SampleProvider 系を駆使して WaveFileWriter に書くアプローチも可能です。）
+            if (waveFormat.Encoding == WaveFormatEncoding.Pcm && waveFormat.BitsPerSample == 16)
+            {
+                // float => short に変換しながら書き込み
+                short[] shortBuffer = new short[finalMixBuffer.Length];
+                for (int i = 0; i < finalMixBuffer.Length; i++)
+                {
+                    // float(-1.0～1.0) -> short(-32768～32767)
+                    float val = finalMixBuffer[i];
+                    if (val > 1.0f) val = 1.0f;
+                    if (val < -1.0f) val = -1.0f;
+                    shortBuffer[i] = (short)(val * short.MaxValue);
+                }
+
+                // バイナリデータとして書く
+                // WriteSamples は 16-bit の場合、配列長の 2倍バイト数が書き込まれる
+                writer.WriteSamples(shortBuffer, 0, shortBuffer.Length);
+            }
+            else
+            {
+                // PCM 16bit 以外の場合、適宜実装を変更
+                // 例: 32-bit float の WaveFormat を作って書く、など。
+                throw new NotImplementedException("16bit PCM 以外の形式は未対応のサンプルです。");
+            }
+        }
+
+        // 完了
+    }
+
+    /// <summary>
+    /// ミリ秒をサンプル数に変換するヘルパー関数
+    /// </summary>
+    private static int MsecToSamples(int msec, WaveFormat format)
+    {
+        long samples = (long)format.SampleRate * msec / 1000 * format.Channels;
+        if (samples > int.MaxValue) return int.MaxValue;
+        return (int)samples;
+    }
+
+    /// <summary>
+    /// 部分波形データにフェードイン／フェードアウトを掛ける（In/Out の長さは同じ）
+    /// </summary>
+    /// <param name="data">処理対象データ（float配列、-1～1 程度を想定）</param>
+    /// <param name="fadeSamples">フェードに要するサンプル数</param>
+    private static void ApplyFadeInOut(float[] data, int fadeSamples)
+    {
+        if (data.Length < fadeSamples * 2) return; // 既にこの時点で短すぎる場合は何もしない
+
+        // フェードイン
+        for (int i = 0; i < fadeSamples; i++)
+        {
+            float mul = (float)i / fadeSamples; // 0 ～ 1
+            data[i] *= mul;
+        }
+        // フェードアウト
+        for (int i = 0; i < fadeSamples; i++)
+        {
+            int idx = data.Length - fadeSamples + i;
+            float mul = 1.0f - (float)i / fadeSamples; // 1 ～ 0
+            data[idx] *= mul;
+        }
+    }
+
+    /// <summary>
+    /// source を dest に加算書き込み（OverlapAdd）するヘルパー
+    /// </summary>
+    private static void WriteOverlapAdd(
+        float[] source,
+        int sourceOffset,
+        int sourceCount,
+        float[] dest,
+        int destOffset)
+    {
+        int sMax = sourceOffset + sourceCount;
+        int dMax = destOffset + sourceCount;
+        if (sMax > source.Length) sMax = source.Length;
+        if (dMax > dest.Length) dMax = dest.Length;
+
+        int length = Math.Min(sMax - sourceOffset, dMax - destOffset);
+        for (int i = 0; i < length; i++)
+        {
+            dest[destOffset + i] += source[sourceOffset + i];
         }
     }
 }

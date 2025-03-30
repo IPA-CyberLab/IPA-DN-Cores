@@ -9201,6 +9201,8 @@ public class ShuffleQueue<T>
     readonly Queue<T> CurrentQueue = new Queue<T>();
     readonly int RandContinueCount = 0;
 
+    public int Count => (this.AllItemsList.Count == 0 ? 0 : int.MaxValue);
+
     public ShuffleQueue(IEnumerable<T> elements, int randContinueCount = 0)
     {
         this.RandContinueCount = randContinueCount;
@@ -9211,7 +9213,7 @@ public class ShuffleQueue<T>
         }
     }
 
-    public T GetNext()
+    public T Dequeue()
     {
         if (this.CurrentQueue.Count == 0)
         {
@@ -9238,11 +9240,79 @@ public class ShuffleQueue<T>
             }
         }
 
-        var ret = this.CurrentQueue.Dequeue();
-        if (ret == null) throw new CoresLibException("Queue is empty.");
+        return this.CurrentQueue.Dequeue();
+    }
 
-        return ret;
+    public T Peek()
+    {
+        if (this.CurrentQueue.Count == 0)
+        {
+            var shuffled = this.AllItemsList.ToArray()._Shuffle().ToArray();
+
+            if (RandContinueCount <= 1)
+            {
+                foreach (var item in shuffled)
+                {
+                    this.CurrentQueue.Enqueue(item);
+                }
+            }
+            else
+            {
+                foreach (var item in shuffled)
+                {
+                    int count = (Secure.RandSInt31() % RandContinueCount) + 1;
+
+                    for (int j = 0; j < count; j++)
+                    {
+                        this.CurrentQueue.Enqueue(item);
+                    }
+                }
+            }
+        }
+
+        return this.CurrentQueue.Peek();
     }
 }
 
+public class EndlessQueue<T>
+{
+    readonly List<T> AllItemsList;
+    readonly Queue<T> CurrentQueue = new Queue<T>();
 
+    public int Count => (this.AllItemsList.Count == 0 ? 0 : int.MaxValue);
+
+    public EndlessQueue(IEnumerable<T> elements)
+    {
+        this.AllItemsList = new List<T>(elements.ToArray());
+    }
+
+    public T Dequeue()
+    {
+        if (this.CurrentQueue.Count == 0)
+        {
+            var tmp = this.AllItemsList.ToArray().ToArray();
+
+            foreach (var item in tmp)
+            {
+                this.CurrentQueue.Enqueue(item);
+            }
+        }
+
+        return this.CurrentQueue.Dequeue();
+    }
+
+    public T Peek()
+    {
+        if (this.CurrentQueue.Count == 0)
+        {
+            var tmp = this.AllItemsList.ToArray().ToArray();
+
+            foreach (var item in tmp)
+            {
+                this.CurrentQueue.Enqueue(item);
+            }
+        }
+
+        return this.CurrentQueue.Peek();
+    }
+}

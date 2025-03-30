@@ -288,13 +288,44 @@ public class FfMpegUtil
         this.Options = options;
     }
 
-    public async Task<FfMpegParsedList> AddBgmToVoiceFileAsync(string srcVoiceFilePath, string srcBgmFilePath, string dstWavFilePath, CancellationToken cancel = default)
+    public static string GetExtensionFromCodec(FfMpegAudioCodec codec)
+    {
+        switch (codec)
+        {
+            case FfMpegAudioCodec.Aac:
+                return ".m4a";
+
+            case FfMpegAudioCodec.Flac:
+                return ".flac";
+
+            case FfMpegAudioCodec.Mp3:
+                return ".mp3";
+
+            case FfMpegAudioCodec.Wav:
+                return ".wav";
+        }
+
+        throw new CoresLibException(nameof(codec));
+    }
+
+    public async Task<FfMpegParsedList> AddBgmToVoiceFileAsync(string srcVoiceFilePath, string srcBgmFilePath, string dstWavFilePath, bool smoothMode = true, CancellationToken cancel = default)
     {
         string cmdLine = $"-y -i {srcVoiceFilePath._EnsureQuotation()} -i {srcBgmFilePath._EnsureQuotation()} -vn ";
 
         cmdLine += "-reset_timestamps 1 -ar 44100 -ac 2 -c:a pcm_s16le -map_metadata -1 -f wav ";
 
-        string filterStr = "-filter_complex \"[1:a][0:a]sidechaincompress=threshold=0.1:ratio=10:attack=20:release=200[ducked]; [0:a][ducked]amix=inputs=2:duration=longest[out]\" -map \"[out]\" ";
+        string filterStr;
+
+        if (smoothMode == false)
+        {
+            filterStr = "-filter_complex \"amix=inputs=2:duration=longest:dropout_transition=0\" ";
+        }
+        else
+        {
+            //filterStr = "-filter_complex \"[1:a][0:a]sidechaincompress=threshold=0.1:ratio=10:attack=20:release=200[ducked]; [0:a][ducked]amix=inputs=2:duration=longest[out]\" -map \"[out]\" ";
+
+            filterStr = "-filter_complex \"[1:a][0:a]sidechaincompress=threshold=0.1:ratio=20:attack=200:release=4000[ducked]; [0:a][ducked]amix=inputs=2:duration=longest[out]\" -map \"[out]\" ";
+        }
 
         cmdLine += filterStr;
 
