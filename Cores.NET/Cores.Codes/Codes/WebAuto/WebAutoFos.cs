@@ -113,43 +113,34 @@ public class WebAutoFos : AsyncService
     {
         await Window.GoToUrlAsync(FosSettings.BaseUrl);
 
-        Where();
+        // model-switcher-o1-pro           o1 pro mode
+        // model-switcher-o3-mini-high     o3-mini-high
+        // model-switcher-o3-mini          o3-mini
+        // model-switcher-o1               o1
+        // model-switcher-gpt-4-5          GPT-4.5
+        // model-switcher-gpt-4o           GPT-4o
 
-        var aiModelSelectBox = await Window.WaitAndFindElementAsync(e =>
-        {
-            Where();
 
-            var list = e.FindElements(By.CssSelector("button[data-testid*='model-switcher-dropdown-button']"));
-
-            list.Count._Print();
-
-            var found = list.LastOrDefault();
-
-            //var found = e.FindElement(By.CssSelector("button[data-testid*='model-switcher-dropdown-button']"));
-            //var found = e.FindElement(By.XPath("//button[contains(@data-testid, 'model-switcher-dropdown-button')]"));
-            //var found = e.FindElement(By.Id("radix-:r6:"));
-            Where();
-
-            if (found == null)
-            {
-                Where();
-                return null;
-            }
-            if (found.Displayed == false)
-            {
-                found.Text._Print();
-                Where();
-                return null;
-            }
-            Where();
-            return found;
-        });
+        var aiModelSelectBox = await Window.WaitAndFindElementAsync(e => e.FindElements(By.CssSelector("button[data-testid*='model-switcher-dropdown-button']")), cancel: cancel);
         Window.StartActionAt(aiModelSelectBox).Click().Perform();
 
-        var x = Driver.FindElements(By.PartialLinkText("o1 pro mode"));
-
+        //var x = Driver.FindElements(By.PartialLinkText("o1 pro mode"));
+        //var o1ProModeItem = await Window.WaitAndFindElementAsync(e => e.FindElements(By.XPath("//*[contains(text(), 'o1 pro mode')]")));
+        var o1ProModeItem = await Window.WaitAndFindElementAsync(e => e.FindElements(By.XPath("//div[@data-radix-popper-content-wrapper]//div[@role='menuitem' and @data-testid='model-switcher-o1-pro']")), cancel: cancel);
+        Window.StartActionAt(o1ProModeItem).Click().Perform();
 
         Where();
+
+        await Window.WaitUntilAsync(driver =>
+        {
+            string url = driver.Url;
+            return url.EndsWith("/?model=o1-pro", StrCmpi);
+        }, cancel: cancel);
+
+        Where();
+
+
+        DoNothing();
     }
 
     protected override async Task CleanupImplAsync(Exception? ex)

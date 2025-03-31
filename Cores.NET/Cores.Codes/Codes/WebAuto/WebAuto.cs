@@ -205,7 +205,7 @@ public class WebAutoWindow : AsyncService
         return action;
     }
 
-    public async Task<IWebElement> WaitAndFindElementAsync(Func<IWebDriver, IWebElement?> condition, int? timeout = null, CancellationToken cancel = default)
+    public async Task<IWebElement> WaitAndFindElementAsync(Func<IWebDriver, IEnumerable<IWebElement>> condition, int? timeout = null, CancellationToken cancel = default)
     {
         IWebElement? ret = null;
 
@@ -219,7 +219,10 @@ public class WebAutoWindow : AsyncService
             }
             try
             {
-                ret = condition(Driver);
+                var candidates = condition(Driver);
+
+                ret = candidates.Where(x => x.Displayed).SingleOrDefault();
+
                 if (ret != null)
                 {
                     return true;
