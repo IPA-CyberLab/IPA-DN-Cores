@@ -230,6 +230,8 @@ namespace IPA.Cores.Basic
         EasyPrintRealtimeStdOut = 4,            // stdout データをリアルタイムで表示する
         EasyPrintRealtimeStdErr = 8,            // stderr データをリアルタイムで表示する
         UnixAutoFullPath = 16,                  // UNIX 用コマンドで自動フルパス解決をする
+        DoNotConnectPipe = 32,                  // パイプを接続しない
+        DoNotKill = 64,                         // Dispose 時にプロセスを Kill しない
 
         Default = KillProcessGroup | ExecFlags.EasyInputOutputMode | UnixAutoFullPath,
     }
@@ -521,6 +523,21 @@ namespace IPA.Cores.Basic
             StrDictionary<string>? additionalEnvVars = null,
             Encoding? inputEncoding = null, Encoding? outputEncoding = null, Encoding? errorEncoding = null)
         {
+            if (flags.Bit(ExecFlags.EasyInputOutputMode) && flags.Bit(ExecFlags.DoNotKill))
+            {
+                throw new CoresLibException($"DoNotKill flag cannot set when EasyInputOutputMode is set");
+            }
+
+            if (flags.Bit(ExecFlags.EasyInputOutputMode) && flags.Bit(ExecFlags.DoNotConnectPipe))
+            {
+                throw new CoresLibException($"DoNotConnectPipe flag cannot set when EasyInputOutputMode is set");
+            }
+
+            if (flags.Bit(ExecFlags.DoNotKill) && flags.Bit(ExecFlags.DoNotConnectPipe) == false)
+            {
+                throw new CoresLibException($"DoNotConnectPipe flag must set when DoNotKill is set");
+            }
+
             this.CommandName = commandName._NullCheck();
             if (Env.IsUnix == false || flags.Bit(ExecFlags.UnixAutoFullPath) == false)
             {
@@ -687,7 +704,19 @@ namespace IPA.Cores.Basic
         {
             get
             {
-                return _ExitCode ?? throw new CoresException("Process is still running.");
+                if (this.Options.Flags.Bit(ExecFlags.DoNotConnectPipe) == false)
+                {
+                    return _ExitCode ?? throw new CoresException("Process is still running.");
+                }
+                else
+                {
+                    if (Proc.HasExited == false)
+                    {
+                        throw new CoresException("Process is still running.");
+                    }
+
+                    return Proc.ExitCode;
+                }
             }
         }
 
@@ -718,9 +747,16 @@ namespace IPA.Cores.Basic
         {
             get
             {
-                if (_ExitCode == null) return false;
-                if ((_ExitCode ?? 0) == 0) return false;
-                return _TimeoutedFlag;
+                if (this.Options.Flags.Bit(ExecFlags.DoNotConnectPipe) == false)
+                {
+                    if (_ExitCode == null) return false;
+                    if ((_ExitCode ?? 0) == 0) return false;
+                    return _TimeoutedFlag;
+                }
+                else
+                {
+                    return false;
+                }
             }
         }
 
@@ -730,9 +766,16 @@ namespace IPA.Cores.Basic
         {
             get
             {
-                if (StartTick == 0 || EndTick == 0) return 0;
+                if (this.Options.Flags.Bit(ExecFlags.DoNotConnectPipe) == false)
+                {
+                    if (StartTick == 0 || EndTick == 0) return 0;
 
-                return EndTick - StartTick;
+                    return EndTick - StartTick;
+                }
+                else
+                {
+                    return long.MaxValue;
+                }
             }
         }
 
@@ -746,10 +789,10 @@ namespace IPA.Cores.Basic
                 {
                     FileName = options.FileName,
                     UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    RedirectStandardInput = true,
-                    CreateNoWindow = true,
+                    RedirectStandardOutput = !this.Options.Flags.Bit(ExecFlags.DoNotConnectPipe),
+                    RedirectStandardError = !this.Options.Flags.Bit(ExecFlags.DoNotConnectPipe),
+                    RedirectStandardInput = !this.Options.Flags.Bit(ExecFlags.DoNotConnectPipe),
+                    CreateNoWindow = !this.Options.Flags.Bit(ExecFlags.DoNotConnectPipe),
                     WorkingDirectory = options.CurrentDirectory._NullIfEmpty()!,
                 };
 
@@ -781,22 +824,35 @@ namespace IPA.Cores.Basic
 
                 this.ProcessId = Proc.Id;
 
-                // 標準入出力を接続する
-                this.StandardPipePoint_MySide = PipePoint.NewDuplexPipeAndGetOneSide(PipePointSide.A_LowerSide);
-                this._InputOutputPipePoint = this.StandardPipePoint_MySide.CounterPart._NullCheck();
-                this.StandardPipeWrapper = new PipePointStreamWrapper(StandardPipePoint_MySide, Proc.StandardOutput.BaseStream, Proc.StandardInput.BaseStream);
+                if (this.Options.Flags.Bit(ExecFlags.DoNotConnectPipe) == false)
+                {
+                    // 標準入出力を接続する
+                    this.StandardPipePoint_MySide = PipePoint.NewDuplexPipeAndGetOneSide(PipePointSide.A_LowerSide);
+                    this._InputOutputPipePoint = this.StandardPipePoint_MySide.CounterPart._NullCheck();
+                    this.StandardPipeWrapper = new PipePointStreamWrapper(StandardPipePoint_MySide, Proc.StandardOutput.BaseStream, Proc.StandardInput.BaseStream);
 
-                // 標準エラー出力を接続する
-                this.ErrorPipePoint_MySide = PipePoint.NewDuplexPipeAndGetOneSide(PipePointSide.A_LowerSide);
-                this._ErrorPipePoint = this.ErrorPipePoint_MySide.CounterPart._NullCheck();
-                this.ErrorPipeWrapper = new PipePointStreamWrapper(ErrorPipePoint_MySide, Proc.StandardError.BaseStream, Stream.Null);
+                    // 標準エラー出力を接続する
+                    this.ErrorPipePoint_MySide = PipePoint.NewDuplexPipeAndGetOneSide(PipePointSide.A_LowerSide);
+                    this._ErrorPipePoint = this.ErrorPipePoint_MySide.CounterPart._NullCheck();
+                    this.ErrorPipeWrapper = new PipePointStreamWrapper(ErrorPipePoint_MySide, Proc.StandardError.BaseStream, Stream.Null);
+                }
+                else
+                {
+                    // 警告抑制
+                    this.StandardPipePoint_MySide = null!;
+                    this.StandardPipeWrapper = null!;
+                    this.ErrorPipePoint_MySide = null!;
+                    this.ErrorPipeWrapper = null!;
+                    this._InputOutputPipePoint = null!;
+                    this._ErrorPipePoint = null!;
+                }
 
                 if (options.Flags.Bit(ExecFlags.EasyInputOutputMode))
                 {
-                    this.EasyInputOutputStub = this._InputOutputPipePoint.GetNetAppProtocolStub(noCheckDisconnected: true);
+                    this.EasyInputOutputStub = this._InputOutputPipePoint!.GetNetAppProtocolStub(noCheckDisconnected: true);
                     this.EasyInputOutputStream = this.EasyInputOutputStub.GetStream();
 
-                    this.EasyErrorStub = this._ErrorPipePoint.GetNetAppProtocolStub(noCheckDisconnected: true);
+                    this.EasyErrorStub = this._ErrorPipePoint!.GetNetAppProtocolStub(noCheckDisconnected: true);
                     this.EasyErrorStream = this.EasyErrorStub.GetStream();
 
                     if (options.EasyInputStr != null && options.EasyInputStr.Length >= 1)
@@ -820,7 +876,10 @@ namespace IPA.Cores.Basic
                     }
                 }
 
-                this.StartMainLoop(MainLoopAsync);
+                if (this.Options.Flags.Bit(ExecFlags.DoNotConnectPipe) == false)
+                {
+                    this.StartMainLoop(MainLoopAsync);
+                }
             }
             catch
             {
@@ -1071,6 +1130,12 @@ namespace IPA.Cores.Basic
         {
             await Task.Yield();
 
+            // Assert
+            if (this.Options.Flags.Bit(ExecFlags.DoNotConnectPipe))
+            {
+                throw new CoresLibException("Fatal error. Cannot be reached here.");
+            }
+
             try
             {
                 // 終了するまで待機する (Cancel された場合は Kill されるので以下の待機は自動的に解除される)
@@ -1137,9 +1202,21 @@ namespace IPA.Cores.Basic
         // 終了まで待機する
         public async Task<int> WaitForExitAsync(int timeout = Timeout.Infinite, CancellationToken cancel = default)
         {
-            await ExitEvent.WaitAsync(timeout, cancel);
+            if (this.Options.Flags.Bit(ExecFlags.DoNotConnectPipe) == false)
+            {
+                await ExitEvent.WaitAsync(timeout, cancel);
 
-            return this._ExitCode ?? -1;
+                return this._ExitCode ?? -1;
+            }
+            else
+            {
+                if (Proc.WaitForExit(timeout) == false)
+                {
+                    return -1;
+                }
+
+                return Proc.ExitCode;
+            }
         }
         public int WaitForExit(int timeout = Timeout.Infinite, CancellationToken cancel = default)
             => WaitForExitAsync(timeout, cancel)._GetResult();
@@ -1175,7 +1252,10 @@ namespace IPA.Cores.Basic
         {
             try
             {
-                KillProcessInternal();
+                if (this.Options.Flags.Bit(ExecFlags.DoNotKill) == false)
+                {
+                    KillProcessInternal();
+                }
             }
             finally
             {

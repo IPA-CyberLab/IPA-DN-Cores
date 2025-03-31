@@ -208,6 +208,8 @@ public static partial class Consts
         public const int FntpMainteDaemonHealthPort = 7014;
         public const int FntpMainteDaemonHttpAdminPort = 7015;
         public const int FntpMainteDaemonHttpWhoAmIPort = 7016;
+        public const int WebAutoChromeDebuggerPort_Normal = 7022;
+        public const int WebAutoChromeDebuggerPort_Incognito = 7023;
     }
 
     public static partial class DaemonArgKeys
