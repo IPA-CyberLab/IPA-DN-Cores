@@ -90,56 +90,6 @@ public static partial class WebAutoConsts
     public static readonly Copenhagen<int> DefaultStartupRrytyCount = 3;
 }
 
-public static class WebAutoTest
-{
-    public static async Task TestAsync(string baseUrl)
-    {
-        /*ChromeOptions options = new ChromeOptions
-        {
-            DebuggerAddress = "127.0.0.1:7022",
-        };
-
-        using var service = ChromeDriverService.CreateDefaultService();
-        using var driver = new ChromeDriver(service, options, TimeSpan.FromMilliseconds(1000));
-
-        Where();
-
-        driver.SwitchTo().NewWindow(WindowType.Window);
-
-        Where();
-        await driver.Navigate().GoToUrlAsync("https://www.tulips.tsukuba.ac.jp/lib/");
-        Where();
-
-        Con.ReadLine();*/
-
-        var settings = new WebAutoSettings
-        {
-            ChromeExePath = @"C:\git\dndevtools\ChromePortable\134.0.6998.178\App\Chrome-bin\chrome.exe",
-            ChromeProfilePath_Normal = @"C:\tmp\yagi\webauto_profiles\pf001",
-            ChromeProfilePath_Incognito = @"C:\tmp\yagi\webauto_profiles\pf002",
-            IncognitoMode = false,
-        };
-
-        //await using var auto = new WebAuto(settings);
-
-        //await using var tab1 = auto.CreateWindowOrTab(true);
-
-        //await tab1.GoToUrlAsync("https://www.google.com/");
-
-        WebAutoFosSettings fosSettings = new WebAutoFosSettings()
-        {
-            BaseUrl = baseUrl,
-        };
-
-        await using var fos = new WebAutoFos(fosSettings, settings);
-
-        await fos.TestAsync();
-
-
-        Con.ReadLine("OK>");
-
-    }
-}
 
 public class WebAutoSettings
 {
