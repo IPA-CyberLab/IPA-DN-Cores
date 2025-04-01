@@ -543,7 +543,7 @@ public class AiTask
                         Artist = musicOnlyAlbumName + " - " + artistName,
                     };
 
-                    string dstMusicAacPath = PP.Combine(dstMusicDirPath, $"{musicOnlyAlbumName} - {safeArtistName} - {safeSongTitle}.m4a");
+                    string dstMusicAacPath = PP.Combine(dstMusicDirPath, $"{musicOnlyAlbumName} - {safeArtistName} - {formalSongTitle}.m4a");
 
                     await FfMpeg.EncodeAudioAsync(tmpMusicWavPath, dstMusicAacPath, FfMpegAudioCodec.Aac, 0, 100, meta, safeSongTitle, cancel: cancel);
                 }
