@@ -84,7 +84,7 @@ public static partial class WebAutoConsts
 {
     public static readonly Copenhagen<int> DefaultCommandTimeoutMsecs = 15 * 1000;
     public static readonly Copenhagen<int> DefaultPageLoadCommandTimeoutMsecs = 15 * 1000;
-    public static readonly Copenhagen<int> DefaultWaitTimeoutMsecs = 30 * 1000;
+    public static readonly Copenhagen<int> DefaultWaitTimeoutMsecs = 5 * 1000;
     public static readonly Copenhagen<int> DefaultStartupTimeoutMsecs = 3 * 1000;
     public static readonly Copenhagen<int> DefaultPortCheckTimeoutMsecs = 1 * 200;
     public static readonly Copenhagen<int> DefaultStartupRrytyCount = 3;
@@ -109,7 +109,7 @@ public class WebAutoSettings
     public int StartupRetryCount = WebAutoConsts.DefaultStartupRrytyCount;
     public int CommandTimeoutMsecs = WebAutoConsts.DefaultCommandTimeoutMsecs;
     public int PageLoadCommandTimeoutMsecs = WebAutoConsts.DefaultPageLoadCommandTimeoutMsecs;
-    public int WaitTimeoutMsecs = WebAutoConsts.DefaultWaitTimeoutMsecs;
+    public int FindElementWaitTimeoutMsecs = WebAutoConsts.DefaultWaitTimeoutMsecs;
 }
 
 public class WebAutoWindow : AsyncService
@@ -155,11 +155,21 @@ public class WebAutoWindow : AsyncService
         return action;
     }
 
-    public async Task<IWebElement> WaitAndFindElementAsync(Func<IWebDriver, IEnumerable<IWebElement>> condition, int? timeout = null, CancellationToken cancel = default)
+    public async Task<IWebElement> WaitAndFindElementAsync(Func<IWebDriver, IWebElement?> condition, int? timeout = null, CancellationToken cancel = default)
+    {
+        return await WaitAndFindElementAsync(driver =>
+        {
+            var item = condition(driver);
+            if (item == null) return null;
+            return item._SingleList();
+        }, timeout, cancel);
+    }
+
+    public async Task<IWebElement> WaitAndFindElementAsync(Func<IWebDriver, IEnumerable<IWebElement>?> condition, int? timeout = null, CancellationToken cancel = default)
     {
         IWebElement? ret = null;
 
-        timeout ??= this.Auto.Settings.WaitTimeoutMsecs;
+        timeout ??= this.Auto.Settings.FindElementWaitTimeoutMsecs;
 
         bool ok = await TaskUtil.AwaitWithPollAsync(timeout.Value, 33, () =>
         {
@@ -171,11 +181,14 @@ public class WebAutoWindow : AsyncService
             {
                 var candidates = condition(Driver);
 
-                ret = candidates.Where(x => x.Displayed).SingleOrDefault();
-
-                if (ret != null)
+                if (candidates != null)
                 {
-                    return true;
+                    ret = candidates.Where(x => x.Displayed).SingleOrDefault();
+
+                    if (ret != null)
+                    {
+                        return true;
+                    }
                 }
             }
             catch (Exception ex)
@@ -199,7 +212,7 @@ public class WebAutoWindow : AsyncService
 
     public async Task WaitUntilAsync(Func<IWebDriver, bool> condition, int? timeout = null, CancellationToken cancel = default)
     {
-        timeout ??= this.Auto.Settings.WaitTimeoutMsecs;
+        timeout ??= this.Auto.Settings.FindElementWaitTimeoutMsecs;
 
         bool ok = await TaskUtil.AwaitWithPollAsync(timeout.Value, 33, () =>
         {
