@@ -663,13 +663,15 @@ public class AiTask
 
         string bgmWavTmpPath = await Lfs.GenerateUniqueTempFilePathAsync("bgmfile", ".wav", cancel: cancel);
 
-        await CreateRandomBgmFileAsync(srcMusicWavsDirPath, bgmWavTmpPath, srcDurationMsecs, settings, fadeOutSecs, adjustDelta, cancel);
+        var retSrcList = await CreateRandomBgmFileAsync(srcMusicWavsDirPath, bgmWavTmpPath, srcDurationMsecs, settings, fadeOutSecs, adjustDelta, cancel);
 
         string outWavTmpPath = await Lfs.GenerateUniqueTempFilePathAsync("bgmadded_file", ".wav", cancel: cancel);
 
         await FfMpeg.AddBgmToVoiceFileAsync(voiceWavTmpPath, bgmWavTmpPath, outWavTmpPath, smoothMode: smoothMode, cancel: cancel);
 
         var parsed = await FfMpeg.EncodeAudioAsync(outWavTmpPath, dstFilePath, codec, kbps, useOkFile: false, metaData: newMeta, cancel: cancel);
+
+        parsed.Options_UsedBgmSrcFileList = retSrcList;
 
         if (useOkFile)
         {
@@ -679,17 +681,21 @@ public class AiTask
         return (parsed, dstFilePath);
     }
 
-    public async Task CreateRandomBgmFileAsync(string srcMusicWavsDirPath, string dstWavFilePath, int totalDurationMsecs, AiRandomBgmSettings settings, int fadeOutSecs = AiTask.DefaultFadeoutSecs, double adjustDelta = AiTask.BgmVolumeDeltaForConstant, CancellationToken cancel = default)
+    public async Task<List<string>> CreateRandomBgmFileAsync(string srcMusicWavsDirPath, string dstWavFilePath, int totalDurationMsecs, AiRandomBgmSettings settings, int fadeOutSecs = AiTask.DefaultFadeoutSecs, double adjustDelta = AiTask.BgmVolumeDeltaForConstant, CancellationToken cancel = default)
     {
         string dstTmpFileName = await Lfs.GenerateUniqueTempFilePathAsync("concat2", ".wav", cancel: cancel);
 
-        await ConcatWavFileFromRandomDirAsync(srcMusicWavsDirPath, dstTmpFileName, totalDurationMsecs, settings, fadeOutSecs, cancel);
+        List<string> retSrcList = await ConcatWavFileFromRandomDirAsync(srcMusicWavsDirPath, dstTmpFileName, totalDurationMsecs, settings, fadeOutSecs, cancel);
 
         await FfMpeg.AdjustAudioVolumeAsync(dstTmpFileName, dstWavFilePath, adjustDelta, cancel);
+
+        return retSrcList;
     }
 
-    public async Task ConcatWavFileFromRandomDirAsync(string srcMusicWavsDirPath, string dstWavFilePath, int totalDurationMsecs, AiRandomBgmSettings settings, int fadeOutSecs = AiTask.DefaultFadeoutSecs, CancellationToken cancel = default)
+    public async Task<List<string>> ConcatWavFileFromRandomDirAsync(string srcMusicWavsDirPath, string dstWavFilePath, int totalDurationMsecs, AiRandomBgmSettings settings, int fadeOutSecs = AiTask.DefaultFadeoutSecs, CancellationToken cancel = default)
     {
+        List<string> retSrcList;
+
         var srcWavList = await Lfs.EnumDirectoryAsync(srcMusicWavsDirPath, true, wildcard: "*.wav", cancel: cancel);
 
         List<string> fileNamesList = new List<string>();
@@ -715,11 +721,11 @@ public class AiTask
 
         if (settings.Medley == false)
         {
-            await ConcatWavFileFromQueueAsync(fileNamesList, totalDurationMsecs, dstTmpFileName, cancel);
+            retSrcList = await ConcatWavFileFromQueueAsync(fileNamesList, totalDurationMsecs, dstTmpFileName, cancel);
         }
         else
         {
-            await AiWaveConcatenateWithCrossFadeUtil.ConcatenateAsync(fileNamesList, totalDurationMsecs, settings, dstTmpFileName, cancel);
+            retSrcList = await AiWaveConcatenateWithCrossFadeUtil.ConcatenateAsync(fileNamesList, totalDurationMsecs, settings, dstTmpFileName, cancel);
         }
 
         if (fadeOutSecs > 0)
@@ -735,13 +741,17 @@ public class AiTask
                 $"-map_metadata -1 -f wav -af \"afade=t=out:st={startSecs}:d={fadeSecs}\" {dstWavFilePath._EnsureQuotation()}",
                 cancel: cancel);
         }
+
+        return retSrcList;
     }
 
-    public static async Task ConcatWavFileFromQueueAsync(
+    public static async Task<List<string>> ConcatWavFileFromQueueAsync(
         IEnumerable<string> srcWavFilesList,
         int totalDurationMsecs,
         string dstWavFilePath, CancellationToken cancel = default)
     {
+        List<string> retSrcList = new List<string>();
+
         ShuffleQueue<string> srcWavFilesQueue = new ShuffleQueue<string>(srcWavFilesList);
 
         await Lfs.DeleteFileIfExistsAsync(dstWavFilePath, cancel: cancel);
@@ -756,7 +766,7 @@ public class AiTask
             // return;
 
             // 何もしない場合
-            return;
+            return retSrcList;
         }
 
         // 2. まずキューの先頭を覗いてフォーマットを取得する
@@ -786,6 +796,8 @@ public class AiTask
 
             await using var sourceStream = File.Open(currentWavPath, FileMode.Open, FileAccess.Read, FileShare.Read);
             await using var readerWav = new WaveFileReader(sourceStream);
+
+            retSrcList.Add(currentWavPath);
 
             int bytesRead;
             // WaveFileReader は通常同期的な Read しか提供しないが、Stream としての ReadAsync は呼び出せる場合がある。
@@ -827,6 +839,7 @@ public class AiTask
 
         // WaveFileWriter / Stream を using により閉じる (Disposeされる) ことで
         //  WAV ヘッダが正しく書き込まれる。
+        return retSrcList;
     }
 
     private static async Task CreateSilentWavAsync(int sampleRate, int bitsPerSample, int channels,
@@ -1375,10 +1388,10 @@ public class AiUtilBasicEngine : AsyncService
 public class AiRandomBgmSettings
 {
     public bool Medley = false;
-    public int SingleFilePartMSecs = 100 * 1000;
-    public int FadeoutMsecs = 5 * 1000;
-    public int PlusMinusPercentage = 44;
-    public int MarginMsecs = 15 * 1000;
+    public int Medley_SingleFilePartMSecs = 100 * 1000;
+    public int Medley_FadeInOutMsecs = 5 * 1000;
+    public int Medley_PlusMinusPercentage = 44;
+    public int Medley_MarginMsecs = 15 * 1000;
 }
 
 public static class AiWaveConcatenateWithCrossFadeUtil
@@ -1395,7 +1408,7 @@ public static class AiWaveConcatenateWithCrossFadeUtil
     /// <param name="dstWavFilePath">出力先 wav ファイル パス</param>
     /// <param name="cancel">キャンセル用トークン</param>
     /// <returns></returns>
-    public static async Task ConcatenateAsync(
+    public static async Task<List<string>> ConcatenateAsync(
         IEnumerable<string> srcWaveFilesList,
         int totalDurationMsecs,
         AiRandomBgmSettings settings,
@@ -1406,12 +1419,14 @@ public static class AiWaveConcatenateWithCrossFadeUtil
         {
             throw new ArgumentException("ソースの WAV ファイル キューが空です。");
         }
-        if (settings.SingleFilePartMSecs <= 0 ||
+        if (settings.Medley_SingleFilePartMSecs <= 0 ||
             totalDurationMsecs <= 0 ||
-            settings.FadeoutMsecs <= 0)
+            settings.Medley_FadeInOutMsecs <= 0)
         {
             throw new ArgumentException("パラメータが不正です。");
         }
+
+        List<string> retSrcList = new List<string>();
 
         ShuffleQueue<string> srcWavFilesQueue = new(srcWaveFilesList);
 
@@ -1437,7 +1452,7 @@ public static class AiWaveConcatenateWithCrossFadeUtil
         var partialDataList = new List<float[]>();  // 各「部分音声データ」（すでにフェードイン・アウトが施されているもの）を格納
 
         // fade 時のサンプル数
-        int fadeSamples = (int)((long)settings.FadeoutMsecs * waveFormat.SampleRate / 1000) * waveFormat.Channels;
+        int fadeSamples = (int)((long)settings.Medley_FadeInOutMsecs * waveFormat.SampleRate / 1000) * waveFormat.Channels;
 
         //------------------------------------------------------------
         // ソース WAV のキューを消費しながら部分的に読み取る
@@ -1457,14 +1472,14 @@ public static class AiWaveConcatenateWithCrossFadeUtil
                 fileTotalMs = (int)reader.TotalTime.TotalMilliseconds;
 
                 // ファイルが 2*fadeoutMsecs 未満ならスキップ
-                if (fileTotalMs < (settings.FadeoutMsecs * 2))
+                if (fileTotalMs < (settings.Medley_FadeInOutMsecs * 2))
                 {
                     continue;
                 }
 
                 // singleFilePartMSecs に対して上下30% の乱数を加味して thisFilePartMSecs を求める
                 //int variation = (int)((double)singleFilePartMSecs * 0.3);
-                int thisFilePartMSecs = Util.GenRandInterval(settings.SingleFilePartMSecs);
+                int thisFilePartMSecs = Util.GenRandInterval(settings.Medley_SingleFilePartMSecs);
                 if (thisFilePartMSecs < 0) thisFilePartMSecs = 0;
 
                 // もし thisFilePartMSecs > fileTotalMs ならクリップ
@@ -1473,17 +1488,19 @@ public static class AiWaveConcatenateWithCrossFadeUtil
                     thisFilePartMSecs = fileTotalMs;
                 }
 
-                if (fileTotalMs < (thisFilePartMSecs + settings.MarginMsecs * 2))
+                if (fileTotalMs < (thisFilePartMSecs + settings.Medley_MarginMsecs * 2))
                 {
                     continue;
                 }
+
+                retSrcList.Add(wavPath);
 
                 // ランダム開始位置 (0 ～ (fileTotalMs - thisFilePartMSecs))
                 int maxStartMs = fileTotalMs - thisFilePartMSecs;
                 if (maxStartMs < 0) maxStartMs = 0; // 念のため
 
-                int randStartMs = settings.MarginMsecs;
-                int randEndMs = maxStartMs - settings.MarginMsecs;
+                int randStartMs = settings.Medley_MarginMsecs;
+                int randEndMs = maxStartMs - settings.Medley_MarginMsecs;
                 if (randEndMs < 0) randEndMs = 0; // 念のため
 
                 int startMs = random.Next(randStartMs, randEndMs + 1);
@@ -1526,11 +1543,11 @@ public static class AiWaveConcatenateWithCrossFadeUtil
                 partialDataList.Add(partBuffer);
 
                 // 加算
-                currentTotalLengthMsecs += (thisFilePartMSecs - settings.FadeoutMsecs);
+                currentTotalLengthMsecs += (thisFilePartMSecs - settings.Medley_FadeInOutMsecs);
             }
 
             // もし合計長が totalDurationMsecs を超えたらループを抜ける
-            if (currentTotalLengthMsecs >= (totalDurationMsecs + settings.FadeoutMsecs * 2))
+            if (currentTotalLengthMsecs >= (totalDurationMsecs + settings.Medley_FadeInOutMsecs * 2))
             {
                 break;
             }
@@ -1662,6 +1679,7 @@ public static class AiWaveConcatenateWithCrossFadeUtil
         }
 
         // 完了
+        return retSrcList;
     }
 
     /// <summary>

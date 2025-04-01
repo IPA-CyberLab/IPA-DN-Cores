@@ -1011,6 +1011,47 @@ public static partial class TaskUtil
         }
     }
 
+    public static async Task<bool> AwaitWithPollAsync(int timeout, int pollInterval, Func<Task<bool>> pollProc, CancellationToken cancel = default, bool randInterval = false)
+    {
+        long end_tick = Time.Tick64 + (long)timeout;
+
+        if (timeout == Timeout.Infinite)
+        {
+            end_tick = long.MaxValue;
+        }
+
+        while (true)
+        {
+            long now = Time.Tick64;
+            if (timeout != Timeout.Infinite)
+            {
+                if (now >= end_tick)
+                {
+                    return false;
+                }
+            }
+
+            long next_wait = (end_tick - now);
+            int val = randInterval ? Util.GenRandInterval(pollInterval) : pollInterval;
+            next_wait = Math.Min(next_wait, (long)val);
+            next_wait = Math.Max(next_wait, 1);
+
+            if (pollProc != null)
+            {
+                if (await pollProc())
+                {
+                    return true;
+                }
+            }
+
+            if (await cancel._WaitUntilCanceledAsync((int)next_wait))
+            {
+                // Canceled
+                return false;
+            }
+        }
+    }
+
     // ForEach 非同期実行。1 つでも失敗したら例外を発生させ、すべてキャンセルする
     public static async Task ForEachAsync<T>(int maxConcurrentTasks, IEnumerable<T> items, Func<T, int, CancellationToken, Task> func, CancellationToken cancel = default, int intervalBetweenTasks = 0)
     {

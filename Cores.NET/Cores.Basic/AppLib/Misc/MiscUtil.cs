@@ -174,6 +174,8 @@ public class FfMpegParsedList
 
     public List<FfMpegParsed> All = new List<FfMpegParsed>();
 
+    public List<string>? Options_UsedBgmSrcFileList = null;
+
     public FfMpegParsedList()
     {
         this.All.Add(this.Input);
@@ -2608,7 +2610,9 @@ public static partial class MiscUtil
                     break;
             }
 
-            return Str.DecodeString(data, encoding, out _, true);
+            string ret = Str.DecodeString(data, encoding, out _, true);
+
+            return ret;
         }
         catch
         {

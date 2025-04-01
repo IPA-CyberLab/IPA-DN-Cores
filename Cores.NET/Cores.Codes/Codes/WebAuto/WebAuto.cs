@@ -51,6 +51,7 @@ using System.Runtime.Serialization;
 using System.Runtime.CompilerServices;
 using System.Net;
 using System.Net.Sockets;
+using System.Drawing;
 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Routing;
@@ -94,10 +95,8 @@ public static partial class WebAutoConsts
 public class WebAutoSettings
 {
     public string ChromeExePath = "";
-    public string ChromeProfilePath_Normal = "";
-    public string ChromeProfilePath_Incognito = "";
-    public int ChromeDebuggerPort_Normal = Consts.Ports.WebAutoChromeDebuggerPort_Normal;
-    public int ChromeDebuggerPort_Incognito = Consts.Ports.WebAutoChromeDebuggerPort_Incognito;
+    public string ChromeProfilePath = "";
+    public int ChromeDebuggerPort = Consts.Ports.WebAutoChromeDebuggerPortDefault;
     public string ChromeProxyServer = "";
 
     public bool IncognitoMode;
@@ -141,6 +140,15 @@ public class WebAutoWindow : AsyncService
         }
     }
 
+    public byte[] CaptureScreenShotPng()
+    {
+        var screenshot = ((ITakesScreenshot)Driver).GetScreenshot();
+
+        using var ms = new MemoryStream(screenshot.AsByteArray);
+
+        return ms.ToArray();
+    }
+
     public async Task GoToUrlAsync(string url)
     {
         await this.Driver.Navigate().GoToUrlAsync(url);
@@ -155,23 +163,31 @@ public class WebAutoWindow : AsyncService
         return action;
     }
 
-    public async Task<IWebElement> WaitAndFindElementAsync(Func<IWebDriver, IWebElement?> condition, int? timeout = null, CancellationToken cancel = default)
+    public Actions NewActions()
     {
-        return await WaitAndFindElementAsync(driver =>
+        return new Actions(this.Driver);
+    }
+
+    public async Task<IWebElement> WaitAndFindElementAsync(Func<IWebDriver, Task<IWebElement?>> condition, int? timeout = null, CancellationToken cancel = default)
+    {
+        return await WaitAndFindElementAsync(async driver =>
         {
-            var item = condition(driver);
+            var item = await condition(driver);
             if (item == null) return null;
             return item._SingleList();
         }, timeout, cancel);
     }
 
-    public async Task<IWebElement> WaitAndFindElementAsync(Func<IWebDriver, IEnumerable<IWebElement>?> condition, int? timeout = null, CancellationToken cancel = default)
+    public Task<IWebElement> WaitAndFindElementAsync(Func<IWebDriver, IWebElement?> condition, int? timeout = null, CancellationToken cancel = default)
+        => WaitAndFindElementAsync(driver => condition(driver)._TR(), timeout, cancel);
+
+    public async Task<IWebElement> WaitAndFindElementAsync(Func<IWebDriver, Task<IEnumerable<IWebElement>?>> condition, int? timeout = null, CancellationToken cancel = default)
     {
         IWebElement? ret = null;
 
         timeout ??= this.Auto.Settings.FindElementWaitTimeoutMsecs;
 
-        bool ok = await TaskUtil.AwaitWithPollAsync(timeout.Value, 33, () =>
+        bool ok = await TaskUtil.AwaitWithPollAsync(timeout.Value, 33, async () =>
         {
             if (Driver.Url._IsEmpty())
             {
@@ -179,7 +195,7 @@ public class WebAutoWindow : AsyncService
             }
             try
             {
-                var candidates = condition(Driver);
+                var candidates = await condition(Driver);
 
                 if (candidates != null)
                 {
@@ -209,6 +225,9 @@ public class WebAutoWindow : AsyncService
 
         return ret;
     }
+    public Task<IWebElement> WaitAndFindElementAsync(Func<IWebDriver, IEnumerable<IWebElement>?> condition, int? timeout = null, CancellationToken cancel = default)
+        => WaitAndFindElementAsync(driver => condition(driver)._TR(), timeout, cancel);
+
 
     public async Task WaitUntilAsync(Func<IWebDriver, bool> condition, int? timeout = null, CancellationToken cancel = default)
     {
@@ -305,12 +324,12 @@ public class WebAuto : AsyncService
         {
             this.Settings = settings;
 
-            int port = settings.IncognitoMode ? settings.ChromeDebuggerPort_Incognito : settings.ChromeDebuggerPort_Normal;
+            int port = settings.ChromeDebuggerPort;
 
             List<string> chromeArgs = new();
             chromeArgs.Add("--disable-session-crashed-bubble");
             chromeArgs.Add($"--remote-debugging-port={port}");
-            chromeArgs.Add($"--user-data-dir={(settings.IncognitoMode ? settings.ChromeProfilePath_Incognito : settings.ChromeProfilePath_Normal)._EnsureQuotation()}");
+            chromeArgs.Add($"--user-data-dir={settings.ChromeProfilePath._EnsureQuotation()}");
             if (this.Settings.ChromeProxyServer._IsFilled())
             {
                 chromeArgs.Add($"--proxy-server={settings.ChromeProxyServer}");

@@ -146,6 +146,15 @@ public static class BasicHelper
     }
     public static ReadOnlySpan<byte> _UntilNullByte(this Span<byte> src) => _UntilNullByte(src._AsReadOnlySpan());
 
+    public static ReadOnlySpan<ushort> _UntilNullUShort(this ReadOnlySpan<ushort> src)
+    {
+        int r = src.IndexOf((ushort)0);
+        if (r == -1) return src;
+        return src.Slice(0, r);
+    }
+    public static ReadOnlySpan<ushort> _UntilNullUShort(this Span<ushort> src) => _UntilNullUShort(src._AsReadOnlySpan());
+
+
     public static ReadOnlyMemory<byte> _UntilNullByte(this ReadOnlyMemory<byte> src)
     {
         int r = src.Span.IndexOf((byte)0);
@@ -155,6 +164,19 @@ public static class BasicHelper
     public static ReadOnlyMemory<byte> _UntilNullByte(this Memory<byte> src) => _UntilNullByte(src._AsReadOnlyMemory());
 
     public static byte[] _UntilNullByte(this byte[] src) => src.AsSpan()._UntilNullByte().ToArray();
+
+
+    public static ReadOnlyMemory<ushort> _UntilNullUShort(this ReadOnlyMemory<ushort> src)
+    {
+        int r = src.Span.IndexOf((ushort)0);
+        if (r == -1) return src;
+        return src.Slice(0, r);
+    }
+    public static ReadOnlyMemory<ushort> _UntilNullUShort(this Memory<ushort> src) => _UntilNullUShort(src._UntilNullUShort());
+
+    public static ushort[] _UntilNullUShort(this ushort[] src) => src.AsSpan()._UntilNullUShort().ToArray();
+
+
 
     [MethodImpl(Inline)]
     public static byte[] _GetBytes_UTF8(this string str, bool bom = false) => Util.CombineByteArray(bom ? Str.GetBOM(Str.Utf8Encoding) : null, Str.Utf8Encoding.GetBytes(str));

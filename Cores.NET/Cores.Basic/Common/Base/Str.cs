@@ -3154,9 +3154,16 @@ namespace IPA.Cores.Basic
             if (detectedEncoding == null)
                 detectedEncoding = defaultEncoding;
 
+            bool isMultiByte = detectedEncoding.BodyName._IsSamei("utf-16") || detectedEncoding.BodyName._IsSamei("utf-16BE");
+
             data = data.Slice(bomSize);
 
-            if (untilNullByte) data = data._UntilNullByte();
+            if (untilNullByte)
+                if (isMultiByte == false)
+                    data = data._UntilNullByte();
+                else
+                    data = data._AsUInt16Span()._UntilNullUShort()._AsUInt8Span();
+
 
             return detectedEncoding.GetString(data);
         }
