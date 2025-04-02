@@ -71,6 +71,11 @@ using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Support.UI;
 using OpenQA.Selenium.Interactions;
 
+using OpenQA.Selenium.DevTools;
+using OpenQA.Selenium.DevTools.V134;
+//using OpenQA.Selenium.DevTools.V134.Network;
+//using DevToolsSessionDomains = OpenQA.Selenium.DevTools.V134.DevToolsSessionDomains;
+
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
@@ -91,6 +96,109 @@ public static partial class WebAutoConsts
     public static readonly Copenhagen<int> DefaultStartupRrytyCount = 3;
 }
 
+public static class WebAutoSeleniumHelper
+{
+    public static IWebElement GetParent(this IWebElement tag) => tag.FindElement(By.XPath(".."));
+    public static string GetOuterHtml(this IWebElement tag) => tag.GetAttribute("outerHTML")._NonNull();
+    public static string GetInnerHtml(this IWebElement tag) => tag.GetAttribute("innerHTML")._NonNull();
+    public static string GetThisTagHtml(this IWebElement tag)
+    {
+        // 1) 最初の ">" を探す
+        string outerHtml = tag.GetOuterHtml();
+        int closeBracketIndex = outerHtml.IndexOf('>');
+        if (closeBracketIndex == -1)
+        {
+            // 正常なタグ構造ではない (何らかのエラー)
+            throw new Exception("Invalid outerHTML: " + outerHtml);
+        }
+
+        // 2) 開始タグ部分だけを切り出す => "<div abc>"
+        string openingTag = outerHtml.Substring(0, closeBracketIndex + 1);
+
+        return openingTag;
+    }
+    public static List<IWebElement> GetThisAndParentTags(this IWebElement tag)
+    {
+        List<IWebElement> ret = new List<IWebElement>();
+        IWebElement currentElement = tag;
+
+        List<string> tmpList = new List<string>();
+
+        try
+        {
+            ret.Add(tag);
+
+            while (true)
+            {
+                currentElement = currentElement.FindElement(By.XPath(".."));
+
+                if (currentElement == null)
+                {
+                    break;
+                }
+
+                if (currentElement.TagName.Equals("html", StringComparison.OrdinalIgnoreCase))
+                {
+                    ret.Add(currentElement);
+                    break;
+                }
+
+                ret.Add(currentElement);
+            }
+        }
+        catch (NoSuchElementException)
+        {
+        }
+
+        return ret;
+    }
+    public static string GetThisAndParentTagsDebugStr(this IWebElement tag)
+    {
+        IWebElement currentElement = tag;
+
+        List<string> tmpList = new List<string>();
+
+        try
+        {
+            tmpList.Add(currentElement.GetThisTagHtml());
+
+            while (true)
+            {
+                currentElement = currentElement.FindElement(By.XPath(".."));
+                tmpList.Add(currentElement.GetThisTagHtml());
+
+                if (currentElement == null)
+                {
+                    break;
+                }
+
+                if (currentElement.TagName.Equals("html", StringComparison.OrdinalIgnoreCase))
+                {
+                    break;
+                }
+            }
+        }
+        catch (NoSuchElementException)
+        {
+        }
+
+        StringWriter w = new StringWriter();
+        w.NewLine = Str.NewLine_Str_Local;
+        for (int i = 0; i < tmpList.Count; i++)
+        {
+            int index = tmpList.Count - i - 1;
+            string s = tmpList[index];
+
+            w.WriteLine($"{Str.MakeCharArray(' ', i)}{s}");
+        }
+
+        return w.ToString();
+    }
+    public static void DebugThisAndParentTags(this IWebElement tag)
+    {
+        tag.GetThisAndParentTagsDebugStr()._Debug();
+    }
+}
 
 public class WebAutoSettings
 {
@@ -327,6 +435,10 @@ public class WebAuto : AsyncService
             int port = settings.ChromeDebuggerPort;
 
             List<string> chromeArgs = new();
+            chromeArgs.Add("--disable-cache");
+            chromeArgs.Add("--disable-application-cache");
+            chromeArgs.Add("--disable-offline-load-stale-cache");
+            chromeArgs.Add("--disk-cache-size=0");
             chromeArgs.Add("--disable-session-crashed-bubble");
             chromeArgs.Add($"--remote-debugging-port={port}");
             chromeArgs.Add($"--user-data-dir={settings.ChromeProfilePath._EnsureQuotation()}");
