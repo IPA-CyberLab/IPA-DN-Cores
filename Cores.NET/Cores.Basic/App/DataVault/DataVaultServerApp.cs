@@ -96,7 +96,7 @@ public class DataVaultLogBrowserHttpServerBuilder : LogBrowserHttpServerBuilder
     {
         RouteBuilder rb = new RouteBuilder(app);
 
-        rb._MapPostStandardHandler("/stat/", PostHandlerAsync);
+        rb._MapPostStandardHandler("/stat/", PostHandlerAsync, this.CancelToken);
 
         IRouter router = rb.Build();
         app.UseRouter(router);

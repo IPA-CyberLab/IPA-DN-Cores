@@ -10,6 +10,7 @@
     <TieredCompilationQuickJit>false</TieredCompilationQuickJit>
     <TieredCompilation>false</TieredCompilation>
     <EnableUnsafeBinaryFormatterSerialization>true</EnableUnsafeBinaryFormatterSerialization>
+    <NuGetAudit>false</NuGetAudit>
   </PropertyGroup>
 
   <ItemGroup>

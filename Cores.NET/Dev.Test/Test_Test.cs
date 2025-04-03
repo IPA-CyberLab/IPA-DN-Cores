@@ -5117,11 +5117,53 @@ HOST: www.google.com
 
     }
 
+    public static void StressTest1()
+    {
+        int num = 100;
+        ThroughputMeasuse m = new ThroughputMeasuse(1000, 1000);
+        m.StartPrinter("STRESS: ");
+
+        for (int i = 0; i < num; i++)
+        {
+            ThreadObj.Start(pp =>
+            {
+                while (true)
+                {
+                    using WebApi web = new WebApi(new WebApiOptions(new WebApiSettings { DoNotThrowHttpResultError = true, MaxConnectionPerServer = int.MaxValue, SslAcceptAnyCerts = true }, doNotUseTcpStack: true));
+                    try
+                    {
+                        var ret = web.SimpleQueryAsync(WebMethods.GET, "https://xxxxxx:8443/" + Str.GenRandStr())._GetResult();
+                        if (ret.StatusCode == HttpStatusCode.NotFound)
+                        {
+                            m.Add(1);
+                        }
+                        else
+                        {
+                            //throw new CoresException(ret.StatusCode.ToString());
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        //ex._Error();
+                    }
+                }
+            });
+        }
+
+        ThreadObj.Sleep(-1);
+    }
+
     public static void Test_Generic()
     {
         if (true)
         {
-            Test_241013()._GetResult();
+            StressTest1();
+            return;
+        }
+
+        if (true)
+        {
+            Test_240704()._GetResult();
             return;
         }
 
