@@ -18,6 +18,7 @@
     <EnableUnsafeBinaryFormatterSerialization>true</EnableUnsafeBinaryFormatterSerialization>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>embedded</DebugType>
+    <NuGetAudit>false</NuGetAudit>
   </PropertyGroup>
   
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
