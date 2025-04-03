@@ -271,7 +271,8 @@ public class HttpEasyContextBox
     public HttpResponse Response { get; }
     public ConnectionInfo ConnInfo { get; }
     public WebMethods Method { get; }
-    public CancellationToken Cancel { get; }
+    public CancellationToken CancelPerRequest { get; }     // HTTP コネクション単位のキャンセル指令が含まれる可能性がある Cancel
+    public CancellationToken CancelService { get; }     // Web サーバーサービスが停止されようとする際のみ叩かれる Cancel
     public IPEndPoint RemoteEndpoint { get; }
     public IPEndPoint LocalEndpoint { get; }
 
@@ -282,7 +283,7 @@ public class HttpEasyContextBox
     public QueryStringList QueryStringList { get; }
     public Uri PathAndQueryStringUri { get; }
 
-    public HttpEasyContextBox(HttpContext context)
+    public HttpEasyContextBox(HttpContext context, CancellationToken cancelService = default)
     {
         Context = context;
         RouteData = context.GetRouteData();
@@ -290,7 +291,8 @@ public class HttpEasyContextBox
         Response = context.Response;
         ConnInfo = context.Connection;
         Method = Request.Method._ParseEnum(WebMethods.GET);
-        Cancel = Request._GetRequestCancellationToken();
+        CancelPerRequest = Request._GetRequestCancellationToken();
+        CancelService = cancelService;
         RemoteEndpoint = new IPEndPoint(ConnInfo.RemoteIpAddress!._UnmapIPv4(), ConnInfo.RemotePort);
         LocalEndpoint = new IPEndPoint(ConnInfo.LocalIpAddress!._UnmapIPv4(), ConnInfo.LocalPort);
 
@@ -329,15 +331,15 @@ public delegate Task<HttpResult> HttpResultStandardRequestAsyncCallback(WebMetho
 
 public partial class HttpResult
 {
-    public static async Task EasyRequestHandler(HttpContext context, object? param, Func<HttpEasyContextBox, object?, Task<HttpResult>> callback)
+    public static async Task EasyRequestHandler(HttpContext context, object? param, Func<HttpEasyContextBox, object?, Task<HttpResult>> callback, CancellationToken cancelService = default)
     {
-        var box = context._GetHttpEasyContextBox();
+        var box = context._GetHttpEasyContextBox(cancelService);
 
         try
         {
             await using (HttpResult result = await callback(box, param))
             {
-                await box.Response._SendHttpResultAsync(result, box.Cancel);
+                await box.Response._SendHttpResultAsync(result, box.CancelPerRequest);
             }
         }
         catch (Exception ex)
@@ -346,24 +348,24 @@ public partial class HttpResult
 
             await using HttpResult errResult = new HttpStringResult("Error: " + ex.Message, statusCode: Consts.HttpStatusCodes.InternalServerError);
 
-            await box.Response._SendHttpResultAsync(errResult, box.Cancel);
+            await box.Response._SendHttpResultAsync(errResult, box.CancelPerRequest);
         }
     }
 
-    public static RequestDelegate GetStandardRequestHandler(HttpResultStandardRequestAsyncCallback handler)
+    public static RequestDelegate GetStandardRequestHandler(HttpResultStandardRequestAsyncCallback handler, CancellationToken cancelService = default)
     {
-        return (context) => StandardRequestHandlerAsync(context, handler);
+        return (context) => StandardRequestHandlerAsync(context, handler, cancelService);
     }
 
-    static async Task StandardRequestHandlerAsync(HttpContext context, HttpResultStandardRequestAsyncCallback callback)
+    static async Task StandardRequestHandlerAsync(HttpContext context, HttpResultStandardRequestAsyncCallback callback, CancellationToken cancelService = default)
     {
-        var box = new HttpEasyContextBox(context);
+        var box = new HttpEasyContextBox(context, cancelService);
 
         try
         {
-            await using (HttpResult result = await callback(box.Method, box.PathAndQueryStringUri.LocalPath, box.QueryStringList, context, box.RouteData, box.LocalEndpoint, box.RemoteEndpoint, box.Cancel))
+            await using (HttpResult result = await callback(box.Method, box.PathAndQueryStringUri.LocalPath, box.QueryStringList, context, box.RouteData, box.LocalEndpoint, box.RemoteEndpoint, box.CancelService))
             {
-                await box.Response._SendHttpResultAsync(result, box.Cancel);
+                await box.Response._SendHttpResultAsync(result, box.CancelPerRequest);
             }
         }
         catch (Exception ex)
@@ -372,7 +374,7 @@ public partial class HttpResult
 
             await using HttpResult errResult = new HttpStringResult("Error: " + ex.Message, statusCode: Consts.HttpStatusCodes.InternalServerError);
 
-            await box.Response._SendHttpResultAsync(errResult, box.Cancel);
+            await box.Response._SendHttpResultAsync(errResult, box.CancelPerRequest);
         }
     }
 }

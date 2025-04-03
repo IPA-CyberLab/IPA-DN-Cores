@@ -254,18 +254,18 @@ public static class WebServerHelper
         return ret;
     }
 
-    public static void _MapGetStandardHandler(this RouteBuilder routeBuilder, string template, HttpResultStandardRequestAsyncCallback handler)
+    public static void _MapGetStandardHandler(this RouteBuilder routeBuilder, string template, HttpResultStandardRequestAsyncCallback handler, CancellationToken cancelService = default)
     {
-        routeBuilder.MapGet(template, HttpResult.GetStandardRequestHandler(handler));
+        routeBuilder.MapGet(template, HttpResult.GetStandardRequestHandler(handler, cancelService));
     }
 
-    public static void _MapPostStandardHandler(this RouteBuilder routeBuilder, string template, HttpResultStandardRequestAsyncCallback handler)
+    public static void _MapPostStandardHandler(this RouteBuilder routeBuilder, string template, HttpResultStandardRequestAsyncCallback handler, CancellationToken cancelService = default)
     {
-        routeBuilder.MapPost(template, HttpResult.GetStandardRequestHandler(handler));
+        routeBuilder.MapPost(template, HttpResult.GetStandardRequestHandler(handler, cancelService));
     }
 
-    public static HttpEasyContextBox _GetHttpEasyContextBox(this HttpContext context)
-        => new HttpEasyContextBox(context);
+    public static HttpEasyContextBox _GetHttpEasyContextBox(this HttpContext context, CancellationToken cancelService = default)
+        => new HttpEasyContextBox(context, cancelService);
 }
 
 #endif // CORES_BASIC_WEBAPP

@@ -2058,7 +2058,7 @@ public class ThinController : AsyncService, IThinControllerRpcApi
 
     public async Task<HttpResult> HandleWpcAsync(HttpEasyContextBox box, object? param2)
     {
-        CancellationToken cancel = box.Cancel;
+        CancellationToken cancel = box.CancelService; // 2025.4.4 コネクション単位の Cancel 指令は、下位のサブルーチンに渡さないようにした。サービスそのものの停止指令のみ伝達するようにした。Sql 系の関数の Cancel の実装がおかしく、Kestrel で TCP レイヤで切断通知がなされた場合に何らかのフリーズが発生する可能性があるためである。
         HandleWpcParam param = (HandleWpcParam)param2!;
 
         // エンドユーザー用サービスポイントの場合、最大同時処理リクエスト数を制限する
@@ -2117,7 +2117,7 @@ public class ThinController : AsyncService, IThinControllerRpcApi
             string requestWpcString = "";
             if (box.Method == WebMethods.POST)
             {
-                requestWpcString = await box.Request._RecvStringContentsAsync((int)Pack.MaxPackSize * 2, cancel: cancel);
+                requestWpcString = await box.Request._RecvStringContentsAsync((int)Pack.MaxPackSize * 2, cancel: box.CancelPerRequest);
             }
 
             if (requestWpcString._IsFilled())
@@ -2181,7 +2181,7 @@ public class ThinController : AsyncService, IThinControllerRpcApi
                     ServiceType = serviceType,
                 };
 
-                await HttpResult.EasyRequestHandler(context, param, HandleWpcAsync);
+                await HttpResult.EasyRequestHandler(context, param, HandleWpcAsync, this.GrandCancel);
 
                 return;
             }
