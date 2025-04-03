@@ -2644,9 +2644,11 @@ public static partial class MiscUtil
             // [93..96]: Year (4 bytes), [97..126]: Comment (30 bytes), [127]: Genre
             // Track番号はID3v1.1の仕様でCommentの最後1バイトを使うが、混在があるので注意
 
-            string title = Encoding.GetEncoding("ISO-8859-1").GetString(tag, 3, 30).TrimEnd('\0', ' ');
-            string artist = Encoding.GetEncoding("ISO-8859-1").GetString(tag, 33, 30).TrimEnd('\0', ' ');
-            string album = Encoding.GetEncoding("ISO-8859-1").GetString(tag, 63, 30).TrimEnd('\0', ' ');
+            var data = tag.AsMemory();
+            var defaultEncoding = Str.ShiftJisEncoding;
+            string title = Str.DecodeStringAutoDetect(data.Slice(3, 30).Span, out _, true).TrimEnd();
+            string artist = Str.DecodeStringAutoDetect(data.Slice(33, 30).Span, out _, true).TrimEnd();
+            string album = Str.DecodeStringAutoDetect(data.Slice(63, 30).Span, out _, true).TrimEnd();
             // 年やコメントは省略
 
             // Track (ID3v1.1の場合: コメントの29バイト目が0で 30バイト目がトラック番号)
