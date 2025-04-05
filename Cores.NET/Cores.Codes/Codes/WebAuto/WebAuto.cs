@@ -204,6 +204,7 @@ public class WebAutoSettings
 {
     public string ChromeExePath = "";
     public string ChromeProfilePath = "";
+    public string ChromeDriverExePath = "";
     public int ChromeDebuggerPort = Consts.Ports.WebAutoChromeDebuggerPortDefault;
     public string ChromeProxyServer = "";
 
@@ -500,7 +501,17 @@ public class WebAuto : AsyncService
                     DebuggerAddress = $"127.0.0.1:{port}",
                 };
 
-                this.Service = ChromeDriverService.CreateDefaultService();
+
+                if (settings.ChromeDriverExePath._IsFilled())
+                {
+                    string driverExePath = settings.ChromeDriverExePath;
+
+                    this.Service = ChromeDriverService.CreateDefaultService(PP.GetDirectoryName(driverExePath), PP.GetFileName(driverExePath));
+                }
+                else
+                {
+                    this.Service = ChromeDriverService.CreateDefaultService();
+                }
                 this.Driver = new ChromeDriver(this.Service, options, TimeSpan.FromMilliseconds(settings.CommandTimeoutMsecs));
 
                 this.Driver.Manage().Timeouts().PageLoad = this.Settings.PageLoadCommandTimeoutMsecs._ToTimeSpanMSecs();
