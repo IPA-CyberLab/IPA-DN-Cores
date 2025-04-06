@@ -2592,6 +2592,37 @@ public abstract partial class FileSystem : AsyncService
         }
     }
 
+    public async Task<string> MoveFileAutoIncNameAsync(string srcPath, string destPath, CancellationToken cancel = default)
+    {
+        await Lfs.CreateDirectoryAsync(PP.GetDirectoryName(destPath));
+
+        string ret = await RetryHelper.RunAsync(async () =>
+        {
+            for (int i = 0; i < 10000; i++)
+            {
+                string tmp1 = destPath;
+                if (i != 0)
+                {
+                    string dir = PathParser.GetDirectoryName(destPath);
+                    string fn = PathParser.GetFileNameWithoutExtension(destPath, false);
+                    string ext = PathParser.GetExtension(destPath, false, true);
+
+                    tmp1 = PathParser.Combine(dir, $"{fn} ({i:D4}){ext}");
+                }
+
+                if (await Lfs.IsFileExistsAsync(tmp1, cancel) == false)
+                {
+                    await MoveFileAsync(srcPath, tmp1, cancel);
+                    return destPath;
+                }
+            }
+
+            throw new CoresException($"MoveFileAutoIncNameAsync: Destination path '{destPath}' alreay exists and failed to make incremented filename");
+        }, 1, 3, cancel);
+
+        return ret;
+    }
+
     public async Task MoveFileAsync(string srcPath, string destPath, CancellationToken cancel = default)
     {
         CheckWriteable(srcPath);

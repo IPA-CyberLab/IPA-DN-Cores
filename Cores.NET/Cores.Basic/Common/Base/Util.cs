@@ -7221,6 +7221,16 @@ namespace IPA.Cores.Basic
 
     public class KeyValueList<TKey, TValue> : List<KeyValuePair<TKey, TValue>>
     {
+        public KeyValueList(){}
+
+        public KeyValueList(IEnumerable<KeyValuePair<TKey, TValue>> srcData)
+        {
+            foreach (var kv in srcData)
+            {
+                this.Add(kv.Key, kv.Value);
+            }
+        }
+
         public void Add(TKey key, TValue value)
         {
             this.Add(new KeyValuePair<TKey, TValue>(key, value));

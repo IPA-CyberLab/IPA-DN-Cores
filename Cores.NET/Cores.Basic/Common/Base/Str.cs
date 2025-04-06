@@ -10417,6 +10417,14 @@ namespace IPA.Cores.Basic
 
         public QueryStringList() { }
 
+        public QueryStringList(IEnumerable<KeyValuePair<string, string>> srcData)
+        {
+            foreach (var kv in srcData)
+            {
+                this.Add(kv.Key, kv.Value);
+            }
+        }
+
         public QueryStringList(string queryString, Encoding? encoding = null, char splitChar = '&', bool trimKeyAndValue = false)
         {
             this.SplitChar = splitChar;
