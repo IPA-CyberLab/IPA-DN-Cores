@@ -708,11 +708,12 @@ public class AiTask
     }
 
 
-    public async Task<List<string>> CreateManyMusicMixAsync(DateTimeOffset timeStamp, IEnumerable<string> srcWavFilesPathList, string destDirPath, string albumName, string artist, AiRandomBgmSettings settings, FfMpegAudioCodec codec = FfMpegAudioCodec.Aac, int kbps = 0, int numRotate = 1, int durationOfSingleFileMsecs = 3 * 60 * 60 * 1000, int fadeOutSecs = AiTask.DefaultFadeoutSecs, CancellationToken cancel = default)
+    public async Task<List<string>> CreateManyMusicMixAsync(DateTimeOffset timeStamp, IEnumerable<string> srcWavFilesPathList, string destDirPath, string albumName, string artist, AiRandomBgmSettings settings, FfMpegAudioCodec codec = FfMpegAudioCodec.Aac, int kbps = 0, int numRotate = 1, int minTracks = 1, int durationOfSingleFileMsecs = 3 * 60 * 60 * 1000, int fadeOutSecs = AiTask.DefaultFadeoutSecs, CancellationToken cancel = default)
     {
         List<string> ret = new List<string>();
 
         if (numRotate <= 0) numRotate = 1;
+        if (minTracks <= 0) minTracks = 1;
 
         ShuffledEndlessQueue<string> q = new ShuffledEndlessQueue<string>(srcWavFilesPathList);
 
@@ -722,7 +723,7 @@ public class AiTask
 
         for (int i = 0; i < 999;i++)
         {
-            if (q.NumRotate >= numRotate)
+            if (q.NumRotate >= numRotate && i > minTracks)
             {
                 break;
             }
