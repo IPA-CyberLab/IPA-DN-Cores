@@ -538,6 +538,8 @@ public class AiTask
 
                     formalSongTitle = PPWin.MakeSafeFileName(formalSongTitle, false, true, true);
 
+                    await Lfs.CreateDirectoryAsync(dstMusicDirPath, cancel: cancel);
+
                     var currentDstDirFiles = await Lfs.EnumDirectoryAsync(dstMusicDirPath, cancel: cancel);
                     var currentDstAacFiles = currentDstDirFiles.Where(x => x.IsFile && x.Name._IsExtensionMatch(".m4a"));
 
@@ -546,14 +548,14 @@ public class AiTask
                     for (int i = 1; ; i++)
                     {
                         string tmp1 = musicOnlyAlbumName._RemoveQuotation('[', ']');
-                        bool f1 = musicOnlyAlbumName.StartsWith('[') && musicOnlyAlbumName.StartsWith(']');
-                        tmp1 += "_" + i.ToString();
+                        bool f1 = musicOnlyAlbumName.StartsWith('[') && musicOnlyAlbumName.EndsWith(']');
+                        tmp1 += "_p" + i.ToString();
                         if (f1)
                         {
                             tmp1 = "[" + tmp1 + "]";
                         }
 
-                        if (currentDstAacFiles.Where(x => x.Name.StartsWith(tmp1 + " - ", StrCmpi)).Count() < 10) // 1 つの Album 名は最大 1000 件
+                        if (currentDstAacFiles.Where(x => x.Name.StartsWith(tmp1 + " - ", StrCmpi)).Count() < 1000) // 1 つの Album 名は最大 1000 件
                         {
                             musicOnlyAlbumName2 = tmp1;
                             break;
