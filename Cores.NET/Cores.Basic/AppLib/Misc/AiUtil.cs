@@ -745,7 +745,7 @@ public class AiTask
                 TrackTotal = 999,
                 Album = $"{albumName} - {timestampStr}",
                 Artist = $"{albumName} - {artist} - {timestampStr} - {secstr}",
-                Title = $"{albumName} - {artist} - {timestampStr} - Track_{(i + 1).ToString("D3")} - {secstr} - r{rotateForDisplay}",
+                Title = $"{albumName} - {artist} - Track_{(i + 1).ToString("D3")} - {secstr} - r{rotateForDisplay}",
             };
 
             Con.WriteLine($"--- Concat {albumName} - {artist} Track #{(i + 1).ToString("D3")} (NumRotate = {q.NumRotate})");
