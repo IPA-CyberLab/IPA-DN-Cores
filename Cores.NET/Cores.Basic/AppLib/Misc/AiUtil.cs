@@ -717,7 +717,7 @@ public class AiTask
 
         ShuffledEndlessQueue<string> q = new ShuffledEndlessQueue<string>(srcWavFilesPathList);
 
-        string timestampStr = "[" + timeStamp._ToYymmddStr(yearTwoDigits: true) + "_" + timeStamp._ToHhmmssStr().Substring(4) + "]";
+        string timestampStr = "[" + timeStamp._ToYymmddStr(yearTwoDigits: true) + "_" + timeStamp._ToHhmmssStr().Substring(0, 4) + "]";
 
         string secstr = $"{(settings.Medley_SingleFilePartMSecs / 1000)}s";
 
