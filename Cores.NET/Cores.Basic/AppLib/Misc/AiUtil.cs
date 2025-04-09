@@ -736,7 +736,7 @@ public class AiTask
 
             var srcFilesList = await ConcatWavFileFromRandomDirAsync(q, dstTmpFileName, durationOfSingleFileMsecs, settings, fadeOutSecs, cancel);
 
-            string dstFilePath = PP.Combine(destDirPath, $"{albumName} - {artist} - {timestampStr} - Track_{(i + 1).ToString("D3")} - r{rotateForDisplay}{FfMpegUtil.GetExtensionFromCodec(codec)} - {secstr}");
+            string dstFilePath = PP.Combine(destDirPath, $"{albumName} - {artist} - {timestampStr} - Track_{(i + 1).ToString("D3")} - r{rotateForDisplay} - {secstr}{FfMpegUtil.GetExtensionFromCodec(codec)}");
 
             MediaMetaData meta = new MediaMetaData
             {
@@ -754,6 +754,8 @@ public class AiTask
             //await Lfs.CopyFileAsync(dstTmpFileName, dstFilePath, param: new CopyFileParams(flags: FileFlags.AutoCreateDirectory));
 
             ret.Add(dstFilePath);
+
+            await Lfs.DeleteFileIfExistsAsync(dstTmpFileName, cancel: cancel);
         }
 
         return ret;
@@ -826,6 +828,8 @@ public class AiTask
             await FfMpeg.RunFfMpegAsync($"-y -i {dstTmpFileName._EnsureQuotation()} -vn -reset_timestamps 1 -ar 44100 -ac 2 -c:a pcm_s16le " +
                 $"-map_metadata -1 -f wav -af \"afade=t=out:st={startSecs}:d={fadeSecs}\" {dstWavFilePath._EnsureQuotation()}",
                 cancel: cancel);
+
+            await Lfs.DeleteFileIfExistsAsync(dstTmpFileName, cancel: cancel);
         }
 
         return retSrcList;
