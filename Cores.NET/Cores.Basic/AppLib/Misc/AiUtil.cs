@@ -500,7 +500,7 @@ public class AiTask
 
             string dstVoiceFlacPath = PP.Combine(dstVoiceDirPath, safeSeriesName, $"{safeSeriesName} - {speedStr} - {safeStoryTitle} - {safeVoiceTitle} - {speakerIdStr}.flac");
 
-            await FfMpeg.EncodeAudioAsync(tmpVoiceWavPath, dstVoiceFlacPath, FfMpegAudioCodec.Flac, 0, speed, meta, tagTitle, true, cancel);
+            await FfMpeg.EncodeAudioAsync(tmpVoiceWavPath, dstVoiceFlacPath, FfMpegAudioCodec.Flac, 0, speed, meta, tagTitle, true, cancel: cancel);
         }
     }
 
@@ -736,7 +736,7 @@ public class AiTask
 
             var srcFilesList = await ConcatWavFileFromRandomDirAsync(q, dstTmpFileName, durationOfSingleFileMsecs, settings, fadeOutSecs, cancel);
 
-            string dstFilePath = PP.Combine(destDirPath, $"{albumName} - {artist} - {timestampStr} - {secstr} - Track_{(i + 1).ToString("D3")} - r{rotateForDisplay}{FfMpegUtil.GetExtensionFromCodec(codec)}");
+            string dstFilePath = PP.Combine(destDirPath, $"{albumName} - {artist} - {timestampStr} - Track_{(i + 1).ToString("D3")} - r{rotateForDisplay}{FfMpegUtil.GetExtensionFromCodec(codec)} - {secstr}");
 
             MediaMetaData meta = new MediaMetaData
             {
@@ -745,12 +745,11 @@ public class AiTask
                 Album = $"{albumName} - {timestampStr}",
                 Artist = $"{albumName} - {artist} - {timestampStr} - {secstr}",
                 Title = $"{albumName} - {artist} - {timestampStr} - Track_{(i + 1).ToString("D3")} - {secstr} - r{rotateForDisplay}",
-                Lyrics = "こんにちは\r\nさようなら",
             };
 
             Con.WriteLine($"--- Concat {albumName} - {artist} Track #{(i + 1).ToString("D3")} (NumRotate = {q.NumRotate})");
 
-            await FfMpeg.EncodeAudioAsync(dstTmpFileName, dstFilePath, codec, kbps, 100, meta, $"{artist} - Track_{(i + 1).ToString("D3")}", cancel: cancel);
+            await FfMpeg.EncodeAudioAsync(dstTmpFileName, dstFilePath, codec, kbps, 100, meta, $"{artist} - Track_{(i + 1).ToString("D3")}", sourceFilePathList: srcFilesList, cancel: cancel);
 
             //await Lfs.CopyFileAsync(dstTmpFileName, dstFilePath, param: new CopyFileParams(flags: FileFlags.AutoCreateDirectory));
 
