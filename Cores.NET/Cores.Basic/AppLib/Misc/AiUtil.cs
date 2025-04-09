@@ -750,13 +750,16 @@ public class AiTask
 
             Con.WriteLine($"--- Concat {albumName} - {artist} Track #{(i + 1).ToString("D3")} (NumRotate = {q.NumRotate})");
 
-            await FfMpeg.EncodeAudioAsync(dstTmpFileName, dstFilePath, codec, kbps, 100, meta, $"{artist} - Track_{(i + 1).ToString("D3")}", sourceFilePathList: srcFilesList, cancel: cancel);
+            string encodeDstTmpFilePath = await Lfs.GenerateUniqueTempFilePathAsync("encode3", FfMpegUtil.GetExtensionFromCodec(codec), cancel: cancel);
 
-            //await Lfs.CopyFileAsync(dstTmpFileName, dstFilePath, param: new CopyFileParams(flags: FileFlags.AutoCreateDirectory));
+            await FfMpeg.EncodeAudioAsync(dstTmpFileName, encodeDstTmpFilePath, codec, kbps, 100, meta, $"{artist} - Track_{(i + 1).ToString("D3")}", sourceFilePathList: srcFilesList, cancel: cancel);
+
+            await Lfs.CopyFileAsync(encodeDstTmpFilePath, dstFilePath, cancel: cancel);
 
             ret.Add(dstFilePath);
 
             await Lfs.DeleteFileIfExistsAsync(dstTmpFileName, cancel: cancel);
+            await Lfs.DeleteFileIfExistsAsync(encodeDstTmpFilePath, cancel: cancel);
         }
 
         return ret;
