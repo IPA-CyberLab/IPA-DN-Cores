@@ -9204,16 +9204,25 @@ public class ShouldWarn
     }
 }
 
+public interface IEndlessQueue<T>
+{
+    public T Dequeue();
+    public T Peek();
+    public int Count { get; }
+    public int NumRotate { get; }
+}
 
-public class ShuffleQueue<T>
+public class ShuffledEndlessQueue<T> : IEndlessQueue<T>
 {
     readonly List<T> AllItemsList;
     readonly Queue<T> CurrentQueue = new Queue<T>();
     readonly int RandContinueCount = 0;
 
+    public int NumRotate { get; private set; } = -1;
+
     public int Count => (this.AllItemsList.Count == 0 ? 0 : int.MaxValue);
 
-    public ShuffleQueue(IEnumerable<T> elements, int randContinueCount = 0)
+    public ShuffledEndlessQueue(IEnumerable<T> elements, int randContinueCount = 0)
     {
         this.RandContinueCount = randContinueCount;
         this.AllItemsList = new List<T>(elements.ToArray());
@@ -9248,6 +9257,11 @@ public class ShuffleQueue<T>
                     }
                 }
             }
+
+            if (shuffled.Length >= 1)
+            {
+                NumRotate++;
+            }
         }
 
         return this.CurrentQueue.Dequeue();
@@ -9278,16 +9292,23 @@ public class ShuffleQueue<T>
                     }
                 }
             }
+
+            if (shuffled.Length >= 1)
+            {
+                NumRotate++;
+            }
         }
 
         return this.CurrentQueue.Peek();
     }
 }
 
-public class EndlessQueue<T>
+public class EndlessQueue<T> : IEndlessQueue<T>
 {
     readonly List<T> AllItemsList;
     readonly Queue<T> CurrentQueue = new Queue<T>();
+
+    public int NumRotate { get; private set; } = -1;
 
     public int Count => (this.AllItemsList.Count == 0 ? 0 : int.MaxValue);
 
@@ -9306,6 +9327,11 @@ public class EndlessQueue<T>
             {
                 this.CurrentQueue.Enqueue(item);
             }
+
+            if (tmp.Length >= 1)
+            {
+                NumRotate++;
+            }
         }
 
         return this.CurrentQueue.Dequeue();
@@ -9320,6 +9346,11 @@ public class EndlessQueue<T>
             foreach (var item in tmp)
             {
                 this.CurrentQueue.Enqueue(item);
+            }
+
+            if (tmp.Length >= 1)
+            {
+                NumRotate++;
             }
         }
 

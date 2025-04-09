@@ -249,7 +249,7 @@ public class AiTask
         var now = DtOffsetNow;
         string seriesName = $"{now._ToYymmddInt(yearTwoDigits: true)}_{now._ToHhmmssInt():D6}_{testName}";
 
-        ShuffleQueue<string> sampleVoiceFileNameShuffleQueue;
+        ShuffledEndlessQueue<string> sampleVoiceFileNameShuffleQueue;
 
 
         List<int> randIntListAll = new();
@@ -257,7 +257,7 @@ public class AiTask
         {
             randIntListAll.Add(i);
         }
-        ShuffleQueue<int> speakerIdShuffleQueueAll = new ShuffleQueue<int>(randIntListAll);
+        ShuffledEndlessQueue<int> speakerIdShuffleQueueAll = new ShuffledEndlessQueue<int>(randIntListAll);
 
         List<int> randIntListTokutei = new();
         randIntListTokutei.Add(8);
@@ -274,13 +274,13 @@ public class AiTask
         randIntListTokutei.Add(68);
         randIntListTokutei.Add(90);
         randIntListTokutei.Add(90);
-        ShuffleQueue<int> speakerIdShuffleQueueTokutei = new ShuffleQueue<int>(randIntListTokutei);
+        ShuffledEndlessQueue<int> speakerIdShuffleQueueTokutei = new ShuffledEndlessQueue<int>(randIntListTokutei);
 
 
         var randSampleVoiceFilesList = await Lfs.EnumDirectoryAsync(sampleVoiceWavDirName, false, wildcard: "*.wav", cancel: cancel);
         if (randSampleVoiceFilesList.Any())
         {
-            sampleVoiceFileNameShuffleQueue = new ShuffleQueue<string>(randSampleVoiceFilesList.Select(x => x.FullPath));
+            sampleVoiceFileNameShuffleQueue = new ShuffledEndlessQueue<string>(randSampleVoiceFilesList.Select(x => x.FullPath));
         }
         else
         {
@@ -355,13 +355,13 @@ public class AiTask
 
     public async Task ConvertAllTextToVoiceAsync(string srcDirPath, string srcSampleVoiceFileNameOrRandDir, string speakerIdStrOrListFilePath, bool mixedMode, int diffusionSteps, string dstVoiceDirPath, string tmpVoiceBoxDir, string tmpVoiceWavDir, int[]? speedPercentList = null, CancellationToken cancel = default)
     {
-        ShuffleQueue<string>? sampleVoiceFileNameShuffleQueue = null;
+        ShuffledEndlessQueue<string>? sampleVoiceFileNameShuffleQueue = null;
         if (await Lfs.IsDirectoryExistsAsync(srcSampleVoiceFileNameOrRandDir, cancel))
         {
             var randSampleVoiceFilesList = await Lfs.EnumDirectoryAsync(srcSampleVoiceFileNameOrRandDir, false, wildcard: "*.wav", cancel: cancel);
             if (randSampleVoiceFilesList.Any())
             {
-                sampleVoiceFileNameShuffleQueue = new ShuffleQueue<string>(randSampleVoiceFilesList.Select(x => x.FullPath));
+                sampleVoiceFileNameShuffleQueue = new ShuffledEndlessQueue<string>(randSampleVoiceFilesList.Select(x => x.FullPath));
             }
             else
             {
@@ -369,7 +369,7 @@ public class AiTask
             }
         }
 
-        ShuffleQueue<int>? speakerIdShuffleForRotatin = null;
+        ShuffledEndlessQueue<int>? speakerIdShuffleForRotatin = null;
 
         List<int> speakerIdListInOneFile = new List<int>();
 
@@ -382,7 +382,7 @@ public class AiTask
         {
             if (mixedMode == false)
             {
-                speakerIdShuffleForRotatin = new ShuffleQueue<int>(await ReadSpeakerIDListAsync(speakerIdStrOrListFilePath, cancel));
+                speakerIdShuffleForRotatin = new ShuffledEndlessQueue<int>(await ReadSpeakerIDListAsync(speakerIdStrOrListFilePath, cancel));
             }
             else
             {
@@ -536,14 +536,38 @@ public class AiTask
                         formalSongTitle = songTitle;
                     }
 
+                    formalSongTitle = PPWin.MakeSafeFileName(formalSongTitle, false, true, true);
+
+                    var currentDstDirFiles = await Lfs.EnumDirectoryAsync(dstMusicDirPath, cancel: cancel);
+                    var currentDstAacFiles = currentDstDirFiles.Where(x => x.IsFile && x.Name._IsExtensionMatch(".m4a"));
+
+                    string musicOnlyAlbumName2;
+
+                    for (int i = 1; ; i++)
+                    {
+                        string tmp1 = musicOnlyAlbumName._RemoveQuotation('[', ']');
+                        bool f1 = musicOnlyAlbumName.StartsWith('[') && musicOnlyAlbumName.StartsWith(']');
+                        tmp1 += "_" + i.ToString();
+                        if (f1)
+                        {
+                            tmp1 = "[" + tmp1 + "]";
+                        }
+
+                        if (currentDstAacFiles.Where(x => x.Name.StartsWith(tmp1 + " - ", StrCmpi)).Count() < 10) // 1 つの Album 名は最大 1000 件
+                        {
+                            musicOnlyAlbumName2 = tmp1;
+                            break;
+                        }
+                    }
+
                     MediaMetaData meta = new MediaMetaData
                     {
-                        Album = musicOnlyAlbumName,
-                        Title = formalSongTitle + " - " + musicOnlyAlbumName,
-                        Artist = musicOnlyAlbumName + " - " + artistName,
+                        Album = musicOnlyAlbumName2,
+                        Title = formalSongTitle + " - " + musicOnlyAlbumName2,
+                        Artist = musicOnlyAlbumName2 + " - " + artistName,
                     };
 
-                    string dstMusicAacPath = PP.Combine(dstMusicDirPath, $"{musicOnlyAlbumName} - {safeArtistName} - {formalSongTitle}.m4a");
+                    string dstMusicAacPath = PP.Combine(dstMusicDirPath, $"{musicOnlyAlbumName2} - {safeArtistName} - {formalSongTitle._TruncStr(48)}.m4a");
 
                     await FfMpeg.EncodeAudioAsync(tmpMusicWavPath, dstMusicAacPath, FfMpegAudioCodec.Aac, 0, 100, meta, safeSongTitle, cancel: cancel);
                 }
@@ -681,6 +705,60 @@ public class AiTask
         return (parsed, dstFilePath);
     }
 
+
+    public async Task<List<string>> CreateManyMusicMixAsync(DateTimeOffset timeStamp, IEnumerable<string> srcWavFilesPathList, string destDirPath, string albumName, string artist, AiRandomBgmSettings settings, FfMpegAudioCodec codec = FfMpegAudioCodec.Aac, int kbps = 0, int numRotate = 1, int durationOfSingleFileMsecs = 3 * 60 * 60 * 1000, int fadeOutSecs = AiTask.DefaultFadeoutSecs, CancellationToken cancel = default)
+    {
+        List<string> ret = new List<string>();
+
+        if (numRotate <= 0) numRotate = 1;
+
+        ShuffledEndlessQueue<string> q = new ShuffledEndlessQueue<string>(srcWavFilesPathList);
+
+        string timestampStr = "[" + timeStamp._ToYymmddStr(yearTwoDigits: true) + "_" + timeStamp._ToHhmmssStr().Substring(4) + "]";
+
+        string secstr = $"{(settings.Medley_SingleFilePartMSecs / 1000)}s";
+
+        for (int i = 0; i < 999;i++)
+        {
+            if (q.NumRotate >= numRotate)
+            {
+                break;
+            }
+
+            int rotateForDisplay = q.NumRotate + 1;
+            if (rotateForDisplay <= 0) rotateForDisplay = 1;
+
+            Con.WriteLine($"--- Concat {albumName} - {artist} Track #{(i + 1).ToString("D3")} (NumRotate = {q.NumRotate})");
+
+            string dstTmpFileName = await Lfs.GenerateUniqueTempFilePathAsync("concat3", ".wav", cancel: cancel);
+
+            var srcFilesList = await ConcatWavFileFromRandomDirAsync(q, dstTmpFileName, durationOfSingleFileMsecs, settings, fadeOutSecs, cancel);
+
+            string dstFilePath = PP.Combine(destDirPath, $"{albumName} - {artist} - {timestampStr} - {secstr} - Track_{(i + 1).ToString("D3")} - r{rotateForDisplay}{FfMpegUtil.GetExtensionFromCodec(codec)}");
+
+            MediaMetaData meta = new MediaMetaData
+            {
+                Track = i + 1,
+                TrackTotal = 999,
+                Album = $"{albumName} - {timestampStr}",
+                Artist = $"{albumName} - {artist} - {timestampStr} - {secstr}",
+                Title = $"{albumName} - {artist} - {timestampStr} - Track_{(i + 1).ToString("D3")} - {secstr} - r{rotateForDisplay}",
+                Lyrics = "こんにちは\r\nさようなら",
+            };
+
+            Con.WriteLine($"--- Concat {albumName} - {artist} Track #{(i + 1).ToString("D3")} (NumRotate = {q.NumRotate})");
+
+            await FfMpeg.EncodeAudioAsync(dstTmpFileName, dstFilePath, codec, kbps, 100, meta, $"{artist} - Track_{(i + 1).ToString("D3")}", cancel: cancel);
+
+            //await Lfs.CopyFileAsync(dstTmpFileName, dstFilePath, param: new CopyFileParams(flags: FileFlags.AutoCreateDirectory));
+
+            ret.Add(dstFilePath);
+        }
+
+        return ret;
+    }
+
+
     public async Task<List<string>> CreateRandomBgmFileAsync(string srcMusicWavsDirPath, string dstWavFilePath, int totalDurationMsecs, AiRandomBgmSettings settings, int fadeOutSecs = AiTask.DefaultFadeoutSecs, double adjustDelta = AiTask.BgmVolumeDeltaForConstant, CancellationToken cancel = default)
     {
         string dstTmpFileName = await Lfs.GenerateUniqueTempFilePathAsync("concat2", ".wav", cancel: cancel);
@@ -694,8 +772,6 @@ public class AiTask
 
     public async Task<List<string>> ConcatWavFileFromRandomDirAsync(string srcMusicWavsDirPath, string dstWavFilePath, int totalDurationMsecs, AiRandomBgmSettings settings, int fadeOutSecs = AiTask.DefaultFadeoutSecs, CancellationToken cancel = default)
     {
-        List<string> retSrcList;
-
         var srcWavList = await Lfs.EnumDirectoryAsync(srcMusicWavsDirPath, true, wildcard: "*.wav", cancel: cancel);
 
         List<string> fileNamesList = new List<string>();
@@ -707,6 +783,15 @@ public class AiTask
                 fileNamesList.Add(srcWav.FullPath);
             }
         }
+
+        ShuffledEndlessQueue<string> srcQueue = new ShuffledEndlessQueue<string>(fileNamesList);
+
+        return await ConcatWavFileFromRandomDirAsync(srcQueue, dstWavFilePath, totalDurationMsecs, settings, fadeOutSecs, cancel);
+    }
+
+    public async Task<List<string>> ConcatWavFileFromRandomDirAsync(ShuffledEndlessQueue<string> srcMusicWavsFilePathQueue, string dstWavFilePath, int totalDurationMsecs, AiRandomBgmSettings settings, int fadeOutSecs = AiTask.DefaultFadeoutSecs, CancellationToken cancel = default)
+    {
+        List<string> retSrcList;
 
         string dstTmpFileName;
 
@@ -721,11 +806,11 @@ public class AiTask
 
         if (settings.Medley == false)
         {
-            retSrcList = await ConcatWavFileFromQueueAsync(fileNamesList, totalDurationMsecs, dstTmpFileName, cancel);
+            retSrcList = await ConcatWavFileFromQueueAsync(srcMusicWavsFilePathQueue, totalDurationMsecs, dstTmpFileName, cancel);
         }
         else
         {
-            retSrcList = await AiWaveConcatenateWithCrossFadeUtil.ConcatenateAsync(fileNamesList, totalDurationMsecs, settings, dstTmpFileName, cancel);
+            retSrcList = await AiWaveConcatenateWithCrossFadeUtil.ConcatenateAsync(srcMusicWavsFilePathQueue, totalDurationMsecs, settings, dstTmpFileName, cancel);
         }
 
         if (fadeOutSecs > 0)
@@ -746,13 +831,11 @@ public class AiTask
     }
 
     public static async Task<List<string>> ConcatWavFileFromQueueAsync(
-        IEnumerable<string> srcWavFilesList,
+        ShuffledEndlessQueue<string> srcWavFilesQueue,
         int totalDurationMsecs,
         string dstWavFilePath, CancellationToken cancel = default)
     {
         List<string> retSrcList = new List<string>();
-
-        ShuffleQueue<string> srcWavFilesQueue = new ShuffleQueue<string>(srcWavFilesList);
 
         await Lfs.DeleteFileIfExistsAsync(dstWavFilePath, cancel: cancel);
         await Lfs.EnsureCreateDirectoryForFileAsync(dstWavFilePath, cancel: cancel);
@@ -1008,7 +1091,7 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
             if (okResult.IsOk && okResult.Value != null) return okResult.Value;
         }
 
-        ShuffleQueue<int> speakerIdShuffleQueue = new ShuffleQueue<int>(speakerIdList, 3);
+        ShuffledEndlessQueue<int> speakerIdShuffleQueue = new ShuffledEndlessQueue<int>(speakerIdList, 3);
 
         await using var exec = await TaskUtil.RetryAsync(async c =>
         {
@@ -1409,13 +1492,13 @@ public static class AiWaveConcatenateWithCrossFadeUtil
     /// <param name="cancel">キャンセル用トークン</param>
     /// <returns></returns>
     public static async Task<List<string>> ConcatenateAsync(
-        IEnumerable<string> srcWaveFilesList,
+        ShuffledEndlessQueue<string> srcWavFilesQueue,
         int totalDurationMsecs,
         AiRandomBgmSettings settings,
         string dstWavFilePath,
         CancellationToken cancel = default)
     {
-        if (srcWaveFilesList == null || srcWaveFilesList.Any() == false)
+        if (srcWavFilesQueue.Count == 0)
         {
             throw new ArgumentException("ソースの WAV ファイル キューが空です。");
         }
@@ -1427,8 +1510,6 @@ public static class AiWaveConcatenateWithCrossFadeUtil
         }
 
         List<string> retSrcList = new List<string>();
-
-        ShuffleQueue<string> srcWavFilesQueue = new(srcWaveFilesList);
 
         //------------------------------------------------------------
         // まずは1つ目の WAV ファイルからフォーマット情報を取得する

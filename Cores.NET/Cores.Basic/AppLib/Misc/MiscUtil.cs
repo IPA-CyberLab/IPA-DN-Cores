@@ -108,6 +108,7 @@ public class MediaMetaData
     public string Artist = "";
     public int Track = 0;
     public int TrackTotal = 0;
+    public string Lyrics = "";
 
     public bool HasValue()
     {
@@ -362,7 +363,20 @@ public class FfMpegUtil
             if (okResult.IsOk && okResult.Value != null) return okResult.Value;
         }
 
-        string cmdLine = $"-y -i {srcFilePath._EnsureQuotation()} -vn ";
+        string? txtFileMetaData = null;
+
+        if (metaData != null && codec != FfMpegAudioCodec.Wav && metaData.Lyrics._IsFilled())
+        {
+            txtFileMetaData = await Lfs.GenerateUniqueTempFilePathAsync("lyrics", ".txt", cancel: cancel);
+        }
+
+        string additionalInputs = "";
+        if (txtFileMetaData._IsFilled())
+        {
+            additionalInputs = $"-i {txtFileMetaData._EnsureQuotation()} ";
+        }
+
+        string cmdLine = $"-y -i {srcFilePath._EnsureQuotation()} {additionalInputs}-vn ";
 
         if (speedPercent != 100)
         {
@@ -414,13 +428,42 @@ public class FfMpegUtil
                 }
             }
 
-            foreach (var kv in ml)
+            if (txtFileMetaData._IsEmpty())
             {
-                string value = kv.Value._NonNullTrim();
+                foreach (var kv in ml)
+                {
+                    string value = kv.Value._NonNullTrim();
 
-                value = PPWin.MakeSafeFileName(value, false, true, true);
+                    value = PPWin.MakeSafeFileName(value, false, true, true);
 
-                cmdLine += $"-metadata {kv.Key}=\"{value}\" ";
+                    cmdLine += $"-metadata {kv.Key}={value._EnsureQuotation()} ";
+                }
+            }
+            else
+            {
+                StringWriter w = new StringWriter();
+                w.NewLine = Str.NewLine_Str_Unix;
+                w.WriteLine(";FFMETADATA1");
+                foreach (var kv in ml)
+                {
+                    string value = kv.Value._NonNullTrim();
+
+                    value = PPWin.MakeSafeFileName(value, false, true, true);
+
+                    w.WriteLine($"{kv.Key}=aa {kv.Value._EnsureQuotation()}");
+                }
+                w.WriteLine();
+                w.Write("unsyncedlyrics=");
+                foreach (var line in metaData.Lyrics._GetLines(singleLineAtLeast: true))
+                {
+                    string line2 = line._ReplaceStr("\\", "\\\\")._ReplaceStr("=", "\\=")._ReplaceStr(";", "\\;")._ReplaceStr("#", "\\#");
+                    w.WriteLine(line2);
+                }
+                w.Flush();
+
+                await Lfs.WriteStringToFileAsync(txtFileMetaData, w.ToString());
+
+                cmdLine += $"-map_metadata 1 ";
             }
         }
 
