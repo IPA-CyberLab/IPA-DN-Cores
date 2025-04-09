@@ -446,6 +446,58 @@ public class AiTask
         }
     }
 
+    public async Task VoiceChangeAsync(string srcPath, string srcSampleVoicePath, string dstVoiceDirPath, string tmpVoiceWavDir, int diffusionSteps, string product, string series, string title, int track, int[]? speedPercentList = null, int headOnlySecs = 0, CancellationToken cancel = default)
+    {
+        if (speedPercentList == null || speedPercentList.Any() == false)
+            speedPercentList = new int[] { 100 };
+
+        string safeProduct = PPWin.MakeSafeFileName(product, true, true, true);
+        string safeSeries = PPWin.MakeSafeFileName(series, true, true, true);
+        string safeTitle = PPWin.MakeSafeFileName(title, true, true, true);
+
+        string safeVoiceTitle = PPWin.GetFileNameWithoutExtension(srcSampleVoicePath)._Normalize(false, true, false, true);
+
+        string tmpVoiceWavPath = PP.Combine(tmpVoiceWavDir, $"{safeProduct} - {safeSeries} - {safeTitle} - {safeVoiceTitle}.wav");
+
+        string tagTitle = $"{safeProduct} - {safeSeries} - {safeTitle} - {safeVoiceTitle}";
+
+        string srcTmpWavPath = await Lfs.GenerateUniqueTempFilePathAsync("seedvc_src", ".wav", cancel: cancel);
+
+        string digest = $"voiceSamplePath={srcSampleVoicePath},diffusionSteps={diffusionSteps},targetMaxVolume={Settings.AdjustAudioTargetMaxVolume},targetMeanVolume={Settings.AdjustAudioTargetMeanVolume}";
+
+        if (await Lfs.IsOkFileExists(tmpVoiceWavPath, digest, AiUtilVersion.CurrentVersion, cancel) == false)
+        {
+            await FfMpeg.EncodeAudioAsync(srcPath, srcTmpWavPath, FfMpegAudioCodec.Wav, tagTitle: tagTitle, headOnlySecs: headOnlySecs, cancel: cancel);
+
+            await using (var seedvc = new AiUtilSeedVcEngine(this.Settings, this.FfMpeg))
+            {
+                await seedvc.ConvertAsync(srcTmpWavPath, tmpVoiceWavPath, srcSampleVoicePath, diffusionSteps, tagTitle, false, cancel);
+                await Lfs.WriteOkFileAsync(tmpVoiceWavPath, new OkFileEmptyMetaData(), digest, AiUtilVersion.CurrentVersion, cancel);
+                await Lfs.DeleteFileIfExistsAsync(srcTmpWavPath, cancel: cancel);
+            }
+        }
+
+        string trackStr = track.ToString("D2");
+
+        foreach (int speed in speedPercentList)
+        {
+            string speedStr = "x" + ((double)speed / 100.0).ToString(".00");
+
+            MediaMetaData meta = new MediaMetaData
+            {
+                Album = $"{safeProduct} - {safeSeries} - {speedStr}",
+                Artist = $"{safeProduct} - {speedStr}",
+                Title = $"{safeSeries} - [{trackStr}] {safeTitle} - {safeVoiceTitle} - {speedStr}",
+                TrackTotal = 999,
+                Track = track,
+            };
+
+            string dstVoiceFlacPath = PP.Combine(dstVoiceDirPath, safeProduct, safeSeries, $"{safeProduct} - {safeSeries} - {speedStr} - [{trackStr}] {safeTitle} - {safeVoiceTitle}.m4a");
+
+            await FfMpeg.EncodeAudioAsync(tmpVoiceWavPath, dstVoiceFlacPath, FfMpegAudioCodec.Aac, 0, speed, meta, tagTitle, true, cancel: cancel);
+        }
+    }
+
     public async Task ConvertTextToVoiceAsync(string srcText, string srcSampleVoicePath, string dstVoiceDirPath, string tmpVoiceBoxDir, string tmpVoiceWavDir, IEnumerable<int> speakerIdList, int diffusionSteps, string seriesName, string storyTitle, int[]? speedPercentList = null, CancellationToken cancel = default)
     {
         if (speedPercentList == null || speedPercentList.Any() == false)

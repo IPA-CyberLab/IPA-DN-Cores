@@ -349,7 +349,7 @@ public class FfMpegUtil
         return ret;
     }
 
-    public async Task<FfMpegParsedList> EncodeAudioAsync(string srcFilePath, string dstFilePath, FfMpegAudioCodec codec, int kbps = 0, int speedPercent = 100, MediaMetaData? metaData = null, string tagTitle = "", bool useOkFile = true, IEnumerable<string>? sourceFilePathList = null, CancellationToken cancel = default)
+    public async Task<FfMpegParsedList> EncodeAudioAsync(string srcFilePath, string dstFilePath, FfMpegAudioCodec codec, int kbps = 0, int speedPercent = 100, MediaMetaData? metaData = null, string tagTitle = "", bool useOkFile = true, IEnumerable<string>? sourceFilePathList = null, int headOnlySecs = 0, CancellationToken cancel = default)
     {
         if (kbps <= 0) kbps = CoresConfig.DefaultFfMpegExecSettings.FfMpegDefaultAudioKbps;
         if (speedPercent <= 0) speedPercent = 100;
@@ -377,7 +377,14 @@ public class FfMpegUtil
         //    additionalInputs = $"-i {txtFileMetaData._EnsureQuotation()} ";
         //}
 
-        string cmdLine = $"-y -i {srcFilePath._EnsureQuotation()} -vn ";
+        string additionalInputs = "";
+
+        if (headOnlySecs >= 1)
+        {
+            additionalInputs += $"-t {headOnlySecs} ";
+        }
+
+        string cmdLine = $"-y -i {srcFilePath._EnsureQuotation()} {additionalInputs}-vn ";
 
         if (speedPercent != 100)
         {
