@@ -752,9 +752,11 @@ public class AiTask
 
             string encodeDstTmpFilePath = await Lfs.GenerateUniqueTempFilePathAsync("encode3", FfMpegUtil.GetExtensionFromCodec(codec), cancel: cancel);
 
-            await FfMpeg.EncodeAudioAsync(dstTmpFileName, encodeDstTmpFilePath, codec, kbps, 100, meta, $"{artist} - Track_{(i + 1).ToString("D3")}", sourceFilePathList: srcFilesList, cancel: cancel);
+            var res = await FfMpeg.EncodeAudioAsync(dstTmpFileName, encodeDstTmpFilePath, codec, kbps, 100, meta, $"{artist} - Track_{(i + 1).ToString("D3")}", sourceFilePathList: srcFilesList, useOkFile: false, cancel: cancel);
 
             await Lfs.CopyFileAsync(encodeDstTmpFilePath, dstFilePath, cancel: cancel);
+
+            await Lfs.WriteOkFileAsync(dstFilePath, res, version: AiUtilVersion.CurrentVersion, cancel: cancel);
 
             ret.Add(dstFilePath);
 
