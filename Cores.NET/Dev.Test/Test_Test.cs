@@ -5142,7 +5142,7 @@ HOST: www.google.com
                             //throw new CoresException(ret.StatusCode.ToString());
                         }
                     }
-                    catch (Exception ex)
+                    catch// (Exception ex)
                     {
                         //ex._Error();
                     }
@@ -5153,8 +5153,147 @@ HOST: www.google.com
         ThreadObj.Sleep(-1);
     }
 
+    static void Test_250408() // Unicode の康熙部首 (The Unicode Standard Kangxi Radicals) の変換ユーティティ (UnicodeStdKangxiMapUtil の内容の生成)
+    {
+        string srcBody = Lfs.ReadStringFromFile(@"H:\TMP\strange_unicode.txt");
+
+        List<Tuple<uint, char, uint, char>> list = new();
+
+        foreach (var line in srcBody._GetLines(true, true, commentMustBeWholeLine: true))
+        {
+            string[] tokens = line._Split(StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries, '\t', ' ');
+            if (tokens.Length >= 6)
+            {
+                string srchex = tokens[0];
+                string srcchar = tokens[1];
+
+                if (line._InStri("Cjk Radical") == false)
+                {
+                    string tmp1 = tokens.Last();
+                    if (tmp1.StartsWith("≈")) tmp1 = tmp1.Substring(1);
+
+                    string[] tk2 = tmp1._Split(StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries, '(', ')');
+                    if (tk2.Length >= 2)
+                    {
+                        string dsthex = tk2[0];
+                        string dstchar = tk2[1];
+
+                        byte[] srchexbyte = srchex._GetHexBytes();
+                        byte[] dsthexbyte = dsthex._GetHexBytes();
+
+                        if (srcchar.Length == 1 && dstchar.Length == 1)
+                        {
+                            list.Add(new(
+                                srchexbyte.AsSpan()._RawReadValueUInt16()._Endian16_U(),
+                                srcchar[0],
+                                dsthexbyte.AsSpan()._RawReadValueUInt16()._Endian16_U(),
+                                dstchar[0]));
+                        }
+                    }
+                }
+                else
+                {
+                    if (tokens.Length >= 7)
+                    {
+                        string dsthex = tokens.ElementAt(tokens.Length - 2);
+                        string dstchar = tokens.ElementAt(tokens.Length - 1);
+
+                        byte[] srchexbyte = srchex._GetHexBytes();
+                        byte[] dsthexbyte = dsthex._GetHexBytes();
+
+                        if (srcchar.Length == 1 && dstchar.Length == 1)
+                        {
+                            list.Add(new(
+                                srchexbyte.AsSpan()._RawReadValueUInt16()._Endian16_U(),
+                                srcchar[0],
+                                dsthexbyte.AsSpan()._RawReadValueUInt16()._Endian16_U(),
+                                dstchar[0]));
+                        }
+                    }
+                }
+            }
+        }
+
+        StringWriter w = new StringWriter();
+        // '⼀' (0x2f00) <--> '一' (0x4e00)
+
+
+        w.WriteLine();
+        w.Write("// Strange: ");
+        foreach (var item in list)
+        {
+            w.Write($"{item.Item2}");
+        }
+
+        w.WriteLine();
+
+        w.WriteLine();
+        w.Write("// Normal: ");
+        foreach (var item in list)
+        {
+            w.Write($"{item.Item4}");
+        }
+
+        w.WriteLine();
+        w.WriteLine();
+
+        foreach (var item in list)
+        {
+            if (item.Item2 != item.Item1)
+                throw new CoresLibException();
+            if (item.Item4 != item.Item3)
+                throw new CoresLibException();
+
+            w.WriteLine($"// '{item.Item2}' (0x{item.Item1.ToString("x4")}) <--> '{item.Item4}' (0x{item.Item3.ToString("x4")})");
+        }
+
+        w.WriteLine();
+
+        w.WriteLine("new char[] {");
+        foreach (var item in list)
+        {
+            w.WriteLine($"(char)0x{item.Item1.ToString("x4")} /* '{item.Item2}' */, ");
+        }
+        w.WriteLine("}");
+        w.WriteLine();
+
+
+
+        w.WriteLine("new char[] {");
+        foreach (var item in list)
+        {
+            w.WriteLine($"(char)0x{item.Item3.ToString("x4")} /* '{item.Item4}' */, ");
+        }
+        w.WriteLine("}");
+        w.WriteLine();
+
+
+
+
+
+        w.Flush();
+
+        Lfs.WriteStringToFile(@"c:\tmp\dst1.txt", w.ToString());
+
+        w.ToString()._Print();
+    }
+
     public static void Test_Generic()
     {
+        if (false)
+        {
+            string tmp1 = @"○□□⽇本国憲法朕は、□□⽇本国□□⺠の総意に基";
+            Con.WriteLine(tmp1);
+            Con.WriteLine(UnicodeStdKangxiMapUtil.StrangeToNormal(tmp1));
+            return;
+        }
+
+        if (true)
+        {
+            Test_250408();
+            return;
+        }
+
         if (true)
         {
             StressTest1();
@@ -5169,7 +5308,7 @@ HOST: www.google.com
 
         if (true)
         {
-            var g = new CertificateHostName("*.cyber.ipa.go.jp");
+            var g = new CertificateHostName(" *.cyber.ipa.go.jp");
 
             bool b = g.IsMatchForHost("telework.cyber.ipa.go.jp");
 
@@ -5569,7 +5708,7 @@ HOST: www.google.com
         {
             // HADB DDNS 模擬テスト #3 (ランダム変更しまくり)
             Test_211205(threads: 100, count: 1, numInsertsOrUpdates: 30000, type: HADB_DDNS_TestType.Test2_RandomUpdates, truncate: false); // 300 万レコード追加テスト
-            // メモ: 2700 レコード / 秒 くらい追加できた。(パーティション UID 分割時)
+                                                                                                                                            // メモ: 2700 レコード / 秒 くらい追加できた。(パーティション UID 分割時)
             return;
         }
 
@@ -5577,7 +5716,7 @@ HOST: www.google.com
         {
             // HADB DDNS 模擬テスト #2 (追加しまくり)
             Test_211205(threads: 100, count: 1, numInsertsOrUpdates: 30000, type: HADB_DDNS_TestType.Test1_ManyInserts, truncate: true); // 300 万レコード追加テスト
-            // メモ: 6000 レコード / 秒 くらい追加できた。(パーティション UID 分割時)
+                                                                                                                                         // メモ: 6000 レコード / 秒 くらい追加できた。(パーティション UID 分割時)
             return;
         }
 
