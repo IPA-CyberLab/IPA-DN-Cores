@@ -775,7 +775,7 @@ public class AiTask
 
         for (int i = 0; i < 999;i++)
         {
-            if (q.NumRotate >= numRotate && i > minTracks)
+            if (q.NumRotate >= numRotate && i >= minTracks)
             {
                 break;
             }
@@ -783,13 +783,18 @@ public class AiTask
             int rotateForDisplay = q.NumRotate + 1;
             if (rotateForDisplay <= 0) rotateForDisplay = 1;
 
+            string dstFilePath = PP.Combine(destDirPath, $"{albumName} - {artist} - {timestampStr} - Track_{(i + 1).ToString("D3")} - r{rotateForDisplay} - {secstr}{FfMpegUtil.GetExtensionFromCodec(codec)}");
+            if (await Lfs.IsFileExistsAsync(dstFilePath, cancel))
+            {
+                Con.WriteLine($"File '{dstFilePath}' already exists. Skip this artist at all.");
+                return new();
+            }
+
             Con.WriteLine($"--- Concat {albumName} - {artist} Track #{(i + 1).ToString("D3")} (NumRotate = {q.NumRotate})");
 
             string dstTmpFileName = await Lfs.GenerateUniqueTempFilePathAsync("concat3", ".wav", cancel: cancel);
 
             var srcFilesList = await ConcatWavFileFromRandomDirAsync(q, dstTmpFileName, durationOfSingleFileMsecs, settings, fadeOutSecs, cancel);
-
-            string dstFilePath = PP.Combine(destDirPath, $"{albumName} - {artist} - {timestampStr} - Track_{(i + 1).ToString("D3")} - r{rotateForDisplay} - {secstr}{FfMpegUtil.GetExtensionFromCodec(codec)}");
 
             MediaMetaData meta = new MediaMetaData
             {
