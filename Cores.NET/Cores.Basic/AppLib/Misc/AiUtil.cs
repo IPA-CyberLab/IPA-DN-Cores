@@ -773,6 +773,8 @@ public class AiTask
 
         string secstr = $"{(settings.Medley_SingleFilePartMSecs / 1000)}s";
 
+        await Lfs.CreateDirectoryAsync(destDirPath, cancel: cancel);
+
         for (int i = 0; i < 999;i++)
         {
             if (q.NumRotate >= numRotate && i >= minTracks)
