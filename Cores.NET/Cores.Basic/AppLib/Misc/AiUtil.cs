@@ -446,18 +446,21 @@ public class AiTask
         }
     }
 
-    public async Task VoiceChangeAsync(string srcPath, string srcSampleVoicePath, string dstVoiceDirPath, string tmpVoiceWavDir, int diffusionSteps, string product, string series, string title, int track, int[]? speedPercentList = null, int headOnlySecs = 0, CancellationToken cancel = default)
+    public async Task VoiceChangeAsync(string srcPath, string srcSampleVoicePath, string dstVoiceDirPath, string tmpVoiceWavDir, int diffusionSteps, string product, string series, string title, int track, int[]? speedPercentList = null, int headOnlySecs = 0, string? productAlternativeForTmpWavFiles = null, CancellationToken cancel = default)
     {
         if (speedPercentList == null || speedPercentList.Any() == false)
             speedPercentList = new int[] { 100 };
 
+        if (productAlternativeForTmpWavFiles._IsEmpty()) productAlternativeForTmpWavFiles = product;
+
         string safeProduct = PPWin.MakeSafeFileName(product, true, true, true);
+        string safeProductForTmpWav = PPWin.MakeSafeFileName(productAlternativeForTmpWavFiles, true, true, true);
         string safeSeries = PPWin.MakeSafeFileName(series, true, true, true);
         string safeTitle = PPWin.MakeSafeFileName(title, true, true, true);
 
         string safeVoiceTitle = PPWin.GetFileNameWithoutExtension(srcSampleVoicePath)._Normalize(false, true, false, true);
 
-        string tmpVoiceWavPath = PP.Combine(tmpVoiceWavDir, $"{safeProduct} - {safeSeries} - {safeTitle} - {safeVoiceTitle}.wav");
+        string tmpVoiceWavPath = PP.Combine(tmpVoiceWavDir, $"{safeProductForTmpWav} - {safeSeries} - {safeTitle} - {safeVoiceTitle}.wav");
 
         string tagTitle = $"{safeProduct} - {safeSeries} - {safeTitle} - {safeVoiceTitle}";
 
@@ -485,9 +488,9 @@ public class AiTask
 
             MediaMetaData meta = new MediaMetaData
             {
-                Album = $"{safeProduct} - {safeSeries} - {speedStr}",
-                Artist = $"{safeProduct} - {speedStr}",
-                Title = $"{safeSeries} - [{trackStr}] {safeTitle} - {safeVoiceTitle} - {speedStr}",
+                Artist = $"{safeProduct} - {safeSeries} - {speedStr}",
+                Album  = $"{safeProduct} - {speedStr}",
+                Title = $"{safeSeries} - [{trackStr}] {safeTitle} - {safeVoiceTitle} - {speedStr} - {safeProduct}",
                 TrackTotal = 999,
                 Track = track,
             };
