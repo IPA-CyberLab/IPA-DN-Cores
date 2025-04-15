@@ -653,12 +653,12 @@ public class AiTask
         return ret;
     }
 
-    public async Task AddRandomBgpToAllVoiceFilesAsync(string srcVoiceDirRoot, string dstDirRoot, string srcMusicWavsDirPath, FfMpegAudioCodec codec, AiRandomBgmSettings settings, bool smoothMode, int kbps = 0, int fadeOutSecs = AiTask.DefaultFadeoutSecs, string? oldTagStr = null, string? newTagStr = null, CancellationToken cancel = default)
+    public async Task AddRandomBgpToAllVoiceFilesAsync(string srcVoiceDirRoot, string dstDirRoot, string srcMusicWavsDirPath, FfMpegAudioCodec codec, AiRandomBgmSettings settings, bool smoothMode, int kbps = 0, int fadeOutSecs = AiTask.DefaultFadeoutSecs, string? oldTagStr = null, string? newTagStr = null, double? adjustDeltaForConstant = null, CancellationToken cancel = default)
     {
         var srcFiles = await Lfs.EnumDirectoryAsync(srcVoiceDirRoot, true, cancel: cancel);
 
         foreach (var srcFile in srcFiles.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Filter_MusicFiles) && x.Name._InStri("bgm") == false)
-            .Where(x => x.Name._InStri("[Juku2023Vc] - 民法 - x1.00 - [01] 講義_01-03 - za_002"))
+            //.Where(x => x.Name._InStri("[Juku2023Vc] - 民法 - x1.00 - [01] 講義_01-03 - za_002"))
             .OrderBy(x => x.FullPath, StrCmpi))
         {
             string relativeDirPth = PP.GetRelativeDirectoryName(PP.GetDirectoryName(srcFile.FullPath), srcVoiceDirRoot);
@@ -667,11 +667,11 @@ public class AiTask
 
             Con.WriteLine($"Add BGM: '{srcFile.FullPath}' -> '{dstDirPath}'");
 
-            var result = await AddRandomBgmToVoiceFileAsync(srcFile.FullPath, dstDirPath, srcMusicWavsDirPath, codec, settings, smoothMode, kbps, fadeOutSecs, true, oldTagStr, newTagStr, cancel);
+            var result = await AddRandomBgmToVoiceFileAsync(srcFile.FullPath, dstDirPath, srcMusicWavsDirPath, codec, settings, smoothMode, kbps, fadeOutSecs, true, oldTagStr, newTagStr, adjustDeltaForConstant, cancel);
         }
     }
 
-    public async Task<(FfMpegParsedList Parsed, string DestFileName)> AddRandomBgmToVoiceFileAsync(string srcVoiceFilePath, string dstDir, string srcMusicWavsDirPath, FfMpegAudioCodec codec, AiRandomBgmSettings settings, bool smoothMode, int kbps = 0, int fadeOutSecs = AiTask.DefaultFadeoutSecs, bool useOkFile = true, string? oldTagStr = null, string? newTagStr = null, CancellationToken cancel = default)
+    public async Task<(FfMpegParsedList Parsed, string DestFileName)> AddRandomBgmToVoiceFileAsync(string srcVoiceFilePath, string dstDir, string srcMusicWavsDirPath, FfMpegAudioCodec codec, AiRandomBgmSettings settings, bool smoothMode, int kbps = 0, int fadeOutSecs = AiTask.DefaultFadeoutSecs, bool useOkFile = true, string? oldTagStr = null, string? newTagStr = null, double? adjustDeltaForConstant = null, CancellationToken cancel = default)
     {
         var srcVoiceFileMetaData = await FfMpeg.ReadMetaDataWithFfProbeAsync(srcVoiceFilePath, cancel: cancel);
 
@@ -750,7 +750,7 @@ public class AiTask
             throw new CoresLibException($"dstFilePath == srcVoiceFilePath: '{srcVoiceFilePath}'");
         }
 
-        double adjustDelta = smoothMode ? AiTask.BgmVolumeDeltaForSmooth : AiTask.BgmVolumeDeltaForConstant;
+        double adjustDelta = smoothMode ? AiTask.BgmVolumeDeltaForSmooth : (adjustDeltaForConstant ?? AiTask.BgmVolumeDeltaForConstant);
 
         string digest = $"srcDurationMsecs={srcDurationMsecs},fadeOutSecs={fadeOutSecs},smoothMode={smoothMode},adjustDelta ={adjustDelta},codec={codec},kbps={kbps},meta={newMeta._ObjectToJson()._Digest()}";
 
