@@ -489,7 +489,7 @@ public class AiTask
             MediaMetaData meta = new MediaMetaData
             {
                 Artist = $"{safeProduct} - {safeSeries} - {speedStr}",
-                Album  = $"{safeProduct} - {speedStr}",
+                Album = $"{safeProduct} - {speedStr}",
                 Title = $"{safeSeries} - [{trackStr}] {safeTitle} - {safeVoiceTitle} - {speedStr} - {safeProduct}",
                 TrackTotal = 999,
                 Track = track,
@@ -653,11 +653,13 @@ public class AiTask
         return ret;
     }
 
-    public async Task AddRandomBgpToAllVoiceFilesAsync(string srcVoiceDirRoot, string dstDirRoot, string srcMusicWavsDirPath, FfMpegAudioCodec codec, AiRandomBgmSettings settings, bool smoothMode, int kbps = 0, int fadeOutSecs = AiTask.DefaultFadeoutSecs, CancellationToken cancel = default)
+    public async Task AddRandomBgpToAllVoiceFilesAsync(string srcVoiceDirRoot, string dstDirRoot, string srcMusicWavsDirPath, FfMpegAudioCodec codec, AiRandomBgmSettings settings, bool smoothMode, int kbps = 0, int fadeOutSecs = AiTask.DefaultFadeoutSecs, string? oldTagStr = null, string? newTagStr = null, CancellationToken cancel = default)
     {
         var srcFiles = await Lfs.EnumDirectoryAsync(srcVoiceDirRoot, true, cancel: cancel);
 
-        foreach (var srcFile in srcFiles.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Filter_MusicFiles) && x.Name._InStri("bgm") == false).OrderBy(x => x.FullPath, StrCmpi))
+        foreach (var srcFile in srcFiles.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Filter_MusicFiles) && x.Name._InStri("bgm") == false)
+            .Where(x => x.Name._InStri("[Juku2023Vc] - 民法 - x1.00 - [01] 講義_01-03 - za_002"))
+            .OrderBy(x => x.FullPath, StrCmpi))
         {
             string relativeDirPth = PP.GetRelativeDirectoryName(PP.GetDirectoryName(srcFile.FullPath), srcVoiceDirRoot);
 
@@ -665,13 +667,15 @@ public class AiTask
 
             Con.WriteLine($"Add BGM: '{srcFile.FullPath}' -> '{dstDirPath}'");
 
-            var result = await AddRandomBgmToVoiceFileAsync(srcFile.FullPath, dstDirPath, srcMusicWavsDirPath, codec, settings, smoothMode, kbps, fadeOutSecs, true, cancel);
+            var result = await AddRandomBgmToVoiceFileAsync(srcFile.FullPath, dstDirPath, srcMusicWavsDirPath, codec, settings, smoothMode, kbps, fadeOutSecs, true, oldTagStr, newTagStr, cancel);
         }
     }
 
-    public async Task<(FfMpegParsedList Parsed, string DestFileName)> AddRandomBgmToVoiceFileAsync(string srcVoiceFilePath, string dstDir, string srcMusicWavsDirPath, FfMpegAudioCodec codec, AiRandomBgmSettings settings, bool smoothMode, int kbps = 0, int fadeOutSecs = AiTask.DefaultFadeoutSecs, bool useOkFile = true, CancellationToken cancel = default)
+    public async Task<(FfMpegParsedList Parsed, string DestFileName)> AddRandomBgmToVoiceFileAsync(string srcVoiceFilePath, string dstDir, string srcMusicWavsDirPath, FfMpegAudioCodec codec, AiRandomBgmSettings settings, bool smoothMode, int kbps = 0, int fadeOutSecs = AiTask.DefaultFadeoutSecs, bool useOkFile = true, string? oldTagStr = null, string? newTagStr = null, CancellationToken cancel = default)
     {
         var srcVoiceFileMetaData = await FfMpeg.ReadMetaDataWithFfProbeAsync(srcVoiceFilePath, cancel: cancel);
+
+        srcVoiceFileMetaData.ReParseMain();
 
         int srcDurationMsecs = srcVoiceFileMetaData.Input?.GetDurationMsecs() ?? -1;
 
@@ -687,6 +691,8 @@ public class AiTask
 
         if (okFileMeta.IsOk && okFileMeta.Value != null && okFileMeta.Value.Meta != null)
         {
+            okFileMeta.Value.ReParseMain();
+
             if (okFileMeta.Value.Meta.HasValue())
             {
                 srcMeta = okFileMeta.Value.Meta;
@@ -695,32 +701,54 @@ public class AiTask
 
         MediaMetaData newMeta = srcMeta._CloneDeep();
 
-        newMeta.Album = newMeta.Album._ReplaceStr(" - x", " - bgm_x");
-        newMeta.AlbumArtist = newMeta.AlbumArtist._ReplaceStr(" - x", " - bgm_x");
-        newMeta.Title = newMeta.Title._ReplaceStr(" - x", " - bgm_x");
-        newMeta.Artist = newMeta.Artist._ReplaceStr(" - x", " - bgm_x");
+        if (oldTagStr._IsFilled() && newTagStr._IsFilled())
+        {
+            newMeta.Album = newMeta.Album._ReplaceStr(oldTagStr, newTagStr);
+            newMeta.AlbumArtist = newMeta.AlbumArtist._ReplaceStr(oldTagStr, newTagStr);
+            newMeta.Title = newMeta.Title._ReplaceStr(oldTagStr, newTagStr);
+            newMeta.Artist = newMeta.Artist._ReplaceStr(oldTagStr, newTagStr);
+        }
+        else
+        {
+            newMeta.Album = newMeta.Album._ReplaceStr(" - x", " - bgm_x");
+            newMeta.AlbumArtist = newMeta.AlbumArtist._ReplaceStr(" - x", " - bgm_x");
+            newMeta.Title = newMeta.Title._ReplaceStr(" - x", " - bgm_x");
+            newMeta.Artist = newMeta.Artist._ReplaceStr(" - x", " - bgm_x");
+        }
 
         string dstFileName;
         string dstExtension = FfMpegUtil.GetExtensionFromCodec(codec);
 
-        if (newMeta.HasValue())
+        if (oldTagStr._IsFilled() && newTagStr._IsFilled())
         {
-            dstFileName = $"{newMeta.Album} - {newMeta.Title}{dstExtension}";
+            dstFileName = PP.GetFileNameWithoutExtension(srcVoiceFilePath)._ReplaceStr(oldTagStr, newTagStr) + dstExtension;
         }
         else
         {
-            string tmp1 = PP.GetFileNameWithoutExtension(srcVoiceFilePath);
-            string tmp2 = tmp1._ReplaceStr(" - x", " - bgm_x");
-
-            if (tmp1._IsSamei(tmp2))
+            if (newMeta.HasValue())
             {
-                tmp2 = tmp1 + " - bgm";
+                dstFileName = $"{newMeta.Album} - {newMeta.Title}{dstExtension}";
             }
+            else
+            {
+                string tmp1 = PP.GetFileNameWithoutExtension(srcVoiceFilePath);
+                string tmp2 = tmp1._ReplaceStr(" - x", " - bgm_x");
 
-            dstFileName = tmp2;
+                if (tmp1._IsSamei(tmp2))
+                {
+                    tmp2 = tmp1 + " - bgm";
+                }
+
+                dstFileName = tmp2;
+            }
         }
 
         string dstFilePath = PP.Combine(dstDir, dstFileName);
+
+        if (dstFilePath._IsSamei(srcVoiceFilePath))
+        {
+            throw new CoresLibException($"dstFilePath == srcVoiceFilePath: '{srcVoiceFilePath}'");
+        }
 
         double adjustDelta = smoothMode ? AiTask.BgmVolumeDeltaForSmooth : AiTask.BgmVolumeDeltaForConstant;
 
@@ -759,6 +787,10 @@ public class AiTask
             await Lfs.WriteOkFileAsync(dstFilePath, parsed, digest, AiUtilVersion.CurrentVersion, cancel);
         }
 
+        await Lfs.DeleteFileIfExistsAsync(voiceWavTmpPath, cancel: cancel);
+        await Lfs.DeleteFileIfExistsAsync(bgmWavTmpPath, cancel: cancel);
+        await Lfs.DeleteFileIfExistsAsync(outWavTmpPath, cancel: cancel);
+
         return (parsed, dstFilePath);
     }
 
@@ -778,7 +810,7 @@ public class AiTask
 
         await Lfs.CreateDirectoryAsync(destDirPath, cancel: cancel);
 
-        for (int i = 0; i < 999;i++)
+        for (int i = 0; i < 999; i++)
         {
             if (q.NumRotate >= numRotate && i >= minTracks)
             {

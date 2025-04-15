@@ -240,6 +240,8 @@ public class FfMpegParsedList
     public double VolumeDetect_MeanVolume;
     public double VolumeDetect_MaxVolume;
 
+    public void ReParseMain() => ParseMain();
+
     void ParseMain()
     {
         this.Meta.Album = this.All.Select(x => x.Items._GetStrFirst("album")).Where(x => x._IsFilled()).FirstOrDefault("");
@@ -253,6 +255,11 @@ public class FfMpegParsedList
         {
             this.Meta.Track = currentTrackStr._ToInt();
             this.Meta.TrackTotal = totalTrackStr._ToInt();
+        }
+        else if (trackStr._GetKeyAndValueExact(out var currentTrackStr2, out var totalTrackStr2, "_")) // bugfix
+        {
+            this.Meta.Track = currentTrackStr2._ToInt();
+            this.Meta.TrackTotal = totalTrackStr2._ToInt();
         }
         else
         {
@@ -442,7 +449,10 @@ public class FfMpegUtil
                 {
                     string value = kv.Value._NonNullTrim();
 
-                    value = PPWin.MakeSafeFileName(value, false, true, true);
+                    if (kv.Key._IsDiffi("track"))
+                    {
+                        value = PPWin.MakeSafeFileName(value, false, true, true);
+                    }
 
                     cmdLine += $"-metadata {kv.Key}={value._EnsureQuotation()} ";
                 }
