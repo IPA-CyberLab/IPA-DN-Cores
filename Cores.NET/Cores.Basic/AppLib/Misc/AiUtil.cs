@@ -82,6 +82,8 @@ public class AiTask
     public const double BgmVolumeDeltaForConstant = -9.3;
     public const double BgmVolumeDeltaForSmooth = -0.0;
 
+    public static readonly RefLong TotalGpuProcessTimeMsecs = new RefLong();
+
     public const int DefaultFadeoutSecs = 10;
 
     public FfMpegUtil FfMpeg { get; }
@@ -446,7 +448,7 @@ public class AiTask
         }
     }
 
-    public async Task VoiceChangeAsync(string srcPath, string srcSampleVoicePath, string dstVoiceDirPath, string tmpVoiceWavDir, int diffusionSteps, string product, string series, string title, int track, int[]? speedPercentList = null, int headOnlySecs = 0, string? productAlternativeForTmpWavFiles = null, CancellationToken cancel = default)
+    public async Task VoiceChangeAsync(string srcPath, string srcSampleVoicePath, string dstVoiceDirPath, string tmpVoiceWavDir, int diffusionSteps, string product, string series, string title, int track, int[]? speedPercentList = null, int headOnlySecs = 0, string? productAlternativeForTmpWavFiles = null, bool useOkFile = true, CancellationToken cancel = default)
     {
         if (speedPercentList == null || speedPercentList.Any() == false)
             speedPercentList = new int[] { 100 };
@@ -468,14 +470,14 @@ public class AiTask
 
         string digest = $"voiceSamplePath={srcSampleVoicePath},diffusionSteps={diffusionSteps},targetMaxVolume={Settings.AdjustAudioTargetMaxVolume},targetMeanVolume={Settings.AdjustAudioTargetMeanVolume},headOnlySecs={headOnlySecs}";
 
-        if (await Lfs.IsOkFileExists(tmpVoiceWavPath, digest, AiUtilVersion.CurrentVersion, cancel) == false)
+        if (useOkFile == false || await Lfs.IsOkFileExists(tmpVoiceWavPath, digest, AiUtilVersion.CurrentVersion, cancel) == false)
         {
             await FfMpeg.EncodeAudioAsync(srcPath, srcTmpWavPath, FfMpegAudioCodec.Wav, tagTitle: tagTitle, headOnlySecs: headOnlySecs, cancel: cancel);
 
             await using (var seedvc = new AiUtilSeedVcEngine(this.Settings, this.FfMpeg))
             {
                 await seedvc.ConvertAsync(srcTmpWavPath, tmpVoiceWavPath, srcSampleVoicePath, diffusionSteps, tagTitle, false, cancel);
-                await Lfs.WriteOkFileAsync(tmpVoiceWavPath, new OkFileEmptyMetaData(), digest, AiUtilVersion.CurrentVersion, cancel);
+                if (useOkFile) await Lfs.WriteOkFileAsync(tmpVoiceWavPath, new OkFileEmptyMetaData(), digest, AiUtilVersion.CurrentVersion, cancel);
                 await Lfs.DeleteFileIfExistsAsync(srcTmpWavPath, cancel: cancel);
             }
         }
@@ -497,7 +499,7 @@ public class AiTask
 
             string dstVoiceFlacPath = PP.Combine(dstVoiceDirPath, safeProduct, safeSeries, $"{safeProduct} - {safeSeries} - {speedStr} - [{trackStr}] {safeTitle} - {safeVoiceTitle}.m4a");
 
-            await FfMpeg.EncodeAudioAsync(tmpVoiceWavPath, dstVoiceFlacPath, FfMpegAudioCodec.Aac, 0, speed, meta, tagTitle, true, cancel: cancel);
+            await FfMpeg.EncodeAudioAsync(tmpVoiceWavPath, dstVoiceFlacPath, FfMpegAudioCodec.Aac, 0, speed, meta, tagTitle, useOkFile, cancel: cancel);
         }
     }
 
@@ -583,7 +585,7 @@ public class AiTask
                     string tmpMusicWavPath = PP.Combine(tmpMusicDirPath, $"MusicOnly - {safeArtistName} - {safeSongTitle}.wav");
                     string tmpVocalWavPath = PP.Combine(tmpVocalDirPath, $"VocalOnly - {safeArtistName} - {safeSongTitle}.wav");
 
-                    var result = await ExtractMusicAndVocalAsync(srcMusicFile.FullPath, tmpMusicWavPath, tmpVocalWavPath, safeSongTitle, cancel);
+                    var result = await ExtractMusicAndVocalAsync(srcMusicFile.FullPath, tmpMusicWavPath, tmpVocalWavPath, safeSongTitle, cancel: cancel);
 
                     string formalSongTitle = (result?.Meta?.Title)._NonNullTrimSe();
                     if (formalSongTitle._IsEmpty())
@@ -637,13 +639,13 @@ public class AiTask
         }
     }
 
-    public async Task<FfMpegParsedList> ExtractMusicAndVocalAsync(string srcFilePath, string dstMusicWavPath, string dstVocalWavPath, string tagTitle, CancellationToken cancel = default)
+    public async Task<FfMpegParsedList> ExtractMusicAndVocalAsync(string srcFilePath, string dstMusicWavPath, string dstVocalWavPath, string tagTitle, bool useOkFile = true, CancellationToken cancel = default)
     {
         FfMpegParsedList ret = await TaskUtil.RetryAsync(async c =>
         {
             await using var uvr = new AiUtilUvrEngine(this.Settings, this.FfMpeg);
 
-            return await uvr.ExtractAsync(srcFilePath, dstMusicWavPath, dstVocalWavPath, tagTitle, true, cancel);
+            return await uvr.ExtractAsync(srcFilePath, dstMusicWavPath, dstVocalWavPath, tagTitle, useOkFile, cancel);
         },
         1000,
         3,
@@ -1125,11 +1127,16 @@ public class AiUtilSeedVcEngine : AiUtilBasicEngine
         int srcWavFileLen = await AiTask.GetWavFileLengthMSecAsync(srcWavPath);
         int timeout = (srcWavFileLen * 2) + (60 * 1000);
 
+        long startTick = TickHighresNow;
+
         var result = await this.RunVEnvPythonCommandsAsync(
             $"python inference.py --source test_in_data/_aiutil_src.wav --target test_in_data/_aiutil_sample.wav " +
             $"--output test_out_dir --diffusion-steps {diffusionSteps} --length-adjust 1.0 --inference-cfg-rate 1.0 --f0-condition False " +
             $"--auto-f0-adjust False --semi-tone-shift 0 --config runs/test01_kuraki/config_dit_mel_seed_uvit_whisper_small_wavenet.yml " +
             $"--fp16 True", timeout, printTag: tag, cancel: cancel);
+
+        long endTick = TickHighresNow;
+        AiTask.TotalGpuProcessTimeMsecs.Add(endTick - startTick);
 
         if (result.OutputAndErrorStr._GetLines().Where(x => x.StartsWith("RTF: ")).Any() == false)
         {
@@ -1332,7 +1339,12 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
 
         string url2 = $"http://127.0.0.1:{this.Settings.VoiceBoxLocalhostPort}/synthesis?speaker={speakerId}";
 
+        long startTick = TickHighresNow;
+
         var result2 = await http.SimplePostDataAsync(url2, queryJsonStr._GetBytes_UTF8(), cancel, "application/json");
+
+        long endTick = TickHighresNow;
+        AiTask.TotalGpuProcessTimeMsecs.Add(endTick - startTick);
 
         return result2.Data;
     }
@@ -1469,7 +1481,10 @@ public class AiUtilUvrEngine : AiUtilBasicEngine
         int srcWavFileLen = await AiTask.GetWavFileLengthMSecAsync(srcWavPath);
         int timeout = (srcWavFileLen * 2) + (60 * 1000);
 
+        long startTick = TickHighresNow;
         var result = await this.RunVEnvPythonCommandsAsync($"python {(music ? "get_music" : "get_vocal")}_wav.py", timeout, printTag: tag, cancel: cancel);
+        long endTick = TickHighresNow;
+        AiTask.TotalGpuProcessTimeMsecs.Add(endTick - startTick);
 
         if (result.OutputAndErrorStr._GetLines().Where(x => x._InStr("instruments done")).Any() == false)
         {
