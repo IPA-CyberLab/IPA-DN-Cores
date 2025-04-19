@@ -263,6 +263,11 @@ public class WebAutoWindow : AsyncService
         await this.Driver.Navigate().GoToUrlAsync(url);
     }
 
+    public void SetFocus(IWebElement element)
+    {
+        ((IJavaScriptExecutor)this.Driver).ExecuteScript("arguments[0].focus();", element);
+    }
+
     public Actions StartActionAt(IWebElement element)
     {
         var action = new Actions(this.Driver);
