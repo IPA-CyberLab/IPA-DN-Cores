@@ -5409,6 +5409,8 @@ public class DirQueueTaskResultMetaData
     public bool IsOk;
     public TimeSpan TookTime;
     public int SuspendMSecs;
+    public string AiSystem = "";
+    public string AiModel = "";
 }
 
 public class DirQueueTaskResult
