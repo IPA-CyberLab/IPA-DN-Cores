@@ -675,6 +675,202 @@ public class AiTask
         return ret;
     }
 
+    public async Task CompositAudioFileByAcxBcxTagsWithManyWavMaterialsAsync(string targetAudioFilePath, string dstAudioFilePath, FfMpegAudioCodec codec, int kbps, string materialsDirPath,
+        double paddingSecs, double stdFadeInSecs, double stdFadeOutSecs, double maxRandBeforeLengthSecs, double maxRandAfterLengthSecs, double voluleDelta,
+        double targetSrcWavSpeed,
+        CancellationToken cancel = default)
+    {
+        string tmpWavPath = await Lfs.GenerateUniqueTempFilePathAsync("a", "wav", cancel: cancel);
+
+        await this.FfMpeg.EncodeAudioAsync(targetAudioFilePath, tmpWavPath,  FfMpegAudioCodec.Wav, 0, useOkFile: false, cancel: cancel);
+
+        var okRead = await Lfs.ReadOkFileAsync<FfMpegParsedList>(targetAudioFilePath, cancel: cancel);
+
+        okRead.ThrowIfError();
+
+        await CompositWaveFileByAcxBcxTagsWithManyWavMaterialsAsync(tmpWavPath, okRead.Value._NullCheck(), tmpWavPath, materialsDirPath, paddingSecs,
+            stdFadeInSecs, stdFadeOutSecs, maxRandBeforeLengthSecs, maxRandAfterLengthSecs, voluleDelta, targetSrcWavSpeed, cancel);
+
+        Con.WriteLine(tmpWavPath);
+    }
+
+    public async Task CompositWaveFileByAcxBcxTagsWithManyWavMaterialsAsync(string targetSrcWavPath, FfMpegParsedList targetSrcMetaData, string dstWavPath, string materialsDirPath,
+        double paddingSecs, double stdFadeInSecs, double stdFadeOutSecs, double maxRandBeforeLengthSecs, double maxRandAfterLengthSecs, double voluleDelta,
+        double targetSrcWavSpeed,
+        CancellationToken cancel = default)
+    {
+        var matFiles = await Lfs.EnumDirectoryAsync(materialsDirPath, false, cancel: cancel);
+
+        List<(string FilePath, double Length)> matFilesList = new();
+
+        foreach (var matFile in matFiles.Where(x => x.IsFile && x.Name._IsExtensionMatch(".wav")))
+        {
+            try
+            {
+                double length = await GetWavFileLengthSecsAsync(matFile.FullPath, cancel);
+
+                if (length >= (stdFadeInSecs + stdFadeOutSecs + 8.0))
+                {
+                    matFilesList.Add((matFile.FullPath, length));
+                }
+            }
+            catch (Exception ex)
+            {
+                ex._Error();
+            }
+        }
+
+        var segments = targetSrcMetaData.Options_VoiceSegmentsList;
+        segments._NullCheck();
+
+        List<(MediaVoiceSegment Start, MediaVoiceSegment End)> opList = new();
+
+        for (int i = 0; i < segments.Count; i++)
+        {
+            var seg = segments[i];
+
+            if (seg.IsTag && seg.TagStr._IsSamei("<ACX_START>"))
+            {
+                for (int j = i + 1; j < segments.Count; j++)
+                {
+                    var seg2 = segments[j];
+                    if (seg2.IsTag && seg2.TagStr._IsSamei("<ACX_END>"))
+                    {
+                        opList.Add((seg, seg2));
+                        break;
+                    }
+                }
+            }
+
+            if (seg.IsTag && seg.TagStr._IsSamei("<BCX_START>"))
+            {
+                for (int j = i + 1; j < segments.Count; j++)
+                {
+                    var seg2 = segments[j];
+                    if (seg2.IsTag && seg2.TagStr._IsSamei("<BCX_END>") || seg2.TagStr._IsSamei("<BXC_END>"))
+                    {
+                        opList.Add((seg, seg2));
+                        break;
+                    }
+                }
+            }
+        }
+
+        List<(string MeterialWavPath, double TargetPositionSecs, double MeterialPositionSecs, double LengthSecs, double FadeInSecs, double FadeOutSecs, double VolumeDelta)> op2 = new();
+
+        foreach (var op in opList)
+        {
+            try
+            {
+                double wantLength = op.End.TimePosition / targetSrcWavSpeed - op.Start.TimePosition / targetSrcWavSpeed;
+                double minLength = paddingSecs * 3 + wantLength * 1.5 + stdFadeInSecs + stdFadeOutSecs + maxRandAfterLengthSecs + maxRandBeforeLengthSecs + 15.0;
+
+                var mat = matFilesList.Where(x=>x.Length >= minLength)._ShuffleWithWeight(x => (int)((x.Length + 10.0) * 1000)).ToList().First();
+
+                double len1 = mat.Length - paddingSecs * 2;
+                double tmp1 = len1 - wantLength;
+                double matStartPos = Util.RandDouble0To1() * tmp1 + paddingSecs;
+
+                double fadeIn = Util.GenRandInterval(stdFadeInSecs._ToTimeSpanSecs()).TotalSeconds;
+                double fadeOut = Util.GenRandInterval(stdFadeOutSecs._ToTimeSpanSecs()).TotalSeconds;
+
+                double before = maxRandBeforeLengthSecs * Util.RandDouble0To1();
+                double after = maxRandAfterLengthSecs * Util.RandDouble0To1();
+                double len = wantLength + maxRandBeforeLengthSecs + maxRandAfterLengthSecs;
+
+                double targetStartPos = Math.Max(op.Start.TimePosition / targetSrcWavSpeed - maxRandBeforeLengthSecs, 0.0);
+
+                op2.Add((mat.FilePath, targetStartPos, matStartPos, len, fadeIn, fadeOut, voluleDelta));
+            }
+            catch (Exception ex)
+            {
+                ex._Error();
+            }
+        }
+
+        await CompositWaveWithFadeAsync(targetSrcWavPath, dstWavPath, op2, cancel: cancel);
+    }
+
+    public async Task<double> GetWavFileLengthSecsAsync(string wavPath, CancellationToken cancel = default)
+    {
+        await using (var targetSrcFileStream = File.Open(wavPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            await using var reader = new WaveFileReader(targetSrcFileStream);
+
+            CheckWavFormat(reader.WaveFormat);
+
+            return reader.TotalTime.TotalSeconds;
+        }
+    }
+
+    public void CheckWavFormat(WaveFormat format)
+    {
+        if (format.SampleRate != 44100 ||
+                      format.Channels != 2 ||
+                      format.BitsPerSample != 16 ||
+                      format.Encoding != WaveFormatEncoding.Pcm)
+        {
+            throw new CoresLibException(
+                $"指定されたファイルは " +
+                $"44.1 kHz / 2 チャンネル / 16 ビット / 無圧縮 PCM ではありません。"
+            );
+        }
+    }
+
+    public async Task CompositWaveWithFadeAsync(string targetSrcWavPath, string dstWavPath,
+        List<(string MeterialWavPath, double TargetPositionSecs, double MeterialPositionSecs, double LengthSecs, double FadeInSecs, double FadeOutSecs, double VolumeDelta)> operations, CancellationToken cancel = default)
+    {
+        Memory<byte> targetSrcData;
+        WaveFormat targetSrcWaveFormat;
+
+        await using (var targetSrcFileStream = File.Open(targetSrcWavPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            await using var targetSrcReader = new WaveFileReader(targetSrcFileStream);
+            targetSrcWaveFormat = targetSrcReader.WaveFormat;
+
+            CheckWavFormat(targetSrcWaveFormat);
+
+            targetSrcData = targetSrcReader._ReadToEnd().AsMemory();
+        }
+
+        foreach (var op in operations)
+        {
+            cancel.ThrowIfCancellationRequested();
+
+            try
+            {
+                ReadOnlyMemory<byte> matSrcData;
+
+                await using (var matFileStream = File.Open(op.MeterialWavPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                {
+                    await using var matReader = new WaveFileReader(matFileStream);
+                    WaveFormat matWaveFormat = matReader.WaveFormat;
+
+                    CheckWavFormat(targetSrcWaveFormat);
+
+                    matSrcData = matReader._ReadToEnd().AsMemory();
+                }
+
+                AiWaveMixUtil.MixWaveData(targetSrcData, matSrcData, op.TargetPositionSecs, op.MeterialPositionSecs, op.LengthSecs, op.VolumeDelta, op.FadeInSecs, op.FadeOutSecs);
+            }
+            catch (Exception ex)
+            {
+                ex._Error();
+            }
+        }
+
+        cancel.ThrowIfCancellationRequested();
+
+        await Lfs.CreateDirectoryAsync(PP.GetDirectoryName(dstWavPath), cancel: cancel);
+
+        await using (var dstFileStream = File.Create(dstWavPath))
+        {
+            await using var writer = new WaveFileWriter(dstFileStream, targetSrcWaveFormat);
+
+            await writer.WriteAsync(targetSrcData, cancel);
+        }
+    }
+
     public async Task AddRandomBgpToAllVoiceFilesAsync(string srcVoiceDirRoot, string dstDirRoot, string srcMusicWavsDirPath, FfMpegAudioCodec codec, AiRandomBgmSettings settings, bool smoothMode, int kbps = 0, int fadeOutSecs = AiTask.DefaultFadeoutSecs, string? oldTagStr = null, string? newTagStr = null, double? adjustDeltaForConstant = null, CancellationToken cancel = default)
     {
         var srcFiles = await Lfs.EnumDirectoryAsync(srcVoiceDirRoot, true, cancel: cancel);
@@ -1756,6 +1952,181 @@ public class AiRandomBgmSettings
     public int Medley_FadeInOutMsecs = 5 * 1000;
     public int Medley_PlusMinusPercentage = 44;
     public int Medley_MarginMsecs = 15 * 1000;
+}
+
+// By ChatGPT
+public static class AiWaveMixUtil
+{
+    /// <summary>
+    /// 44.1kHz・2ch・16bit PCM データを前提とした、メモリ上での波形合成処理を行う。
+    /// targetWav に、sourceWav をミキシングした結果を書き込む。
+    /// </summary>
+    /// <param name="targetWav">編集対象の Wave 生データ (Memory&lt;byte&gt;)</param>
+    /// <param name="sourceWav">合成元の Wave 生データ (ReadOnlyMemory&lt;byte&gt;)</param>
+    /// <param name="targetPosition">targetWav 内の合成開始位置(秒)</param>
+    /// <param name="sourceWavPosition">sourceWav 内の使用開始位置(秒)</param>
+    /// <param name="length">合成する長さ(秒)</param>
+    /// <param name="delta">dB 単位の音量調整値(正で音量アップ、負でダウン)</param>
+    /// <param name="fadein">フェードインの長さ(秒)</param>
+    /// <param name="fadeout">フェードアウトの長さ(秒)</param>
+    public static void MixWaveData(
+        Memory<byte> targetWav,
+        ReadOnlyMemory<byte> sourceWav,
+        double targetPosition,
+        double sourceWavPosition,
+        double length,
+        double delta,
+        double fadein,
+        double fadeout)
+    {
+        // 波形フォーマット前提値
+        const int sampleRate = 44100;
+        const int channels = 2;
+        const int bitsPerSample = 16;
+        // 1サンプル(1ch)あたりのバイト数
+        const int bytesPerSample = bitsPerSample / 8; // = 2
+                                                      // 1フレーム(全ch合計)あたりのバイト数(2ch前提)
+        const int blockAlign = channels * bytesPerSample; // 4バイト
+
+        if (targetPosition < 0 || sourceWavPosition < 0 || length <= 0)
+        {
+            // 負の位置や長さ0以下なら何もしない
+            return;
+        }
+
+        // 合成を開始するフレーム位置(整数)
+        long targetStartFrame = (long)(targetPosition * sampleRate);
+        long sourceStartFrame = (long)(sourceWavPosition * sampleRate);
+        if (targetStartFrame < 0 || sourceStartFrame < 0)
+        {
+            // もし計算結果が負なら処理しない
+            return;
+        }
+
+        // 合成するフレーム数(整数)
+        long framesToProcess = (long)(length * sampleRate);
+        if (framesToProcess <= 0)
+        {
+            return;
+        }
+
+        // バイト単位での開始位置
+        long targetStartByte = targetStartFrame * blockAlign;
+        long sourceStartByte = sourceStartFrame * blockAlign;
+
+        // targetWav / sourceWav の残りバイト数
+        long targetRemBytes = targetWav.Length - targetStartByte;
+        long sourceRemBytes = sourceWav.Length - sourceStartByte;
+
+        // 範囲外チェック
+        if (targetRemBytes <= 0 || sourceRemBytes <= 0)
+        {
+            // 合成開始位置がどちらか一方でも範囲外なら何もしない
+            return;
+        }
+
+        // 実際に合成できる最大フレーム数を決定
+        long maxTargetFrames = targetRemBytes / blockAlign;
+        long maxSourceFrames = sourceRemBytes / blockAlign;
+        if (framesToProcess > maxTargetFrames)
+            framesToProcess = maxTargetFrames;
+        if (framesToProcess > maxSourceFrames)
+            framesToProcess = maxSourceFrames;
+
+        if (framesToProcess <= 0)
+        {
+            return;
+        }
+
+        // 実際に処理するバイト数
+        int bytesToProcess = (int)(framesToProcess * blockAlign);
+
+        // --------------------------------------------------------------------
+        // 1) sourceWav の必要部分だけを一時バッファへコピー
+        // --------------------------------------------------------------------
+        // メモリコピー(高速化のため必要分のみ)
+        ReadOnlyMemory<byte> sourceSlice = sourceWav.Slice((int)sourceStartByte, bytesToProcess);
+        // short 単位に処理しやすいよう変換用バッファ
+        byte[] sourceBytes = sourceSlice.ToArray();
+
+        // --------------------------------------------------------------------
+        // 2) フェードイン・フェードアウト・dBスケーリング適用
+        // --------------------------------------------------------------------
+        // short[] に変換しておいて、サンプルごとに処理
+        short[] sourceSamples = new short[sourceBytes.Length / 2];
+        Buffer.BlockCopy(sourceBytes, 0, sourceSamples, 0, sourceBytes.Length);
+
+        float amplitudeFactor = (float)Math.Pow(10.0, delta / 20.0);  // dB → 倍率
+        double totalDurationSec = framesToProcess / (double)sampleRate;
+
+        for (int i = 0; i < framesToProcess; i++)
+        {
+            // フレーム i に対応する時間(秒)
+            double t = i / (double)sampleRate;
+
+            // フェードイン率
+            double fi = 1.0;
+            if (fadein > 0.0 && t < fadein)
+            {
+                fi = t / fadein;  // 0→1 に上昇
+            }
+
+            // フェードアウト率
+            double fo = 1.0;
+            double timeFromEnd = totalDurationSec - t; // 終了まで残り秒
+            if (fadeout > 0.0 && timeFromEnd < fadeout)
+            {
+                fo = timeFromEnd / fadeout; // 1→0 に減少
+            }
+
+            // フェード率の合成
+            float fadeFactor = (float)(fi * fo);
+
+            // 左(0), 右(1) と 2chぶん連続している想定
+            int leftIndex = i * 2;
+            int rightIndex = i * 2 + 1;
+
+            // スケーリング（dB + フェードイン/アウト）
+            float scaledLeft = sourceSamples[leftIndex] * amplitudeFactor * fadeFactor;
+            float scaledRight = sourceSamples[rightIndex] * amplitudeFactor * fadeFactor;
+
+            // short 範囲にクリップ
+            sourceSamples[leftIndex] = (short)Math.Clamp((int)scaledLeft, short.MinValue, short.MaxValue);
+            sourceSamples[rightIndex] = (short)Math.Clamp((int)scaledRight, short.MinValue, short.MaxValue);
+        }
+
+        // --------------------------------------------------------------------
+        // 3) targetWav に合成（ミキシング）
+        // --------------------------------------------------------------------
+        Span<byte> targetSpan = targetWav.Slice((int)targetStartByte, bytesToProcess).Span;
+
+        for (int i = 0; i < framesToProcess; i++)
+        {
+            int bytePos = i * blockAlign;
+
+            // target の左 ch
+            short targetLeft = BitConverter.ToInt16(targetSpan.Slice(bytePos, 2));
+            // target の右 ch
+            short targetRight = BitConverter.ToInt16(targetSpan.Slice(bytePos + 2, 2));
+
+            // source の左 ch
+            short sourceLeft = sourceSamples[i * 2];
+            // source の右 ch
+            short sourceRight = sourceSamples[i * 2 + 1];
+
+            // 加算 (オーバーフロー対策で一旦 int へ)
+            int mixedLeft = targetLeft + sourceLeft;
+            int mixedRight = targetRight + sourceRight;
+
+            // short の範囲にクリップ
+            mixedLeft = Math.Clamp(mixedLeft, short.MinValue, short.MaxValue);
+            mixedRight = Math.Clamp(mixedRight, short.MinValue, short.MaxValue);
+
+            // 書き戻し
+            BitConverter.TryWriteBytes(targetSpan.Slice(bytePos, 2), (short)mixedLeft);
+            BitConverter.TryWriteBytes(targetSpan.Slice(bytePos + 2, 2), (short)mixedRight);
+        }
+    }
 }
 
 public static class AiWaveConcatenateWithCrossFadeUtil
