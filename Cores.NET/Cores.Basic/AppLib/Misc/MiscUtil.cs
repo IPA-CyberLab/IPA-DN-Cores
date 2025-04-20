@@ -5245,5 +5245,747 @@ public static class LinuxTimeDateCtlUtil
     }
 }
 
+
+
+public class DirQueueFileNameInfo
+{
+    public string FileName { get; private set; }
+    public string MainName { get; private set; }
+    public string Extension { get; private set; }
+    public QueryStringList Params { get; private set; } = new QueryStringList();
+
+    public DirQueueFileNameInfo(string fileName)
+    {
+        this.FileName = fileName;
+
+        // aaaaaa dddd g=0s1a2a4s1 m=3
+        string fn1 = PP.GetFileNameWithoutExtension(this.FileName);
+
+        this.Extension = PP.GetExtension(this.FileName, emptyWhenNoExtension: true);
+
+        string fnBodyPart = fn1;
+
+        string[] tk1 = fn1._Split(StringSplitOptions.None, "=");
+        if (tk1.Length >= 2)
+        {
+            // 'aaaaaa dddd g' '0s1a2a4s1 m' '3'
+            string tmp1 = tk1[0];
+
+            int i = tmp1.LastIndexOf(" ");
+            if (i != -1)
+            {
+                // 'aaaaaa dddd'
+                tmp1 = tmp1.Substring(0, i);
+            }
+
+            fnBodyPart = tmp1;
+
+            // 'g=0s1a2a4s1 m=3'
+            string paramPart = fn1.Substring(fnBodyPart.Length + 1);
+
+            this.Params = paramPart._ParseQueryString(Str.Utf8Encoding, ' ', trimKeyAndValue: true);
+        }
+
+        this.MainName = fnBodyPart;
+    }
+
+    public DirQueueFileNameInfo(string srcFileName, IEnumerable<KeyValuePair<string, string>> newParams)
+    {
+        var tmp = new DirQueueFileNameInfo(srcFileName);
+
+        tmp.Params = new QueryStringList(newParams);
+
+        this.FileName = tmp.GenerateFileName();
+        this.MainName = tmp.MainName;
+        this.Extension = tmp.Extension;
+        this.Params = tmp.Params;
+    }
+
+    public string GenerateFileName()
+    {
+        StringBuilder b = new StringBuilder();
+
+        b.Append(this.MainName);
+        if (this.Params.Count >= 1)
+        {
+            b.Append(" ");
+            b.Append(this.Params.ToString(Str.Utf8Encoding));
+        }
+
+        b.Append(this.Extension);
+
+        return b.ToString();
+    }
+}
+
+public class DirQueueTxtFile
+{
+    public string FullPath { get; private set; } = "";
+    public string MainBody { get; private set; } = "";
+    public bool HasEof { get; private set; }
+    public DirQueueFileNameInfo NameInfo { get; private set; } = null!;
+    public KeyValueList<string, string> Options = new();
+
+    private DirQueueTxtFile()
+    { }
+
+    public static async Task<DirQueueTxtFile> LoadFileAsync(string fullPath, string defaultTxtBody, CancellationToken cancel, bool doNotReadContents)
+    {
+        string body = (doNotReadContents == false) ? await Lfs.ReadStringFromFileAsync(fullPath, cancel: cancel) : "";
+
+        DirQueueTxtFile txt = new DirQueueTxtFile();
+
+        txt.FullPath = fullPath;
+
+        var lines = body._GetLines();
+
+        int mode = 0;
+
+        StringWriter w = new StringWriter();
+        w.NewLine = Str.NewLine_Str_Local;
+
+        foreach (var line in lines)
+        {
+            if (line._IsSameTrimi("[EOF]"))
+            {
+                mode = 1;
+                txt.HasEof = true;
+            }
+            else
+            {
+                if (mode == 0)
+                {
+                    w.WriteLine(line);
+                }
+                else if (mode == 1) // [EOF] の後は制御文
+                {
+                    if (line._IsFilled())
+                    {
+                        string line2 = line._StripCommentFromLine(commentMustBeWholeLine: true);
+
+                        if (line2._GetKeyAndValue(out var key, out var value, " \t:"))
+                        {
+                            key = key.Trim();
+                            value = value.Trim();
+                            if (key._IsFilled() && value._IsFilled())
+                            {
+                                txt.Options.Add(key, value);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // _default.txt のオプション
+        foreach (var line in defaultTxtBody._GetLines())
+        {
+            if (line._IsFilled())
+            {
+                string line2 = line._StripCommentFromLine(commentMustBeWholeLine: true);
+
+                if (line2._GetKeyAndValue(out var key, out var value, " \t:"))
+                {
+                    key = key.Trim();
+                    value = value.Trim();
+                    if (key._IsFilled() && value._IsFilled())
+                    {
+                        txt.Options.Add(key, value);
+                    }
+                }
+            }
+        }
+
+        txt.MainBody = w.ToString();
+
+        txt.NameInfo = new DirQueueFileNameInfo(txt.FullPath);
+
+        return txt;
+    }
+}
+
+public class DirQueueTaskResultMetaData
+{
+    public bool IsOk;
+    public TimeSpan TookTime;
+    public int SuspendMSecs;
+}
+
+public class DirQueueTaskResult
+{
+    public DirQueueTaskResultMetaData MetaData = new DirQueueTaskResultMetaData();
+    public string Body = "";
+}
+
+public class DirQueueSettings
+{
+    public readonly string RootDirPath;
+    public readonly string Extensions;
+    public readonly bool RequireEofInInputs;
+
+    public DirQueueSettings(string rootDirPath, string extensions = ".txt", bool requireEofInInputs = false)
+    {
+        this.RootDirPath = rootDirPath;
+        this.Extensions = extensions;
+        this.RequireEofInInputs = requireEofInInputs;
+    }
+}
+
+public class DirQueueManager : AsyncServiceWithMainLoop
+{
+    public readonly DirQueueSettings Settings;
+    public readonly string InDir;
+    public readonly string RunDir;
+    public readonly string OutSrcDir;
+    public readonly string OutDstDir;
+    public readonly string SkipDir;
+    public readonly string LogDir;
+    public readonly int MaxRun;
+    public readonly FileLogger Logger;
+
+    string CurrentDefaultTxtBody = "";
+
+    public readonly ConcurrentQueue<int> WorkSlotList = new();
+
+    public readonly Func<DirQueueManager, int, DirQueueTxtFile, CancellationToken, Task<DirQueueTaskResult>> TaskProc;
+
+    readonly SingleInstance Si;
+
+    public DirQueueManager(Func<DirQueueManager, int, DirQueueTxtFile, CancellationToken, Task<DirQueueTaskResult>> taskProc, DirQueueSettings settings, int maxRun)
+    {
+        try
+        {
+            this.TaskProc = taskProc;
+            this.MaxRun = maxRun;
+            this.Settings = settings;
+
+            this.Si = new SingleInstance("DirQueue_" + PP.RemoveLastSeparatorChar(this.Settings.RootDirPath), true);
+
+            this.InDir = PP.Combine(Settings.RootDirPath, "1_in");
+            this.RunDir = PP.Combine(Settings.RootDirPath, "2_run");
+            this.OutSrcDir = PP.Combine(Settings.RootDirPath, "3_out/1_src");
+            this.OutDstDir = PP.Combine(Settings.RootDirPath, "3_out/2_dst");
+            this.SkipDir = PP.Combine(Settings.RootDirPath, "4_skip");
+            this.LogDir = PP.Combine(Settings.RootDirPath, "5_log");
+
+            this.Logger = new FileLogger(this.LogDir);
+            this.Logger.Flush = true;
+
+            Lfs.CreateDirectory(this.InDir);
+            Lfs.CreateDirectory(this.RunDir);
+            Lfs.CreateDirectory(this.OutSrcDir);
+            Lfs.CreateDirectory(this.OutDstDir);
+            Lfs.CreateDirectory(this.SkipDir);
+            Lfs.CreateDirectory(this.LogDir);
+
+            for (int i = 0; i < this.MaxRun; i++)
+            {
+                this.WorkSlotList.Enqueue(i);
+            }
+
+            this.StartMainLoop(MainLoopAsync);
+        }
+        catch (Exception ex)
+        {
+            this._DisposeSafe(ex);
+            throw;
+        }
+    }
+
+    async Task MainLoopAsync(CancellationToken cancel)
+    {
+        while (this.GrandCancel.IsCancellationRequested == false)
+        {
+            try
+            {
+                await DoSingleLoopAsync(cancel);
+            }
+            catch (Exception ex)
+            {
+                ex._Error();
+            }
+
+            await cancel._WaitUntilCanceledAsync(Util.GenRandInterval(3000));
+        }
+
+        // 現在動作しているすべてのタスクの終了を待機
+        List<Task> taskList = null!;
+        lock (this.InRunTasksList)
+        {
+            taskList = this.InRunTasksList.ToList();
+        }
+
+        if (taskList.Count >= 1)
+        {
+            Con.WriteLine($"Waiting for running {taskList.Count} tasks...");
+            foreach (var task in taskList)
+            {
+                await task._TryWaitAsync();
+            }
+        }
+
+        // 終了時には run から in に戻す
+        try
+        {
+            var runFiles = await EnumFilesInQueueAsync(default, this.RunDir, false, false);
+            await RestoreRunFilesMoveToInFilesAsync(default, runFiles);
+        }
+        catch (Exception ex)
+        {
+            ex._Error();
+        }
+    }
+
+    Once StartedOnce = new Once();
+
+    public List<Task> InRunTasksList = new();
+
+    RefInt CurrentRunningTasks = new RefInt();
+
+    DateTimeOffset SuspendUntil = ZeroDateTimeOffsetValue;
+
+    async Task DoSingleLoopAsync(CancellationToken cancel)
+    {
+        LABEL_START:
+
+        Lfs.CreateDirectory(this.InDir);
+        Lfs.CreateDirectory(this.RunDir);
+        Lfs.CreateDirectory(this.OutSrcDir);
+        Lfs.CreateDirectory(this.OutDstDir);
+        Lfs.CreateDirectory(this.SkipDir);
+        Lfs.CreateDirectory(this.LogDir);
+
+        // _default.txt の読み込み
+        string defaultTxtPath = PP.Combine(this.Settings.RootDirPath, "_default.txt");
+
+        var defaultTxt = "";
+        if (await Lfs.IsFileExistsAsync(defaultTxtPath, cancel))
+        {
+            defaultTxt = await Lfs.ReadStringFromFileAsync(defaultTxtPath, cancel: cancel);
+            defaultTxt = defaultTxt._NormalizeCrlf(ensureLastLineCrlf: true);
+        }
+
+        this.CurrentDefaultTxtBody = defaultTxt;
+
+        var inFiles = await EnumFilesInQueueAsync(cancel, this.InDir, this.Settings.RequireEofInInputs, false);
+        var runFiles = await EnumFilesInQueueAsync(cancel, this.RunDir, false, false);
+        var outSrcFiles = await EnumFilesInQueueAsync(cancel, this.OutSrcDir, false, true);
+
+        if (StartedOnce.IsFirstCall())
+        {
+            // 開始時には run に前回動作中のものが残留している可能性があるのですべて in に戻す
+            await RestoreRunFilesMoveToInFilesAsync(cancel, runFiles);
+            goto LABEL_START;
+        }
+
+        // inFiles にあるファイルのうち c=x の指定があるものをすべて i=000n の形に展開
+        bool changed = false;
+        foreach (var inFile in inFiles)
+        {
+            int c = inFile.NameInfo.Params._GetIntFirst("c");
+            int index = inFile.NameInfo.Params._GetIntFirst("i");
+            if (c >= 1 && index == 0)
+            {
+                for (int i = 0; i < c; i++)
+                {
+                    var plist = inFile.NameInfo.Params._CloneDeep();
+
+                    plist.RemoveWhenKey("c", StrCmpi);
+                    plist.Add("i", i.ToString("D4"));
+
+                    DirQueueFileNameInfo newInfo = new DirQueueFileNameInfo(inFile.FullPath, plist);
+
+                    string newFullPath = PP.Combine(this.InDir, newInfo.FileName);
+
+                    Con.WriteLine($"Copying from '{inFile.FullPath}' to '{newFullPath}'...");
+                    await Lfs.CopyFileAsync(inFile.FullPath, newFullPath, cancel: cancel);
+                }
+
+                Con.WriteLine($"Deleting '{inFile.FullPath}'...");
+                await Lfs.DeleteFileIfExistsAsync(inFile.FullPath, cancel: cancel);
+                changed = true;
+            }
+
+            if (changed)
+            {
+                goto LABEL_START;
+            }
+        }
+
+        // inFiles にあるファイルについて、p= の値で優先順位の値の高い別に並べる (同一優先順位であればランダムにシャッフルする)
+        HashSet<int> prioritySet = new HashSet<int>();
+        foreach (var inFile in inFiles)
+        {
+            int p = inFile.NameInfo.Params._GetIntFirst("p");
+            prioritySet.Add(p);
+        }
+        var priorityList = prioritySet.OrderByDescending(x => x).ToArray();
+        List<DirQueueTxtFile> tmpList = new();
+        foreach (int p in priorityList)
+        {
+            var tmp1 = inFiles.Where(x => x.NameInfo.Params._GetIntFirst("p") == p).ToList()._Shuffle().ToList();
+            tmpList.AddRange(tmp1);
+        }
+        var inFilesShuffled = new Queue<DirQueueTxtFile>(tmpList);
+
+        // inFiles にあるファイルを、maxRun の数に満ちるまで次々に実行
+        while (true)
+        {
+            if (inFilesShuffled.TryDequeue(out var target) == false)
+            {
+                // これ以上実行すべきものがない
+                break;
+            }
+
+            var now2 = DtOffsetNow;
+
+            if (now2 < SuspendUntil)
+            {
+                // サスペンド中
+                break;
+            }
+
+            int maxRun = target.Options._GetIntFirst("maxrun");
+
+            List<DirQueueTxtFile> runFiles2 = await EnumFilesInQueueAsync(cancel, this.RunDir, false, false);
+
+            if (maxRun >= 1 && CurrentRunningTasks >= maxRun)
+            {
+                // maxrun で指定されている数以上は同時に実行しない
+                break;
+            }
+
+            int groupMaxValue = target.NameInfo.Params._GetIntFirst("m");
+            string groupName = target.NameInfo.Params._GetStrFirst("g");
+            bool isGroupFile = false;
+
+            if (groupName._IsFilled() && groupMaxValue >= 1)
+            {
+                isGroupFile = true;
+            }
+
+            List<DirQueueTxtFile> outDstFiles2 = new();
+
+            if (isGroupFile)
+            {
+                // g=<グループ名> m=123 という属性がある場合、すでに 3_out\dst\ にある同一のグループ名のアイテム数が 123 個以上の場合は、4_skip にファイルを移動しスキップする。
+                outDstFiles2 = await EnumFilesInQueueAsync(cancel, this.OutDstDir, false, true);
+
+                int existSameGroupInOutDir = outDstFiles2.Where(x => x.NameInfo.Params._GetStrFirst("g")._IsSamei(groupName)).Count();
+                if (existSameGroupInOutDir >= groupMaxValue)
+                {
+                    var now = DtOffsetNow;
+                    string timestamp = $"{now._ToYymmddStr(yearTwoDigits: true)}_{now._ToHhmmssStr().Substring(0, 4)}";
+                    string skipDstPath = PP.Combine(this.SkipDir, timestamp + "-" + PP.GetFileName(target.FullPath));
+                    await Lfs.MoveFileAutoIncNameAsync(target.FullPath, skipDstPath, cancel);
+
+                    string msg = $"Skip: Number of existing files in the output dir: {existSameGroupInOutDir} >= {groupMaxValue}  (Group name: {groupName})";
+                    this.Logger.Write(skipDstPath, msg);
+
+                    Con.WriteLine(msg);
+
+                    continue;
+                }
+            }
+
+            // 空きスロットがあるか？
+            if (WorkSlotList.TryDequeue(out int currentWorkSlot) == false)
+            {
+                // 空きスロットがない
+            }
+            else
+            {
+                // g=<グループ名> m=123 という属性がある場合、すでに 2_run\ および 3_out\dst\ にある同一のグループ名のアイテム数の合計が 123 個以上の場合は何もしない。
+                if (isGroupFile)
+                {
+                    int existSameGroupInOutDir = outDstFiles2.Where(x => x.NameInfo.Params._GetStrFirst("g")._IsSamei(groupName)).Count();
+                    int existSameGroupInRunDir = runFiles2.Where(x => x.NameInfo.Params._GetStrFirst("g")._IsSamei(groupName)).Count();
+                    if ((existSameGroupInOutDir + existSameGroupInRunDir) >= groupMaxValue)
+                    {
+                        continue;
+                    }
+                }
+
+                try
+                {
+                    // ファイルを in から run に移動
+                    string newFullPath = PP.Combine(this.RunDir, PP.GetFileName(target.FullPath));
+                    await Lfs.MoveFileAutoIncNameAsync(target.FullPath, newFullPath, cancel);
+                    Con.WriteLine($"Slot {currentWorkSlot}: Task begin. '{target.FullPath}' moved to '{newFullPath}'");
+
+                    AsyncManualResetEvent startSignal = new AsyncManualResetEvent();
+                    Ref<int> assignenTaskIdHolder = new Ref<int>();
+
+                    Con.WriteLine("CurrentRunningTasks = " + CurrentRunningTasks.Increment());
+
+                    // ファイルの移動が完了したら処理を開始
+                    var task = TaskUtil.StartAsyncTaskAsync(async () =>
+                    {
+                        await startSignal.WaitAsync(Timeout.Infinite, cancel);
+
+                        await Task.Yield();
+
+                        int thisTaskId = assignenTaskIdHolder.Value;
+
+                        try
+                        {
+                            // タスクのメインルーチンを呼び出す
+                            var result = await this.TaskProc(this, currentWorkSlot, target, cancel);
+
+                            if (result.MetaData.IsOk == false)
+                            {
+                                // アプリケーションレベルのエラーが返ってきた
+                                this.Logger.Write(newFullPath, "Error (Application): " + result.Body._OneLine() + $", Took time = '{result.MetaData.TookTime._ToTsStr(true, false)}'");
+
+                                if (result.MetaData.SuspendMSecs >= 1)
+                                {
+                                    DateTimeOffset suspendUntil = DtOffsetNow.AddMilliseconds(result.MetaData.SuspendMSecs);
+
+                                    this.SuspendUntil = suspendUntil;
+
+                                    this.Logger.Write(newFullPath, $"Suspend {(result.MetaData.SuspendMSecs / 1000)._ToString3()} secs until: " + suspendUntil._ToLocalDtStr());
+
+                                    Con.WriteLine($"Slot {currentWorkSlot}: Suspend {(result.MetaData.SuspendMSecs / 1000)._ToString3()} secs until: " + suspendUntil._ToLocalDtStr());
+                                }
+
+                                Con.WriteLine($"Slot {currentWorkSlot}: Application-level error. '{newFullPath}'. Error = {result.Body.ToString()}" + $", Took time = '{result.MetaData.TookTime._ToTsStr(true, false)}'");
+
+                                // run から in に戻す
+                                try
+                                {
+                                    await Lfs.MoveFileAutoIncNameAsync(newFullPath, PP.Combine(this.InDir, PP.GetFileName(target.FullPath)), cancel);
+                                }
+                                catch (Exception ex2)
+                                {
+                                    ex2._Error();
+                                }
+                            }
+                            else
+                            {
+                                Con.WriteLine($"Slot {currentWorkSlot}: Task completed. '{newFullPath}'");
+
+                                // 成功したので結果を書き出す
+                                var now = DtOffsetNow;
+                                string timestamp = $"{now._ToYymmddStr(yearTwoDigits: true)}_{now._ToHhmmssStr().Substring(0, 4)}";
+
+                                bool srcFileNameHasTimeStamp = false;
+                                string tmp2 = PP.GetFileName(target.FullPath);
+                                if (tmp2.Length >= 6)
+                                {
+                                    if (tmp2.Substring(0, 6)._ToInt() >= 200000)
+                                    {
+                                        srcFileNameHasTimeStamp = true;
+                                    }
+                                }
+
+                                string outputPath = PP.Combine(this.OutDstDir, (srcFileNameHasTimeStamp ? "" : timestamp + "-") + PP.GetFileName(target.FullPath));
+
+                                string eoai_title = GetStringFromTag(result.Body, "EOAI_TITLE");
+                                if (eoai_title._IsFilled())
+                                {
+                                    string tmpDir = PP.GetDirectoryName(outputPath);
+                                    string tmpFn = PP.GetFileNameWithoutExtension(outputPath);
+                                    string tmpExt = PP.GetExtension(outputPath, emptyWhenNoExtension: true);
+
+                                    tmpFn += "-" + PP.MakeSafeFileName(eoai_title, true, true, true).Replace("-", "_")._TruncStrEx(32, "･･･");
+
+                                    outputPath = PP.Combine(tmpDir, tmpFn + tmpExt);
+                                }
+
+                                {
+                                    // ファイル名に文字数を入れる
+                                    string tmpDir = PP.GetDirectoryName(outputPath);
+                                    string tmpFn = PP.GetFileNameWithoutExtension(outputPath);
+                                    string tmpExt = PP.GetExtension(outputPath, emptyWhenNoExtension: true);
+
+                                    tmpFn += "-" + result.Body.Length.ToString() + "文字";
+
+                                    outputPath = PP.Combine(tmpDir, tmpFn + tmpExt);
+                                }
+
+                                string writeBody = result.Body._NormalizeCrlf(true);
+                                writeBody += "EOAI_METADATA:" + result.MetaData._ObjectToJson(compact: true) + Str.NewLine_Str_Local;
+
+                                await Lfs.WriteStringToFileAsync(outputPath, writeBody, writeBom: true, cancel: cancel);
+
+                                string outputSrcPath = PP.Combine(this.OutSrcDir, timestamp + "-" + PP.GetFileName(target.FullPath));
+                                await Lfs.MoveFileAutoIncNameAsync(newFullPath, outputSrcPath, cancel);
+
+                                this.Logger.Write(newFullPath, $"OK: Took time = '{result.MetaData.TookTime._ToTsStr(true, false)}', Filename = '{outputPath}', Src = '{outputSrcPath}'");
+
+                                static string GetStringFromTag(string body, string tag)
+                                {
+                                    string tag2 = Str.ZenkakuToHankaku(tag);
+
+                                    foreach (var line in body._GetLines())
+                                    {
+                                        int i = line.IndexOf(tag2 + ":", StringComparison.OrdinalIgnoreCase);
+                                        if (i != -1)
+                                        {
+                                            string tmp1 = line.Substring(i + tag2.Length + 1).Trim();
+                                            if (tmp1._IsFilled())
+                                            {
+                                                int j = tmp1.IndexOf("EOAI_", StringComparison.OrdinalIgnoreCase);
+                                                if (j != -1)
+                                                {
+                                                    tmp1 = tmp1.Substring(0, j);
+                                                }
+                                                return tmp1.Trim().Trim(':').Trim().Trim(':').Trim().Trim(':');
+                                            }
+                                        }
+
+                                        i = line.IndexOf(tag2 + " ", StringComparison.OrdinalIgnoreCase);
+                                        if (i != -1)
+                                        {
+                                            string tmp1 = line.Substring(i + tag2.Length + 1).Trim();
+                                            if (tmp1._IsFilled())
+                                            {
+                                                int j = tmp1.IndexOf("EOAI_", StringComparison.OrdinalIgnoreCase);
+                                                if (j != -1)
+                                                {
+                                                    tmp1 = tmp1.Substring(0, j);
+                                                }
+                                                return tmp1.Trim().Trim(':').Trim().Trim(':').Trim().Trim(':');
+                                            }
+                                        }
+                                    }
+
+                                    return "";
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            // タスクのメインルーチンでエラーが発生した
+                            this.Logger.Write(newFullPath, "Error (Internal): " + ex.ToString()._OneLine());
+
+                            Con.WriteLine($"Slot {currentWorkSlot}: Task error. '{newFullPath}'. Error = {ex.ToString()}");
+
+                            // run から in に戻す
+                            try
+                            {
+                                await Lfs.MoveFileAutoIncNameAsync(newFullPath, PP.Combine(this.InDir, PP.GetFileName(target.FullPath)), cancel);
+                            }
+                            catch (Exception ex2)
+                            {
+                                ex2._Error();
+                            }
+                        }
+                        finally
+                        {
+                            Con.WriteLine("CurrentRunningTasks = " + CurrentRunningTasks.Decrement());
+
+                            try
+                            {
+                                bool ok = false;
+                                lock (InRunTasksList)
+                                {
+                                    var taskToDelete = InRunTasksList.Where(x => x.Id == thisTaskId).ToList();
+
+                                    foreach (var t in taskToDelete)
+                                    {
+                                        if (InRunTasksList.Remove(t)) ok = true;
+                                    }
+                                }
+                                if (ok == false)
+                                {
+                                    throw new CoresLibException($"No task found in InRunTasksList. Task id = {thisTaskId}");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                ex._Error();
+                            }
+
+                            WorkSlotList.Enqueue(currentWorkSlot);
+                        }
+                    });
+
+                    lock (InRunTasksList)
+                    {
+                        InRunTasksList.Add(task);
+                    }
+
+                    assignenTaskIdHolder.Set(task.Id);
+
+                    startSignal.Set(true);
+                }
+                catch (Exception ex)
+                {
+                    ex._Error();
+                    this.Logger.Write(target.FullPath, ex.ToString()._OneLine());
+
+                    WorkSlotList.Enqueue(currentWorkSlot);
+                }
+            }
+        }
+    }
+
+    async Task RestoreRunFilesMoveToInFilesAsync(CancellationToken cancel, List<DirQueueTxtFile> runFiles)
+    {
+        foreach (var runFile in runFiles)
+        {
+            try
+            {
+                await Lfs.MoveFileAutoIncNameAsync(runFile.FullPath, PP.Combine(this.InDir, PP.GetFileName(runFile.FullPath)));
+            }
+            catch (Exception ex)
+            {
+                ex._Error();
+            }
+        }
+    }
+
+    protected async Task<List<DirQueueTxtFile>> EnumFilesInQueueAsync(CancellationToken cancel, string dir, bool checkEof, bool doNotReadContents)
+    {
+        List<DirQueueTxtFile> ret = new();
+
+        var fileList = await Lfs.EnumDirectoryAsync(dir, false, cancel: cancel);
+
+        foreach (var file in fileList.Where(x => x.IsFile && x.Name._IsExtensionMatch(this.Settings.Extensions)).OrderBy(x => x.FullPath, StrCmpi))
+        {
+            cancel.ThrowIfCancellationRequested();
+
+            try
+            {
+                DirQueueTxtFile txt = await DirQueueTxtFile.LoadFileAsync(file.FullPath, this.CurrentDefaultTxtBody, cancel, (!checkEof) && doNotReadContents);
+
+                bool ok = true;
+
+                if (checkEof)
+                {
+                    if (txt.HasEof == false)
+                    {
+                        ok = false;
+                    }
+                }
+
+                if (ok)
+                {
+                    ret.Add(txt);
+                }
+            }
+            catch (Exception ex)
+            {
+                ex._Error();
+            }
+        }
+
+        return ret;
+    }
+
+    protected override async Task CleanupImplAsync(Exception? ex)
+    {
+        try
+        {
+            await this.Si._DisposeSafeAsync2();
+        }
+        finally
+        {
+            await base.CleanupImplAsync(ex);
+        }
+    }
+}
+
 #endif
 
