@@ -108,7 +108,7 @@ public class AiTask
     {
         var wavFilesList = await Lfs.EnumDirectoryAsync(wavFileDir, wildcard: "*.wav", cancel: cancel);
 
-        foreach (var wavFile in wavFilesList.Where(x => x.IsFile).OrderBy(x => x.Name, StrCmpi))
+        foreach (var wavFile in wavFilesList.Where(x => x.IsFile)._Shuffle().ToList())
         {
             string[] tokens = wavFile.Name._Split(StringSplitOptions.None, " - ");
             if (tokens.Length >= 3 && tokens[0]._IsSamei("vocalonly"))
@@ -262,20 +262,30 @@ public class AiTask
         ShuffledEndlessQueue<int> speakerIdShuffleQueueAll = new ShuffledEndlessQueue<int>(randIntListAll);
 
         List<int> randIntListTokutei = new();
-        randIntListTokutei.Add(8);
-        randIntListTokutei.Add(4);
-        randIntListTokutei.Add(4);
-        randIntListTokutei.Add(43);
+        //randIntListTokutei.Add(8);
+        //randIntListTokutei.Add(4);
+        //randIntListTokutei.Add(4);
+        //randIntListTokutei.Add(43);
+        //randIntListTokutei.Add(43);
+        //randIntListTokutei.Add(48);
+        //randIntListTokutei.Add(58);
+        //randIntListTokutei.Add(58);
+        //randIntListTokutei.Add(58);
+        //randIntListTokutei.Add(60);
+        //randIntListTokutei.Add(60);
+        //randIntListTokutei.Add(68);
+        //randIntListTokutei.Add(90);
+        //randIntListTokutei.Add(90);
+
+
+        randIntListTokutei.Add(58);
+        randIntListTokutei.Add(58);
+        randIntListTokutei.Add(60);
+        randIntListTokutei.Add(60);
         randIntListTokutei.Add(43);
         randIntListTokutei.Add(48);
-        randIntListTokutei.Add(58);
-        randIntListTokutei.Add(58);
-        randIntListTokutei.Add(58);
-        randIntListTokutei.Add(60);
-        randIntListTokutei.Add(60);
-        randIntListTokutei.Add(68);
         randIntListTokutei.Add(90);
-        randIntListTokutei.Add(90);
+
         ShuffledEndlessQueue<int> speakerIdShuffleQueueTokutei = new ShuffledEndlessQueue<int>(randIntListTokutei);
 
 
@@ -323,7 +333,7 @@ public class AiTask
 
                 string storyTitle = testName + "_" + i.ToString("D5");
 
-                await ConvertTextToVoiceAsync(thisText, sampleVoicePath, dstVoiceDirPath, tmpVoiceBoxDir, tmpVoiceWavDir, speakerIdToUse._SingleArray(), diffusionSteps, seriesName, storyTitle, new int[] { 100, 125 }, cancel);
+                await ConvertTextToVoiceAsync(thisText, sampleVoicePath, dstVoiceDirPath, tmpVoiceBoxDir, tmpVoiceWavDir, randIntListTokutei, diffusionSteps, seriesName, storyTitle, new int[] { 100 }, cancel);
             }
             catch (Exception ex)
             {
@@ -737,22 +747,10 @@ public class AiTask
         }
         else
         {
-            if (newMeta.HasValue())
-            {
-                dstFileName = $"{newMeta.Album} - {newMeta.Title}{dstExtension}";
-            }
-            else
-            {
-                string tmp1 = PP.GetFileNameWithoutExtension(srcVoiceFilePath);
-                string tmp2 = tmp1._ReplaceStr(" - x", " - bgm_x");
+            string tmp1 = PP.GetFileNameWithoutExtension(srcVoiceFilePath);
+            string tmp2 = "bgm_" + tmp1;
 
-                if (tmp1._IsSamei(tmp2))
-                {
-                    tmp2 = tmp1 + " - bgm";
-                }
-
-                dstFileName = tmp2;
-            }
+            dstFileName = tmp2 + dstExtension;
         }
 
         string dstFilePath = PP.Combine(dstDir, dstFileName);
@@ -793,6 +791,7 @@ public class AiTask
         var parsed = await FfMpeg.EncodeAudioAsync(outWavTmpPath, dstFilePath, codec, kbps, useOkFile: false, metaData: newMeta, cancel: cancel);
 
         parsed.Options_UsedBgmSrcFileList = retSrcList;
+        parsed.Options_VoiceSegmentsList = okFileMeta.Value?.Options_VoiceSegmentsList;
 
         if (useOkFile)
         {
