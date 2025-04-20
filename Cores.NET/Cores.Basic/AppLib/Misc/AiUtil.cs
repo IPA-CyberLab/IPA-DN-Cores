@@ -394,7 +394,7 @@ public class AiTask
 
         var seriesDirList = await Lfs.EnumDirectoryAsync(srcDirPath, cancel: cancel);
 
-        foreach (var seriesDir in seriesDirList.Where(x => x.IsDirectory && x.IsCurrentOrParentDirectory == false).OrderBy(x => x.Name, StrCmpi))
+        foreach (var seriesDir in seriesDirList.Where(x => x.IsDirectory && x.IsCurrentOrParentDirectory == false && x.Name.StartsWith("_") == false).OrderBy(x => x.Name, StrCmpi))
         {
             var srcTextList = await Lfs.EnumDirectoryAsync(seriesDir.FullPath, true, cancel: cancel);
 
@@ -555,7 +555,13 @@ public class AiTask
                 Artist = $"{safeSeriesName} - {safeVoiceTitle} - {speedStr}",
             };
 
-            string dstVoiceFlacPath = PP.Combine(dstVoiceDirPath, safeSeriesName, $"{safeSeriesName} - {speedStr} - {safeStoryTitle} - {safeVoiceTitle} - {speakerIdStr}.flac");
+            string tailStr = "";
+            if (speakerIdStr._IsDiffi("mixed"))
+            {
+                tailStr = " - " + speakerIdStr;
+            }
+
+            string dstVoiceFlacPath = PP.Combine(dstVoiceDirPath, safeSeriesName, $"{speedStr} - {safeStoryTitle} - {safeVoiceTitle}{tailStr}.flac");
 
             await FfMpeg.EncodeAudioAsync(tmpVoiceWavPath, dstVoiceFlacPath, FfMpegAudioCodec.Flac, 0, speed, meta, tagTitle, true, cancel: cancel);
         }
