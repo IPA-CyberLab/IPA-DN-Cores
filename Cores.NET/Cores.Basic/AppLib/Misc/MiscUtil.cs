@@ -192,6 +192,8 @@ public class FfMpegParsedList
 
     public List<MediaVoiceSegment>? Options_VoiceSegmentsList = null;
 
+    public List<Tuple<string, double, double>>? Options_UsedMaterials = null;
+
     public FfMpegParsedList()
     {
         this.All.Add(this.Input);
