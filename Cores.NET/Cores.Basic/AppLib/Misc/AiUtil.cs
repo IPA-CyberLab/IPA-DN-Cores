@@ -1217,7 +1217,7 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
 
         var textBlockList = SplitText(text);
 
-        string digest = $"text={textBlockList._LinesToStr()._Digest()},speakerId={speakerIdList.Select(x => x.ToString())._Combine("+")},targetMaxVolume={Settings.AdjustAudioTargetMaxVolume},targetMeanVolume={Settings.AdjustAudioTargetMeanVolume}";
+        string digest = $"text={textBlockList._ObjectToJson()._Digest()},speakerId={speakerIdList.Select(x => x.ToString())._Combine("+")},targetMaxVolume={Settings.AdjustAudioTargetMaxVolume},targetMeanVolume={Settings.AdjustAudioTargetMeanVolume}";
 
         if (useOkFile)
         {
@@ -1262,37 +1262,56 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
         Con.WriteLine($"{SimpleAiName}: {tagTitle}: Start text to wav");
 
         List<MediaVoiceSegment> segmentsList = new List<MediaVoiceSegment>();
+        Dictionary<int, (MediaVoiceSegment SegmentIndexForVoice, MediaVoiceSegment SegmentIndexForBlank)> wavFileNameIndexToSegmentMappingTable = new();
 
         for (int i = 0; i < textBlockList.Count; i++)
         {
-            string block = textBlockList[i];
-            int speakerId = speakerIdShuffleQueue.Dequeue();
-
-            byte[] blockWavData = await TextBlockToWavAsync(block, speakerId);
-
-            var tmpPath = await Lfs.GenerateUniqueTempFilePathAsync($"{tagTitle}_{i:D8}_speaker{speakerId:D3}", ".wav", cancel: cancel);
-
-            await Lfs.WriteDataToFileAsync(tmpPath, blockWavData, FileFlags.AutoCreateDirectory, cancel: cancel);
-
-            blockWavFileNameList.Add(tmpPath);
-
-            totalFileSize += blockWavData.LongLength;
-
-            Con.WriteLine($"{SimpleAiName}: {tagTitle}: Text to Wav: {(i + 1)._ToString3()}/{textBlockList.Count._ToString3()}, Size: {totalFileSize._ToString3()} bytes, Speaker: {speakerId:D3}");
-
-            segmentsList.Add(new MediaVoiceSegment
+            if (textBlockList[i].Value == false)
             {
-                IsBlank = false,
-                VoiceText = block,
-                SpeakerId = speakerId,
-            });
+                string block = textBlockList[i].Key;
+                int speakerId = speakerIdShuffleQueue.Dequeue();
 
-            segmentsList.Add(new MediaVoiceSegment
+                byte[] blockWavData = await TextBlockToWavAsync(block, speakerId);
+
+                var tmpPath = await Lfs.GenerateUniqueTempFilePathAsync($"{tagTitle}_{i:D8}_speaker{speakerId:D3}", ".wav", cancel: cancel);
+
+                await Lfs.WriteDataToFileAsync(tmpPath, blockWavData, FileFlags.AutoCreateDirectory, cancel: cancel);
+
+                blockWavFileNameList.Add(tmpPath);
+                int wavFileNameIndex = blockWavFileNameList.Count - 1;
+
+                totalFileSize += blockWavData.LongLength;
+
+                Con.WriteLine($"{SimpleAiName}: {tagTitle}: Text to Wav: {(i + 1)._ToString3()}/{textBlockList.Count._ToString3()}, Size: {totalFileSize._ToString3()} bytes, Speaker: {speakerId:D3}");
+
+                var segmentForVoice = new MediaVoiceSegment
+                {
+                    VoiceText = block,
+                    SpeakerId = speakerId,
+                };
+
+                var segmentForBlank = new MediaVoiceSegment
+                {
+                    IsBlank = true,
+                    SpeakerId = speakerId,
+                };
+
+                wavFileNameIndexToSegmentMappingTable[wavFileNameIndex] = new(segmentForVoice, segmentForBlank);
+
+                segmentsList.Add(segmentForVoice);
+
+                segmentsList.Add(segmentForBlank);
+            }
+            else
             {
-                IsBlank = true,
-                VoiceText = "",
-                SpeakerId = speakerId,
-            });
+                var segmentForTag = new MediaVoiceSegment
+                {
+                    IsTag = true,
+                    TagStr = textBlockList[i].Key,
+                };
+
+                segmentsList.Add(segmentForTag);
+            }
         }
 
         Con.WriteLine($"{SimpleAiName}: {tagTitle}: Combining...");
@@ -1328,15 +1347,14 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
 
             await using var writer = new WaveFileWriter(concatFile, waveFormat);
 
-            int segmentIndex = 0;
-
             for (int i = 0; i < blockWavFileNameList.Count; i++)
             {
                 string srcFileName = blockWavFileNameList[i];
 
                 await using (var reader = new WaveFileReader(srcFileName))
                 {
-                    var segmentForVoice = segmentsList[segmentIndex++];
+                    var segmentForVoice = wavFileNameIndexToSegmentMappingTable[i].SegmentIndexForVoice;
+                    var segmentForBlank = wavFileNameIndexToSegmentMappingTable[i].SegmentIndexForBlank;
 
                     segmentForVoice.DataPosition = writer.Position;
 
@@ -1356,9 +1374,6 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
                     segmentForVoice.TimePosition = (double)segmentForVoice.DataPosition / (double)bytesPerSecond;
                     segmentForVoice.TimeLength = (double)segmentForVoice.DataLength / (double)bytesPerSecond;
 
-
-
-                    var segmentForBlank = segmentsList[segmentIndex++];
 
                     double silenceDurationSeconds = 0.5; // 0.5 秒
                     int silenceBytes = (int)(bytesPerSecond * silenceDurationSeconds);
@@ -1414,8 +1429,89 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
         return result2.Data;
     }
 
+    // テキスト文字列からタグとそれ以外を分離
+    public static KeyValueList<string, bool> SplitTextToNormalAndTag(string text)
+    {
+        StringBuilder b = new StringBuilder();
+
+        KeyValueList<string, bool> ret = new();
+
+        int mode = 0;
+
+        int i;
+        for (i = 0; i < text.Length; i++)
+        {
+            char c = text[i];
+
+            if (c == '<')
+            {
+                if (mode == 0)
+                {
+                    mode = 1;
+
+                    if (b.Length >= 1)
+                    {
+                        ret.Add(b.ToString(), false);
+                        b.Clear();
+                    }
+                }
+
+                b.Append(c);
+            }
+            else if (c == '>')
+            {
+                b.Append(c);
+
+                if (mode == 1)
+                {
+                    mode = 0;
+
+                    ret.Add(b.ToString(), true);
+                    b.Clear();
+                }
+            }
+            else
+            {
+                b.Append(c);
+            }
+        }
+
+        if (b.Length >= 1)
+        {
+            ret.Add(b.ToString(), mode != 0);
+        }
+
+        return ret;
+    }
+
+    // テキスト分割 (タグも分離)
+    public static KeyValueList<string, bool> SplitText(string text, int maxLen = 100)
+    {
+        KeyValueList<string, bool> ret = new KeyValueList<string, bool>();
+
+        var textAndTags = SplitTextToNormalAndTag(text);
+
+        foreach (var part in textAndTags)
+        {
+            if (part.Value == false)
+            {
+                var a = SplitTextCore(part.Key, maxLen);
+                foreach (var s in a)
+                {
+                    ret.Add(s, false);
+                }
+            }
+            else
+            {
+                ret.Add(part.Key, true);
+            }
+        }
+
+        return ret;
+    }
+
     // テキスト分割
-    static List<string> SplitText(string text, int maxLen = 100)
+    static List<string> SplitTextCore(string text, int maxLen = 100)
     {
         var sentences = Regex.Split(text, @"(?<=[。！？])");
         var chunks = new List<string>();

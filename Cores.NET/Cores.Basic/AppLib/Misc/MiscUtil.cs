@@ -174,9 +174,11 @@ public class MediaVoiceSegment
     public long DataLength;
     public double TimePosition;
     public double TimeLength;
-    public string VoiceText = "";
+    public string? VoiceText;
+    public string? TagStr;
     public int SpeakerId;
     public bool IsBlank;
+    public bool IsTag;
 }
 
 public class FfMpegParsedList
