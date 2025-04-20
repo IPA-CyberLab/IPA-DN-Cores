@@ -458,7 +458,7 @@ public class AiTask
         }
     }
 
-    public async Task VoiceChangeAsync(string srcPath, string srcSampleVoicePath, string dstVoiceDirPath, string tmpVoiceWavDir, int diffusionSteps, string product, string series, string title, int track, int[]? speedPercentList = null, int headOnlySecs = 0, string? productAlternativeForTmpWavFiles = null, bool useOkFile = true, CancellationToken cancel = default)
+    public async Task VoiceChangeAsync(string srcPath, string srcSampleVoicePath, string? dstVoiceDirPath, string tmpVoiceWavDir, int diffusionSteps, string product, string series, string title, int track, int[]? speedPercentList = null, int headOnlySecs = 0, string? productAlternativeForTmpWavFiles = null, bool useOkFile = true, CancellationToken cancel = default)
     {
         if (speedPercentList == null || speedPercentList.Any() == false)
             speedPercentList = new int[] { 100 };
@@ -471,6 +471,13 @@ public class AiTask
         string safeTitle = PPWin.MakeSafeFileName(title, true, true, true);
 
         string safeVoiceTitle = PPWin.GetFileNameWithoutExtension(srcSampleVoicePath)._Normalize(false, true, false, true);
+
+        await Lfs.CreateDirectoryAsync(tmpVoiceWavDir, cancel: cancel);
+
+        if (dstVoiceDirPath._IsFilled())
+        {
+            await Lfs.CreateDirectoryAsync(dstVoiceDirPath, cancel: cancel);
+        }
 
         string tmpVoiceWavPath = PP.Combine(tmpVoiceWavDir, $"{safeProductForTmpWav} - {safeSeries} - {safeTitle} - {safeVoiceTitle}.wav");
 
@@ -492,24 +499,27 @@ public class AiTask
             }
         }
 
-        string trackStr = track.ToString("D2");
-
-        foreach (int speed in speedPercentList)
+        if (dstVoiceDirPath._IsFilled())
         {
-            string speedStr = "x" + ((double)speed / 100.0).ToString(".00");
+            string trackStr = track.ToString("D2");
 
-            MediaMetaData meta = new MediaMetaData
+            foreach (int speed in speedPercentList)
             {
-                Artist = $"{safeProduct} - {safeSeries} - {speedStr}",
-                Album = $"{safeProduct} - {speedStr}",
-                Title = $"{safeSeries} - [{trackStr}] {safeTitle} - {safeVoiceTitle} - {speedStr} - {safeProduct}",
-                TrackTotal = 999,
-                Track = track,
-            };
+                string speedStr = "x" + ((double)speed / 100.0).ToString(".00");
 
-            string dstVoiceFlacPath = PP.Combine(dstVoiceDirPath, safeProduct, safeSeries, $"{safeProduct} - {safeSeries} - {speedStr} - [{trackStr}] {safeTitle} - {safeVoiceTitle}.m4a");
+                MediaMetaData meta = new MediaMetaData
+                {
+                    Artist = $"{safeProduct} - {safeSeries} - {speedStr}",
+                    Album = $"{safeProduct} - {speedStr}",
+                    Title = $"{safeSeries} - [{trackStr}] {safeTitle} - {safeVoiceTitle} - {speedStr} - {safeProduct}",
+                    TrackTotal = 999,
+                    Track = track,
+                };
 
-            await FfMpeg.EncodeAudioAsync(tmpVoiceWavPath, dstVoiceFlacPath, FfMpegAudioCodec.Aac, 0, speed, meta, tagTitle, useOkFile, cancel: cancel);
+                string dstVoiceFlacPath = PP.Combine(dstVoiceDirPath, safeProduct, safeSeries, $"{safeProduct} - {safeSeries} - {speedStr} - [{trackStr}] {safeTitle} - {safeVoiceTitle}.m4a");
+
+                await FfMpeg.EncodeAudioAsync(tmpVoiceWavPath, dstVoiceFlacPath, FfMpegAudioCodec.Aac, 0, speed, meta, tagTitle, useOkFile, cancel: cancel);
+            }
         }
     }
 
@@ -1263,6 +1273,7 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
 
         List<MediaVoiceSegment> segmentsList = new List<MediaVoiceSegment>();
         Dictionary<int, (MediaVoiceSegment SegmentIndexForVoice, MediaVoiceSegment SegmentIndexForBlank)> wavFileNameIndexToSegmentMappingTable = new();
+        HashSetDictionary<int, MediaVoiceSegment> wavFileNameIndexToTagSegmentMappindTable = new();
 
         for (int i = 0; i < textBlockList.Count; i++)
         {
@@ -1311,6 +1322,10 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
                 };
 
                 segmentsList.Add(segmentForTag);
+
+                int wavFileNameIndex = blockWavFileNameList.Count;
+
+                wavFileNameIndexToTagSegmentMappindTable.Add(wavFileNameIndex, segmentForTag);
             }
         }
 
@@ -1374,6 +1389,15 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
                     segmentForVoice.TimePosition = (double)segmentForVoice.DataPosition / (double)bytesPerSecond;
                     segmentForVoice.TimeLength = (double)segmentForVoice.DataLength / (double)bytesPerSecond;
 
+
+                    if (wavFileNameIndexToTagSegmentMappindTable.TryGetValue(i, out var tagSegments))
+                    {
+                        foreach (var seg in tagSegments)
+                        {
+                            seg.DataPosition = segmentForVoice.DataPosition;
+                            seg.TimePosition = segmentForVoice.TimePosition;
+                        }
+                    }
 
                     double silenceDurationSeconds = 0.5; // 0.5 秒
                     int silenceBytes = (int)(bytesPerSecond * silenceDurationSeconds);
