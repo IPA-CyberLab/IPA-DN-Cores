@@ -168,6 +168,17 @@ public class FfMpegParsed
     }
 }
 
+public class MediaVoiceSegment
+{
+    public long DataPosition;
+    public long DataLength;
+    public double TimePosition;
+    public double TimeLength;
+    public string VoiceText = "";
+    public int SpeakerId;
+    public bool IsBlank;
+}
+
 public class FfMpegParsedList
 {
     public FfMpegParsed? Input = new FfMpegParsed();
@@ -176,6 +187,8 @@ public class FfMpegParsedList
     public List<FfMpegParsed> All = new List<FfMpegParsed>();
 
     public List<string>? Options_UsedBgmSrcFileList = null;
+
+    public List<MediaVoiceSegment>? Options_VoiceSegmentsList = null;
 
     public FfMpegParsedList()
     {
@@ -356,7 +369,7 @@ public class FfMpegUtil
         return ret;
     }
 
-    public async Task<FfMpegParsedList> EncodeAudioAsync(string srcFilePath, string dstFilePath, FfMpegAudioCodec codec, int kbps = 0, int speedPercent = 100, MediaMetaData? metaData = null, string tagTitle = "", bool useOkFile = true, IEnumerable<string>? sourceFilePathList = null, int headOnlySecs = 0, CancellationToken cancel = default)
+    public async Task<FfMpegParsedList> EncodeAudioAsync(string srcFilePath, string dstFilePath, FfMpegAudioCodec codec, int kbps = 0, int speedPercent = 100, MediaMetaData? metaData = null, string tagTitle = "", bool useOkFile = true, IEnumerable<string>? sourceFilePathList = null, int headOnlySecs = 0, List<MediaVoiceSegment>? voiceSegments = null, CancellationToken cancel = default)
     {
         if (kbps <= 0) kbps = CoresConfig.DefaultFfMpegExecSettings.FfMpegDefaultAudioKbps;
         if (speedPercent <= 0) speedPercent = 100;
@@ -504,6 +517,8 @@ public class FfMpegUtil
             }
         }
         catch { }
+
+        ret.Options_VoiceSegmentsList = voiceSegments;
 
         if (sourceFilePathList != null)
         {

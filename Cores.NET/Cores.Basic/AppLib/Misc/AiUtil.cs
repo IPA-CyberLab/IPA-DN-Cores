@@ -476,7 +476,7 @@ public class AiTask
 
             await using (var seedvc = new AiUtilSeedVcEngine(this.Settings, this.FfMpeg))
             {
-                await seedvc.ConvertAsync(srcTmpWavPath, tmpVoiceWavPath, srcSampleVoicePath, diffusionSteps, tagTitle, false, cancel);
+                await seedvc.ConvertAsync(srcTmpWavPath, tmpVoiceWavPath, srcSampleVoicePath, diffusionSteps, tagTitle, false, cancel: cancel);
                 if (useOkFile) await Lfs.WriteOkFileAsync(tmpVoiceWavPath, new OkFileEmptyMetaData(), digest, AiUtilVersion.CurrentVersion, cancel);
                 await Lfs.DeleteFileIfExistsAsync(srcTmpWavPath, cancel: cancel);
             }
@@ -528,20 +528,24 @@ public class AiTask
 
         string tagTitle = $"{safeSeriesName} - {safeStoryTitle} - {speakerIdStr}";
 
+        FfMpegParsedList parsed;
+
         await using (var vv = new AiUtilVoiceVoxEngine(this.Settings, this.FfMpeg))
         {
             if (tagTitle._IsEmpty()) tagTitle = storyTitle._TruncStrEx(16);
 
-            await vv.TextToWavAsync(srcText, speakerIdList, tmpVoiceBoxWavPath, tagTitle, true, cancel);
+            parsed = await vv.TextToWavAsync(srcText, speakerIdList, tmpVoiceBoxWavPath, tagTitle, true, cancel);
         }
 
         string tmpVoiceWavPath = PP.Combine(tmpVoiceWavDir, $"{safeSeriesName} - {safeStoryTitle} - {safeVoiceTitle} - {speakerIdStr}.wav");
 
         tagTitle = $"{safeSeriesName} - {safeStoryTitle} - {safeVoiceTitle} - {speakerIdStr}";
 
+        AvUtilSeedVcMetaData vcMetaData;
+
         await using (var seedvc = new AiUtilSeedVcEngine(this.Settings, this.FfMpeg))
         {
-            await seedvc.ConvertAsync(tmpVoiceBoxWavPath, tmpVoiceWavPath, srcSampleVoicePath, diffusionSteps, tagTitle, true, cancel);
+            vcMetaData = await seedvc.ConvertAsync(tmpVoiceBoxWavPath, tmpVoiceWavPath, srcSampleVoicePath, diffusionSteps, tagTitle, true, parsed.Options_VoiceSegmentsList, cancel: cancel);
         }
 
         foreach (int speed in speedPercentList)
@@ -563,7 +567,7 @@ public class AiTask
 
             string dstVoiceFlacPath = PP.Combine(dstVoiceDirPath, safeSeriesName, $"{speedStr} - {safeStoryTitle} - {safeVoiceTitle}{tailStr}.flac");
 
-            await FfMpeg.EncodeAudioAsync(tmpVoiceWavPath, dstVoiceFlacPath, FfMpegAudioCodec.Flac, 0, speed, meta, tagTitle, true, cancel: cancel);
+            await FfMpeg.EncodeAudioAsync(tmpVoiceWavPath, dstVoiceFlacPath, FfMpegAudioCodec.Flac, 0, speed, meta, tagTitle, true, voiceSegments: vcMetaData.VoiceSegments, cancel: cancel);
         }
     }
 
@@ -1071,6 +1075,11 @@ public class AiUtilBasicSettings
     public int VoiceBoxLocalhostPort = Consts.Ports.VoiceVox;
 }
 
+public class AvUtilSeedVcMetaData
+{
+    public List<MediaVoiceSegment>? VoiceSegments = null;
+};
+
 public class AiUtilSeedVcEngine : AiUtilBasicEngine
 {
     public FfMpegUtil FfMpeg { get; }
@@ -1080,7 +1089,7 @@ public class AiUtilSeedVcEngine : AiUtilBasicEngine
         this.FfMpeg = ffMpeg;
     }
 
-    public async Task ConvertAsync(string srcWavPath, string dstWavPath, string voiceSamplePath, int diffusionSteps, string tagTitle = "", bool useOkFile = true, CancellationToken cancel = default)
+    public async Task<AvUtilSeedVcMetaData> ConvertAsync(string srcWavPath, string dstWavPath, string voiceSamplePath, int diffusionSteps, string tagTitle = "", bool useOkFile = true, List<MediaVoiceSegment>? voiceSegments = null, CancellationToken cancel = default)
     {
         if (tagTitle._IsEmpty()) tagTitle = PP.GetFileNameWithoutExtension(srcWavPath);
 
@@ -1088,9 +1097,10 @@ public class AiUtilSeedVcEngine : AiUtilBasicEngine
 
         if (useOkFile)
         {
-            if (await Lfs.IsOkFileExists(dstWavPath, digest, AiUtilVersion.CurrentVersion, cancel))
+            var metaRet = await Lfs.ReadOkFileAsync<AvUtilSeedVcMetaData>(dstWavPath, digest, AiUtilVersion.CurrentVersion, cancel: cancel);
+            if (metaRet.IsOk)
             {
-                return;
+                return metaRet.Value!;
             }
         }
 
@@ -1102,10 +1112,17 @@ public class AiUtilSeedVcEngine : AiUtilBasicEngine
         },
         5, 200, cancel, true);
 
+        var meta = new AvUtilSeedVcMetaData
+        {
+            VoiceSegments = voiceSegments,
+        };
+
         if (useOkFile)
         {
-            await Lfs.WriteOkFileAsync(dstWavPath, new OkFileEmptyMetaData(), digest, AiUtilVersion.CurrentVersion, cancel);
+            await Lfs.WriteOkFileAsync(dstWavPath, meta, digest, AiUtilVersion.CurrentVersion, cancel: cancel);
         }
+
+        return meta;
     }
 
     async Task ConvertInternalAsync(string srcWavPath, string dstWavPath, string voiceSamplePath, int diffusionSteps, string tagTitle = "", CancellationToken cancel = default)
@@ -1245,6 +1262,8 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
 
         Con.WriteLine($"{SimpleAiName}: {tagTitle}: Start text to wav");
 
+        List<MediaVoiceSegment> segmentsList = new List<MediaVoiceSegment>();
+
         for (int i = 0; i < textBlockList.Count; i++)
         {
             string block = textBlockList[i];
@@ -1261,6 +1280,20 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
             totalFileSize += blockWavData.LongLength;
 
             Con.WriteLine($"{SimpleAiName}: {tagTitle}: Text to Wav: {(i + 1)._ToString3()}/{textBlockList.Count._ToString3()}, Size: {totalFileSize._ToString3()} bytes, Speaker: {speakerId:D3}");
+
+            segmentsList.Add(new MediaVoiceSegment
+            {
+                IsBlank = false,
+                VoiceText = block,
+                SpeakerId = speakerId,
+            });
+
+            segmentsList.Add(new MediaVoiceSegment
+            {
+                IsBlank = true,
+                VoiceText = "",
+                SpeakerId = speakerId,
+            });
         }
 
         Con.WriteLine($"{SimpleAiName}: {tagTitle}: Combining...");
@@ -1296,12 +1329,18 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
 
             await using var writer = new WaveFileWriter(concatFile, waveFormat);
 
+            int segmentIndex = 0;
+
             for (int i = 0; i < blockWavFileNameList.Count; i++)
             {
                 string srcFileName = blockWavFileNameList[i];
 
                 await using (var reader = new WaveFileReader(srcFileName))
                 {
+                    var segmentForVoice = segmentsList[segmentIndex++];
+
+                    segmentForVoice.DataPosition = writer.Position;
+
                     var buffer = new byte[reader.WaveFormat.AverageBytesPerSecond * 4];
                     int bytesRead;
                     while ((bytesRead = reader.Read(buffer, 0, buffer.Length)) > 0)
@@ -1309,13 +1348,32 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
                         writer.Write(buffer, 0, bytesRead);
                     }
 
+                    segmentForVoice.DataLength = writer.Position - segmentForVoice.DataPosition;
+
+
                     int bytesPerSample = waveFormat.BitsPerSample / 8;
                     int bytesPerSecond = waveFormat.SampleRate * waveFormat.Channels * bytesPerSample;
+
+                    segmentForVoice.TimePosition = (double)segmentForVoice.DataPosition / (double)bytesPerSecond;
+                    segmentForVoice.TimeLength = (double)segmentForVoice.DataLength / (double)bytesPerSecond;
+
+
+
+                    var segmentForBlank = segmentsList[segmentIndex++];
+
                     double silenceDurationSeconds = 0.5; // 0.5 秒
                     int silenceBytes = (int)(bytesPerSecond * silenceDurationSeconds);
 
                     var silenceBuffer = new byte[silenceBytes];
+
+                    segmentForBlank.DataPosition = writer.Position;
+
                     writer.Write(silenceBuffer, 0, silenceBuffer.Length);
+
+                    segmentForBlank.DataLength = writer.Position - segmentForBlank.DataPosition;
+
+                    segmentForBlank.TimePosition = (double)segmentForBlank.DataPosition / (double)bytesPerSecond;
+                    segmentForBlank.TimeLength = (double)segmentForBlank.DataLength / (double)bytesPerSecond;
                 }
 
                 Con.WriteLine($"{SimpleAiName}: {tagTitle}: Concat wav: {(i + 1)._ToString3()}/{textBlockList.Count._ToString3()}, Size: {writer.Length._ToString3()} bytes");
@@ -1323,6 +1381,8 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
         }
 
         var results = await this.FfMpeg.AdjustAudioVolumeAsync(concatFile, dstWavPath, Settings.AdjustAudioTargetMaxVolume, Settings.AdjustAudioTargetMeanVolume, FfmpegAdjustVolumeOptiono.MeanOnly, tagTitle, false, cancel);
+
+        results.Item2.Options_VoiceSegmentsList = segmentsList;
 
         if (useOkFile)
         {
