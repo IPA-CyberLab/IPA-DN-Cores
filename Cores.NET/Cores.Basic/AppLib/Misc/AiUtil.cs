@@ -753,7 +753,7 @@ public class AiTask
         var segments = targetSrcMetaData.Options_VoiceSegmentsList;
         segments._NullCheck();
 
-        List<(MediaVoiceSegment Start, MediaVoiceSegment End)> opList = new();
+        List<(MediaVoiceSegment Start, MediaVoiceSegment End, bool StrictRange)> opList = new();
 
         for (int i = 0; i < segments.Count; i++)
         {
@@ -766,7 +766,7 @@ public class AiTask
                     var seg2 = segments[j];
                     if (seg2.IsTag && seg2.TagStr._IsSamei("<ACX_END>"))
                     {
-                        opList.Add((seg, seg2));
+                        opList.Add((seg, seg2, false));
                         break;
                     }
                 }
@@ -779,7 +779,20 @@ public class AiTask
                     var seg2 = segments[j];
                     if (seg2.IsTag && seg2.TagStr._IsSamei("<BCX_END>") || seg2.TagStr._IsSamei("<BXC_END>"))
                     {
-                        opList.Add((seg, seg2));
+                        opList.Add((seg, seg2, true));
+                        break;
+                    }
+                }
+            }
+
+            if (seg.IsTag && seg.TagStr._IsSamei("<XCSSTART>"))
+            {
+                for (int j = i + 1; j < segments.Count; j++)
+                {
+                    var seg2 = segments[j];
+                    if (seg2.IsTag && seg2.TagStr._IsSamei("<XCSEND>") || seg2.TagStr._IsSamei("<XCSEND>"))
+                    {
+                        opList.Add((seg, seg2, true));
                         break;
                     }
                 }
@@ -813,6 +826,13 @@ public class AiTask
 
                 double before = maxRandBeforeLengthSecs * Util.RandDouble0To1();
                 double after = maxRandAfterLengthSecs * Util.RandDouble0To1();
+
+                if (op.StrictRange)
+                {
+                    before = 1.0;
+                    after = 2.0;
+                }
+
                 double len = wantLength + maxRandBeforeLengthSecs + maxRandAfterLengthSecs;
 
                 double targetStartPos = Math.Max(op.Start.TimePosition / targetSrcWavSpeed - maxRandBeforeLengthSecs, 0.0);
