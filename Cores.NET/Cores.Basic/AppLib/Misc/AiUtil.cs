@@ -1072,7 +1072,7 @@ public class AiTask
     {
         var srcFiles = await Lfs.EnumDirectoryAsync(srcVoiceAudioFilePath, true, cancel: cancel);
 
-        foreach (var srcFile in srcFiles.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Filter_MusicFiles) && x.Name._InStri("bgm_x1.00") == false)
+        foreach (var srcFile in srcFiles.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Filter_MusicFiles) && x.Name._InStri("bgm_x1.00"))
             .OrderBy(x => x.FullPath, StrCmpi))
         {
             cancel.ThrowIfCancellationRequested();
@@ -1115,6 +1115,12 @@ public class AiTask
         if (srcMeta == null) srcMeta = new MediaMetaData();
 
         var okFileMeta = await Lfs.ReadOkFileAsync<FfMpegParsedList>(srcVoiceAudioFilePath, cancel: cancel);
+
+        if (okFileMeta.IsError || okFileMeta.Value == null || okFileMeta.Value.Options_VoiceSegmentsList == null)
+        {
+            // Unsupported. Skip;
+            return default;
+        }
 
         if (okFileMeta.IsOk && okFileMeta.Value != null && okFileMeta.Value.Meta != null)
         {
