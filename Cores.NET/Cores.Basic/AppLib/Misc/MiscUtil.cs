@@ -458,17 +458,17 @@ public class FfMpegUtil
 
             //if (txtFileMetaData._IsEmpty())
             //{
-                foreach (var kv in ml)
+            foreach (var kv in ml)
+            {
+                string value = kv.Value._NonNullTrim();
+
+                if (kv.Key._IsDiffi("track"))
                 {
-                    string value = kv.Value._NonNullTrim();
-
-                    if (kv.Key._IsDiffi("track"))
-                    {
-                        value = PPWin.MakeSafeFileName(value, false, true, true);
-                    }
-
-                    cmdLine += $"-metadata {kv.Key}={value._EnsureQuotation()} ";
+                    value = PPWin.MakeSafeFileName(value, false, true, true);
                 }
+
+                cmdLine += $"-metadata {kv.Key}={value._EnsureQuotation()} ";
+            }
             //}
             // /* 歌詞メタデータうまくいかない (プレイヤーの問題か？) */
             //else
@@ -5449,11 +5449,11 @@ public class DirQueueManager : AsyncServiceWithMainLoop
 
     public readonly ConcurrentQueue<int> WorkSlotList = new();
 
-    public readonly Func<DirQueueManager, int, DirQueueTxtFile, CancellationToken, Task<DirQueueTaskResult>> TaskProc;
+    public readonly Func<DirQueueManager, int, DirQueueTxtFile, CancellationToken, bool, Task<DirQueueTaskResult>> TaskProc;
 
     readonly SingleInstance Si;
 
-    public DirQueueManager(Func<DirQueueManager, int, DirQueueTxtFile, CancellationToken, Task<DirQueueTaskResult>> taskProc, DirQueueSettings settings, int maxRun)
+    public DirQueueManager(Func<DirQueueManager, int, DirQueueTxtFile, CancellationToken, bool, Task<DirQueueTaskResult>> taskProc, DirQueueSettings settings, int maxRun)
     {
         try
         {
@@ -5484,6 +5484,8 @@ public class DirQueueManager : AsyncServiceWithMainLoop
             {
                 this.WorkSlotList.Enqueue(i);
             }
+
+            LastTimeSucessFlag = new bool[this.MaxRun];
 
             this.StartMainLoop(MainLoopAsync);
         }
@@ -5537,6 +5539,8 @@ public class DirQueueManager : AsyncServiceWithMainLoop
             ex._Error();
         }
     }
+
+    readonly bool[] LastTimeSucessFlag;
 
     Once StartedOnce = new Once();
 
@@ -5607,11 +5611,52 @@ public class DirQueueManager : AsyncServiceWithMainLoop
                 await Lfs.DeleteFileIfExistsAsync(inFile.FullPath, cancel: cancel);
                 changed = true;
             }
+        }
+        if (changed)
+        {
+            goto LABEL_START;
+        }
 
-            if (changed)
+        changed = false;
+        // inFile にあるファイルのうち g=<グループ名> m=123 という属性がある場合、すでに 3_out\dst\ にある同一のグループ名のアイテム数が 123 個以上の場合は、4_skip にファイルを移動しスキップする
+        foreach (var inFile in inFiles)
+        {
+            int groupMaxValue = inFile.NameInfo.Params._GetIntFirst("m");
+            string groupName = inFile.NameInfo.Params._GetStrFirst("g");
+            bool isGroupFile = false;
+
+            if (groupName._IsFilled() && groupMaxValue >= 1)
             {
-                goto LABEL_START;
+                isGroupFile = true;
             }
+
+            List<DirQueueTxtFile> outDstFiles2 = new();
+
+            if (isGroupFile)
+            {
+                // g=<グループ名> m=123 という属性がある場合、すでに 3_out\dst\ にある同一のグループ名のアイテム数が 123 個以上の場合は、4_skip にファイルを移動しスキップする。
+                outDstFiles2 = await EnumFilesInQueueAsync(cancel, this.OutDstDir, false, true);
+
+                int existSameGroupInOutDir = outDstFiles2.Where(x => x.NameInfo.Params._GetStrFirst("g")._IsSamei(groupName)).Count();
+                if (existSameGroupInOutDir >= groupMaxValue)
+                {
+                    var now = DtOffsetNow;
+                    string timestamp = $"{now._ToYymmddStr(yearTwoDigits: true)}_{now._ToHhmmssStr().Substring(0, 4)}";
+                    string skipDstPath = PP.Combine(this.SkipDir, timestamp + "-" + PP.GetFileName(inFile.FullPath));
+                    await Lfs.MoveFileAutoIncNameAsync(inFile.FullPath, skipDstPath, cancel);
+
+                    string msg = $"Skip: Number of existing files in the output dir: {existSameGroupInOutDir} >= {groupMaxValue}  (Group name: {groupName})";
+                    this.Logger.Write(skipDstPath, msg);
+
+                    Con.WriteLine(msg);
+
+                    changed = true;
+                }
+            }
+        }
+        if (changed)
+        {
+            goto LABEL_START;
         }
 
         // inFiles にあるファイルについて、p= の値で優先順位の値の高い別に並べる (同一優先順位であればランダムにシャッフルする)
@@ -5670,22 +5715,16 @@ public class DirQueueManager : AsyncServiceWithMainLoop
 
             if (isGroupFile)
             {
-                // g=<グループ名> m=123 という属性がある場合、すでに 3_out\dst\ にある同一のグループ名のアイテム数が 123 個以上の場合は、4_skip にファイルを移動しスキップする。
                 outDstFiles2 = await EnumFilesInQueueAsync(cancel, this.OutDstDir, false, true);
+            }
 
+            // g=<グループ名> m=123 という属性がある場合、すでに 2_run\ および 3_out\dst\ にある同一のグループ名のアイテム数の合計が 123 個以上の場合は何もしない。次のファイルを選択する。
+            if (isGroupFile)
+            {
                 int existSameGroupInOutDir = outDstFiles2.Where(x => x.NameInfo.Params._GetStrFirst("g")._IsSamei(groupName)).Count();
-                if (existSameGroupInOutDir >= groupMaxValue)
+                int existSameGroupInRunDir = runFiles2.Where(x => x.NameInfo.Params._GetStrFirst("g")._IsSamei(groupName)).Count();
+                if ((existSameGroupInOutDir + existSameGroupInRunDir) >= groupMaxValue)
                 {
-                    var now = DtOffsetNow;
-                    string timestamp = $"{now._ToYymmddStr(yearTwoDigits: true)}_{now._ToHhmmssStr().Substring(0, 4)}";
-                    string skipDstPath = PP.Combine(this.SkipDir, timestamp + "-" + PP.GetFileName(target.FullPath));
-                    await Lfs.MoveFileAutoIncNameAsync(target.FullPath, skipDstPath, cancel);
-
-                    string msg = $"Skip: Number of existing files in the output dir: {existSameGroupInOutDir} >= {groupMaxValue}  (Group name: {groupName})";
-                    this.Logger.Write(skipDstPath, msg);
-
-                    Con.WriteLine(msg);
-
                     continue;
                 }
             }
@@ -5694,20 +5733,10 @@ public class DirQueueManager : AsyncServiceWithMainLoop
             if (WorkSlotList.TryDequeue(out int currentWorkSlot) == false)
             {
                 // 空きスロットがない
+                break;
             }
             else
             {
-                // g=<グループ名> m=123 という属性がある場合、すでに 2_run\ および 3_out\dst\ にある同一のグループ名のアイテム数の合計が 123 個以上の場合は何もしない。
-                if (isGroupFile)
-                {
-                    int existSameGroupInOutDir = outDstFiles2.Where(x => x.NameInfo.Params._GetStrFirst("g")._IsSamei(groupName)).Count();
-                    int existSameGroupInRunDir = runFiles2.Where(x => x.NameInfo.Params._GetStrFirst("g")._IsSamei(groupName)).Count();
-                    if ((existSameGroupInOutDir + existSameGroupInRunDir) >= groupMaxValue)
-                    {
-                        continue;
-                    }
-                }
-
                 try
                 {
                     // ファイルを in から run に移動
@@ -5717,6 +5746,7 @@ public class DirQueueManager : AsyncServiceWithMainLoop
 
                     AsyncManualResetEvent startSignal = new AsyncManualResetEvent();
                     Ref<int> assignenTaskIdHolder = new Ref<int>();
+                    Ref<int> assignedWorkSlotHolder = new Ref<int>(currentWorkSlot);
 
                     Con.WriteLine("CurrentRunningTasks = " + CurrentRunningTasks.Increment());
 
@@ -5728,14 +5758,17 @@ public class DirQueueManager : AsyncServiceWithMainLoop
                         await Task.Yield();
 
                         int thisTaskId = assignenTaskIdHolder.Value;
+                        int currentWorkSlot = assignenTaskIdHolder.Value;
 
                         try
                         {
                             // タスクのメインルーチンを呼び出す
-                            var result = await this.TaskProc(this, currentWorkSlot, target, cancel);
+                            var result = await this.TaskProc(this, currentWorkSlot, target, cancel, this.LastTimeSucessFlag[currentWorkSlot]);
 
                             if (result.MetaData.IsOk == false)
                             {
+                                this.LastTimeSucessFlag[currentWorkSlot] = false;
+
                                 // アプリケーションレベルのエラーが返ってきた
                                 this.Logger.Write(newFullPath, "Error (Application): " + result.Body._OneLine() + $", Took time = '{result.MetaData.TookTime._ToTsStr(true, false)}'");
 
@@ -5764,6 +5797,8 @@ public class DirQueueManager : AsyncServiceWithMainLoop
                             }
                             else
                             {
+                                this.LastTimeSucessFlag[currentWorkSlot] = true;
+
                                 Con.WriteLine($"Slot {currentWorkSlot}: Task completed. '{newFullPath}'");
 
                                 // 成功したので結果を書き出す
