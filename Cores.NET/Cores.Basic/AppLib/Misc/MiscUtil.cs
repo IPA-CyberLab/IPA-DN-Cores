@@ -5762,7 +5762,7 @@ public class DirQueueManager : AsyncServiceWithMainLoop
                         await Task.Yield();
 
                         int thisTaskId = assignenTaskIdHolder.Value;
-                        int currentWorkSlot = assignenTaskIdHolder.Value;
+                        int currentWorkSlot = assignedWorkSlotHolder.Value;
 
                         try
                         {
