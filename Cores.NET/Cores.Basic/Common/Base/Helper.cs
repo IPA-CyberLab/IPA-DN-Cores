@@ -3295,6 +3295,7 @@ public static class BasicHelper
     public static string _AddSpacePadding(this string? srcStr, int totalWidth, bool addOnLeft = false, char spaceChar = ' ')
         => Str.AddSpacePadding(srcStr, totalWidth, addOnLeft, spaceChar);
 
+    public static TimeSpan _ToTimeSpanSecs(this double secs) => TimeSpan.FromSeconds(secs);
     public static TimeSpan _ToTimeSpanMSecs(this double msecs) => TimeSpan.FromMilliseconds(msecs);
     public static TimeSpan _ToTimeSpanMSecs(this int msecs) => TimeSpan.FromMilliseconds(msecs);
     public static TimeSpan _ToTimeSpanMSecs(this uint msecs) => TimeSpan.FromMilliseconds(msecs);
