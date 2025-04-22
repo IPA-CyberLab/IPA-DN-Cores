@@ -226,14 +226,16 @@ public class WebAutoWindow : AsyncService
 
     public WebAuto Auto { get; }
     public ChromeDriver Driver => Auto.Driver;
+    public bool AutoCloseOnDispose { get; }
 
     public string WindowHandle { get; }
 
-    public WebAutoWindow(WebAuto auto, bool tabMode) : base()
+    public WebAutoWindow(WebAuto auto, bool tabMode, bool autoCloseOnDispose) : base()
     {
         try
         {
             this.Auto = auto;
+            this.AutoCloseOnDispose = autoCloseOnDispose;
 
             using (Lock.LockLegacy())
             {
@@ -402,7 +404,12 @@ public class WebAutoWindow : AsyncService
                     try
                     {
                         Driver.SwitchTo().Window(this.WindowHandle);
-                        Driver.Close();
+
+                        if (this.AutoCloseOnDispose)
+                        {
+                            Driver.Close();
+                        }
+                        Driver._DisposeSafe();
                     }
                     catch (Exception ex2)
                     {
@@ -529,9 +536,9 @@ public class WebAuto : AsyncService
         }
     }
 
-    public WebAutoWindow CreateWindowOrTab(bool tabMode)
+    public WebAutoWindow CreateWindowOrTab(bool tabMode, bool autoCloseOnDispose)
     {
-        return new WebAutoWindow(this, tabMode);
+        return new WebAutoWindow(this, tabMode, autoCloseOnDispose);
     }
 
     protected override async Task CleanupImplAsync(Exception? ex)
