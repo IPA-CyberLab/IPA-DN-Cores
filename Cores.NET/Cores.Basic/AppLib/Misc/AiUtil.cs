@@ -797,6 +797,13 @@ public class AiTask
                     }
                 }
             }
+
+            if (seg.IsTag && seg.TagStr._IsSamei("<XHEART>"))
+            {
+                var seg2 = seg._CloneDeep();
+                seg2.TimePosition = seg.TimePosition + 1.0;
+                opList.Add((seg, seg2, false));
+            }
         }
 
         List<(string MeterialWavPath, double TargetPositionSecs, double MeterialPositionSecs, double LengthSecs, double FadeInSecs, double FadeOutSecs, double VolumeDelta)> op2 = new();
