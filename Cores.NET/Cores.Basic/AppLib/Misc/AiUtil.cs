@@ -59,6 +59,7 @@ using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Text.RegularExpressions;
+using System.Buffers.Binary;
 
 namespace IPA.Cores.Basic;
 
@@ -84,7 +85,7 @@ public class AiCompositWaveSettings
 
 public class AiCompositWaveParam
 {
-    public double PaddingSecs = 30;
+    public double MarginSecs = 30;
     public double StdFadeInSecs = 2;
     public double StdFadeOutSecs = 13;
     public double MaxRandBeforeLengthSecs = 0;
@@ -912,7 +913,7 @@ public class AiTask
                 var param = op.Rule.RuleData.Param;
 
                 double wantLength = op.EndPosition / targetSrcWavSpeed - op.StartPosition / targetSrcWavSpeed;
-                double minLength = param.PaddingSecs * 2 + wantLength + (param.StdFadeInSecs + param.StdFadeOutSecs) * 1.5 + param.MaxRandAfterLengthSecs + param.MaxRandBeforeLengthSecs + 3.0;
+                double minLength = param.MarginSecs * 2 + wantLength + (param.StdFadeInSecs + param.StdFadeOutSecs) * 1.5 + param.MaxRandAfterLengthSecs + param.MaxRandBeforeLengthSecs + 3.0;
 
                 string wavFilePath = "";
                 double wavFileLength = 0.0;
@@ -941,7 +942,7 @@ public class AiTask
 
                 double len = wantLength + before_length + after_length;
 
-                double matStartPos = Util.RandDouble0To1() * (wavFileLength - len - param.PaddingSecs * 2) + param.PaddingSecs;
+                double matStartPos = Util.RandDouble0To1() * (wavFileLength - len - param.MarginSecs * 2) + param.MarginSecs;
 
                 double fadeIn = Util.GenRandInterval(param.StdFadeInSecs._ToTimeSpanSecs()).TotalSeconds;
                 double fadeOut = Util.GenRandInterval(param.StdFadeOutSecs._ToTimeSpanSecs()).TotalSeconds;
@@ -996,6 +997,158 @@ public class AiTask
                 $"44.1 kHz / 2 チャンネル / 16 ビット / 無圧縮 PCM ではありません。"
             );
         }
+    }
+
+    // By ChatGPT
+    /// <summary>
+    /// targetWav の position 秒目から sourceWav の長さ分を差し替えます。
+    /// 差し替え区間の頭を fadeIn 秒かけてフェードイン（元音 → 新音へクロスフェード）、
+    /// 尾を fadeOut 秒かけてフェードアウト（新音 → 元音へクロスフェード）します。
+    /// </summary>
+    /// <param name="targetWav">差し替え対象の PCM バイト列（ヘッダ除く）</param>
+    /// <param name="sourceWav">挿入する PCM バイト列（ヘッダ除く）</param>
+    /// <param name="position">差し替え開始位置（秒）</param>
+    /// <param name="fadeIn">頭のクロスフェード時間（秒）</param>
+    /// <param name="fadeOut">尾のクロスフェード時間（秒）</param>
+    public static void ReplaceWavDataWithFadeInOut(
+        Memory<byte> targetWav,
+        ReadOnlyMemory<byte> sourceWav,
+        double position,
+        double fadeIn,
+        double fadeOut)
+    {
+        const int sampleRate = 44100;
+        const int channels = 2;
+        const int bytesPerSample = 2;               // 16bit
+        int blockAlign = channels * bytesPerSample; // 4 bytes/frame
+
+        var targetSpan = targetWav.Span;
+        var sourceSpan = sourceWav.Span;
+
+        int totalTargetFrames = targetSpan.Length / blockAlign;
+        int totalSourceFrames = sourceSpan.Length / blockAlign;
+
+        // フレーム単位の位置・フェード長
+        int posFrame = (int)Math.Round(position * sampleRate);
+        int fadeInFrames = (int)Math.Round(fadeIn * sampleRate);
+        int fadeOutFrames = (int)Math.Round(fadeOut * sampleRate);
+        int endFrame = posFrame + totalSourceFrames;
+
+        // ループ範囲を target の外にはみ出さないようにクリップ
+        int start = Math.Max(0, posFrame);
+        int end = Math.Min(totalTargetFrames, endFrame);
+
+        for (int frame = start; frame < end; frame++)
+        {
+            int srcFrame = frame - posFrame;
+            if (srcFrame < 0 || srcFrame >= totalSourceFrames)
+                continue;
+
+            // ゲイン計算 (0..1)
+            double gain;
+            if (fadeInFrames > 0 && srcFrame < fadeInFrames)
+            {
+                gain = (double)srcFrame / fadeInFrames;
+            }
+            else if (fadeOutFrames > 0 && srcFrame >= totalSourceFrames - fadeOutFrames)
+            {
+                gain = (double)(totalSourceFrames - srcFrame) / fadeOutFrames;
+            }
+            else
+            {
+                gain = 1.0;
+            }
+
+            // 安全に 0..1 にクランプ
+            if (gain < 0.0) gain = 0.0;
+            if (gain > 1.0) gain = 1.0;
+
+            // 各チャンネルごとに読み書き
+            for (int ch = 0; ch < channels; ch++)
+            {
+                int tgtOffset = frame * blockAlign + ch * bytesPerSample;
+                int srcOffset = srcFrame * blockAlign + ch * bytesPerSample;
+
+                // リトルエンディアン 16bit サンプル取得
+                short orig = (short)(targetSpan[tgtOffset] | (targetSpan[tgtOffset + 1] << 8));
+                short src = (short)(sourceSpan[srcOffset] | (sourceSpan[srcOffset + 1] << 8));
+
+                // クロスフェード
+                double mixed = src * gain + orig * (1.0 - gain);
+                short result = (short)Math.Clamp((int)Math.Round(mixed), short.MinValue, short.MaxValue);
+
+                // 書き戻し（リトルエンディアン）
+                targetSpan[tgtOffset] = (byte)(result & 0xff);
+                targetSpan[tgtOffset + 1] = (byte)((result >> 8) & 0xff);
+            }
+        }
+    }
+
+
+
+    /// <summary>
+    /// 指定された時刻 currentTimeSec におけるフェードイン・フェードアウトの総合ゲイン値を計算する
+    /// </summary>
+    private static float ComputeFadeFactor(
+        double currentTimeSec,
+        double fadeInStartSec, double fadeInEndSec,
+        double fadeOutStartSec, double fadeOutEndSec)
+    {
+        // フェードイン係数
+        float fadeInFactor = 1.0f;
+        // フェードイン区間が実質的にある場合のみ計算
+        if (fadeInEndSec > fadeInStartSec)
+        {
+            if (currentTimeSec < fadeInStartSec)
+            {
+                // フェードイン開始前はゲイン 0
+                fadeInFactor = 0.0f;
+            }
+            else if (currentTimeSec > fadeInEndSec)
+            {
+                // フェードイン完了後はゲイン 1
+                fadeInFactor = 1.0f;
+            }
+            else
+            {
+                // その間は線形に 0->1 へ変化
+                double length = fadeInEndSec - fadeInStartSec;
+                fadeInFactor = (float)((currentTimeSec - fadeInStartSec) / length);
+            }
+        }
+
+        // フェードアウト係数
+        float fadeOutFactor = 1.0f;
+        // フェードアウト区間が実質的にある場合のみ計算
+        if (fadeOutEndSec > fadeOutStartSec)
+        {
+            if (currentTimeSec < fadeOutStartSec)
+            {
+                // フェードアウト開始前はゲイン 1
+                fadeOutFactor = 1.0f;
+            }
+            else if (currentTimeSec > fadeOutEndSec)
+            {
+                // フェードアウト完了後はゲイン 0
+                fadeOutFactor = 0.0f;
+            }
+            else
+            {
+                // その間は線形に 1->0 へ変化
+                double length = fadeOutEndSec - fadeOutStartSec;
+                double ratio = (currentTimeSec - fadeOutStartSec) / length;
+                fadeOutFactor = (float)(1.0 - ratio);
+            }
+        }
+
+        // 最終ゲインはフェードインとフェードアウトを掛け合わせる
+        float amp = fadeInFactor * fadeOutFactor;
+
+        // 安全のためクリップ（本来は 0～1 に収まるはず）
+        if (amp < 0.0f) amp = 0.0f;
+        if (amp > 1.0f) amp = 1.0f;
+
+        return amp;
     }
 
     async Task CompositWaveWithFadeAsync(string targetSrcWavPath, string dstWavPath,
@@ -1080,7 +1233,7 @@ public class AiTask
         }
     }
 
-    public async Task AddRandomBgmToAllVoiceFilesAsync(string srcVoiceDirRoot, string dstDirRoot, string srcMusicWavsDirPath, FfMpegAudioCodec codec, AiRandomBgmSettings settings, bool smoothMode, int kbps = 0, int fadeOutSecs = AiTask.DefaultFadeoutSecs, string? oldTagStr = null, string? newTagStr = null, double? adjustDeltaForConstant = null, CancellationToken cancel = default)
+    public async Task AddRandomBgmToAllVoiceFilesAsync(string srcVoiceDirRoot, string dstDirRoot, string srcMusicWavsDirPath, string replaceWavsDirPath, FfMpegAudioCodec codec, AiRandomBgmSettings settings, bool smoothMode, int kbps = 0, int fadeOutSecs = AiTask.DefaultFadeoutSecs, string? oldTagStr = null, string? newTagStr = null, double? adjustDeltaForConstant = null, CancellationToken cancel = default)
     {
         var srcFiles = await Lfs.EnumDirectoryAsync(srcVoiceDirRoot, true, cancel: cancel);
 
@@ -1093,12 +1246,14 @@ public class AiTask
 
             Con.WriteLine($"Add BGM: '{srcFile.FullPath}' -> '{dstDirPath}'");
 
-            var result = await AddRandomBgmToVoiceFileAsync(srcFile.FullPath, dstDirPath, srcMusicWavsDirPath, codec, settings, smoothMode, kbps, fadeOutSecs, true, oldTagStr, newTagStr, adjustDeltaForConstant, cancel);
+            var result = await AddRandomBgmToVoiceFileAsync(srcFile.FullPath, dstDirPath, srcMusicWavsDirPath, replaceWavsDirPath, codec, settings, smoothMode, kbps, fadeOutSecs, true, oldTagStr, newTagStr, adjustDeltaForConstant, cancel);
         }
     }
 
-    public async Task<(FfMpegParsedList Parsed, string DestFileName)> AddRandomBgmToVoiceFileAsync(string srcVoiceFilePath, string dstDir, string srcMusicWavsDirPath, FfMpegAudioCodec codec, AiRandomBgmSettings settings, bool smoothMode, int kbps = 0, int fadeOutSecs = AiTask.DefaultFadeoutSecs, bool useOkFile = true, string? oldTagStr = null, string? newTagStr = null, double? adjustDeltaForConstant = null, CancellationToken cancel = default)
+    public async Task<(FfMpegParsedList Parsed, string DestFileName)> AddRandomBgmToVoiceFileAsync(string srcVoiceFilePath, string dstDir, string srcMusicWavsDirPath, string replaceWavsDirPath, FfMpegAudioCodec codec, AiRandomBgmSettings settings, bool smoothMode, int kbps = 0, int fadeOutSecs = AiTask.DefaultFadeoutSecs, bool useOkFile = true, string? oldTagStr = null, string? newTagStr = null, double? adjustDeltaForConstant = null, CancellationToken cancel = default)
     {
+        List<AiRandomBgpReplaceRanges> replaceRanges = new();
+
         var srcVoiceFileMetaData = await FfMpeg.ReadMetaDataWithFfProbeAsync(srcVoiceFilePath, cancel: cancel);
 
         srcVoiceFileMetaData.ReParseMain();
@@ -1122,6 +1277,34 @@ public class AiTask
             if (okFileMeta.Value.Meta.HasValue())
             {
                 srcMeta = okFileMeta.Value.Meta;
+            }
+
+            var voiceSegList = okFileMeta.Value?.Options_VoiceSegmentsList;
+            if (voiceSegList != null && voiceSegList.Count >= 1 && replaceWavsDirPath._IsFilled())
+            {
+                for (int i = 0; i < voiceSegList.Count; i++)
+                {
+                    var seg1 = voiceSegList[i];
+                    if (seg1.TagStr._IsSamei("<BCX_START>"))
+                    {
+                        for (int j = i; j < voiceSegList.Count; j++)
+                        {
+                            var seg2 = voiceSegList[j];
+                            if (seg2.TagStr._IsSamei("<BCX_END>") || seg2.TagStr._IsSamei("<BXC_END>"))
+                            {
+                                replaceRanges.Add(new AiRandomBgpReplaceRanges
+                                {
+                                    Margin = 30,
+                                    Length = seg2.TimePosition - seg1.TimePosition,
+                                    FadeIn = 4,
+                                    FadeOut = 4,
+                                    StartPosition = seg1.TimePosition - 4,
+                                });
+                                break;
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -1187,6 +1370,102 @@ public class AiTask
         string bgmWavTmpPath = await Lfs.GenerateUniqueTempFilePathAsync("bgmfile", ".wav", cancel: cancel);
 
         var retSrcList = await CreateRandomBgmFileAsync(srcMusicWavsDirPath, bgmWavTmpPath, srcDurationMsecs, settings, fadeOutSecs, adjustDelta, cancel);
+
+        // 音楽の一部をリプレース処理する
+        if (replaceRanges != null && replaceRanges.Any())
+        {
+            Memory<byte> targetData;
+            WaveFormat targetWaveFormat;
+            await using (var targetWavStream = File.Open(bgmWavTmpPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                await using var targetWavReader = new WaveFileReader(targetWavStream);
+                targetWaveFormat = targetWavReader.WaveFormat;
+                CheckWavFormat(targetWaveFormat);
+
+                targetData = await targetWavStream._ReadToEndAsync();
+            }
+
+            var replaceSrcWavFiles = (await Lfs.EnumDirectoryAsync(replaceWavsDirPath, true, cancel: cancel)).Where(x => x.IsFile && x.Name._IsExtensionMatch(".wav"));
+            ShuffledEndlessQueue<string> q = new(replaceSrcWavFiles.Select(x => x.FullPath));
+
+            foreach (var range in replaceRanges)
+            {
+                double requireLength = range.Length + range.FadeIn;
+
+                string srcWavPath = "";
+                double srcWavLength = 0;
+
+                for (int fail = 0;fail <= 1000;fail++)
+                {
+                    string tmp1 = q.Dequeue();
+
+                    srcWavLength = await GetWavFileLengthSecsAsync(tmp1, cancel: cancel);
+                    if (srcWavLength  >= requireLength)
+                    {
+                        srcWavPath = tmp1;
+                        break;
+                    }
+                }
+
+                if (srcWavPath._IsEmpty())
+                {
+                    continue;
+                }
+
+                // 置換 wav ファイルの読み込み
+                double srcStartPosition = (srcWavLength - requireLength) * Util.RandDouble0To1();
+
+                ReadOnlyMemory<byte> srcMemory;
+
+                await using (var srcWavStream = File.Open(srcWavPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                {
+                    await using var srcWavReader = new WaveFileReader(srcWavStream);
+
+                    CheckWavFormat(srcWavReader.WaveFormat);
+
+                    // 波形フォーマット前提値
+                    const int sampleRate = 44100;
+                    const int channels = 2;
+                    const int bitsPerSample = 16;
+                    // 1サンプル(1ch)あたりのバイト数
+                    const int bytesPerSample = bitsPerSample / 8; // = 2
+                                                                  // 1フレーム(全ch合計)あたりのバイト数(2ch前提)
+                    const int blockAlign = channels * bytesPerSample; // 4バイト
+                                                                      // 合成を開始するフレーム位置(整数)
+                    long sourceStartFrame = (long)(srcStartPosition * sampleRate);
+
+                    // 合成するフレーム数(整数)
+                    long framesToProcess = (long)(requireLength * sampleRate);
+                    if (framesToProcess <= 0)
+                    {
+                        continue;
+                    }
+
+                    // バイト単位での開始位置
+                    long sourceStartByte = sourceStartFrame * blockAlign;
+                    int bytesToProcess = (int)(framesToProcess * blockAlign);
+
+                    srcWavReader.Seek(sourceStartByte, SeekOrigin.Begin);
+
+                    srcMemory = await srcWavReader._ReadAllAsync(bytesToProcess, cancel: cancel);
+                }
+
+                // 合成処理
+                ReplaceWavDataWithFadeInOut(targetData, srcMemory, range.StartPosition, range.FadeIn, range.FadeOut);
+            }
+
+            string bgmWavTmpPath2 = await Lfs.GenerateUniqueTempFilePathAsync("tmppath", ".wav", cancel: cancel);
+
+            // 結果を wav に書き出す
+            await using (var targetWavStream = File.Create(bgmWavTmpPath2))
+            {
+                await using var writer = new WaveFileWriter(targetWavStream, targetWaveFormat);
+
+                await writer.WriteAsync(targetData, cancellationToken: cancel);
+            }
+
+            bgmWavTmpPath = bgmWavTmpPath2;
+        }
 
         string outWavTmpPath = await Lfs.GenerateUniqueTempFilePathAsync("bgmadded_file", ".wav", cancel: cancel);
 
@@ -2290,6 +2569,15 @@ public class AiUtilBasicEngine : AsyncService
             await base.CleanupImplAsync(ex);
         }
     }
+}
+
+public class AiRandomBgpReplaceRanges
+{
+    public double StartPosition;
+    public double Length;
+    public double FadeIn;
+    public double FadeOut;
+    public double Margin;
 }
 
 public class AiRandomBgmSettings
