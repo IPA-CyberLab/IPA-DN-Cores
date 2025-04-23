@@ -90,12 +90,16 @@ public class AiCompositWaveParam
     public double MaxRandBeforeLengthSecs = 0;
     public double MaxRandAfterLengthSecs = 13;
     public double VolumeDelta = -17;
+    public double VolumeDeltaRandomRange = 0.5;
+    public double DurationWhenEndTagIsEmpty = 5;
 }
 
 public class AiCompositRuleData
 {
     public AiCompositWaveParam Param = new();
     public IEndlessQueue<string> MaterialsWavPathQueue = null!;
+    public int MultipleMode_Count = 0;
+    public double Multiplemode_SpanRatio = 0;
 }
 
 public class AiCompositRule
@@ -444,7 +448,7 @@ public class AiTask
         {
             var srcTextList = await Lfs.EnumDirectoryAsync(seriesDir.FullPath, true, cancel: cancel);
 
-            foreach (var srcTextFile in srcTextList.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Text) && x.Name.StartsWith("_") == false && x.Name.EndsWith(".ok.txt", StrCmpi) == false).OrderBy(x => x.Name, StrCmpi))
+            foreach (var srcTextFile in srcTextList.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Text) && x.Name.StartsWith("_") == false && x.Name.EndsWith(".ok.txt", StrCmpi) == false).OrderBy(x => x.Name, StrCmpi)._Shuffle().ToList())
             {
                 try
                 {
@@ -807,8 +811,8 @@ public class AiTask
 
     private class OperationDesc
     {
-        public MediaVoiceSegment Start = null!;
-        public MediaVoiceSegment End = null!;
+        public double StartPosition = 0;
+        public double EndPosition = 0;
         public AiCompositRule Rule = null!;
         public IEndlessQueue<string> MatFilesQueue = null!;
 
@@ -851,7 +855,21 @@ public class AiTask
                             var seg2 = segments[j];
                             if (seg2.IsTag && rule.EndTagStr._Split(StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries, "|").Where(x => x._IsSamei(seg2.TagStr)).Any())
                             {
-                                opList.Add(new OperationDesc { Start = seg, End = seg2, Rule = rule, MatFilesQueue = rule.RuleData.MaterialsWavPathQueue });
+                                if (rule.RuleData.MultipleMode_Count >= 2)
+                                {
+                                    for (int k = 0; k < rule.RuleData.MultipleMode_Count; k++)
+                                    {
+                                        double originalLen = seg2.TimePosition - seg.TimePosition;
+                                        double thisLen = Math.Min(originalLen * Util.GenRandInterval(rule.RuleData.Multiplemode_SpanRatio._ToTimeSpanSecs()).TotalSeconds, originalLen);
+                                        double thisStart = seg.TimePosition + (originalLen - thisLen) * Util.RandDouble0To1();
+
+                                        opList.Add(new OperationDesc { StartPosition = thisStart, EndPosition = thisStart + thisLen, Rule = rule, MatFilesQueue = rule.RuleData.MaterialsWavPathQueue });
+                                    }
+                                }
+                                else
+                                {
+                                    opList.Add(new OperationDesc { StartPosition = seg.TimePosition, EndPosition = seg2.TimePosition, Rule = rule, MatFilesQueue = rule.RuleData.MaterialsWavPathQueue });
+                                }
                                 break;
                             }
                         }
@@ -863,70 +881,26 @@ public class AiTask
                     if (seg.IsTag && rule.StartTagStr._Split(StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries, "|").Where(x => x._IsSamei(seg.TagStr)).Any())
                     {
                         var seg2 = seg._CloneDeep();
-                        seg2.TimePosition = seg.TimePosition + 1.0;
-                        opList.Add(new OperationDesc { Start = seg, End = seg2, Rule = rule, MatFilesQueue = rule.RuleData.MaterialsWavPathQueue });
+                        seg2.TimePosition = seg.TimePosition + Util.GenRandInterval(rule.RuleData.Param.DurationWhenEndTagIsEmpty._ToTimeSpanSecs(), 60).TotalSeconds;
+                        if (rule.RuleData.MultipleMode_Count >= 2)
+                        {
+                            for (int k = 0; k < rule.RuleData.MultipleMode_Count; k++)
+                            {
+                                double originalLen = seg2.TimePosition - seg.TimePosition;
+                                double thisLen = Math.Min(originalLen * Util.GenRandInterval(rule.RuleData.Multiplemode_SpanRatio._ToTimeSpanSecs()).TotalSeconds, originalLen);
+                                double thisStart = seg.TimePosition + (originalLen - thisLen) * Util.RandDouble0To1();
+
+                                opList.Add(new OperationDesc { StartPosition = thisStart, EndPosition = thisStart + thisLen, Rule = rule, MatFilesQueue = rule.RuleData.MaterialsWavPathQueue });
+                            }
+                        }
+                        else
+                        {
+                            opList.Add(new OperationDesc { StartPosition = seg.TimePosition, EndPosition = seg2.TimePosition, Rule = rule, MatFilesQueue = rule.RuleData.MaterialsWavPathQueue });
+                        }
                     }
                 }
             }
         }
-
-
-
-
-
-#if false
-            for (int i = 0; i < segments.Count; i++)
-            {
-                var seg = segments[i];
-
-                if (seg.IsTag && seg.TagStr._IsSamei(rule.StartTagStr))
-                {
-                    for (int j = i + 1; j < segments.Count; j++)
-                    {
-                        var seg2 = segments[j];
-                        if (seg2.IsTag && seg2.TagStr._IsSamei(rule.EndTagStr))
-                        {
-                            opList.Add((seg, seg2, false));
-                            break;
-                        }
-                    }
-                }
-
-                if (seg.IsTag && seg.TagStr._IsSamei("<BCX_START>"))
-                {
-                    for (int j = i + 1; j < segments.Count; j++)
-                    {
-                        var seg2 = segments[j];
-                        if (seg2.IsTag && seg2.TagStr._IsSamei("<BCX_END>") || seg2.TagStr._IsSamei("<BXC_END>"))
-                        {
-                            opList.Add((seg, seg2, true));
-                            break;
-                        }
-                    }
-                }
-
-                if (seg.IsTag && seg.TagStr._IsSamei("<XCSSTART>"))
-                {
-                    for (int j = i + 1; j < segments.Count; j++)
-                    {
-                        var seg2 = segments[j];
-                        if (seg2.IsTag && seg2.TagStr._IsSamei("<XCSEND>") || seg2.TagStr._IsSamei("<XCSEND>"))
-                        {
-                            opList.Add((seg, seg2, true));
-                            break;
-                        }
-                    }
-                }
-
-                if (seg.IsTag && seg.TagStr._IsSamei("<XHEART>"))
-                {
-                    var seg2 = seg._CloneDeep();
-                    seg2.TimePosition = seg.TimePosition + 1.0;
-                    opList.Add((seg, seg2, false));
-                }
-            }
-#endif
-
 
         HashSet<string> alreadyUsedList = new HashSet<string>(StrCmpi);
 
@@ -936,8 +910,8 @@ public class AiTask
             {
                 var param = op.Rule.RuleData.Param;
 
-                double wantLength = op.End.TimePosition / targetSrcWavSpeed - op.Start.TimePosition / targetSrcWavSpeed;
-                double minLength = param.PaddingSecs * 2 + wantLength + param.StdFadeInSecs + param.StdFadeOutSecs + param.MaxRandAfterLengthSecs + param.MaxRandBeforeLengthSecs + 3.0;
+                double wantLength = op.EndPosition / targetSrcWavSpeed - op.StartPosition / targetSrcWavSpeed;
+                double minLength = param.PaddingSecs * 2 + wantLength + (param.StdFadeInSecs + param.StdFadeOutSecs) * 1.5 + param.MaxRandAfterLengthSecs + param.MaxRandBeforeLengthSecs + 3.0;
 
                 string wavFilePath = "";
                 double wavFileLength = 0.0;
@@ -946,13 +920,9 @@ public class AiTask
                 {
                     wavFilePath = op.MatFilesQueue.Dequeue();
                     wavFileLength = await GetWavFileLengthSecsAsync(wavFilePath, cancel: cancel);
-                    if (wavFileLength >= (op.Rule.RuleData.Param.StdFadeInSecs + op.Rule.RuleData.Param.StdFadeOutSecs + 8.0))
+                    if (wavFileLength >= minLength)
                     {
-                        if (alreadyUsedList.Contains(wavFilePath) == false)
-                        {
-                            alreadyUsedList.Add(wavFilePath);
-                            break;
-                        }
+                        break;
                     }
                     wavFilePath = "";
                 }
@@ -963,18 +933,19 @@ public class AiTask
                     break;
                 }
 
-                ret.Options_UsedMaterials.Add(new(wavFilePath, op.Start.TimePosition, wantLength));
+                ret.Options_UsedMaterials.Add(new(wavFilePath, op.StartPosition, wantLength));
 
-                double len1 = wavFileLength - param.PaddingSecs * 2;
-                double tmp1 = len1 - wantLength;
-                double matStartPos = Util.RandDouble0To1() * tmp1 + param.PaddingSecs;
+                double before_length = param.MaxRandBeforeLengthSecs * Util.RandDouble0To1();
+                double after_length = param.MaxRandAfterLengthSecs * Util.RandDouble0To1();
+
+                double len = wantLength + before_length + after_length;
+
+                double matStartPos = Util.RandDouble0To1() * (wavFileLength - len - param.PaddingSecs * 2) + param.PaddingSecs;
 
                 double fadeIn = Util.GenRandInterval(param.StdFadeInSecs._ToTimeSpanSecs()).TotalSeconds;
                 double fadeOut = Util.GenRandInterval(param.StdFadeOutSecs._ToTimeSpanSecs()).TotalSeconds;
 
-                double len = wantLength + param.MaxRandBeforeLengthSecs + param.MaxRandAfterLengthSecs;
-
-                double targetStartPos = Math.Max(op.Start.TimePosition / targetSrcWavSpeed - param.MaxRandBeforeLengthSecs, 0.0);
+                double targetStartPos = Math.Max(op.StartPosition / targetSrcWavSpeed - before_length, 0.0);
 
                 op.Calced_MaterialWavPath = wavFilePath;
                 op.Calced_TargetPositionSecs = targetStartPos;
@@ -982,7 +953,11 @@ public class AiTask
                 op.Calced_LengthSecs = len;
                 op.Calced_FadeInSecs = fadeIn;
                 op.Calced_FadeOutSecs = fadeOut;
-                op.Calced_VolumeDelta = param.VolumeDelta;
+
+                double randomValue = (Util.RandDouble0To1() - 0.5) * 2 + param.VolumeDeltaRandomRange;
+
+                op.Calced_VolumeDelta = param.VolumeDelta + randomValue;
+                Con.WriteLine(op.Calced_VolumeDelta);
             }
             catch (Exception ex)
             {
@@ -1039,52 +1014,55 @@ public class AiTask
 
         foreach (var op in operations)
         {
-            cancel.ThrowIfCancellationRequested();
-
-            try
+            if (op.Calced_MaterialWavPath._IsFilled())
             {
-                ReadOnlyMemory<byte> matSrcData;
+                cancel.ThrowIfCancellationRequested();
 
-                //Console.WriteLine(op.MeterialWavPath);
-                await using (var matFileStream = File.Open(op.Calced_MaterialWavPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                try
                 {
-                    await using var matReader = new WaveFileReader(matFileStream);
-                    WaveFormat matWaveFormat = matReader.WaveFormat;
+                    ReadOnlyMemory<byte> matSrcData;
 
-                    CheckWavFormat(targetSrcWaveFormat);
-
-                    // 波形フォーマット前提値
-                    const int sampleRate = 44100;
-                    const int channels = 2;
-                    const int bitsPerSample = 16;
-                    // 1サンプル(1ch)あたりのバイト数
-                    const int bytesPerSample = bitsPerSample / 8; // = 2
-                                                                  // 1フレーム(全ch合計)あたりのバイト数(2ch前提)
-                    const int blockAlign = channels * bytesPerSample; // 4バイト
-                                                                      // 合成を開始するフレーム位置(整数)
-                    long sourceStartFrame = (long)(op.Calced_MeterialPositionSecs * sampleRate);
-
-                    // 合成するフレーム数(整数)
-                    long framesToProcess = (long)(op.Calced_LengthSecs * sampleRate);
-                    if (framesToProcess <= 0)
+                    //Console.WriteLine(op.MeterialWavPath);
+                    await using (var matFileStream = File.Open(op.Calced_MaterialWavPath, FileMode.Open, FileAccess.Read, FileShare.Read))
                     {
-                        return;
+                        await using var matReader = new WaveFileReader(matFileStream);
+                        WaveFormat matWaveFormat = matReader.WaveFormat;
+
+                        CheckWavFormat(targetSrcWaveFormat);
+
+                        // 波形フォーマット前提値
+                        const int sampleRate = 44100;
+                        const int channels = 2;
+                        const int bitsPerSample = 16;
+                        // 1サンプル(1ch)あたりのバイト数
+                        const int bytesPerSample = bitsPerSample / 8; // = 2
+                                                                      // 1フレーム(全ch合計)あたりのバイト数(2ch前提)
+                        const int blockAlign = channels * bytesPerSample; // 4バイト
+                                                                          // 合成を開始するフレーム位置(整数)
+                        long sourceStartFrame = (long)(op.Calced_MeterialPositionSecs * sampleRate);
+
+                        // 合成するフレーム数(整数)
+                        long framesToProcess = (long)(op.Calced_LengthSecs * sampleRate);
+                        if (framesToProcess <= 0)
+                        {
+                            return;
+                        }
+
+                        // バイト単位での開始位置
+                        long sourceStartByte = sourceStartFrame * blockAlign;
+                        int bytesToProcess = (int)(framesToProcess * blockAlign);
+
+                        matReader.Seek(sourceStartByte, SeekOrigin.Begin);
+
+                        matSrcData = await matReader._ReadAllAsync(bytesToProcess, cancel: cancel);
                     }
 
-                    // バイト単位での開始位置
-                    long sourceStartByte = sourceStartFrame * blockAlign;
-                    int bytesToProcess = (int)(framesToProcess * blockAlign);
-
-                    matReader.Seek(sourceStartByte, SeekOrigin.Begin);
-
-                    matSrcData = await matReader._ReadAllAsync(bytesToProcess, cancel: cancel);
+                    AiWaveMixUtil.MixWaveData(targetSrcData, matSrcData, op.Calced_TargetPositionSecs, 0, op.Calced_LengthSecs, op.Calced_VolumeDelta, op.Calced_FadeInSecs, op.Calced_FadeOutSecs);
                 }
-
-                AiWaveMixUtil.MixWaveData(targetSrcData, matSrcData, op.Calced_TargetPositionSecs, 0, op.Calced_LengthSecs, op.Calced_VolumeDelta, op.Calced_FadeInSecs, op.Calced_FadeOutSecs);
-            }
-            catch (Exception ex)
-            {
-                ex._Error();
+                catch (Exception ex)
+                {
+                    ex._Error();
+                }
             }
         }
 
@@ -1105,7 +1083,7 @@ public class AiTask
         var srcFiles = await Lfs.EnumDirectoryAsync(srcVoiceDirRoot, true, cancel: cancel);
 
         foreach (var srcFile in srcFiles.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Filter_MusicFiles) && x.Name._InStri("bgm") == false && PP.GetFileName(PP.GetDirectoryName(x.FullPath)).StartsWith("_") == false)
-            .OrderBy(x => x.FullPath, StrCmpi))
+            .OrderBy(x => x.FullPath, StrCmpi)._Shuffle().ToList())
         {
             string relativeDirPth = PP.GetRelativeDirectoryName(PP.GetDirectoryName(srcFile.FullPath), srcVoiceDirRoot);
 
@@ -1238,7 +1216,7 @@ public class AiTask
         var srcFiles = await Lfs.EnumDirectoryAsync(srcVoiceAudioFilePath, true, cancel: cancel);
 
         foreach (var srcFile in srcFiles.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Filter_MusicFiles) && x.Name._InStri("bgm_x1.00") && PP.GetFileName(PP.GetDirectoryName(x.FullPath)).StartsWith("_") == false)
-            .OrderBy(x => x.FullPath, StrCmpi))
+            .OrderBy(x => x.FullPath, StrCmpi)._Shuffle().ToList())
         {
             cancel.ThrowIfCancellationRequested();
 
