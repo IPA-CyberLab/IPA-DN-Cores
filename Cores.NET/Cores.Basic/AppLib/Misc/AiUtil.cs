@@ -77,6 +77,11 @@ public static class AiUtilVersion
     public const int CurrentVersion = 20250330_04;
 }
 
+public class AiCompositWaveSettings
+{
+    public List<AiCompositRule> RulesList = null!;
+}
+
 public class AiCompositWaveParam
 {
     public double PaddingSecs = 30;
@@ -85,6 +90,15 @@ public class AiCompositWaveParam
     public double MaxRandBeforeLengthSecs = 0;
     public double MaxRandAfterLengthSecs = 13;
     public double VolumeDelta = -17;
+}
+
+public class AiCompositRule
+{
+    public string StartTagStr = Str.NewGuid();
+    public string EndTagStr = Str.NewGuid();
+    public AiCompositWaveParam Param = new();
+    public string MaterialsDirPath = "";
+    public bool StrictRange = false;
 }
 
 public class AiTask
@@ -745,12 +759,12 @@ public class AiTask
         return ret;
     }
 
-    public async Task<FfMpegParsedList> CompositAudioFileByAcxBcxTagsWithManyWavMaterialsAsync(string targetAudioFilePath, string dstAudioFilePath, FfMpegAudioCodec codec, int kbps, string materialsDirPath,
-        AiCompositWaveParam param,
+    public async Task<FfMpegParsedList> CompositAudioFileByAcxBcxTagsWithManyWavMaterialsAsync(string targetAudioFilePath, string dstAudioFilePath, FfMpegAudioCodec codec, int kbps,
+        AiCompositWaveSettings settings,
         double targetSrcWavSpeed, MediaMetaData? metaData = null,
         CancellationToken cancel = default)
     {
-        string digest = $"{targetAudioFilePath}:{metaData._ObjectToJson()}:{dstAudioFilePath}:{codec}:{materialsDirPath}:{param._ObjectToJson()}:{targetSrcWavSpeed}"._Digest();
+        string digest = $"{targetAudioFilePath}:{metaData._ObjectToJson()}:{dstAudioFilePath}:{codec}:{settings._ObjectToJson()}:{targetSrcWavSpeed}"._Digest();
 
         var okCached = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstAudioFilePath, digest, AiUtilVersion.CurrentVersion, cancel: cancel);
         if (okCached.IsOk && okCached.Value != null)
@@ -766,7 +780,7 @@ public class AiTask
 
         okRead.ThrowIfError();
 
-        var usedFiles = await CompositWaveFileByAcxBcxTagsWithManyWavMaterialsAsync(tmpWavPath, okRead.Value._NullCheck(), tmpWavPath, materialsDirPath, param, targetSrcWavSpeed, cancel);
+        var usedFiles = await CompositWaveFileByAcxBcxTagsWithManyWavMaterialsAsync(tmpWavPath, okRead.Value._NullCheck(), tmpWavPath, settings, targetSrcWavSpeed, cancel);
 
         var parsed = await this.FfMpeg.EncodeAudioAsync(tmpWavPath, dstAudioFilePath, codec, kbps, metaData: metaData, useOkFile: false, cancel: cancel);
 
@@ -779,8 +793,24 @@ public class AiTask
         return parsed;
     }
 
-    public async Task<FfMpegParsedList> CompositWaveFileByAcxBcxTagsWithManyWavMaterialsAsync(string targetSrcWavPath, FfMpegParsedList targetSrcMetaData, string dstWavPath, string materialsDirPath,
-        AiCompositWaveParam param,
+    private class OperationDesc
+    {
+        public MediaVoiceSegment Start = null!;
+        public MediaVoiceSegment End = null!;
+        public AiCompositRule Rule = null!;
+        public List<(string FilePath, double Length)> MatFilesList = null!;
+
+        public string Calced_MaterialWavPath = "";
+        public double Calced_TargetPositionSecs;
+        public double Calced_MeterialPositionSecs;
+        public double Calced_LengthSecs;
+        public double Calced_FadeInSecs;
+        public double Calced_FadeOutSecs;
+        public double Calced_VolumeDelta;
+    }
+
+    public async Task<FfMpegParsedList> CompositWaveFileByAcxBcxTagsWithManyWavMaterialsAsync(string targetSrcWavPath, FfMpegParsedList targetSrcMetaData, string dstWavPath,
+        AiCompositWaveSettings settings,
         double targetSrcWavSpeed,
         CancellationToken cancel = default)
     {
@@ -788,84 +818,124 @@ public class AiTask
 
         ret.Options_UsedMaterials = new();
 
-        var matFiles = await Lfs.EnumDirectoryAsync(materialsDirPath, false, cancel: cancel);
-
-        List<(string FilePath, double Length)> matFilesList = new();
-
-        foreach (var matFile in matFiles.Where(x => x.IsFile && x.Name._IsExtensionMatch(".wav")))
-        {
-            try
-            {
-                double length = await GetWavFileLengthSecsAsync(matFile.FullPath, cancel);
-
-                if (length >= (param.StdFadeInSecs + param.StdFadeOutSecs + 8.0))
-                {
-                    matFilesList.Add((matFile.FullPath, length));
-                }
-            }
-            catch (Exception ex)
-            {
-                ex._Error();
-            }
-        }
+        List<OperationDesc> opList = new();
 
         var segments = targetSrcMetaData.Options_VoiceSegmentsList;
         segments._NullCheck();
 
-        List<(MediaVoiceSegment Start, MediaVoiceSegment End, bool StrictRange)> opList = new();
-
-        for (int i = 0; i < segments.Count; i++)
+        foreach (var rule in settings.RulesList)
         {
-            var seg = segments[i];
+            var matFiles = await Lfs.EnumDirectoryAsync(rule.MaterialsDirPath, false, cancel: cancel);
 
-            if (seg.IsTag && seg.TagStr._IsSamei("<ACX_START>"))
+            List<(string FilePath, double Length)> matFilesList = new();
+
+            foreach (var matFile in matFiles.Where(x => x.IsFile && x.Name._IsExtensionMatch(".wav")))
             {
-                for (int j = i + 1; j < segments.Count; j++)
+                try
                 {
-                    var seg2 = segments[j];
-                    if (seg2.IsTag && seg2.TagStr._IsSamei("<ACX_END>"))
+                    double length = await GetWavFileLengthSecsAsync(matFile.FullPath, cancel);
+
+                    if (length >= (rule.Param.StdFadeInSecs + rule.Param.StdFadeOutSecs + 8.0))
                     {
-                        opList.Add((seg, seg2, false));
-                        break;
+                        matFilesList.Add((matFile.FullPath, length));
                     }
+                }
+                catch (Exception ex)
+                {
+                    ex._Error();
                 }
             }
 
-            if (seg.IsTag && seg.TagStr._IsSamei("<BCX_START>"))
+            for (int i = 0; i < segments.Count; i++)
             {
-                for (int j = i + 1; j < segments.Count; j++)
+                var seg = segments[i];
+
+                if (rule.EndTagStr._IsFilled())
                 {
-                    var seg2 = segments[j];
-                    if (seg2.IsTag && seg2.TagStr._IsSamei("<BCX_END>") || seg2.TagStr._IsSamei("<BXC_END>"))
+                    // 開始と終了の両方のタグがあるルール
+                    if (seg.IsTag && rule.StartTagStr._Split(StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries, "|").Where(x => x._IsSamei(seg.TagStr)).Any())
                     {
-                        opList.Add((seg, seg2, true));
-                        break;
+                        for (int j = i + 1; j < segments.Count; j++)
+                        {
+                            var seg2 = segments[j];
+                            if (seg2.IsTag && rule.EndTagStr._Split(StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries, "|").Where(x => x._IsSamei(seg2.TagStr)).Any())
+                            {
+                                opList.Add(new OperationDesc { Start = seg, End = seg2, Rule = rule, MatFilesList = matFilesList });
+                                break;
+                            }
+                        }
                     }
                 }
-            }
-
-            if (seg.IsTag && seg.TagStr._IsSamei("<XCSSTART>"))
-            {
-                for (int j = i + 1; j < segments.Count; j++)
+                else
                 {
-                    var seg2 = segments[j];
-                    if (seg2.IsTag && seg2.TagStr._IsSamei("<XCSEND>") || seg2.TagStr._IsSamei("<XCSEND>"))
+                    // 開始タグしかないルール
+                    if (seg.IsTag && rule.StartTagStr._Split(StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries, "|").Where(x => x._IsSamei(seg.TagStr)).Any())
                     {
-                        opList.Add((seg, seg2, true));
-                        break;
+                        var seg2 = seg._CloneDeep();
+                        seg2.TimePosition = seg.TimePosition + 1.0;
+                        opList.Add(new OperationDesc { Start = seg, End = seg2, Rule = rule, MatFilesList = matFilesList });
                     }
                 }
-            }
-
-            if (seg.IsTag && seg.TagStr._IsSamei("<XHEART>"))
-            {
-                var seg2 = seg._CloneDeep();
-                seg2.TimePosition = seg.TimePosition + 1.0;
-                opList.Add((seg, seg2, false));
             }
         }
 
-        List<(string MeterialWavPath, double TargetPositionSecs, double MeterialPositionSecs, double LengthSecs, double FadeInSecs, double FadeOutSecs, double VolumeDelta)> op2 = new();
+
+
+
+
+#if false
+            for (int i = 0; i < segments.Count; i++)
+            {
+                var seg = segments[i];
+
+                if (seg.IsTag && seg.TagStr._IsSamei(rule.StartTagStr))
+                {
+                    for (int j = i + 1; j < segments.Count; j++)
+                    {
+                        var seg2 = segments[j];
+                        if (seg2.IsTag && seg2.TagStr._IsSamei(rule.EndTagStr))
+                        {
+                            opList.Add((seg, seg2, false));
+                            break;
+                        }
+                    }
+                }
+
+                if (seg.IsTag && seg.TagStr._IsSamei("<BCX_START>"))
+                {
+                    for (int j = i + 1; j < segments.Count; j++)
+                    {
+                        var seg2 = segments[j];
+                        if (seg2.IsTag && seg2.TagStr._IsSamei("<BCX_END>") || seg2.TagStr._IsSamei("<BXC_END>"))
+                        {
+                            opList.Add((seg, seg2, true));
+                            break;
+                        }
+                    }
+                }
+
+                if (seg.IsTag && seg.TagStr._IsSamei("<XCSSTART>"))
+                {
+                    for (int j = i + 1; j < segments.Count; j++)
+                    {
+                        var seg2 = segments[j];
+                        if (seg2.IsTag && seg2.TagStr._IsSamei("<XCSEND>") || seg2.TagStr._IsSamei("<XCSEND>"))
+                        {
+                            opList.Add((seg, seg2, true));
+                            break;
+                        }
+                    }
+                }
+
+                if (seg.IsTag && seg.TagStr._IsSamei("<XHEART>"))
+                {
+                    var seg2 = seg._CloneDeep();
+                    seg2.TimePosition = seg.TimePosition + 1.0;
+                    opList.Add((seg, seg2, false));
+                }
+            }
+#endif
+
 
         HashSet<string> alreadyUsedList = new HashSet<string>(StrCmpi);
 
@@ -873,10 +943,12 @@ public class AiTask
         {
             try
             {
+                var param = op.Rule.Param;
+
                 double wantLength = op.End.TimePosition / targetSrcWavSpeed - op.Start.TimePosition / targetSrcWavSpeed;
                 double minLength = param.PaddingSecs * 2 + wantLength + param.StdFadeInSecs + param.StdFadeOutSecs + param.MaxRandAfterLengthSecs + param.MaxRandBeforeLengthSecs + 3.0;
 
-                var mat = matFilesList.Where(x => x.Length >= minLength && alreadyUsedList.Contains(x.FilePath) == false)._Shuffle().ToList().First();
+                var mat = op.MatFilesList.Where(x => x.Length >= minLength && alreadyUsedList.Contains(x.FilePath) == false)._Shuffle().ToList().First();
                 //._ShuffleWithWeight(x => (int)((Math.Min(x.Length, 15 * 60) + 10.0) * 1000)).ToList().First();
 
                 alreadyUsedList.Add(mat.FilePath);
@@ -893,7 +965,7 @@ public class AiTask
                 double before = param.MaxRandBeforeLengthSecs * Util.RandDouble0To1();
                 double after = param.MaxRandAfterLengthSecs * Util.RandDouble0To1();
 
-                if (op.StrictRange)
+                if (op.Rule.StrictRange)
                 {
                     before = 1.0;
                     after = 2.0;
@@ -903,7 +975,13 @@ public class AiTask
 
                 double targetStartPos = Math.Max(op.Start.TimePosition / targetSrcWavSpeed - param.MaxRandBeforeLengthSecs, 0.0);
 
-                op2.Add((mat.FilePath, targetStartPos, matStartPos, len, fadeIn, fadeOut, param.VolumeDelta));
+                op.Calced_MaterialWavPath = mat.FilePath;
+                op.Calced_TargetPositionSecs = targetStartPos;
+                op.Calced_MeterialPositionSecs = matStartPos;
+                op.Calced_LengthSecs = len;
+                op.Calced_FadeInSecs = fadeIn;
+                op.Calced_FadeOutSecs = fadeOut;
+                op.Calced_VolumeDelta = param.VolumeDelta;
             }
             catch (Exception ex)
             {
@@ -911,7 +989,7 @@ public class AiTask
             }
         }
 
-        await CompositWaveWithFadeAsync(targetSrcWavPath, dstWavPath, op2, cancel: cancel);
+        await CompositWaveWithFadeAsync(targetSrcWavPath, dstWavPath, opList, cancel: cancel);
 
         return ret;
     }
@@ -942,8 +1020,8 @@ public class AiTask
         }
     }
 
-    public async Task CompositWaveWithFadeAsync(string targetSrcWavPath, string dstWavPath,
-        List<(string MeterialWavPath, double TargetPositionSecs, double MeterialPositionSecs, double LengthSecs, double FadeInSecs, double FadeOutSecs, double VolumeDelta)> operations, CancellationToken cancel = default)
+    async Task CompositWaveWithFadeAsync(string targetSrcWavPath, string dstWavPath,
+        IEnumerable<OperationDesc> operations, CancellationToken cancel = default)
     {
         Memory<byte> targetSrcData;
         WaveFormat targetSrcWaveFormat;
@@ -967,7 +1045,7 @@ public class AiTask
                 ReadOnlyMemory<byte> matSrcData;
 
                 //Console.WriteLine(op.MeterialWavPath);
-                await using (var matFileStream = File.Open(op.MeterialWavPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                await using (var matFileStream = File.Open(op.Calced_MaterialWavPath, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
                     await using var matReader = new WaveFileReader(matFileStream);
                     WaveFormat matWaveFormat = matReader.WaveFormat;
@@ -983,10 +1061,10 @@ public class AiTask
                                                                   // 1フレーム(全ch合計)あたりのバイト数(2ch前提)
                     const int blockAlign = channels * bytesPerSample; // 4バイト
                                                                       // 合成を開始するフレーム位置(整数)
-                    long sourceStartFrame = (long)(op.MeterialPositionSecs * sampleRate);
+                    long sourceStartFrame = (long)(op.Calced_MeterialPositionSecs * sampleRate);
 
                     // 合成するフレーム数(整数)
-                    long framesToProcess = (long)(op.LengthSecs * sampleRate);
+                    long framesToProcess = (long)(op.Calced_LengthSecs * sampleRate);
                     if (framesToProcess <= 0)
                     {
                         return;
@@ -1001,7 +1079,7 @@ public class AiTask
                     matSrcData = await matReader._ReadAllAsync(bytesToProcess, cancel: cancel);
                 }
 
-                AiWaveMixUtil.MixWaveData(targetSrcData, matSrcData, op.TargetPositionSecs, 0, op.LengthSecs, op.VolumeDelta, op.FadeInSecs, op.FadeOutSecs);
+                AiWaveMixUtil.MixWaveData(targetSrcData, matSrcData, op.Calced_TargetPositionSecs, 0, op.Calced_LengthSecs, op.Calced_VolumeDelta, op.Calced_FadeInSecs, op.Calced_FadeOutSecs);
             }
             catch (Exception ex)
             {
@@ -1153,7 +1231,7 @@ public class AiTask
 
 
     public async Task AddRandomMaterialsToAllVoiceAndAudioFilesAsync(string srcVoiceAudioFilePath, string dstDirRoot, string srcMaterialsDirPath, FfMpegAudioCodec codec,
-        AiCompositWaveParam param,
+        AiCompositWaveSettings settings,
         int kbps = 0, string? oldTagStr = null, string? newTagStr = null, CancellationToken cancel = default)
     {
         var srcFiles = await Lfs.EnumDirectoryAsync(srcVoiceAudioFilePath, true, cancel: cancel);
@@ -1171,8 +1249,8 @@ public class AiTask
 
                 Con.WriteLine($"Add Random Materials: '{srcFile.FullPath}' -> '{dstDirPath}'");
 
-                var result = await AddRandomMaterialsToVoiceAndAudioFileAsync(srcFile.FullPath, dstDirPath, srcMaterialsDirPath, codec,
-                    param, kbps, oldTagStr, newTagStr, cancel: cancel);
+                var result = await AddRandomMaterialsToVoiceAndAudioFileAsync(srcFile.FullPath, dstDirPath,
+                    settings, codec, kbps, oldTagStr, newTagStr, cancel: cancel);
             }
             catch (Exception ex)
             {
@@ -1182,8 +1260,7 @@ public class AiTask
     }
 
     public async Task<(FfMpegParsedList Parsed, string DestFileName)> AddRandomMaterialsToVoiceAndAudioFileAsync(
-        string srcVoiceAudioFilePath, string dstDir, string srcMaterialsDirPath, FfMpegAudioCodec codec,
-        AiCompositWaveParam param,
+        string srcVoiceAudioFilePath, string dstDir, AiCompositWaveSettings settings, FfMpegAudioCodec codec,
         int kbps = 0, string? oldTagStr = null, string? newTagStr = null, CancellationToken cancel = default)
     {
         var srcVoiceAudioFileMetaData = await FfMpeg.ReadMetaDataWithFfProbeAsync(srcVoiceAudioFilePath, cancel: cancel);
@@ -1257,8 +1334,7 @@ public class AiTask
             throw new CoresLibException($"dstFilePath == srcVoiceFilePath: '{srcVoiceAudioFilePath}'");
         }
 
-        var parsed = await this.CompositAudioFileByAcxBcxTagsWithManyWavMaterialsAsync(srcVoiceAudioFilePath, dstFilePath, codec, kbps, srcMaterialsDirPath,
-            param, 1.0, newMeta, cancel: cancel);
+        var parsed = await this.CompositAudioFileByAcxBcxTagsWithManyWavMaterialsAsync(srcVoiceAudioFilePath, dstFilePath, codec, kbps, settings, 1.0, newMeta, cancel: cancel);
 
         return (parsed, dstFilePath);
     }
