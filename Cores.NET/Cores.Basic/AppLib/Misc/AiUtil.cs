@@ -90,7 +90,7 @@ public class AiCompositWaveParam
     public double MaxRandBeforeLengthSecs = 0;
     public double MaxRandAfterLengthSecs = 13;
     public double VolumeDelta = -17;
-    public double VolumeDeltaRandomRange = 0.5;
+    public double VolumeDeltaRandomRange = 10;
     public double DurationWhenEndTagIsEmpty = 5;
 }
 
@@ -822,7 +822,8 @@ public class AiTask
         public double Calced_LengthSecs;
         public double Calced_FadeInSecs;
         public double Calced_FadeOutSecs;
-        public double Calced_VolumeDelta;
+        public double Calced_VolumeDelta_Left;
+        public double Calced_VolumeDelta_Right;
     }
 
     public async Task<FfMpegParsedList> CompositWaveFileByAcxBcxTagsWithManyWavMaterialsAsync(string targetSrcWavPath, FfMpegParsedList targetSrcMetaData, string dstWavPath,
@@ -954,10 +955,11 @@ public class AiTask
                 op.Calced_FadeInSecs = fadeIn;
                 op.Calced_FadeOutSecs = fadeOut;
 
-                double randomValue = (Util.RandDouble0To1() - 0.5) * 2 + param.VolumeDeltaRandomRange;
+                double randomValueLeft = (Util.RandDouble0To1() - 0.5) * 2 * param.VolumeDeltaRandomRange;
+                double randomValueRight = (Util.RandDouble0To1() - 0.5) * 2 * param.VolumeDeltaRandomRange;
 
-                op.Calced_VolumeDelta = param.VolumeDelta + randomValue;
-                Con.WriteLine(op.Calced_VolumeDelta);
+                op.Calced_VolumeDelta_Left = param.VolumeDelta + randomValueLeft;
+                op.Calced_VolumeDelta_Right = param.VolumeDelta + randomValueRight;
             }
             catch (Exception ex)
             {
@@ -1057,7 +1059,7 @@ public class AiTask
                         matSrcData = await matReader._ReadAllAsync(bytesToProcess, cancel: cancel);
                     }
 
-                    AiWaveMixUtil.MixWaveData(targetSrcData, matSrcData, op.Calced_TargetPositionSecs, 0, op.Calced_LengthSecs, op.Calced_VolumeDelta, op.Calced_FadeInSecs, op.Calced_FadeOutSecs);
+                    AiWaveMixUtil.MixWaveData(targetSrcData, matSrcData, op.Calced_TargetPositionSecs, 0, op.Calced_LengthSecs, op.Calced_VolumeDelta_Left, op.Calced_VolumeDelta_Right, op.Calced_FadeInSecs, op.Calced_FadeOutSecs);
                 }
                 catch (Exception ex)
                 {
@@ -2320,7 +2322,8 @@ public static class AiWaveMixUtil
         double targetPosition,
         double sourceWavPosition,
         double length,
-        double delta,
+        double deltaLeft,
+        double deltaRight,
         double fadein,
         double fadeout)
     {
@@ -2401,7 +2404,8 @@ public static class AiWaveMixUtil
         short[] sourceSamples = new short[sourceBytes.Length / 2];
         Buffer.BlockCopy(sourceBytes, 0, sourceSamples, 0, sourceBytes.Length);
 
-        float amplitudeFactor = (float)Math.Pow(10.0, delta / 20.0);  // dB → 倍率
+        float amplitudeFactorLeft = (float)Math.Pow(10.0, deltaLeft / 20.0);  // dB → 倍率
+        float amplitudeFactorRight = (float)Math.Pow(10.0, deltaRight / 20.0);  // dB → 倍率
         double totalDurationSec = framesToProcess / (double)sampleRate;
 
         for (int i = 0; i < framesToProcess; i++)
@@ -2432,8 +2436,8 @@ public static class AiWaveMixUtil
             int rightIndex = i * 2 + 1;
 
             // スケーリング（dB + フェードイン/アウト）
-            float scaledLeft = sourceSamples[leftIndex] * amplitudeFactor * fadeFactor;
-            float scaledRight = sourceSamples[rightIndex] * amplitudeFactor * fadeFactor;
+            float scaledLeft = sourceSamples[leftIndex] * amplitudeFactorLeft * fadeFactor;
+            float scaledRight = sourceSamples[rightIndex] * amplitudeFactorRight * fadeFactor;
 
             // short 範囲にクリップ
             sourceSamples[leftIndex] = (short)Math.Clamp((int)scaledLeft, short.MinValue, short.MaxValue);
