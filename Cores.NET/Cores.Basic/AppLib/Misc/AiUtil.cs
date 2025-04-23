@@ -77,6 +77,16 @@ public static class AiUtilVersion
     public const int CurrentVersion = 20250330_04;
 }
 
+public class AiCompositWaveParam
+{
+    public double PaddingSecs = 30;
+    public double StdFadeInSecs = 2;
+    public double StdFadeOutSecs = 13;
+    public double MaxRandBeforeLengthSecs = 0;
+    public double MaxRandAfterLengthSecs = 13;
+    public double VolumeDelta = -17;
+}
+
 public class AiTask
 {
     public const double BgmVolumeDeltaForConstant = -9.3;
@@ -736,11 +746,11 @@ public class AiTask
     }
 
     public async Task<FfMpegParsedList> CompositAudioFileByAcxBcxTagsWithManyWavMaterialsAsync(string targetAudioFilePath, string dstAudioFilePath, FfMpegAudioCodec codec, int kbps, string materialsDirPath,
-        double paddingSecs, double stdFadeInSecs, double stdFadeOutSecs, double maxRandBeforeLengthSecs, double maxRandAfterLengthSecs, double volumeDelta,
+        AiCompositWaveParam param,
         double targetSrcWavSpeed, MediaMetaData? metaData = null,
         CancellationToken cancel = default)
     {
-        string digest = $"{targetAudioFilePath}:{metaData._ObjectToJson()}:{dstAudioFilePath}:{codec}:{materialsDirPath}:{paddingSecs}:{stdFadeInSecs}:{stdFadeOutSecs}:{maxRandBeforeLengthSecs}:{maxRandAfterLengthSecs}:{volumeDelta}:{targetSrcWavSpeed}"._Digest();
+        string digest = $"{targetAudioFilePath}:{metaData._ObjectToJson()}:{dstAudioFilePath}:{codec}:{materialsDirPath}:{param._ObjectToJson()}:{targetSrcWavSpeed}"._Digest();
 
         var okCached = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstAudioFilePath, digest, AiUtilVersion.CurrentVersion, cancel: cancel);
         if (okCached.IsOk && okCached.Value != null)
@@ -756,8 +766,7 @@ public class AiTask
 
         okRead.ThrowIfError();
 
-        var usedFiles = await CompositWaveFileByAcxBcxTagsWithManyWavMaterialsAsync(tmpWavPath, okRead.Value._NullCheck(), tmpWavPath, materialsDirPath, paddingSecs,
-            stdFadeInSecs, stdFadeOutSecs, maxRandBeforeLengthSecs, maxRandAfterLengthSecs, volumeDelta, targetSrcWavSpeed, cancel);
+        var usedFiles = await CompositWaveFileByAcxBcxTagsWithManyWavMaterialsAsync(tmpWavPath, okRead.Value._NullCheck(), tmpWavPath, materialsDirPath, param, targetSrcWavSpeed, cancel);
 
         var parsed = await this.FfMpeg.EncodeAudioAsync(tmpWavPath, dstAudioFilePath, codec, kbps, metaData: metaData, useOkFile: false, cancel: cancel);
 
@@ -771,7 +780,7 @@ public class AiTask
     }
 
     public async Task<FfMpegParsedList> CompositWaveFileByAcxBcxTagsWithManyWavMaterialsAsync(string targetSrcWavPath, FfMpegParsedList targetSrcMetaData, string dstWavPath, string materialsDirPath,
-        double paddingSecs, double stdFadeInSecs, double stdFadeOutSecs, double maxRandBeforeLengthSecs, double maxRandAfterLengthSecs, double volumeDelta,
+        AiCompositWaveParam param,
         double targetSrcWavSpeed,
         CancellationToken cancel = default)
     {
@@ -789,7 +798,7 @@ public class AiTask
             {
                 double length = await GetWavFileLengthSecsAsync(matFile.FullPath, cancel);
 
-                if (length >= (stdFadeInSecs + stdFadeOutSecs + 8.0))
+                if (length >= (param.StdFadeInSecs + param.StdFadeOutSecs + 8.0))
                 {
                     matFilesList.Add((matFile.FullPath, length));
                 }
@@ -865,7 +874,7 @@ public class AiTask
             try
             {
                 double wantLength = op.End.TimePosition / targetSrcWavSpeed - op.Start.TimePosition / targetSrcWavSpeed;
-                double minLength = paddingSecs * 3 + wantLength * 1.5 + stdFadeInSecs + stdFadeOutSecs + maxRandAfterLengthSecs + maxRandBeforeLengthSecs + 15.0;
+                double minLength = param.PaddingSecs * 2 + wantLength + param.StdFadeInSecs + param.StdFadeOutSecs + param.MaxRandAfterLengthSecs + param.MaxRandBeforeLengthSecs + 3.0;
 
                 var mat = matFilesList.Where(x => x.Length >= minLength && alreadyUsedList.Contains(x.FilePath) == false)._Shuffle().ToList().First();
                 //._ShuffleWithWeight(x => (int)((Math.Min(x.Length, 15 * 60) + 10.0) * 1000)).ToList().First();
@@ -874,15 +883,15 @@ public class AiTask
 
                 ret.Options_UsedMaterials.Add(new(mat.FilePath, op.Start.TimePosition, wantLength));
 
-                double len1 = mat.Length - paddingSecs * 2;
+                double len1 = mat.Length - param.PaddingSecs * 2;
                 double tmp1 = len1 - wantLength;
-                double matStartPos = Util.RandDouble0To1() * tmp1 + paddingSecs;
+                double matStartPos = Util.RandDouble0To1() * tmp1 + param.PaddingSecs;
 
-                double fadeIn = Util.GenRandInterval(stdFadeInSecs._ToTimeSpanSecs()).TotalSeconds;
-                double fadeOut = Util.GenRandInterval(stdFadeOutSecs._ToTimeSpanSecs()).TotalSeconds;
+                double fadeIn = Util.GenRandInterval(param.StdFadeInSecs._ToTimeSpanSecs()).TotalSeconds;
+                double fadeOut = Util.GenRandInterval(param.StdFadeOutSecs._ToTimeSpanSecs()).TotalSeconds;
 
-                double before = maxRandBeforeLengthSecs * Util.RandDouble0To1();
-                double after = maxRandAfterLengthSecs * Util.RandDouble0To1();
+                double before = param.MaxRandBeforeLengthSecs * Util.RandDouble0To1();
+                double after = param.MaxRandAfterLengthSecs * Util.RandDouble0To1();
 
                 if (op.StrictRange)
                 {
@@ -890,11 +899,11 @@ public class AiTask
                     after = 2.0;
                 }
 
-                double len = wantLength + maxRandBeforeLengthSecs + maxRandAfterLengthSecs;
+                double len = wantLength + param.MaxRandBeforeLengthSecs + param.MaxRandAfterLengthSecs;
 
-                double targetStartPos = Math.Max(op.Start.TimePosition / targetSrcWavSpeed - maxRandBeforeLengthSecs, 0.0);
+                double targetStartPos = Math.Max(op.Start.TimePosition / targetSrcWavSpeed - param.MaxRandBeforeLengthSecs, 0.0);
 
-                op2.Add((mat.FilePath, targetStartPos, matStartPos, len, fadeIn, fadeOut, volumeDelta));
+                op2.Add((mat.FilePath, targetStartPos, matStartPos, len, fadeIn, fadeOut, param.VolumeDelta));
             }
             catch (Exception ex)
             {
@@ -1144,7 +1153,7 @@ public class AiTask
 
 
     public async Task AddRandomMaterialsToAllVoiceAndAudioFilesAsync(string srcVoiceAudioFilePath, string dstDirRoot, string srcMaterialsDirPath, FfMpegAudioCodec codec,
-        double paddingSecs, double stdFadeInSecs, double stdFadeOutSecs, double maxRandBeforeLengthSecs, double maxRandAfterLengthSecs, double volumeDelta,
+        AiCompositWaveParam param,
         int kbps = 0, string? oldTagStr = null, string? newTagStr = null, CancellationToken cancel = default)
     {
         var srcFiles = await Lfs.EnumDirectoryAsync(srcVoiceAudioFilePath, true, cancel: cancel);
@@ -1163,7 +1172,7 @@ public class AiTask
                 Con.WriteLine($"Add Random Materials: '{srcFile.FullPath}' -> '{dstDirPath}'");
 
                 var result = await AddRandomMaterialsToVoiceAndAudioFileAsync(srcFile.FullPath, dstDirPath, srcMaterialsDirPath, codec,
-                    paddingSecs, stdFadeInSecs, stdFadeOutSecs, maxRandBeforeLengthSecs, maxRandAfterLengthSecs, volumeDelta, kbps, oldTagStr, newTagStr, cancel: cancel);
+                    param, kbps, oldTagStr, newTagStr, cancel: cancel);
             }
             catch (Exception ex)
             {
@@ -1174,7 +1183,7 @@ public class AiTask
 
     public async Task<(FfMpegParsedList Parsed, string DestFileName)> AddRandomMaterialsToVoiceAndAudioFileAsync(
         string srcVoiceAudioFilePath, string dstDir, string srcMaterialsDirPath, FfMpegAudioCodec codec,
-        double paddingSecs, double stdFadeInSecs, double stdFadeOutSecs, double maxRandBeforeLengthSecs, double maxRandAfterLengthSecs, double volumeDelta,
+        AiCompositWaveParam param,
         int kbps = 0, string? oldTagStr = null, string? newTagStr = null, CancellationToken cancel = default)
     {
         var srcVoiceAudioFileMetaData = await FfMpeg.ReadMetaDataWithFfProbeAsync(srcVoiceAudioFilePath, cancel: cancel);
@@ -1249,7 +1258,7 @@ public class AiTask
         }
 
         var parsed = await this.CompositAudioFileByAcxBcxTagsWithManyWavMaterialsAsync(srcVoiceAudioFilePath, dstFilePath, codec, kbps, srcMaterialsDirPath,
-            paddingSecs, stdFadeInSecs, stdFadeOutSecs, maxRandBeforeLengthSecs, maxRandAfterLengthSecs, volumeDelta, 1.0, newMeta, cancel: cancel);
+            param, 1.0, newMeta, cancel: cancel);
 
         return (parsed, dstFilePath);
     }
