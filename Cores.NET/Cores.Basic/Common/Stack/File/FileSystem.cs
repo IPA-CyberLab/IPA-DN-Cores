@@ -1700,6 +1700,14 @@ public class PathParser
         return true;
     }
 
+    public string MakeSafeParentDirAndFilenameWithoutExtension(string fullPath)
+    {
+        string parentDirName = PP.GetFileName(PP.GetDirectoryName(fullPath));
+        string fileName = PP.GetFileNameWithoutExtension(fullPath);
+
+        return PP.MakeSafeFileName(parentDirName + "__" + fileName, false, true, true);
+    }
+
     public string MakeSafeFileName(string? name, bool prohititSpace = false, bool additionalCheck = false, bool simpleReplaceToUnderscore = false)
     {
         name = name._NonNull();

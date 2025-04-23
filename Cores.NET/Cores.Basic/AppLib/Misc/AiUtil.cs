@@ -597,9 +597,9 @@ public class AiTask
         var okRead = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstWavPath, digest, AiUtilVersion.CurrentVersion, cancel: cancel);
         if (okRead.IsOk && okRead.Value != null) return okRead.Value;
 
-        string normalizedVocalWavPath = PP.Combine(tmpDir, "adjusted_vocal_cache", PP.MakeSafeFileName(srcVocalWavPath, true, true, true)) + ".wav";
-        string normalizedMusicWavPath = PP.Combine(tmpDir, "adjusted_music_cache", PP.MakeSafeFileName(srcMusicWavPath, true, true, true)) + ".wav";
-        string changedVocalCachePath = PP.Combine(tmpDir, "changed_vocal_cache", PP.MakeSafeFileName(srcVocalWavPath + "_to_" + sampleVoicePath, true, true, true)) + ".wav";
+        string normalizedVocalWavPath = PP.Combine(tmpDir, "adjusted_vocal_cache", PP.MakeSafeParentDirAndFilenameWithoutExtension(srcVocalWavPath)) + ".wav";
+        string normalizedMusicWavPath = PP.Combine(tmpDir, "adjusted_music_cache", PP.MakeSafeParentDirAndFilenameWithoutExtension(srcMusicWavPath)) + ".wav";
+        string changedVocalCachePath = PP.Combine(tmpDir, "changed_vocal_cache", PP.MakeSafeParentDirAndFilenameWithoutExtension(srcVocalWavPath) + "_to_" + PP.GetFileNameWithoutExtension(sampleVoicePath)) + ".wav";
 
         var srcVocalParsed = await FfMpeg.AdjustAudioVolumeAsync(
             srcVocalWavPath, normalizedVocalWavPath, CoresConfig.DefaultAiUtilSettings.AdjustAudioTargetMaxVolume, CoresConfig.DefaultAiUtilSettings.AdjustAudioTargetMeanVolume,
@@ -614,7 +614,7 @@ public class AiTask
 
         AvUtilSeedVcMetaData vcMetaData;
 
-        await using (var seedvc = new AiUtilSeedVcEngine(this.Settings, this.FfMpeg))
+        await using (var seedvc = new AiUtilSeedVcEngine(this.Settings, this.FfMpeg, true))
         {
             vcMetaData = await seedvc.ConvertAsync(normalizedVocalWavPath, changedVocalCachePath, sampleVoicePath, diffusionSteps, PP.GetFileNameWithoutExtension(srcVocalWavPath), true, null, cancel: cancel);
         }
@@ -1530,9 +1530,11 @@ public class AvUtilSeedVcMetaData
 public class AiUtilSeedVcEngine : AiUtilBasicEngine
 {
     public FfMpegUtil FfMpeg { get; }
+    public bool SingMode { get; }
 
-    public AiUtilSeedVcEngine(AiUtilBasicSettings settings, FfMpegUtil ffMpeg) : base(settings, "SEED-VC", settings.AiTest_SeedVc_BaseDir)
+    public AiUtilSeedVcEngine(AiUtilBasicSettings settings, FfMpegUtil ffMpeg, bool singMode = false) : base(settings, "SEED-VC", settings.AiTest_SeedVc_BaseDir)
     {
+        this.SingMode = singMode;
         this.FfMpeg = ffMpeg;
     }
 
@@ -1599,11 +1601,24 @@ public class AiUtilSeedVcEngine : AiUtilBasicEngine
 
         long startTick = TickHighresNow;
 
-        var result = await this.RunVEnvPythonCommandsAsync(
-            $"python inference.py --source test_in_data/_aiutil_src.wav --target test_in_data/_aiutil_sample.wav " +
-            $"--output test_out_dir --diffusion-steps {diffusionSteps} --length-adjust 1.0 --inference-cfg-rate 1.0 --f0-condition False " +
-            $"--auto-f0-adjust False --semi-tone-shift 0 --config runs/test01_kuraki/config_dit_mel_seed_uvit_whisper_small_wavenet.yml " +
-            $"--fp16 True", timeout, printTag: tag, cancel: cancel);
+        EasyExecResult result;
+
+        if (this.SingMode == false)
+        {
+            result = await this.RunVEnvPythonCommandsAsync(
+                $"python inference.py --source test_in_data/_aiutil_src.wav --target test_in_data/_aiutil_sample.wav " +
+                $"--output test_out_dir --diffusion-steps {diffusionSteps} --length-adjust 1.0 --inference-cfg-rate 1.0 --f0-condition False " +
+                $"--auto-f0-adjust False --semi-tone-shift 0 --config runs/test01_kuraki/config_dit_mel_seed_uvit_whisper_small_wavenet.yml " +
+                $"--fp16 True", timeout, printTag: tag, cancel: cancel);
+        }
+        else
+        {
+            result = await this.RunVEnvPythonCommandsAsync(
+                $"python inference.py --source test_in_data/_aiutil_src.wav --target test_in_data/_aiutil_sample.wav " +
+                $"--output test_out_dir --diffusion-steps {diffusionSteps} --length-adjust 1.0 --inference-cfg-rate 1.0 --f0-condition True " +
+                $"--auto-f0-adjust True --semi-tone-shift 0 --config runs/test01_kuraki/config_dit_mel_seed_uvit_whisper_base_f0_44k.yml " +
+                $"--fp16 True", timeout, printTag: tag, cancel: cancel);
+        }
 
         long endTick = TickHighresNow;
         AiTask.TotalGpuProcessTimeMsecs.Add(endTick - startTick);
