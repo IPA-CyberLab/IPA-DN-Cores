@@ -652,7 +652,7 @@ public class AiTask
 
             var srcMusicList = await Lfs.EnumDirectoryAsync(artistDir.FullPath, true, cancel: cancel);
 
-            foreach (var srcMusicFile in srcMusicList.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Filter_MusicFiles)).OrderBy(x => x.Name, StrCmpi))
+            foreach (var srcMusicFile in srcMusicList.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Filter_MusicFiles)).OrderBy(x => x.Name, StrCmpi)._Shuffle().ToList())
             {
                 try
                 {
@@ -664,48 +664,51 @@ public class AiTask
 
                     var result = await ExtractMusicAndVocalAsync(srcMusicFile.FullPath, tmpMusicWavPath, tmpVocalWavPath, safeSongTitle, cancel: cancel);
 
-                    string formalSongTitle = (result?.Meta?.Title)._NonNullTrimSe();
-                    if (formalSongTitle._IsEmpty())
+                    if (dstMusicDirPath._IsFilled())
                     {
-                        formalSongTitle = songTitle;
-                    }
-
-                    formalSongTitle = PPWin.MakeSafeFileName(formalSongTitle, false, true, true);
-
-                    await Lfs.CreateDirectoryAsync(dstMusicDirPath, cancel: cancel);
-
-                    var currentDstDirFiles = await Lfs.EnumDirectoryAsync(dstMusicDirPath, cancel: cancel);
-                    var currentDstAacFiles = currentDstDirFiles.Where(x => x.IsFile && x.Name._IsExtensionMatch(".m4a"));
-
-                    string musicOnlyAlbumName2;
-
-                    for (int i = 1; ; i++)
-                    {
-                        string tmp1 = musicOnlyAlbumName._RemoveQuotation('[', ']');
-                        bool f1 = musicOnlyAlbumName.StartsWith('[') && musicOnlyAlbumName.EndsWith(']');
-                        tmp1 += "_p" + i.ToString();
-                        if (f1)
+                        string formalSongTitle = (result?.Meta?.Title)._NonNullTrimSe();
+                        if (formalSongTitle._IsEmpty())
                         {
-                            tmp1 = "[" + tmp1 + "]";
+                            formalSongTitle = songTitle;
                         }
 
-                        if (currentDstAacFiles.Where(x => x.Name.StartsWith(tmp1 + " - ", StrCmpi)).Count() < 1000) // 1 つの Album 名は最大 1000 件
+                        formalSongTitle = PPWin.MakeSafeFileName(formalSongTitle, false, true, true);
+
+                        await Lfs.CreateDirectoryAsync(dstMusicDirPath, cancel: cancel);
+
+                        var currentDstDirFiles = await Lfs.EnumDirectoryAsync(dstMusicDirPath, cancel: cancel);
+                        var currentDstAacFiles = currentDstDirFiles.Where(x => x.IsFile && x.Name._IsExtensionMatch(".m4a"));
+
+                        string musicOnlyAlbumName2;
+
+                        for (int i = 1; ; i++)
                         {
-                            musicOnlyAlbumName2 = tmp1;
-                            break;
+                            string tmp1 = musicOnlyAlbumName._RemoveQuotation('[', ']');
+                            bool f1 = musicOnlyAlbumName.StartsWith('[') && musicOnlyAlbumName.EndsWith(']');
+                            tmp1 += "_p" + i.ToString();
+                            if (f1)
+                            {
+                                tmp1 = "[" + tmp1 + "]";
+                            }
+
+                            if (currentDstAacFiles.Where(x => x.Name.StartsWith(tmp1 + " - ", StrCmpi)).Count() < 1000) // 1 つの Album 名は最大 1000 件
+                            {
+                                musicOnlyAlbumName2 = tmp1;
+                                break;
+                            }
                         }
+
+                        MediaMetaData meta = new MediaMetaData
+                        {
+                            Album = musicOnlyAlbumName2,
+                            Title = formalSongTitle + " - " + musicOnlyAlbumName2,
+                            Artist = musicOnlyAlbumName2 + " - " + artistName,
+                        };
+
+                        string dstMusicAacPath = PP.Combine(dstMusicDirPath, $"{musicOnlyAlbumName2} - {safeArtistName} - {formalSongTitle._TruncStr(48)}.m4a");
+
+                        await FfMpeg.EncodeAudioAsync(tmpMusicWavPath, dstMusicAacPath, FfMpegAudioCodec.Aac, 0, 100, meta, safeSongTitle, cancel: cancel);
                     }
-
-                    MediaMetaData meta = new MediaMetaData
-                    {
-                        Album = musicOnlyAlbumName2,
-                        Title = formalSongTitle + " - " + musicOnlyAlbumName2,
-                        Artist = musicOnlyAlbumName2 + " - " + artistName,
-                    };
-
-                    string dstMusicAacPath = PP.Combine(dstMusicDirPath, $"{musicOnlyAlbumName2} - {safeArtistName} - {formalSongTitle._TruncStr(48)}.m4a");
-
-                    await FfMpeg.EncodeAudioAsync(tmpMusicWavPath, dstMusicAacPath, FfMpegAudioCodec.Aac, 0, 100, meta, safeSongTitle, cancel: cancel);
                 }
                 catch (Exception ex)
                 {
