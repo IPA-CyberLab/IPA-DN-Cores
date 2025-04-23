@@ -591,6 +591,53 @@ public class AiTask
         }
     }
 
+    public async Task<FfMpegParsedList> ReplaceSongVoiceAsync(string srcMusicWavPath, string srcVocalWavPath, string sampleVoicePath, string dstWavPath, string tmpDir, int diffusionSteps, CancellationToken cancel = default)
+    {
+        string digest = $"{srcMusicWavPath}:{srcVocalWavPath}:{sampleVoicePath}:{dstWavPath}:{tmpDir}:{diffusionSteps}"._Digest();
+        var okRead = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstWavPath, digest, AiUtilVersion.CurrentVersion, cancel: cancel);
+        if (okRead.IsOk && okRead.Value != null) return okRead.Value;
+
+        string normalizedVocalWavPath = PP.Combine(tmpDir, "adjusted_vocal_cache", PP.MakeSafeFileName(srcVocalWavPath, true, true, true)) + ".wav";
+        string normalizedMusicWavPath = PP.Combine(tmpDir, "adjusted_music_cache", PP.MakeSafeFileName(srcMusicWavPath, true, true, true)) + ".wav";
+        string changedVocalCachePath = PP.Combine(tmpDir, "changed_vocal_cache", PP.MakeSafeFileName(srcVocalWavPath + "_to_" + sampleVoicePath, true, true, true)) + ".wav";
+
+        var srcVocalParsed = await FfMpeg.AdjustAudioVolumeAsync(
+            srcVocalWavPath, normalizedVocalWavPath, CoresConfig.DefaultAiUtilSettings.AdjustAudioTargetMaxVolume, CoresConfig.DefaultAiUtilSettings.AdjustAudioTargetMeanVolume,
+            FfmpegAdjustVolumeOptiono.MeanOnly, PP.GetFileNameWithoutExtension(srcVocalWavPath), true, cancel: cancel);
+
+        var srcMusicParsed = await FfMpeg.AdjustAudioVolumeAsync(
+            srcVocalWavPath, normalizedMusicWavPath, CoresConfig.DefaultAiUtilSettings.AdjustAudioTargetMaxVolume, CoresConfig.DefaultAiUtilSettings.AdjustAudioTargetMeanVolume,
+            FfmpegAdjustVolumeOptiono.MeanOnly, PP.GetFileNameWithoutExtension(srcMusicWavPath), true, cancel: cancel);
+
+        // vocal と music の dB 差分を計算
+        double dbDelta = srcMusicParsed.Item1.VolumeDetect_MeanVolume - srcVocalParsed.Item1.VolumeDetect_MeanVolume;
+
+        AvUtilSeedVcMetaData vcMetaData;
+
+        await using (var seedvc = new AiUtilSeedVcEngine(this.Settings, this.FfMpeg))
+        {
+            vcMetaData = await seedvc.ConvertAsync(normalizedVocalWavPath, changedVocalCachePath, sampleVoicePath, diffusionSteps, PP.GetFileNameWithoutExtension(srcVocalWavPath), true, null, cancel: cancel);
+        }
+
+        double targetVocalVolume = srcMusicParsed.Item2.VolumeDetect_MeanVolume - dbDelta;
+
+        string adjustedChangedVoiceWavTmpPath = await Lfs.GenerateUniqueTempFilePathAsync("adj", ".wav", cancel: cancel);
+
+        await FfMpeg.AdjustAudioVolumeAsync(changedVocalCachePath, adjustedChangedVoiceWavTmpPath, 0, targetVocalVolume, FfmpegAdjustVolumeOptiono.MeanOnly,
+            PP.GetFileNameWithoutExtension(srcVocalWavPath), true, cancel: cancel);
+
+        string dstTmpWavPath = await Lfs.GenerateUniqueTempFilePathAsync("adj2", ".wav", cancel: cancel);
+
+        await FfMpeg.AddBgmToVoiceFileAsync(adjustedChangedVoiceWavTmpPath, normalizedMusicWavPath, dstTmpWavPath, false, true, cancel: cancel);
+
+        var result = await FfMpeg.AdjustAudioVolumeAsync(dstTmpWavPath, dstWavPath, CoresConfig.DefaultAiUtilSettings.AdjustAudioTargetMaxVolume, CoresConfig.DefaultAiUtilSettings.AdjustAudioTargetMeanVolume,
+            FfmpegAdjustVolumeOptiono.MeanOnly, PP.GetFileNameWithoutExtension(srcMusicWavPath), true, cancel: cancel);
+
+        await Lfs.WriteOkFileAsync(dstWavPath, result.Item2, digest, AiUtilVersion.CurrentVersion, cancel: cancel);
+
+        return result.Item2;
+    }
+
     public async Task ExtractAllMusicAndVocalAsync(string srcDirPath, string dstMusicDirPath, string tmpBaseDir, string musicOnlyAlbumName, CancellationToken cancel = default)
     {
         string tmpMusicDirPath = PP.Combine(tmpBaseDir, "1_MusicOnly_TMP");
