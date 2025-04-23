@@ -341,7 +341,7 @@ public class FfMpegUtil
         throw new CoresLibException(nameof(codec));
     }
 
-    public async Task<FfMpegParsedList> AddBgmToVoiceFileAsync(string srcVoiceFilePath, string srcBgmFilePath, string dstWavFilePath, bool smoothMode = true, CancellationToken cancel = default)
+    public async Task<FfMpegParsedList> AddBgmToVoiceFileAsync(string srcVoiceFilePath, string srcBgmFilePath, string dstWavFilePath, bool smoothMode = true, bool cutPeek = false, CancellationToken cancel = default)
     {
         string cmdLine = $"-y -i {srcVoiceFilePath._EnsureQuotation()} -i {srcBgmFilePath._EnsureQuotation()} -vn ";
 
@@ -349,9 +349,15 @@ public class FfMpegUtil
 
         string filterStr;
 
+        string normalizeFilterAddStr = "";
+        if (cutPeek)
+        {
+            normalizeFilterAddStr = ":normalize=1";
+        }
+
         if (smoothMode == false)
         {
-            filterStr = "-filter_complex \"amix=inputs=2:duration=longest:dropout_transition=0\" ";
+            filterStr = "-filter_complex \"amix=inputs=2:duration=longest:dropout_transition=0\"" + normalizeFilterAddStr +  " ";
         }
         else
         {
