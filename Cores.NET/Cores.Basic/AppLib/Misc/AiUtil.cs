@@ -593,7 +593,7 @@ public class AiTask
 
     public async Task<FfMpegParsedList> ReplaceSongVoiceAsync(string srcMusicWavPath, string srcVocalWavPath, string sampleVoicePath, string dstWavPath, string tmpDir, int diffusionSteps, CancellationToken cancel = default)
     {
-        string digest = $"{srcMusicWavPath}:{srcVocalWavPath}:{sampleVoicePath}:{dstWavPath}:{tmpDir}:{diffusionSteps}"._Digest();
+        string digest = $"x:{srcMusicWavPath}:{srcVocalWavPath}:{sampleVoicePath}:{dstWavPath}:{tmpDir}:{diffusionSteps}"._Digest();
         var okRead = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstWavPath, digest, AiUtilVersion.CurrentVersion, cancel: cancel);
         if (okRead.IsOk && okRead.Value != null) return okRead.Value;
 
@@ -606,7 +606,7 @@ public class AiTask
             FfmpegAdjustVolumeOptiono.MeanOnly, PP.GetFileNameWithoutExtension(srcVocalWavPath), true, cancel: cancel);
 
         var srcMusicParsed = await FfMpeg.AdjustAudioVolumeAsync(
-            srcVocalWavPath, normalizedMusicWavPath, CoresConfig.DefaultAiUtilSettings.AdjustAudioTargetMaxVolume, CoresConfig.DefaultAiUtilSettings.AdjustAudioTargetMeanVolume,
+            srcMusicWavPath, normalizedMusicWavPath, CoresConfig.DefaultAiUtilSettings.AdjustAudioTargetMaxVolume, CoresConfig.DefaultAiUtilSettings.AdjustAudioTargetMeanVolume,
             FfmpegAdjustVolumeOptiono.MeanOnly, PP.GetFileNameWithoutExtension(srcMusicWavPath), true, cancel: cancel);
 
         // vocal と music の dB 差分を計算
