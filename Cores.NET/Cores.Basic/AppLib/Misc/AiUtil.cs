@@ -1104,7 +1104,7 @@ public class AiTask
     {
         var srcFiles = await Lfs.EnumDirectoryAsync(srcVoiceDirRoot, true, cancel: cancel);
 
-        foreach (var srcFile in srcFiles.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Filter_MusicFiles) && x.Name._InStri("bgm") == false)
+        foreach (var srcFile in srcFiles.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Filter_MusicFiles) && x.Name._InStri("bgm") == false && PP.GetFileName(PP.GetDirectoryName(x.FullPath)).StartsWith("_") == false)
             .OrderBy(x => x.FullPath, StrCmpi))
         {
             string relativeDirPth = PP.GetRelativeDirectoryName(PP.GetDirectoryName(srcFile.FullPath), srcVoiceDirRoot);
@@ -1237,7 +1237,7 @@ public class AiTask
     {
         var srcFiles = await Lfs.EnumDirectoryAsync(srcVoiceAudioFilePath, true, cancel: cancel);
 
-        foreach (var srcFile in srcFiles.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Filter_MusicFiles) && x.Name._InStri("bgm_x1.00"))
+        foreach (var srcFile in srcFiles.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Filter_MusicFiles) && x.Name._InStri("bgm_x1.00") && PP.GetFileName(PP.GetDirectoryName(x.FullPath)).StartsWith("_") == false)
             .OrderBy(x => x.FullPath, StrCmpi))
         {
             cancel.ThrowIfCancellationRequested();
