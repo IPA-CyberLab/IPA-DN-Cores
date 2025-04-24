@@ -406,7 +406,9 @@ public class AiTask
         return ret;
     }
 
-    public async Task ConvertAllTextToVoiceAsync(string srcDirPath, string srcSampleVoiceFileNameOrRandDir, string speakerIdStrOrListFilePath, bool mixedMode, int diffusionSteps, string dstVoiceDirPath, string tmpVoiceBoxDir, string tmpVoiceWavDir, int[]? speedPercentList = null, CancellationToken cancel = default)
+    public async Task ConvertAllTextToVoiceAsync(string srcDirPath, string srcSampleVoiceFileNameOrRandDir, string speakerIdStrOrListFilePath, bool mixedMode, int diffusionSteps, string dstVoiceDirPath, string tmpVoiceBoxDir, string tmpVoiceWavDir, int[]? speedPercentList = null,
+        Func<Task>? finalizeProc = null,
+        CancellationToken cancel = default)
     {
         ShuffledEndlessQueue<string>? sampleVoiceFileNameShuffleQueue = null;
         if (await Lfs.IsDirectoryExistsAsync(srcSampleVoiceFileNameOrRandDir, cancel))
@@ -449,7 +451,9 @@ public class AiTask
         {
             var srcTextList = await Lfs.EnumDirectoryAsync(seriesDir.FullPath, true, cancel: cancel);
 
-            foreach (var srcTextFile in srcTextList.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Text) && x.Name.StartsWith("_") == false && x.Name.EndsWith(".ok.txt", StrCmpi) == false).OrderBy(x => x.Name, StrCmpi)._Shuffle().ToList())
+            foreach (var srcTextFile in srcTextList.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Text) && x.Name.StartsWith("_") == false && x.Name.EndsWith(".ok.txt", StrCmpi) == false).OrderBy(x => x.Name, StrCmpi)
+                ._Shuffle()
+                .ToList())
             {
                 try
                 {
@@ -489,6 +493,19 @@ public class AiTask
                     string newFilePath = PP.Combine(PP.GetDirectoryName(srcTextFile.FullPath), "_" + PP.GetFileName(srcTextFile.FullPath));
 
                     await Lfs.MoveFileAsync(srcTextFile.FullPath, newFilePath);
+
+                    try
+                    {
+                        if (finalizeProc != null)
+                        {
+                            await finalizeProc();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        srcTextFile.FullPath._Error();
+                        ex._Error();
+                    }
                 }
                 catch (Exception ex)
                 {
