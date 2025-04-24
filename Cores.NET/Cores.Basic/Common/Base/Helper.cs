@@ -625,6 +625,9 @@ public static class BasicHelper
     public static string? _NullIfEmpty(this string? str) => Str.IsFilledStr(str) ? str : null;
     public static string? _NullIfZeroLen(this string? str) => str == null ? null : (str.Length == 0 ? null : str);
 
+    public static string _TruncStrWide(this string? str, int maxWidth, string? appendCode = "") => Str.TruncStrWide(str, maxWidth, appendCode);
+    public static string _TruncStrUtf8DataSize(this string? str, int maxSize, string? appendCode = "") => Str.TruncStrUtf8DataSize(str, maxSize, appendCode);
+
     [return: MaybeNull]
     public static T _NullIfEmpty<T>(this T obj) => Util.IsFilled(obj) ? obj : default;
 

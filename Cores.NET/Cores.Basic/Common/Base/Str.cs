@@ -6383,6 +6383,84 @@ namespace IPA.Cores.Basic
             return b.ToString();
         }
 
+        // ある文字を UTF-8 にした場合に何バイトになるか概算する
+        [MethodImpl(Inline)]
+        public static int GetCharUtf8DataSize(char c)
+        {
+            if (char.IsSurrogate(c)) return 4;
+
+            return c switch
+            {
+                <= '\u007F' => 1,         // 0x0000–0x007F
+                <= '\u07FF' => 2,         // 0x0080–0x07FF
+                _ => 3         // 0x0800–0xFFFF
+            };
+        }
+
+        // 文字列の最大 UTF-8 数を指定してそこまで切り取る
+        public static string TruncStrUtf8DataSize(string? str, int maxSize, string? appendCode = "")
+        {
+            if (str == null) return "";
+            int currentWidth = 0;
+            StringBuilder b = new();
+
+            for (int i = 0; i < str.Length; i++)
+            {
+                char c = str[i];
+                int thisWidth = GetCharUtf8DataSize(c);
+
+                currentWidth += thisWidth;
+                if (currentWidth > maxSize)
+                {
+                    break;
+                }
+                b.Append(c);
+            }
+
+            if (appendCode._IsNullOrZeroLen())
+            {
+                b.Append(appendCode);
+            }
+
+            return b.ToString();
+        }
+
+        // 文字列の最大ワイド数を指定してそこまで切り取る
+        public static string TruncStrWide(string? str, int maxWidth, string? appendCode = "")
+        {
+            if (str == null) return "";
+            int currentWidth = 0;
+            StringBuilder b = new();
+
+            for (int i = 0; i < str.Length; i++)
+            {
+                char c = str[i];
+                int thisWidth = 0;
+                if (c >= 0 && c <= 255)
+                {
+                    thisWidth += 1;
+                }
+                else
+                {
+                    thisWidth += 2;
+                }
+
+                currentWidth += thisWidth;
+                if (currentWidth > maxWidth)
+                {
+                    break;
+                }
+                b.Append(c);
+            }
+
+            if (appendCode._IsNullOrZeroLen())
+            {
+                b.Append(appendCode);
+            }
+
+            return b.ToString();
+        }
+
         // 文字列の最大長を指定してそこまで切り取る
         public static string TruncStr(string? str, int len)
         {

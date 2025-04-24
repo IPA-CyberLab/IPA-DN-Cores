@@ -1583,10 +1583,10 @@ public class AiTask
         }
         else
         {
-            newMeta.Album = newMeta.Album._ReplaceStr(" - bgm_x", " - mat_x", true);
-            newMeta.AlbumArtist = newMeta.AlbumArtist._ReplaceStr(" - bgm_x", " - mat_x", true);
-            newMeta.Title = newMeta.Title._ReplaceStr(" - bgm_x", " - mat_x", true);
-            newMeta.Artist = newMeta.Artist._ReplaceStr(" - bgm_x", " - mat_x", true);
+            newMeta.Album = newMeta.Album._ReplaceStr(" - bgm_x", " - eff_x", true);
+            newMeta.AlbumArtist = newMeta.AlbumArtist._ReplaceStr(" - bgm_x", " - eff_x", true);
+            newMeta.Title = newMeta.Title._ReplaceStr(" - bgm_x", " - eff_x", true);
+            newMeta.Artist = newMeta.Artist._ReplaceStr(" - bgm_x", " - eff_x", true);
         }
 
         string dstFileName;
@@ -1599,7 +1599,8 @@ public class AiTask
         else
         {
             string tmp1 = PP.GetFileNameWithoutExtension(srcVoiceAudioFilePath);
-            string tmp2 = "mat_" + tmp1;
+            if (tmp1.StartsWith("bgm_", StrCmpi)) tmp1 = tmp1.Substring(4); // ファイル名から "bgm_" を消す
+            string tmp2 = "eff_" + tmp1;
 
             dstFileName = tmp2 + dstExtension;
         }
