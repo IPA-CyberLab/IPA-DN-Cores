@@ -697,6 +697,114 @@ public class AiTask
         return result.Item2;
     }
 
+    public async Task EncodeAndNormalizeAllMusicAsync(string srcDirPath, string dstMusicDirPath, string tmpBaseDir, string albumName, CancellationToken cancel = default)
+    {
+        string tmpMusicDirPath = PP.Combine(tmpBaseDir, "0_OrigSong_TMP");
+
+        var artistsDirList = await Lfs.EnumDirectoryAsync(srcDirPath, cancel: cancel);
+
+        foreach (var artistDir in artistsDirList.Where(x => x.IsDirectory && x.IsCurrentOrParentDirectory == false).OrderBy(x => x.Name, StrCmpi))
+        {
+            string artistName = artistDir.Name._NormalizeSoftEther(true);
+            string safeArtistName = PPWin.MakeSafeFileName(artistName, true, true, true);
+
+            var srcMusicList = await Lfs.EnumDirectoryAsync(artistDir.FullPath, true, cancel: cancel);
+
+            foreach (var srcMusicFile in srcMusicList.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Filter_MusicFiles)).OrderBy(x => x.Name, StrCmpi)._Shuffle().ToList())
+            {
+                try
+                {
+                    string songTitle = PPWin.GetFileNameWithoutExtension(srcMusicFile.Name)._NormalizeSoftEther(true);
+                    string safeSongTitle = PPWin.MakeSafeFileName(songTitle, true, true, true);
+
+                    string tmpOriginalSongWavPath = PP.Combine(tmpMusicDirPath, $"OrigSong - {safeArtistName} - {safeSongTitle}.wav");
+
+                    var result = await EncodeAndNormalizeMusicAsync(srcMusicFile.FullPath, tmpOriginalSongWavPath, safeSongTitle, cancel: cancel);
+
+                    if (dstMusicDirPath._IsFilled())
+                    {
+                        string formalSongTitle = (result?.Meta?.Title)._NonNullTrimSe();
+                        if (formalSongTitle._IsEmpty())
+                        {
+                            formalSongTitle = songTitle;
+                        }
+
+                        formalSongTitle = PPWin.MakeSafeFileName(formalSongTitle, false, true, true);
+
+                        await Lfs.CreateDirectoryAsync(dstMusicDirPath, cancel: cancel);
+
+                        var currentDstDirFiles = await Lfs.EnumDirectoryAsync(dstMusicDirPath, cancel: cancel);
+                        var currentDstAacFiles = currentDstDirFiles.Where(x => x.IsFile && x.Name._IsExtensionMatch(".m4a"));
+
+                        string albumName2;
+
+                        for (int i = 1; ; i++)
+                        {
+                            string tmp1 = albumName._RemoveQuotation('[', ']');
+                            bool f1 = albumName.StartsWith('[') && albumName.EndsWith(']');
+                            tmp1 += "_p" + i.ToString();
+                            if (f1)
+                            {
+                                tmp1 = "[" + tmp1 + "]";
+                            }
+
+                            if (currentDstAacFiles.Where(x => x.Name.StartsWith(tmp1 + " - ", StrCmpi)).Count() < 1000) // 1 つの Album 名は最大 1000 件
+                            {
+                                albumName2 = tmp1;
+                                break;
+                            }
+                        }
+
+                        MediaMetaData meta = new MediaMetaData
+                        {
+                            Album = albumName2,
+                            Title = formalSongTitle + " - " + albumName2,
+                            Artist = albumName2 + " - " + artistName,
+                        };
+
+                        string dstMusicAacPath = PP.Combine(dstMusicDirPath, $"{albumName2} - {safeArtistName} - {formalSongTitle._TruncStr(48)}.m4a");
+
+                        await FfMpeg.EncodeAudioAsync(tmpOriginalSongWavPath, dstMusicAacPath, FfMpegAudioCodec.Aac, 0, 100, meta, safeSongTitle, cancel: cancel);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    srcMusicFile.FullPath._Error();
+                    ex._Error();
+                }
+            }
+        }
+    }
+
+    public async Task<FfMpegParsedList> EncodeAndNormalizeMusicAsync(string srcFilePath, string dstWavPath, string tagTitle, bool useOkFile = true, CancellationToken cancel = default)
+    {
+        if (tagTitle._IsEmpty()) tagTitle = PP.GetFileNameWithoutExtension(srcFilePath);
+
+        if (dstWavPath._IsEmpty()) throw new CoresLibException("dstWavPath is empty.");
+
+        if (useOkFile)
+        {
+            var okFileCached = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstWavPath, "", AiUtilVersion.CurrentVersion, cancel);
+            if (okFileCached.IsOk && okFileCached.Value != null)
+            {
+                return okFileCached.Value;
+            }
+        }
+
+        // 音量調整
+        string adjustedWavFile = await Lfs.GenerateUniqueTempFilePathAsync(srcFilePath, cancel: cancel);
+        var result = await FfMpeg.AdjustAudioVolumeAsync(srcFilePath, adjustedWavFile, Settings.AdjustAudioTargetMaxVolume, Settings.AdjustAudioTargetMeanVolume, FfmpegAdjustVolumeOptiono.MeanOnly /* ! */, tagTitle, false, cancel);
+
+        await Lfs.CopyFileAsync(adjustedWavFile, dstWavPath, cancel: cancel);
+
+        if (useOkFile)
+        {
+            await Lfs.WriteOkFileAsync(dstWavPath, result.Item1, "", AiUtilVersion.CurrentVersion, cancel);
+        }
+
+        return result.Item1;
+    }
+
     public async Task ExtractAllMusicAndVocalAsync(string srcDirPath, string dstMusicDirPath, string tmpBaseDir, string musicOnlyAlbumName, CancellationToken cancel = default)
     {
         string tmpMusicDirPath = PP.Combine(tmpBaseDir, "1_MusicOnly_TMP");
@@ -777,6 +885,7 @@ public class AiTask
             }
         }
     }
+
 
     public async Task<FfMpegParsedList> ExtractMusicAndVocalAsync(string srcFilePath, string dstMusicWavPath, string dstVocalWavPath, string tagTitle, bool useOkFile = true, CancellationToken cancel = default)
     {
