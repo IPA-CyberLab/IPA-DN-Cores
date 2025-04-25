@@ -31,6 +31,7 @@
 // LAW OR COURT RULE.
 
 // Author: Daiyuu Nobori
+// 一部のコード: ChatGPT o1 Pro が生成
 // Description
 
 #if true
@@ -1002,7 +1003,7 @@ public class AiTask
         }
     }
 
-    public void CheckWavFormat(WaveFormat format)
+    public static void CheckWavFormat(WaveFormat format)
     {
         if (format.SampleRate != 44100 ||
                       format.Channels != 2 ||
@@ -1412,12 +1413,12 @@ public class AiTask
                 string srcWavPath = "";
                 double srcWavLength = 0;
 
-                for (int fail = 0;fail <= 1000;fail++)
+                for (int fail = 0; fail <= 1000; fail++)
                 {
                     string tmp1 = q.Dequeue();
 
                     srcWavLength = await GetWavFileLengthSecsAsync(tmp1, cancel: cancel);
-                    if (srcWavLength  >= requireLength)
+                    if (srcWavLength >= requireLength)
                     {
                         srcWavPath = tmp1;
                         break;
@@ -2607,7 +2608,7 @@ public class AiRandomBgmSettings
     public int Medley_MarginMsecs = 15 * 1000;
 }
 
-// By ChatGPT
+// 以下のコード By ChatGPT
 public static class AiWaveMixUtil
 {
     /// <summary>
@@ -3126,6 +3127,3047 @@ public static class AiWaveConcatenateWithCrossFadeUtil
         }
     }
 }
+
+public class ProcessAudioEffect1Setting
+{
+    /// <summary>
+    /// ステレオ揺れを生むLFOの基本周波数(Hz)
+    /// 例: 0.25 ならば約4秒周期の揺れ
+    /// </summary>
+    public double LfoFrequency = 0.25;
+
+    /// <summary>
+    /// 揺れの深さ(0.0～1.0程度を推奨)
+    /// 1.0 に近いほど左右の振り幅が大きくなる
+    /// </summary>
+    public double Depth = 0.5;
+
+    /// <summary>
+    /// 不規則なランダム揺らぎを混ぜる比率(0.0～1.0)
+    /// 0.0で完全に規則的(純粋なLFO)、1.0で強いランダム揺らぎ
+    /// </summary>
+    public double RandomFactor = 0.3;
+
+    /// <summary>
+    /// LFOの波形の位相進行スピードに掛ける倍率
+    /// (LfoFrequency が小さくても、この値を大きくすれば速く変調される)
+    /// </summary>
+    public double LfoSpeedMultiplier = 1.0;
+
+    /// <summary>
+    /// 不規則変動(Random Walk)のステップサイズ
+    /// 数値を大きくすると、より激しく不規則に変動する
+    /// </summary>
+    public double RandomStepSize = 0.0005;
+
+    /// <summary>
+    /// 不規則変動を制限する(振幅が大きくなりすぎない)ための最大値
+    /// </summary>
+    public double RandomWalkLimit = 1.0;
+}
+
+public class ProcessAudioEffect2Setting
+{
+    /// <summary>
+    /// LFO等でボリュームを変動させる際の振幅 (0.0～1.0 程度)
+    /// </summary>
+    public double Depth { get; set; } = 0.5;
+
+    /// <summary>
+    /// ゆらぎの最小周波数(Hz)。UseRandomFrequency が true の場合、これと FrequencyMax の範囲内でランダムに変化する
+    /// </summary>
+    public double FrequencyMin { get; set; } = 0.2;
+
+    /// <summary>
+    /// ゆらぎの最大周波数(Hz)。UseRandomFrequency が true の場合、これと FrequencyMin の範囲内でランダムに変化する
+    /// </summary>
+    public double FrequencyMax { get; set; } = 1.0;
+
+    /// <summary>
+    /// 周波数をリアルタイムにランダム変化させるかどうか
+    /// </summary>
+    public bool UseRandomFrequency { get; set; } = true;
+
+    /// <summary>
+    /// ボリュームゆらぎ以外に位相差(微小ディレイ)による効果を与えるかどうか
+    /// </summary>
+    public bool EnablePhaseShift { get; set; } = true;
+
+    /// <summary>
+    /// 位相差(サンプル数)。EnablePhaseShift=true のとき適用
+    /// 例えば 10 サンプル程度のディレイを片側チャネルにだけ付加し、頭の上下や左右に動く錯覚をより強調する
+    /// </summary>
+    public int PhaseShiftSamples { get; set; } = 10;
+
+    /// <summary>
+    /// 効果の種類を表すサンプル enum
+    /// </summary>
+    public EffectType EffectMode { get; set; } = EffectType.Basic;
+
+    public enum EffectType
+    {
+        Basic,
+        Extended,
+        Crazy
+    }
+}
+
+
+
+public class ProcessAudioEffect3Setting
+{
+    /// <summary>
+    /// 1サイクル(遠方→接近→通過→離脱→遠方に戻る)に要する時間(秒)。
+    /// 例: 2.0 なら2秒で1往復する。
+    /// </summary>
+    public double CycleSeconds = 2.0;
+
+    /// <summary>
+    /// 最遠時の音量(距離感の演出)。0.0～1.0程度で設定。
+    /// 例: 0.2 くらいにすると、最遠時は音が小さくなる。
+    /// </summary>
+    public double VolumeFar = 0.2;
+
+    /// <summary>
+    /// 最接近時の音量(距離感の演出)。0.0～1.0程度で設定。
+    /// 例: 1.0 なら最接近時は原音量(最大)になる。
+    /// </summary>
+    public double VolumeNear = 1.0;
+
+    /// <summary>
+    /// パン幅。-1.0(完全左)～+1.0(完全右)を振り切るなら 1.0 等。
+    /// 数値を小さくすると、左右の振れ幅が抑えられる。
+    /// </summary>
+    public double PanWidth = 1.0;
+
+    /// <summary>
+    /// パン方向を反転するかのフラグ。true なら左右を反転して演出。
+    /// </summary>
+    public bool ReversePan = false;
+
+    /// <summary>
+    /// ドップラー効果のようなピッチ変化をシミュレートする場合の強度。
+    /// 0.0 ならピッチ変化なし。1.0 ならサイクルに応じたある程度のピッチ変化。
+    /// 大きくしすぎると不自然な音程になる場合がある。
+    /// </summary>
+    public double DopplerFactor = 0.0;
+
+    // 必要に応じて他のパラメータ(フランジャーの深さやLFOの形状など)を追加してもよい。
+}
+
+public static class AudioEffectProcessor
+{
+    /// <summary>
+    /// 44.1kHz/16bit/ステレオ の WAV PCM データ(ヘッダ抜き)をメモリ上で加工する。
+    /// targetWav 内のデータを直接書き換える。
+    /// </summary>
+    /// <param name="targetWav">加工対象の WAV PCM データ(ヘッダなし、44.1kHz/16bit/stereo)</param>
+    /// <param name="setting">効果パラメータ</param>
+    public static void ProcessAudioEffect3(Memory<byte> targetWav, ProcessAudioEffect3Setting setting)
+    {
+        // 16bitステレオなので、
+        //  - 1サンプル = 左チャネル(short) + 右チャネル(short) = 4バイト
+        // 全サンプル数 = targetWav.Length / 4
+
+        const int sampleRate = 44100;
+        int totalBytes = targetWav.Length;
+        int totalSamples = totalBytes / 2;     // 16bitごと(=2バイト単位)の数
+        int totalFrames = totalSamples / 2;   // ステレオ(Left+Right)で1フレームなので /2
+
+        // スパンを取得
+        var span = targetWav.Span;
+
+        // ドップラー効果(ピッチ変化)を行う場合のために、読み出し位置(実サンプル位置)と書き込み位置を別管理
+        // ただし、ここでは簡易的に同じバッファに上書きするので、実際には大掛かりなバッファの再配置が必要になる場合がある。
+        // 今回のデモではあまり厳密にはやらず、単純に「読み書き同じ位置だが、一応サイクルに合わせてピッチを少し揺らす」イメージ。
+        double dopplerFactor = setting.DopplerFactor;
+        double pitchPos = 0.0;   // ドップラー時の「サンプル再生位置」の仮想値
+        double pitchStep = 1.0;  // 1サンプルごとの前進量(=1.0が等速、>1.0で再生が早くなりピッチ↑、<1.0で遅くなりピッチ↓)
+
+        for (int frameIndex = 0; frameIndex < totalFrames; frameIndex++)
+        {
+            // 時間(t)を計算 (単位: 秒)
+            // ドップラーでサンプル読み出し位置がずれる場合は本来 pitchPos / sampleRate などだが、
+            // ここでは frameIndex を使った「実処理中のサンプル時刻」として計算(簡易版)。
+            double t = (double)frameIndex / sampleRate;
+
+            // 1サイクルあたり CycleSeconds なので、その位相を 0～1 で算出
+            double phase = (t % setting.CycleSeconds) / setting.CycleSeconds;
+
+            // 距離感(音量)の変化: ここでは 0～π のコサイン波を使って [VolumeFar..VolumeNear] を往復させるイメージ
+            // (好みに応じてサイン波でも三角波でも可)
+            // 例: コサイン波で 1→-1 に変化させ、そこから音量をマッピング
+            double cosVal = Math.Cos(phase * Math.PI * 2.0); // -1.0 ～ +1.0
+            // -1.0～+1.0 を 0.0～1.0 に変換 => (cosVal + 1.0)/2.0
+            double distLerp = (cosVal + 1.0) / 2.0; // 0～1
+            // VolumeFar～VolumeNear に線形補間
+            double volume = setting.VolumeFar + (setting.VolumeNear - setting.VolumeFar) * distLerp;
+
+            // 左右パン(サイン波で -1.0～+1.0 に振る)
+            double panSign = setting.ReversePan ? -1.0 : 1.0;
+            double panVal = Math.Sin(phase * Math.PI * 2.0) * panSign; // -1.0 ～ +1.0
+            // 左チャンネルと右チャンネルのそれぞれに掛ける係数を決定
+            // 通常は pan=-1.0 で L=1.0,R=0.0、pan=+1.0 で L=0.0,R=1.0 のように計算するが、
+            // ここでは stereo balance の簡易式として採用
+            double leftFactor = (1.0 - panVal) * 0.5;   // panVal=-1 => leftFactor=1.0, panVal=+1 => leftFactor=0.0
+            double rightFactor = (1.0 + panVal) * 0.5;  // panVal=-1 => rightFactor=0.0, panVal=+1 => rightFactor=1.0
+
+            // PanWidth を加味(±PanWidthの範囲に縮める・広げる)
+            // 例: PanWidth=1.0 => -1～+1 をそのまま, PanWidth=0.5 => -0.5～+0.5 に
+            //   => その結果、leftFactor, rightFactor も中央寄りになる
+            double effectivePanVal = panVal * setting.PanWidth;
+            leftFactor = (1.0 - effectivePanVal) * 0.5;
+            rightFactor = (1.0 + effectivePanVal) * 0.5;
+
+            // 実際の読み書き位置を求める
+            // 簡易的に frameIndex をそのまま使うが、ドップラーFactor を考慮してピッチステップを変動させる例
+            // (あまり精密ではないが効果の雰囲気を出すためのデモ)
+            double dopplerPhase = (phase * 2.0 - 1.0); // -1.0～+1.0
+            // 正接近時(phase~0.5あたり)にピッチが上がり、離れる時にピッチが下がるようなイメージ
+            // (好きな数式にしてOK)
+            pitchStep = 1.0 + dopplerFactor * dopplerPhase * 0.5;
+            pitchPos += pitchStep; // 次回に向けて進める
+
+            // ピッチ変化を適用した「読み出しサンプル位置」
+            int sampleReadIndex = (int)pitchPos;
+
+            // バッファの外を読まないようにクリップ
+            if (sampleReadIndex < 0) sampleReadIndex = 0;
+            if (sampleReadIndex >= totalFrames) sampleReadIndex = totalFrames - 1;
+
+            // 実際の書き込み先 frameIndex に対し、読み出し元は sampleReadIndex を参照
+            // WAV PCM データは [L, R, L, R, ...] の順で short (2バイト) が交互に並んでいる
+            int readOffset = sampleReadIndex * 2 * sizeof(short);
+            short sampleL = MemoryMarshal.Read<short>(span.Slice(readOffset, 2));
+            short sampleR = MemoryMarshal.Read<short>(span.Slice(readOffset + 2, 2));
+
+            // volume (距離感) とパン係数 を掛け合わせて出力サンプルを計算
+            double outL = sampleL * volume * leftFactor;
+            double outR = sampleR * volume * rightFactor;
+
+            // 16bitの範囲にクリップ(-32768～32767)
+            short finalL = (short)Math.Clamp((int)outL, short.MinValue, short.MaxValue);
+            short finalR = (short)Math.Clamp((int)outR, short.MinValue, short.MaxValue);
+
+            // 書き込み先
+            int writeOffset = frameIndex * 2 * sizeof(short);
+            MemoryMarshal.Write(span.Slice(writeOffset, 2), ref finalL);
+            MemoryMarshal.Write(span.Slice(writeOffset + 2, 2), ref finalR);
+        }
+    }
+
+    /// <summary>
+    /// targetWav(44.1kHz/16bit/ステレオ)のPCMデータに対して
+    /// 「ゆらゆら動くような幻想的効果」を与えるサンプル処理
+    /// </summary>
+    /// <param name="targetWav">
+    /// 加工対象の WAVファイル音声データ (ヘッダ無し)。44.1kHz/2ch/16bit PCM
+    /// </param>
+    /// <param name="setting">
+    /// 効果設定パラメータ
+    /// </param>
+    public static void ProcessAudioEffect2(Memory<byte> targetWav, ProcessAudioEffect2Setting setting)
+    {
+        // 44.1kHz, 2ch, 16bit => 1サンプル(フレーム)あたり4バイト
+        const int BytesPerSample = 2;   // 16bit
+        const int Channels = 2;        // ステレオ
+        const int BytesPerFrame = BytesPerSample * Channels;
+        const int SampleRate = 44100;
+
+        // PCMデータ全体のフレーム数(ステレオフレーム数)
+        int totalFrames = targetWav.Length / BytesPerFrame;
+        if (totalFrames == 0) return;
+
+        // メモリから配列を取り出す (Span<>を利用するサンプル)
+        Span<byte> dataSpan = targetWav.Span;
+
+        // -- パラメータを取得 --
+        double depth = setting.Depth;               // ボリューム変動の振幅 (0.0～1.0想定)
+        double freqMin = Math.Max(0.0, setting.FrequencyMin);
+        double freqMax = Math.Max(freqMin, setting.FrequencyMax);
+        bool useRandomFreq = setting.UseRandomFrequency;
+        bool enablePhaseShift = setting.EnablePhaseShift;
+        int phaseShiftSamples = Math.Max(0, setting.PhaseShiftSamples);
+
+        // LFO用の状態管理変数 (ランダム周波数など)
+        Random rand = new Random();
+        double currentFreq = freqMin + (freqMax - freqMin) * rand.NextDouble(); // 初期周波数
+        double phase = 0.0;   // LFOの位相(0～2πを想定してループさせる)
+        double twoPi = 2.0 * Math.PI;
+
+        // 周期的に周波数を変化させる (サンプル実装として数千フレームおきに変化)
+        int framesUntilNextFreqChange = 2000;
+
+        // 片チャネルへのディレイ用に、ディレイバッファを準備（Rightチャネルを遅らせる例）
+        // ディレイバッファ = phaseShiftSamples 個のステレオフレーム分を取る
+        // ただし Right チャンネルだけずらすので、右チャネル分だけあればよい
+        short[] delayBuffer = new short[phaseShiftSamples];
+
+        // EffectMode によって処理を変えても良い (ここでは簡単にswitchだけ用意)
+        switch (setting.EffectMode)
+        {
+            case ProcessAudioEffect2Setting.EffectType.Basic:
+                // 何もしない特別ケース or 下記の標準処理と同一にする
+                break;
+            case ProcessAudioEffect2Setting.EffectType.Extended:
+                // もう少し激しく LFO をかける等
+                depth *= 1.2;
+                break;
+            case ProcessAudioEffect2Setting.EffectType.Crazy:
+                // さらに大きく、かつ位相ディレイも絶対ONにしてしまう等
+                depth *= 1.5;
+                enablePhaseShift = true;
+                break;
+        }
+
+        // -- メインループ --
+        for (int i = 0; i < totalFrames; i++)
+        {
+            // ランダム周波数変化
+            if (useRandomFreq)
+            {
+                if (--framesUntilNextFreqChange <= 0)
+                {
+                    // 周波数を (freqMin ～ freqMax) の範囲で新しくランダムに決める
+                    currentFreq = freqMin + (freqMax - freqMin) * rand.NextDouble();
+                    framesUntilNextFreqChange = 2000 + rand.Next(2000); // 次の変化までをまた適当に決める
+                }
+            }
+
+            // 現在の LFO位相に基づいてボリューム係数を計算する ( -1.0 ～ +1.0 )
+            double lfo = Math.Sin(phase);
+
+            // この lfo を 0.0～1.0 にマッピングして左右に振るようなイメージ
+            // 例：Left = 1 - (depth * lfo), Right = 1 + (depth * lfo)
+            // ただし -1.0～+1.0 の範囲 → depth分だけ縮めて左右を変調
+            double leftGain = 1.0 - (depth * lfo);
+            double rightGain = 1.0 + (depth * lfo);
+
+            // 16bitステレオフレームの先頭バイト位置
+            int frameIndex = i * BytesPerFrame;
+
+            // 左チャネルサンプル (16bit = 2byte, little endian)
+            short leftSample = (short)((dataSpan[frameIndex + 1] << 8) | dataSpan[frameIndex]);
+
+            // 右チャネルサンプル
+            short rightSample = (short)((dataSpan[frameIndex + 3] << 8) | dataSpan[frameIndex + 2]);
+
+            // 位相シフトをかける場合、まず右チャネルの過去サンプルを使う
+            short delayedRightSample = rightSample;
+            if (enablePhaseShift && phaseShiftSamples > 0)
+            {
+                // delayBuffer[0]に最も古いサンプル、末尾に最も新しいサンプルを突っ込むイメージ
+                // まず取り出し
+                delayedRightSample = delayBuffer[0];
+
+                // シフト
+                Buffer.BlockCopy(delayBuffer, sizeof(short), delayBuffer, 0, (phaseShiftSamples - 1) * sizeof(short));
+                // 新しいサンプルを末尾へ
+                delayBuffer[phaseShiftSamples - 1] = rightSample;
+            }
+
+            // LFOボリュームを適用
+            double newLeft = leftSample * leftGain;
+            double newRight = delayedRightSample * rightGain;
+
+            // オーバーフローしないように short 範囲(-32768～32767)へクリップ
+            short outLeft = (short)Math.Max(short.MinValue, Math.Min(short.MaxValue, newLeft));
+            short outRight = (short)Math.Max(short.MinValue, Math.Min(short.MaxValue, newRight));
+
+            // メモリに書き戻し (little endian)
+            dataSpan[frameIndex] = (byte)(outLeft & 0xFF);
+            dataSpan[frameIndex + 1] = (byte)((outLeft >> 8) & 0xFF);
+            dataSpan[frameIndex + 2] = (byte)(outRight & 0xFF);
+            dataSpan[frameIndex + 3] = (byte)((outRight >> 8) & 0xFF);
+
+            // 位相を進める (LFOの 1サンプル刻み)
+            // currentFreq [Hz] -> 1秒間に currentFreq [周期] 進行 -> 1サンプル (1/44100秒) で位相は 2π * (currentFreq / 44100)
+            phase += (twoPi * currentFreq / SampleRate);
+            // 位相が 2π を超えたら折り返し
+            if (phase > twoPi) phase -= twoPi;
+        }
+    }
+
+    /// <summary>
+    /// ステレオPCM(44.1kHz/16bit/2ch, WAVヘッダなし)のデータを不規則なステレオ回転効果で加工する。
+    /// </summary>
+    /// <param name="targetWav">対象のPCMデータ(ステレオ, 16bit, 44.1kHz)</param>
+    /// <param name="setting">効果パラメータ</param>
+    public static void ProcessAudioEffect1(Memory<byte> targetWav, ProcessAudioEffect1Setting setting)
+    {
+        // サンプルレート、チャンネル数、ビット深度は固定
+        const int sampleRate = 44100;
+        const int channels = 2;
+        const int bytesPerSample = 2; // 16bit = 2bytes
+        int frameSize = channels * bytesPerSample; // 1フレーム(左右2ch分)あたり4バイト
+
+        // targetWav のサイズから総フレーム数を求める
+        int totalFrames = targetWav.Length / frameSize;
+        if (totalFrames == 0) return; // データが不十分なら何もしない
+
+        // スパンを取得（in-place 処理）
+        Span<byte> dataSpan = targetWav.Span;
+
+        // LFO用の位相、RandomWalk用の現在値
+        double phase = 0.0;
+        double randomWalkValue = 0.0;
+
+        // ランダム生成器
+        Random rand = new Random();
+
+        // 1サンプルあたりの位相進行量(2π * 周波数 / サンプルレート)に速度倍率を掛ける
+        double phaseIncrement = 2.0 * Math.PI * setting.LfoFrequency / sampleRate * setting.LfoSpeedMultiplier;
+
+        for (int i = 0; i < totalFrames; i++)
+        {
+            // 現在のLFO値( -1.0 ～ +1.0 )
+            double lfo = Math.Sin(phase);
+
+            // ランダム揺らぎの計算: ランダムウォークで -step ～ +step 変動
+            double step = (rand.NextDouble() - 0.5) * 2.0 * setting.RandomStepSize;
+            randomWalkValue += step;
+            // 振幅制限(±RandomWalkLimit)
+            if (randomWalkValue > setting.RandomWalkLimit) randomWalkValue = setting.RandomWalkLimit;
+            if (randomWalkValue < -setting.RandomWalkLimit) randomWalkValue = -setting.RandomWalkLimit;
+
+            // LFO値とランダムウォーク値を、RandomFactor の比率でミックス
+            // RandomFactor=0なら純粋LFO、1なら純粋RandomWalk
+            double mixedValue = (1.0 - setting.RandomFactor) * lfo
+                              + setting.RandomFactor * randomWalkValue;
+
+            // 混合値にDepthを掛ける( -Depth ～ +Depth )
+            double pan = setting.Depth * mixedValue;
+
+            // 左右ゲイン計算
+            // pan>0 のとき Right が大きく、pan<0 のとき Left が大きくなるイメージ
+            // ここでは「中央1.0 ± pan」で単純に左右をシフト
+            double leftGain = 1.0 - pan;
+            double rightGain = 1.0 + pan;
+
+            // 左右チャンネルのサンプルを取り出して、ゲインを掛けて書き戻す
+            int baseIndex = i * frameSize;
+
+            // 左サンプル(16bit)取得
+            short leftSample = (short)(dataSpan[baseIndex] | (dataSpan[baseIndex + 1] << 8));
+            // 右サンプル(16bit)取得
+            short rightSample = (short)(dataSpan[baseIndex + 2] | (dataSpan[baseIndex + 3] << 8));
+
+            // 倍率適用(オーバーフローを避けるためにintで計算してからClamp)
+            int newLeft = (int)Math.Round(leftSample * leftGain);
+            int newRight = (int)Math.Round(rightSample * rightGain);
+
+            // 16bitの範囲にクリップ(-32768～32767)
+            newLeft = Math.Clamp(newLeft, short.MinValue, short.MaxValue);
+            newRight = Math.Clamp(newRight, short.MinValue, short.MaxValue);
+
+            // 書き戻し(リトルエンディアン)
+            dataSpan[baseIndex + 0] = (byte)(newLeft & 0xFF);
+            dataSpan[baseIndex + 1] = (byte)((newLeft >> 8) & 0xFF);
+            dataSpan[baseIndex + 2] = (byte)(newRight & 0xFF);
+            dataSpan[baseIndex + 3] = (byte)((newRight >> 8) & 0xFF);
+
+            // 位相を進める
+            phase += phaseIncrement;
+            if (phase > 2.0 * Math.PI)
+            {
+                phase -= 2.0 * Math.PI; // 周期を越えたら折り返し
+            }
+        }
+    }
+}
+
+
+
+public static class AiWaveVolumeUtils
+{
+    /// <summary>
+    /// 1フレーム(ステレオ2サンプル)当たりの無音とみなす振幅の目安 (dB)
+    /// </summary>
+    private const double GateThresholdDb = -50.0; // -50 dB
+    /// <summary>
+    /// 線形振幅に変換した際のしきい値 (± 振幅)
+    /// </summary>
+    private static readonly double GateThresholdAmplitude = Math.Pow(10.0, GateThresholdDb / 20.0); // 約 0.00316
+
+    /// <summary>
+    /// (関数1) WAV のステレオ波形データ(16ビット, L/R)から、ゲート付きの平均ボリューム(dB)を返す。
+    /// </summary>
+    /// <param name="waveFileIn">
+    ///     ステレオ WAV(44.1 kHz, 16bit, 2ch)の生 PCM データ(ヘッダ抜き)
+    ///     [L, R, L, R, ...] の順番で交互に 16 ビット値が並ぶ。
+    /// </param>
+    /// <param name="cancel">中断用トークン</param>
+    /// <returns>左右チャンネルを合成した RMS の平均値(ゲート除外あり)を dB 表記した値</returns>
+    public static double CalcMeanVolume(Memory<byte> waveFileIn, CancellationToken cancel)
+    {
+        // 1サンプル(16bit) = 2バイト
+        // ステレオなので1フレーム = 4バイト (L 2byte + R 2byte)
+        // 全サンプル数(左右合計) = waveFileIn.Length / 2
+        // フレーム数(ステレオ)  = waveFileIn.Length / 4
+        int frameCount = waveFileIn.Length / 4;
+        if (frameCount == 0)
+        {
+            // PCM データが無い場合は -∞ に近い値として返す (例: -90 dB)
+            return -90.0;
+        }
+
+        var span = waveFileIn.Span;
+
+        double sumOfSquares = 0.0;  // RMS 用(振幅^2 の合計)
+        long validCount = 0;        // ゲートしきい値を超えたフレーム数
+
+        for (int i = 0; i < frameCount; i++)
+        {
+            cancel.ThrowIfCancellationRequested();
+
+            // ステレオ L/R の 16bit サンプル値を取得 (リトルエンディアン)
+            short left = (short)((span[4 * i + 1] << 8) | span[4 * i + 0]);
+            short right = (short)((span[4 * i + 3] << 8) | span[4 * i + 2]);
+
+            // [-32768, 32767] → [-1.0, +1.0] へ正規化
+            double leftFloat = left / 32768.0;
+            double rightFloat = right / 32768.0;
+
+            // ステレオのフレームRMS: sqrt( (L^2 + R^2) / 2 ) 
+            double frameAmplitude = Math.Sqrt((leftFloat * leftFloat + rightFloat * rightFloat) / 2.0);
+
+            // ゲートを超えるか判定 (-50 dB 相当)
+            if (frameAmplitude > GateThresholdAmplitude)
+            {
+                // フレームRMS を二乗したものを積算 (RMS計算用)
+                sumOfSquares += (frameAmplitude * frameAmplitude);
+                validCount++;
+            }
+        }
+
+        if (validCount == 0)
+        {
+            // 全てがほぼ無音ゲート以下の場合
+            return -90.0; // 仮に -90 dB とする
+        }
+
+        // 有効フレームの平均平方値
+        double meanSquare = sumOfSquares / validCount;
+        // RMS に戻す
+        double rms = Math.Sqrt(meanSquare);
+
+        // dB化 (20 * log10(rms))
+        // rms が非常に小さい場合は -∞ に行かないようクリップ
+        if (rms < 1.0e-10)
+        {
+            return -90.0;
+        }
+
+        double volumeDb = 20.0 * Math.Log10(rms);
+        return volumeDb;
+    }
+
+    /// <summary>
+    /// (関数2) 指定された平均ボリューム(dB)になるように、WAV のステレオ波形データ(16ビット, L/R)をスケールする。
+    /// </summary>
+    /// <param name="waveFileInOut">
+    ///     ステレオ WAV(44.1 kHz, 16bit, 2ch)の生 PCM データ(ヘッダ抜き)。
+    ///     音量調整処理を施した結果はこの配列を直接上書きする。
+    /// </param>
+    /// <param name="targetVolume">目指す平均ボリューム(dB)。CalcMeanVolume の戻り値と同じ定義。</param>
+    /// <param name="cancel">中断用トークン</param>
+    public static void AdjustVolume(Memory<byte> waveFileInOut, double targetVolume, CancellationToken cancel)
+    {
+        // まず現在の平均ボリューム(dB)を測る
+        double currentVolumeDb = CalcMeanVolume(waveFileInOut, cancel);
+
+        // dB 差分
+        double deltaDb = targetVolume - currentVolumeDb;
+        // 線形スケール倍率 = 10^(deltaDb/20)
+        double scale = Math.Pow(10.0, deltaDb / 20.0);
+
+        // スケールが 1.0 とほぼ同じなら何もしない
+        if (Math.Abs(scale - 1.0) < 1.0e-8)
+        {
+            return;
+        }
+
+        // 全サンプルにスケールをかけて書き戻す
+        int frameCount = waveFileInOut.Length / 4;
+        var span = waveFileInOut.Span;
+
+        for (int i = 0; i < frameCount; i++)
+        {
+            cancel.ThrowIfCancellationRequested();
+
+            short left = (short)((span[4 * i + 1] << 8) | span[4 * i + 0]);
+            short right = (short)((span[4 * i + 3] << 8) | span[4 * i + 2]);
+
+            // スケーリング (float化して乗算し、clamp)
+            double newLeft = left * scale;
+            double newRight = right * scale;
+
+            short leftScaled = (short)Math.Clamp((int)Math.Round(newLeft), short.MinValue, short.MaxValue);
+            short rightScaled = (short)Math.Clamp((int)Math.Round(newRight), short.MinValue, short.MaxValue);
+
+            // 書き戻し (リトルエンディアン)
+            span[4 * i + 0] = (byte)(leftScaled & 0xFF);
+            span[4 * i + 1] = (byte)((leftScaled >> 8) & 0xFF);
+            span[4 * i + 2] = (byte)(rightScaled & 0xFF);
+            span[4 * i + 3] = (byte)((rightScaled >> 8) & 0xFF);
+        }
+    }
+}
+
+public enum AiAudioEffectSpeedType
+{
+    Heavy = 0,
+    Normal = 1,
+    Light = 2,
+}
+
+public interface IAiAudioEffectSettings
+{
+}
+
+public abstract class AiAudioEffectBase
+{
+    protected abstract IAiAudioEffectSettings NewSettingsFactoryImpl();
+    protected abstract IAiAudioEffectSettings NewSettingsFactoryWithRandomImpl(AiAudioEffectSpeedType type);
+    protected abstract void ProcessFilterImpl(Memory<byte> waveFileInOut, IAiAudioEffectSettings effectSettings, CancellationToken cancel);
+
+    public IAiAudioEffectSettings NewSettingsFactory() => NewSettingsFactoryImpl();
+    public IAiAudioEffectSettings NewSettingsFactoryWithRandom(AiAudioEffectSpeedType type = AiAudioEffectSpeedType.Normal) => NewSettingsFactoryWithRandomImpl(type);
+    public void ProcessFilter(Memory<byte> waveFileInOut, IAiAudioEffectSettings settings, CancellationToken cancel = default) => ProcessFilterImpl(waveFileInOut, settings, cancel);
+    public void ProcessFilterRandom(Memory<byte> waveFileInOut, AiAudioEffectSpeedType type, CancellationToken cancel = default) => ProcessFilter(waveFileInOut, NewSettingsFactoryWithRandom(type), cancel);
+}
+
+
+#region AiAudioEffect_02_NearFar_Settings
+// このクラスが、処理の内容 (効果の程度や挙動の変化) を決定する枢要なパラメータ指定部分である。
+public class AiAudioEffect_02_NearFar_Settings : IAiAudioEffectSettings
+{
+    /*
+     * 【各パラメータの説明】
+     * 
+     * ■ MaxSpeed
+     *    - 音源がランダムに移動する際の、速度ベクトルの最大値 (単位: 「リスナーを中心とする仮想空間上」での 1秒あたりの移動量)。
+     *    - 値を大きくすると、音源の動きが激しくなり、高速で近づいてきたり去っていく挙動になる。
+     *    - デフォルト値 3.0 は「そこそこの速度感」を想定した値。
+     */
+    public double MaxSpeed = 3.0;
+
+    /*
+     * ■ MovementChangeInterval
+     *    - 音源の移動速度 (方向・大きさ) をランダムに変更する周期 (秒単位)。
+     *    - 値を小さくすると、より頻繁に方向転換したり、ランダムさが増して落ち着かない感じになる。
+     *    - デフォルト値 0.5 は「1秒に2回ほどの頻度でランダムに動きが変化する」ことを想定。
+     */
+    public double MovementChangeInterval = 0.5;
+
+    /*
+     * ■ MinDistance
+     *    - 音源がリスナー (中心) に近づいてくるときの最小距離。これ以上は近づきすぎないようにする。
+     *    - 値を小さくすると、音源がリスナーの真横をかすめるような迫力を大きくできるが、0 に近すぎると
+     *      計算で無限大に音量が上がるなどの問題が起きやすい。
+     *    - デフォルト値 0.5 は「そこそこ近くまで接近して大きな音量変化を感じる」想定。
+     */
+    public double MinDistance = 0.5;
+
+    /*
+     * ■ MaxDistance
+     *    - 音源がリスナー (中心) から遠ざかるときの最大距離。これ以上遠くには行かないようにする。
+     *    - 値を大きくすると、音源が遠方に離れる時間が増えるため、音量が小さめになる時間が長くなる。
+     *    - デフォルト値 5.0 は「ある程度遠くまで離れていく」想定。
+     */
+    public double MaxDistance = 5.0;
+
+    /*
+     * ■ EnablePitchMod
+     *    - ドップラー効果のような、微妙なピッチ変化を擬似的に入れるかどうかのフラグ。
+     *    - true なら、近づく際にピッチが上がり、遠ざかる際にピッチが下がる簡易的効果を入れる。
+     *    - デフォルト値は true。不要な場合は false。
+     */
+    public bool EnablePitchMod = true;
+
+    /*
+     * ■ PitchModIntensity
+     *    - EnablePitchMod=true の時に、有効となるピッチ変化の強度 (±何%までピッチを変化させるか) を決める値。
+     *    - たとえば 0.03 なら、±3% 程度のピッチ変化をランダムに加える。
+     *    - デフォルト値 0.03。
+     */
+    public double PitchModIntensity = 0.03;
+}
+
+// このクラスが、処理の内容を実装するクラスである。
+public class AiAudioEffect_02_NearFar : AiAudioEffectBase
+{
+    // この関数は、そのまま、書き写すこと。
+    protected override IAiAudioEffectSettings NewSettingsFactoryImpl()
+        => new AiAudioEffect_02_NearFar_Settings();
+
+    // 効果のバリエーションを増すためのパラメータのランダム設定を、おおまかな、「強・注・弱」の効果の強さの程度の指定をある程度もとにして、助ける関数
+    protected override IAiAudioEffectSettings NewSettingsFactoryWithRandomImpl(AiAudioEffectSpeedType type)
+    {
+        var ret = new AiAudioEffect_02_NearFar_Settings();
+
+        /*
+         * ここでは、type の値に従って、Random.Shared を使いながらランダムパラメータを設定している。
+         * 「強」「中」「弱」に応じておおまかに以下のように変化させている：
+         *   - Heavy: 激しく音源が動き回り、近接や遠方の変化も大きめ
+         *   - Normal: 中程度
+         *   - Light: ゆったりした移動と近接・遠方変化は控えめ
+         */
+        switch (type)
+        {
+            case AiAudioEffectSpeedType.Heavy:
+                ret.MaxSpeed = Random.Shared.NextDouble() * (10.0 - 5.0) + 5.0;         // 5.0 ～ 10.0
+                ret.MovementChangeInterval = Random.Shared.NextDouble() * (0.7 - 0.2) + 0.2; // 0.2 ～ 0.7
+                ret.MinDistance = Random.Shared.NextDouble() * (0.7 - 0.2) + 0.2;    // 0.2 ～ 0.7
+                ret.MaxDistance = Random.Shared.NextDouble() * (7.0 - 4.0) + 4.0;    // 4.0 ～ 7.0
+                ret.EnablePitchMod = (Random.Shared.NextDouble() < 0.9); // 90% の確率で有効に
+                ret.PitchModIntensity = Random.Shared.NextDouble() * (0.07 - 0.03) + 0.03; // 0.03 ～ 0.07
+                break;
+
+            case AiAudioEffectSpeedType.Normal:
+                ret.MaxSpeed = Random.Shared.NextDouble() * (5.0 - 2.0) + 2.0;        // 2.0 ～ 5.0
+                ret.MovementChangeInterval = Random.Shared.NextDouble() * (1.0 - 0.5) + 0.5; // 0.5 ～ 1.0
+                ret.MinDistance = Random.Shared.NextDouble() * (1.0 - 0.3) + 0.3;     // 0.3 ～ 1.0
+                ret.MaxDistance = Random.Shared.NextDouble() * (6.0 - 3.0) + 3.0;     // 3.0 ～ 6.0
+                ret.EnablePitchMod = (Random.Shared.NextDouble() < 0.6); // 60% の確率で有効に
+                ret.PitchModIntensity = Random.Shared.NextDouble() * (0.05 - 0.01) + 0.01; // 0.01 ～ 0.05
+                break;
+
+            case AiAudioEffectSpeedType.Light:
+                ret.MaxSpeed = Random.Shared.NextDouble() * (2.0 - 0.3) + 0.3;        // 0.3 ～ 2.0
+                ret.MovementChangeInterval = Random.Shared.NextDouble() * (1.5 - 0.8) + 0.8; // 0.8 ～ 1.5
+                ret.MinDistance = Random.Shared.NextDouble() * (1.2 - 0.5) + 0.5;     // 0.5 ～ 1.2
+                ret.MaxDistance = Random.Shared.NextDouble() * (3.0 - 1.5) + 1.5;     // 1.5 ～ 3.0
+                ret.EnablePitchMod = (Random.Shared.NextDouble() < 0.3); // 30% の確率で有効に
+                ret.PitchModIntensity = Random.Shared.NextDouble() * (0.03 - 0.005) + 0.005; // 0.005 ～ 0.03
+                break;
+        }
+
+        return ret;
+    }
+
+    // この関数が、「効果」を生み出す処理を実際に行なう枢要部分である。
+    protected override void ProcessFilterImpl(Memory<byte> waveFileInOut, IAiAudioEffectSettings effectSettings, CancellationToken cancel)
+    {
+        // まず、effectSettings の内容を、扱いやすいようにキャストする。
+        AiAudioEffect_02_NearFar_Settings settings = (AiAudioEffect_02_NearFar_Settings)effectSettings;
+
+        /* 
+         * 実装部分ここから 
+         *
+         * WAV データ (44.1kHz, 16bit, ステレオ, ヘッダなし) に対して、
+         * 「高速で音源が近付いてきて、左右にかすめたり、ランダムな動きでびっくりさせるようなエフェクト」を付与する。
+         * 具体的には：
+         *   1) リスナー (中心) を原点 (0,0) とする仮想空間で、音源がランダムな位置に存在し、
+         *      ランダムなベクトルで動き回るのをシミュレーションし、サンプルごとに位置を更新。
+         *   2) 位置 (x,y) から求めた「距離」に応じて音量を変化 (近づくと大きく、遠ざかると小さく)。
+         *   3) 位置 (x) に応じてステレオの左右バランスを変化 (左にあるほど Left チャンネルを強め、Right を弱める)。
+         *   4) 必要であれば、ドップラー効果っぽいピッチ変化も導入 (EnablePitchMod が true の場合)。
+         *   5) 一定間隔 (MovementChangeInterval 秒) ごとに、速度ベクトルをランダムに変更して予測不能な移動を演出。
+         *   6) MinDistance、MaxDistance の範囲を超えないように位置を補正 (または簡易的に反転など)。
+         * 
+         * 下記では、計算量が多くなるため、巨大なループ処理中に cancel.ThrowIfCancellationRequested() を適宜挿入し、
+         * 中断要求に応じられるようにしている。
+         */
+
+        // PCM 16bit ステレオの場合、1サンプルあたり4バイト (L, R 各16bit)
+        int bytesPerSampleFrame = 4;
+        int totalSampleFrames = waveFileInOut.Length / bytesPerSampleFrame;
+
+        // サンプリングレート (44.1kHz)
+        double sampleRate = 44100.0;
+
+        // 仮想空間上の音源位置と速度を用意する
+        //   とりあえず初期位置は (0, settings.MinDistance) あたりに置いておく(必ずしもここである必要はない)。
+        //   速度ベクトルも、最初はランダムに決める。
+        double x = 0.0;
+        double y = settings.MinDistance + 0.1; // 少しだけ離れたところから始める
+        Random rand = new Random();
+
+        // 速度ベクトルをランダム生成するヘルパー関数
+        Func<(double vx, double vy)> getRandomVelocity = () =>
+        {
+            // -MaxSpeed ～ MaxSpeed の範囲でランダムな速度を生成
+            double vx = (rand.NextDouble() * 2.0 - 1.0) * settings.MaxSpeed;
+            double vy = (rand.NextDouble() * 2.0 - 1.0) * settings.MaxSpeed;
+            return (vx, vy);
+        };
+
+        (double vx, double vy) = getRandomVelocity();
+
+        // ピッチ変化用のサンプル再生位置管理 (ナイーブなピッチシフタ)
+        //   実際のドップラー計算を簡略化し、「接近時は再生速度を少し上げ、離れるときは下げる」といった実装例。
+        //   ただし、高品位なピッチシフタではないため、音質の劣化はあり得る。
+        double playbackIndex = 0.0; // 現在再生するサンプルフレームの浮動小数位置
+        double pitchDelta = 0.0;    // ドップラーによるピッチ変化量
+
+        // 次に速度を変化させる目標時刻 (秒)
+        double nextChangeTime = settings.MovementChangeInterval;
+        double currentTime = 0.0; // 処理経過時間(秒)
+        double dt = 1.0 / sampleRate; // サンプルフレーム間の経過秒数
+
+        // 波形アクセス用の Span
+        var span = waveFileInOut.Span;
+
+        // 入力波形を 16bit ステレオとして読み取りながら、書き込みも行うため、元のサンプルを
+        // 一時バッファに退避しておき、それを都度読み出す手法を取る。
+        // → 大きなメモリ使用になる可能性があるので注意。(ファイルが大きい場合は別手段も検討)
+        //   ここではサンプルとして、単純実装のためにすべてロードする。
+        short[] originalLeft = new short[totalSampleFrames];
+        short[] originalRight = new short[totalSampleFrames];
+
+        // まず元データをコピー
+        for (int i = 0; i < totalSampleFrames; i++)
+        {
+            short l = BitConverter.ToInt16(span.Slice(i * bytesPerSampleFrame, 2));
+            short r = BitConverter.ToInt16(span.Slice(i * bytesPerSampleFrame + 2, 2));
+            originalLeft[i] = l;
+            originalRight[i] = r;
+        }
+
+        // 出力先のバッファを 0 クリアしておく (あとで上書き)
+        for (int i = 0; i < totalSampleFrames; i++)
+        {
+            span[i * bytesPerSampleFrame + 0] = 0;
+            span[i * bytesPerSampleFrame + 1] = 0;
+            span[i * bytesPerSampleFrame + 2] = 0;
+            span[i * bytesPerSampleFrame + 3] = 0;
+        }
+
+        // メインループ: 出力フレームを 0 から totalSampleFrames-1 まで書き込む
+        //   ただし、ピッチ変更 (再生速度変更) を伴うため、
+        //   再生する「元データの位置」(playbackIndex) は必ずしも i と等しくない。
+        for (int i = 0; i < totalSampleFrames; i++)
+        {
+            // 中断要求があればここで例外をスロー
+            cancel.ThrowIfCancellationRequested();
+
+            // 現在時刻が次の変更時刻を超えたら、速度を再度ランダムに変化させる
+            if (currentTime >= nextChangeTime)
+            {
+                (vx, vy) = getRandomVelocity();
+                nextChangeTime += settings.MovementChangeInterval;
+            }
+
+            // (1) 位置 x,y を更新
+            x += vx * dt;
+            y += vy * dt;
+
+            // (2) MinDistance ～ MaxDistance の範囲を超えないように補正 (単純に境界で反射するなど)
+            double dist = Math.Sqrt(x * x + y * y);
+            if (dist < settings.MinDistance)
+            {
+                // 小さすぎるので、境界へ押し戻す + 速度ベクトル反転
+                double ratio = settings.MinDistance / dist;
+                x *= ratio;
+                y *= ratio;
+                vx = -vx;
+                vy = -vy;
+            }
+            else if (dist > settings.MaxDistance)
+            {
+                // 大きすぎるので、境界へ押し戻す + 速度ベクトル反転
+                double ratio = settings.MaxDistance / dist;
+                x *= ratio;
+                y *= ratio;
+                vx = -vx;
+                vy = -vy;
+            }
+            dist = Math.Sqrt(x * x + y * y); // 再計算
+
+            // (3) ボリュームを計算 (1 / 距離) 程度 (極端になり過ぎないよう、適宜スケール調整もあり)
+            double volume = 1.0 / (dist + 0.01); // dist が 0 に近づいた時に無限大にならぬよう微小値を足す
+
+            // (4) ステレオパンを計算: x が負→左側、x が正→右側。
+            //     -1.0 ～ +1.0 の範囲のパン値 (pan) としてみる
+            //     左ボリューム = volume * (1 - pan)/2
+            //     右ボリューム = volume * (1 + pan)/2
+            //   pan を x / dist とし、範囲 -1～1 を確保
+            double pan = 0.0;
+            if (dist > 0.00001)
+            {
+                pan = Math.Max(-1.0, Math.Min(1.0, x / dist));
+            }
+            double leftGain = volume * (1.0 - pan) * 0.5;
+            double rightGain = volume * (1.0 + pan) * 0.5;
+
+            // (5) ピッチ変化
+            //     接近中 (vx*x + vy*y < 0) ならピッチを高く、遠ざかり中なら低くする簡易演算。
+            //     vx*x + vy*y は速度ベクトルと位置ベクトルの内積 (正なら遠ざかり, 負なら接近)。
+            if (settings.EnablePitchMod)
+            {
+                double dot = vx * x + vy * y; // 内積
+                                              // dot < 0 → 接近, dot > 0 → 遠ざかり
+                                              // 接近ならピッチを上げる (playbackIndex を進めるスピードを少し速める)
+                                              // 遠ざかりならピッチを下げる
+                double sign = (dot < 0.0) ? -1.0 : 1.0;
+                // ± settings.PitchModIntensity 程度のピッチ変化を与える
+                pitchDelta = 1.0 + sign * settings.PitchModIntensity;
+            }
+            else
+            {
+                pitchDelta = 1.0; // ピッチ変化なし
+            }
+
+            // (6) 元データのサンプルを再生 (pitchDelta の分だけ読み取り速度を変える)
+            //     playbackIndex は浮動小数なので補間が必要だが、ここでは最も単純な nearest neighbor
+            //     (または floor) で実装する例を示す。
+            int srcIndex = (int)Math.Floor(playbackIndex);
+            if (srcIndex < 0) srcIndex = 0;
+            if (srcIndex >= totalSampleFrames)
+            {
+                // もし再生位置が元データを超えてしまったら、ここではループ終了とする。
+                // (あるいはループ再生したければ modulo 演算などを使う)
+                break;
+            }
+
+            short srcL = originalLeft[srcIndex];
+            short srcR = originalRight[srcIndex];
+
+            // (7) ボリューム・パン適用
+            double outL = srcL * leftGain;
+            double outR = srcR * rightGain;
+
+            // 16bitにクリップ
+            short finalL = (short)Math.Max(short.MinValue, Math.Min(short.MaxValue, (int)(outL)));
+            short finalR = (short)Math.Max(short.MinValue, Math.Min(short.MaxValue, (int)(outR)));
+
+            // (8) waveFileInOut (span) に書き込む (リトルエンディアン)
+            BitConverter.TryWriteBytes(span.Slice(i * bytesPerSampleFrame, 2), finalL);
+            BitConverter.TryWriteBytes(span.Slice(i * bytesPerSampleFrame + 2, 2), finalR);
+
+            // (9) 次のサンプルへ向けて時刻とピッチ付き再生位置を更新
+            currentTime += dt;
+            playbackIndex += pitchDelta; // シンプルにピッチ倍率を足していく (これだと加速度的にずれていくので注意)
+        }
+
+        /* 実装部分ここまで */
+    }
+}
+
+#endregion
+
+
+
+#region AiAudioEffect_03_JetCoaster
+// このクラスが、処理の内容 (効果の程度や挙動の変化) を決定する枢要なパラメータ指定部分である。
+public class AiAudioEffect_03_JetCoaster_Settings : IAiAudioEffectSettings
+{
+    /* 実装部分ここから */
+    /// <summary>
+    /// 音像が左右に行き来する際の基本的な周波数(Hz)。
+    /// 例: 1.5 は、1.5Hz(約0.66秒周期)で左右を往復するイメージになる。
+    /// デフォルト: 1.5
+    /// </summary>
+    public double PanFrequency = 1.5;
+
+    /// <summary>
+    /// 左右振り幅の強度(0.0～1.0程度推奨)。
+    /// 0.0 は左右差なし、1.0 は最大振幅(片側が完全に小さくなりもう片側が最大になるイメージ)。
+    /// デフォルト: 0.7
+    /// </summary>
+    public double PanIntensity = 0.7;
+
+    /// <summary>
+    /// 「上下に急加速・急落下する」ような振動感(ジェットコースター感)を与える周波数(Hz)。
+    /// 例: 2.0 にすると、2Hz(0.5秒周期)で振動が上下に繰り返される。
+    /// デフォルト: 2.0
+    /// </summary>
+    public double RollerCoasterFrequency = 2.0;
+
+    /// <summary>
+    /// ジェットコースター感の振動の強度(0.0～1.0程度推奨)。
+    /// 振動が音量や左右差にどの程度影響を与えるかを制御する。
+    /// デフォルト: 0.5
+    /// </summary>
+    public double RollerCoasterIntensity = 0.5;
+
+    /// <summary>
+    /// ある程度の「予測不能性」を与えるために導入する乱数変動の大きさ(0.0以上)。
+    /// 値が大きいほどランダム変動が激しくなる。デフォルト: 0.3
+    /// </summary>
+    public double RandomJerkiness = 0.3;
+
+    /// <summary>
+    /// ステレオの左右チャンネルをあえて逆相(フェーズ反転)にするかどうかのフラグ。
+    /// 真の場合は、左右の音を逆位相にして不思議な広がり感を出す。
+    /// デフォルト: false
+    /// </summary>
+    public bool ReversePhase = false;
+    /* 実装部分ここまで */
+}
+
+// このクラスが、処理の内容を実装するクラスである。
+public class AiAudioEffect_03_JetCoaster : AiAudioEffectBase
+{
+    // この関数は、そのまま、書き写すこと。
+    protected override IAiAudioEffectSettings NewSettingsFactoryImpl() => new AiAudioEffect_03_JetCoaster_Settings();
+
+    // 効果のバリエーションを増すためのパラメータのランダム設定を、おおまかな、「強・注・弱」の効果の強さの程度の指定をある程度もとにして、助ける関数
+    protected override IAiAudioEffectSettings NewSettingsFactoryWithRandomImpl(AiAudioEffectSpeedType type)
+    {
+        var ret = new AiAudioEffect_03_JetCoaster_Settings();
+
+        /* 実装部分ここから */
+        // type の値に応じて、パラメータをランダムに設定する。
+        // Heavy: 強い効果・振り幅が大きくランダムも派手
+        // Normal: 中程度
+        // Light: 穏やか
+        // サンプルとして PanFrequency, PanIntensity, RollerCoasterFrequency, RollerCoasterIntensity, RandomJerkiness の範囲を調整
+        switch (type)
+        {
+            case AiAudioEffectSpeedType.Heavy:
+                // 左右パンの揺れ(周波数と強度)を広めに乱数設定
+                ret.PanFrequency = Random.Shared.NextDouble() * (2.0 - 0.5) + 0.5;  // 0.5 ～ 2.0
+                ret.PanIntensity = Random.Shared.NextDouble() * (0.8 - 0.4) + 0.4; // 0.4 ～ 0.8
+                                                                                   // ジェットコースター振動
+                ret.RollerCoasterFrequency = Random.Shared.NextDouble() * (2.5 - 1.0) + 1.0; // 1.0 ～ 2.5
+                ret.RollerCoasterIntensity = Random.Shared.NextDouble() * (0.7 - 0.3) + 0.3; // 0.3 ～ 0.7
+                                                                                             // 乱数変動
+                ret.RandomJerkiness = Random.Shared.NextDouble() * (0.5 - 0.1) + 0.1; // 0.1 ～ 0.5
+                                                                                      // ReversePhase は 30% くらい
+                ret.ReversePhase = (Random.Shared.NextDouble() < 0.3);
+                break;
+
+            case AiAudioEffectSpeedType.Normal:
+                // 左右パン
+                ret.PanFrequency = Random.Shared.NextDouble() * (1.5 - 0.4) + 0.4;  // 0.5 ～ 2.0
+                ret.PanIntensity = Random.Shared.NextDouble() * (0.6 - 0.3) + 0.3; // 0.4 ～ 0.8
+                                                                                   // ジェットコースター振動
+                ret.RollerCoasterFrequency = Random.Shared.NextDouble() * (2.0 - 0.7) + 0.7; // 1.0 ～ 2.5
+                ret.RollerCoasterIntensity = Random.Shared.NextDouble() * (0.6 - 0.2) + 0.2; // 0.3 ～ 0.7
+                                                                                             // 乱数変動
+                ret.RandomJerkiness = Random.Shared.NextDouble() * (0.4 - 0.05) + 0.05; // 0.1 ～ 0.5
+                                                                                        // ReversePhase は 30% くらい
+                ret.ReversePhase = (Random.Shared.NextDouble() < 0.2);
+                break;
+
+            case AiAudioEffectSpeedType.Light:
+                // 左右パン
+                ret.PanFrequency = Random.Shared.NextDouble() * (1.2 - 0.2) + 0.2; // 0.2 ～ 1.2
+                ret.PanIntensity = Random.Shared.NextDouble() * (0.5 - 0.2) + 0.2; // 0.2 ～ 0.5
+                                                                                   // ジェットコースター振動
+                ret.RollerCoasterFrequency = Random.Shared.NextDouble() * (1.5 - 0.5) + 0.5; // 0.5 ～ 1.5
+                ret.RollerCoasterIntensity = Random.Shared.NextDouble() * (0.5 - 0.1) + 0.1; // 0.1 ～ 0.5
+                                                                                             // 乱数変動
+                ret.RandomJerkiness = Random.Shared.NextDouble() * (0.3 - 0.0) + 0.0; // 0.0 ～ 0.3
+                                                                                      // ReversePhase は 10% くらい
+                ret.ReversePhase = (Random.Shared.NextDouble() < 0.1);
+                break;
+        }
+        /* 実装部分ここまで */
+
+        return ret;
+    }
+
+    // この関数が、「効果」を生み出す処理を実際に行なう枢要部分である。
+    protected override void ProcessFilterImpl(Memory<byte> waveFileInOut, IAiAudioEffectSettings effectSettings, CancellationToken cancel)
+    {
+        // まず、effectSettings の内容を、扱いやすいように、AiAudioEffect_03_JetCoaster_Settings にキャストする。
+        AiAudioEffect_03_JetCoaster_Settings settings = (AiAudioEffect_03_JetCoaster_Settings)effectSettings;
+
+        /* 実装部分ここから */
+        // 44.1kHz, 16bit, ステレオPCMデータと仮定
+        // 1サンプル(フレーム)あたり4バイト(Left 2byte + Right 2byte)
+        // NAudio.Wave を使ってもよいし、BitConverter でもよい。
+
+        // メモ:
+        //   short 左チャンネル = BitConverter.ToInt16(data, index);
+        //   short 右チャンネル = BitConverter.ToInt16(data, index + 2);
+        //
+        // waveFileInOut.Length は波形PCM部分(ヘッダを除いた実データ)のバイト数
+        // サンプル数は waveFileInOut.Length / 4 になる(ステレオなので左+右で4バイト)。
+
+        var data = waveFileInOut.Span;
+        int totalBytes = data.Length;
+        int sampleCount = totalBytes / 4; // ステレオ1フレームあたり4バイト
+
+        // サンプリングレート(44.1kHz)
+        const double sampleRate = 44100.0;
+
+        // ここで時間を進めながら、左右の音をジェットコースター風に動かす。
+        // 下記では簡単に:
+        //   t: 現在の時間(秒) = i / 44100.0
+        //   左右パン(左右の振り幅)と、ジェットコースター(上下の揺れ)を混合。
+        //   さらに乱数的な揺らぎを加えて、予測不能性を演出する。
+        //
+        //   - PanLFO = sin(2π * PanFrequency * t)
+        //   - CoasterLFO = sin(2π * RollerCoasterFrequency * t)
+        //   - それぞれに Intensity (強度) をかける。
+        //   - RandomJerkiness 分だけ、一定サンプルごとにランダム値を加算して揺らぎを出す。
+        //
+        //   出音レベル(振幅) = 元のサンプル値 * [1 + (PanIntensity * PanLFO * panning係数)]
+        //   ただし、Left と Right で panning係数 を異なる符号にして左右差を出す。
+        //   さらに全体の音量に (1 + RollerCoasterIntensity * CoasterLFO + ランダム揺らぎ) を乗算。
+        //   ReversePhase が true の場合、左右の位相を反転(Leftに+をかけるならRightに-をかける 等)して不思議な効果を追加。
+        //
+        //   具体的には:
+        //     leftFactor  = volumeBase * (1 - panFactor)
+        //     rightFactor = volumeBase * (1 + panFactor)
+        //   などとしてもよい。(あるいは PanIntensity 次第でスケールする)
+        //
+        //   ループが巨大なので、適宜 cancel.ThrowIfCancellationRequested() を挟む。
+
+        // ランダム揺らぎを加えるための変数
+        // 「ある程度のサンプル間隔ごと」に突然変動させる実装例
+        double randomOffsetPan = 0.0;
+        double randomOffsetCoaster = 0.0;
+        int nextRandomizeCount = 0; // 0になると新しい乱数を発生させる
+
+        // データ処理ループ
+        for (int i = 0; i < sampleCount; i++)
+        {
+            // 中断要求が来ていないかチェック
+            if (i % 1024 == 0) // 処理負荷を考慮して適度な頻度でチェック
+            {
+                cancel.ThrowIfCancellationRequested();
+            }
+
+            // 現在時間(秒)
+            double t = i / sampleRate;
+
+            // もし「次に乱数を振るタイミング」に達したら、ランダムな揺らぎ値を更新
+            if (nextRandomizeCount <= 0)
+            {
+                // 左右パン揺らぎ
+                randomOffsetPan = (Random.Shared.NextDouble() - 0.5) * settings.RandomJerkiness * 2.0;
+                // 上下Coaster揺らぎ
+                randomOffsetCoaster = (Random.Shared.NextDouble() - 0.5) * settings.RandomJerkiness * 2.0;
+                // 次の更新タイミング(乱数で 100～1000サンプル後)
+                nextRandomizeCount = Random.Shared.Next(100, 1000);
+            }
+            nextRandomizeCount--;
+
+            // LFO計算
+            double panLFO = Math.Sin(2.0 * Math.PI * settings.PanFrequency * t) + randomOffsetPan;
+            double coasterLFO = Math.Sin(2.0 * Math.PI * settings.RollerCoasterFrequency * t) + randomOffsetCoaster;
+
+            // PanIntensity分だけパンを乗算
+            panLFO *= settings.PanIntensity;
+            // RollerCoasterIntensity分だけ上下(音量)を乗算
+            coasterLFO *= settings.RollerCoasterIntensity;
+
+            // 全体音量変動(1 + coasterLFO) で上下振動
+            // ただし、coasterLFO が負の場合は若干音量が下がる。
+            double volumeBase = 1.0 + coasterLFO;
+            if (volumeBase < 0.0) volumeBase = 0.0; // 音量がマイナスにならないようにクリップ
+
+            // 左右パン: -panLFO ～ +panLFO の範囲
+            // 例: panLFO = +0.8 => 左チャンネルは小さく(1 - 0.8=0.2倍)、右チャンネルは大きく(1 + 0.8=1.8倍)
+            //     panLFO = -0.8 => 逆
+            double leftFactor = volumeBase * (1.0 - panLFO);
+            double rightFactor = volumeBase * (1.0 + panLFO);
+
+            // フェーズ反転を考慮
+            // ReversePhase が true の場合、左右で位相を逆にしてみる
+            // (ここでは簡単に、右チャンネルの符号を反転させる例を示す)
+            if (settings.ReversePhase)
+            {
+                rightFactor = -rightFactor;
+            }
+
+            // 元のサンプルを取得 (16bit, ステレオ)
+            int byteIndex = i * 4;
+            short leftSample = BitConverter.ToInt16(data.Slice(byteIndex, 2));
+            short rightSample = BitConverter.ToInt16(data.Slice(byteIndex + 2, 2));
+
+            // 計算結果を反映
+            double newLeft = leftSample * leftFactor;
+            double newRight = rightSample * rightFactor;
+
+            // 16bit の範囲にクリップ
+            short outLeft = (short)Math.Max(short.MinValue, Math.Min(short.MaxValue, Math.Round(newLeft)));
+            short outRight = (short)Math.Max(short.MinValue, Math.Min(short.MaxValue, Math.Round(newRight)));
+
+            // 書き戻し
+            BitConverter.TryWriteBytes(data.Slice(byteIndex, 2), outLeft);
+            BitConverter.TryWriteBytes(data.Slice(byteIndex + 2, 2), outRight);
+        }
+        /* 実装部分ここまで */
+    }
+}
+
+#endregion
+
+
+
+#region AiAudioEffect_04_FreeFall_Settings
+// このクラスが、処理の内容 (効果の程度や挙動の変化) を決定する枢要なパラメータ指定部分である。
+public class AiAudioEffect_04_FreeFall_Settings : IAiAudioEffectSettings
+{
+    /// <summary>
+    /// 自由落下のメイン時間(秒)。
+    /// ここで設定した時間で「落下エンベロープ」を形成する。大きいほど長い時間かけて落下するイメージになる。
+    /// </summary>
+    public double FallDurationSec = 2.0;
+
+    /// <summary>
+    /// LFO(低周波数振動)の周波数(Hz)。音量やパンに揺らぎを与える。
+    /// 値を大きくすると短い周期で揺れるため、より細かくビブラート的な揺れを感じる。
+    /// </summary>
+    public double LfoFrequency = 1.0;
+
+    /// <summary>
+    /// LFOの深さ(0～1程度が目安)。
+    /// 音量/パン変化の振幅をどの程度にするかを決める。大きいほど、揺れ幅が大きい。
+    /// </summary>
+    public double LfoDepth = 0.3;
+
+    /// <summary>
+    /// タービュランス(乱流)を有効にするかどうか。true であれば、ランダムな急変動が時々発生する。
+    /// </summary>
+    public bool EnableTurbulence = true;
+
+    /// <summary>
+    /// タービュランスの強度(0～1程度が目安)。
+    /// 乱流発生時に、どの程度の変化幅が加わるかを決める。
+    /// </summary>
+    public double TurbulenceIntensity = 0.4;
+}
+#endregion
+
+#region AiAudioEffect_04_FreeFall
+public class AiAudioEffect_04_FreeFall : AiAudioEffectBase
+{
+    // そのまま書き写す
+    protected override IAiAudioEffectSettings NewSettingsFactoryImpl()
+        => new AiAudioEffect_04_FreeFall_Settings();
+
+    // 効果のバリエーションを増すためのパラメータのランダム設定
+    protected override IAiAudioEffectSettings NewSettingsFactoryWithRandomImpl(AiAudioEffectSpeedType type)
+    {
+        var ret = new AiAudioEffect_04_FreeFall_Settings();
+
+        /* 実装部分ここから */
+        switch (type)
+        {
+            case AiAudioEffectSpeedType.Heavy:
+                // Heavy: より長く激しい落下、深いLFO、強い乱流
+                ret.FallDurationSec = Random.Shared.NextDouble() * (5.0 - 2.0) + 2.0; // 2.0 ～ 5.0
+                ret.LfoFrequency = Random.Shared.NextDouble() * (2.0 - 0.5) + 0.5;   // 0.5 ～ 2.0
+                ret.LfoDepth = Random.Shared.NextDouble() * (1.0 - 0.5) + 0.5;       // 0.5 ～ 1.0
+                ret.EnableTurbulence = Random.Shared.NextDouble() < 0.7;            // 約70%で乱流ON
+                ret.TurbulenceIntensity = Random.Shared.NextDouble() * (0.8 - 0.3) + 0.3; // 0.3～0.8
+                break;
+
+            case AiAudioEffectSpeedType.Normal:
+                // Normal: 中程度の落下と揺れ、そこそこの乱流
+                ret.FallDurationSec = Random.Shared.NextDouble() * (3.0 - 1.0) + 1.0; // 1.0 ～ 3.0
+                ret.LfoFrequency = Random.Shared.NextDouble() * (1.0 - 0.2) + 0.2;    // 0.2 ～ 1.0
+                ret.LfoDepth = Random.Shared.NextDouble() * (0.6 - 0.3) + 0.3;        // 0.3 ～ 0.6
+                ret.EnableTurbulence = Random.Shared.NextDouble() < 0.4;             // 約40%で乱流ON
+                ret.TurbulenceIntensity = Random.Shared.NextDouble() * (0.5 - 0.2) + 0.2; // 0.2～0.5
+                break;
+
+            case AiAudioEffectSpeedType.Light:
+                // Light: 短い落下と穏やかな揺れ、乱流はあまり期待しない
+                ret.FallDurationSec = Random.Shared.NextDouble() * (1.5 - 0.5) + 0.5;  // 0.5 ～ 1.5
+                ret.LfoFrequency = Random.Shared.NextDouble() * (0.5 - 0.1) + 0.1;     // 0.1 ～ 0.5
+                ret.LfoDepth = Random.Shared.NextDouble() * (0.3 - 0.1) + 0.1;         // 0.1 ～ 0.3
+                ret.EnableTurbulence = Random.Shared.NextDouble() < 0.2;              // 約20%で乱流ON
+                ret.TurbulenceIntensity = Random.Shared.NextDouble() * (0.3 - 0.1) + 0.1; // 0.1～0.3
+                break;
+        }
+        /* 実装部分ここまで */
+
+        return ret;
+    }
+
+    // WAVデータ(44.1kHz, 16bit, ステレオの波形部分)に「自由落下」効果を与える
+    protected override void ProcessFilterImpl(Memory<byte> waveFileInOut, IAiAudioEffectSettings effectSettings, CancellationToken cancel)
+    {
+        // まず、effectSettings の内容をキャスト
+        AiAudioEffect_04_FreeFall_Settings settings = (AiAudioEffect_04_FreeFall_Settings)effectSettings;
+
+        /* 実装部分ここから */
+
+        // パラメータ取得
+        double fallDuration = settings.FallDurationSec;   // 自由落下の周期(片道)
+        double lfoFreq = settings.LfoFrequency;           // LFO周波数
+        double lfoDepth = settings.LfoDepth;              // LFO深さ
+        bool enableTurb = settings.EnableTurbulence;      // 乱流フラグ
+        double turbIntensity = settings.TurbulenceIntensity; // 乱流強度
+
+        // WAVのサンプリングレート(本タスクでは44.1kHzと仮定)
+        const int sampleRate = 44100;
+        // ステレオ16bitPCM(Left, Right) = 4バイト/フレーム
+        int bytesPerFrame = 4;
+        int totalBytes = waveFileInOut.Length;
+        int totalFrames = totalBytes / bytesPerFrame; // サンプルフレーム数
+
+        // バイト列を Span で扱う
+        var span = waveFileInOut.Span;
+
+        // 乱流イベント関連の制御変数
+        //  - 一定時間ごとにランダムで「衝撃」(Amplitude/Pan変化)を起こす例
+        //  - nextTurbEventTime: 次の乱流発生予定時刻(秒)
+        //  - currentTurbEffect: 乱流が発生している間の係数(瞬間的に加算してだんだん消えるなど)
+        double nextTurbEventTime = 0.5;  // 0.5秒後に初回発生を狙う
+        double lastTurbTimeSec = -1.0;   // 乱流が起きた時の時刻。-1ならまだ起きていない
+        double turbDecayDuration = 0.2;  // 乱流が0.2秒ぐらいかけて減衰するイメージ
+        double turbRandomAmp = 0.0;      // 乱流による振幅変化量(ランダム生成)
+        double turbRandomPan = 0.0;      // 乱流によるパン変化量(ランダム生成)
+
+        for (int i = 0; i < totalFrames; i++)
+        {
+            // キャンセル指示が来ていないか、時々チェック
+            if (i % 10000 == 0)
+            {
+                cancel.ThrowIfCancellationRequested();
+            }
+
+            // 現在の時刻(秒)
+            double timeSec = (double)i / sampleRate;
+
+            // ----------------
+            // 1) 自由落下エンベロープを求める
+            //    - 2*fallDuration(往復)でひとつのサイクルとし、繰り返す。
+            double cyclePeriod = fallDuration * 2.0;
+            double cycleTime = timeSec % cyclePeriod; // 現在のサイクル内での経過時間(0～2*fallDuration)
+            // 片道: 0～fallDuration の間は落下(1.0→0.3へ線形に減衰するイメージ)、
+            // 戻り: fallDuration～2*fallDuration で 0.3→1.0 に戻るイメージ。
+            double minAmp = 0.3; // 落下時の最低振幅(ここの値は好みに合わせて調整)
+            double baseEnv;
+            if (cycleTime <= fallDuration)
+            {
+                // 落下フェーズ
+                double ratio = cycleTime / fallDuration; // 0.0→1.0
+                baseEnv = 1.0 - ratio * (1.0 - minAmp);
+            }
+            else
+            {
+                // 戻りフェーズ
+                double ratio = (cycleTime - fallDuration) / fallDuration; // 0.0→1.0
+                baseEnv = minAmp + ratio * (1.0 - minAmp);
+            }
+
+            // ----------------
+            // 2) LFO による振幅変調 & パン変調
+            //    - LFOは sin() を用いて揺らす。
+            double lfoPhase = 2.0 * Math.PI * lfoFreq * timeSec;  // LFOの位相
+            double lfoVal = Math.Sin(lfoPhase);                   // -1.0～+1.0
+
+            // amplitudeFactor: baseEnv をさらに揺らす。 (1.0±lfoDepth/2 ではなく、ここでは直接掛け合わせる例)
+            // ただし揺れすぎを防ぐため、(1 + lfoDepth*lfoVal) のようにする
+            double amplitudeFactor = baseEnv * (1.0 + lfoDepth * lfoVal);
+
+            // panningFactor: 左右で -1.0～+1.0 の揺れを作る
+            // たとえば lfoVal=-1～+1 をそのまま利用し、深さを掛け算
+            double panVal = lfoDepth * lfoVal;  // -lfoDepth ～ +lfoDepth
+            // leftGain = 1 - panVal, rightGain = 1 + panVal をベースに正規化する例
+            double leftGain = 1.0 - panVal;
+            double rightGain = 1.0 + panVal;
+            // このままだと左右とも最大が 1+(lfoDepth) になり得るので、ここでは
+            // ざっくり 1 / (1 + lfoDepth) で均等化しておく。
+            double norm = 1.0 / (1.0 + lfoDepth);
+            leftGain *= norm;
+            rightGain *= norm;
+
+            // ----------------
+            // 3) 乱流(タービュランス)の発生
+            //    - 一定時間(乱数)ごとに、急激な衝撃(ampとpanが変化)が短時間起こる
+            if (enableTurb)
+            {
+                if (timeSec >= nextTurbEventTime)
+                {
+                    // ここで乱流開始
+                    lastTurbTimeSec = timeSec;
+                    // 乱流の幅をランダム生成
+                    turbRandomAmp = (Random.Shared.NextDouble() * 2.0 - 1.0) * turbIntensity; // -turbIntensity ～ +turbIntensity
+                    turbRandomPan = (Random.Shared.NextDouble() * 2.0 - 1.0) * turbIntensity; // 同上
+                    // 次の乱流イベントを適当な時間後に設定
+                    // (例: 0.3秒後～1.5秒後のどこか)
+                    double interval = Random.Shared.NextDouble() * (1.5 - 0.3) + 0.3;
+                    nextTurbEventTime = timeSec + interval;
+                }
+
+                // 乱流が発動してから turbDecayDuration 秒以内なら効果を適用
+                if (lastTurbTimeSec >= 0)
+                {
+                    double dt = timeSec - lastTurbTimeSec;
+                    if (dt <= turbDecayDuration)
+                    {
+                        double decayRatio = 1.0 - (dt / turbDecayDuration); // 1.0→0.0
+                        // 振幅に加算
+                        amplitudeFactor += turbRandomAmp * decayRatio;
+                        // パンにも加算(左右ゲインに影響させる例)
+                        double turbPanOffset = turbRandomPan * decayRatio;
+                        leftGain += -turbPanOffset;
+                        rightGain += turbPanOffset;
+                    }
+                    else
+                    {
+                        // 乱流時間が過ぎたら終了
+                        lastTurbTimeSec = -1;
+                    }
+                }
+            }
+
+            // ----------------
+            // 4) 実際のPCMデータに反映 (16bitステレオ)
+            //    - Byte配列 -> short(左), short(右) に変換して読み書き
+            int baseIndex = i * bytesPerFrame;
+            short leftSample = BitConverter.ToInt16(span.Slice(baseIndex, 2));
+            short rightSample = BitConverter.ToInt16(span.Slice(baseIndex + 2, 2));
+
+            // floatやdouble計算に変換
+            double left = leftSample;
+            double right = rightSample;
+
+            // 音量・パンの適用
+            left *= amplitudeFactor * leftGain;
+            right *= amplitudeFactor * rightGain;
+
+            // 16bit範囲にクリップ
+            if (left > short.MaxValue) left = short.MaxValue;
+            if (left < short.MinValue) left = short.MinValue;
+            if (right > short.MaxValue) right = short.MaxValue;
+            if (right < short.MinValue) right = short.MinValue;
+
+            // 書き戻し
+            short newLeftSample = (short)left;
+            short newRightSample = (short)right;
+            BitConverter.TryWriteBytes(span.Slice(baseIndex, 2), newLeftSample);
+            BitConverter.TryWriteBytes(span.Slice(baseIndex + 2, 2), newRightSample);
+        }
+
+        /* 実装部分ここまで */
+    }
+}
+#endregion
+
+
+
+
+#region AiAudioEffect_05_Flap
+public class AiAudioEffect_05_Flap_Settings : IAiAudioEffectSettings
+{
+    /* 実装部分ここから
+     * 
+     * 【パラメータ例】
+     *   1) LfoRateHz:
+     *      1秒間に何回「左右移動の変化（ランダムパン）」を行うかを指定する。大きいほど素早い変化となり、効果が激しくなる。
+     *      デフォルト: 6.0 (1秒間に6回変化)
+     *
+     *   2) Depth:
+     *      パンの強度(振れ幅)を示す。0.0～1.0程度で扱う想定。
+     *      1.0に近いほど、左右への振り切りが大きくなる。
+     *      デフォルト: 0.8
+     *
+     *   3) ReturnToCenterProbability:
+     *      新しいパン値を決定するときに、センター(=0)に戻す確率(0.0～1.0)を指定する。
+     *      大きいほどセンターに戻りやすく、左右に振り切る時間が少なくなる。
+     *      デフォルト: 0.1
+     *
+     *   4) TransitionLengthSec:
+     *      次のパン値に移行するときの「なめらかに移行する時間(秒)」を指定する。0.0なら瞬時切り替え。
+     *      デフォルト: 0.01 (10msかけて徐々に次のパン値へ移行する)
+     *
+     *   5) SmoothedTransition:
+     *      true の場合、パン値の切り替えを「TransitionLengthSec」にしたがって滑らかに補間する。
+     *      false の場合、瞬時にパン値が切り替わり、より激しい効果になる。
+     *      デフォルト: true
+     */
+
+    public double LfoRateHz = 6.0;
+    public double Depth = 0.8;
+    public double ReturnToCenterProbability = 0.1;
+    public double TransitionLengthSec = 0.01;
+    public bool SmoothedTransition = true;
+
+    /* 実装部分ここまで */
+}
+
+// このクラスが、処理の内容を実装するクラスである。
+public class AiAudioEffect_05_Flap : AiAudioEffectBase
+{
+    // この関数は、そのまま、書き写すこと。
+    protected override IAiAudioEffectSettings NewSettingsFactoryImpl() => new AiAudioEffect_05_Flap_Settings();
+
+    // 効果のバリエーションを増すためのパラメータのランダム設定を、おおまかな、「強・注・弱」の効果の強さの程度の指定をある程度もとにして、助ける関数
+    protected override IAiAudioEffectSettings NewSettingsFactoryWithRandomImpl(AiAudioEffectSpeedType type)
+    {
+        var ret = new AiAudioEffect_05_Flap_Settings();
+
+        /* 実装部分ここから
+         *   type の値に従って、ランダムパラメータの設定をする。
+         *   Heavy の場合: 強く激しい効果が出るよう値を大きめに
+         *   Normal の場合: 中間的な値
+         *   Light の場合: 弱めの値
+         */
+        switch (type)
+        {
+            case AiAudioEffectSpeedType.Heavy:
+                ret.LfoRateHz = 2 * Random.Shared.NextDouble() * (12.0 - 5.0) + 5.0; // 5.0 ～ 12.0
+                ret.Depth = Random.Shared.NextDouble() * (1.0 - 0.7) + 0.7;       // 0.7 ～ 1.0
+                ret.ReturnToCenterProbability = Random.Shared.NextDouble() * (0.4 - 0.2) + 0.2; // 0.2～0.4
+                ret.TransitionLengthSec = Random.Shared.NextDouble() * (0.03 - 0.005) + 0.005;   // 0.005～0.03
+                ret.SmoothedTransition = (Random.Shared.NextDouble() < 0.8); // 80%の確率でスムーズ切り替え
+                break;
+
+            case AiAudioEffectSpeedType.Normal:
+                ret.LfoRateHz = 2 * Random.Shared.NextDouble() * (8.0 - 3.0) + 3.0; // 3.0 ～ 8.0
+                ret.Depth = Random.Shared.NextDouble() * (0.8 - 0.4) + 0.4;      // 0.4 ～ 0.8
+                ret.ReturnToCenterProbability = Random.Shared.NextDouble() * (0.2 - 0.05) + 0.05; // 0.05～0.2
+                ret.TransitionLengthSec = Random.Shared.NextDouble() * (0.02 - 0.005) + 0.005;     // 0.005～0.02
+                ret.SmoothedTransition = (Random.Shared.NextDouble() < 0.7);
+                break;
+
+            case AiAudioEffectSpeedType.Light:
+                ret.LfoRateHz = 2 * Random.Shared.NextDouble() * (3.0 - 1.0) + 1.0; // 1.0 ～ 3.0
+                ret.Depth = Random.Shared.NextDouble() * (0.4 - 0.1) + 0.1;      // 0.1 ～ 0.4
+                ret.ReturnToCenterProbability = Random.Shared.NextDouble() * (0.1 - 0.0) + 0.0; // 0.0～0.1
+                ret.TransitionLengthSec = Random.Shared.NextDouble() * (0.02 - 0.0) + 0.0;       // 0.0～0.02
+                ret.SmoothedTransition = (Random.Shared.NextDouble() < 0.5);
+                break;
+        }
+        /* 実装部分ここまで */
+
+        return ret;
+    }
+
+    // この関数が、「効果」を生み出す処理を実際に行なう枢要部分である。
+    protected override void ProcessFilterImpl(Memory<byte> waveFileInOut, IAiAudioEffectSettings effectSettings, CancellationToken cancel)
+    {
+        // まず、effectSettings の内容を、扱いやすいように、AiAudioEffect_05_Flap_Settings にキャストする。
+        AiAudioEffect_05_Flap_Settings settings = (AiAudioEffect_05_Flap_Settings)effectSettings;
+
+        /* 実装部分ここから */
+
+        // ■ 概要: 
+        //   - ステレオ16bit(左右1サンプルあたり2byte計4byte)の PCM データに対して、
+        //     ランダムにパン値(panning factor)を変化させ、左右の音量比を変化させることで
+        //     頭の中を左右に激しく行き来するようなサイケデリック効果を与える。
+        //   - LfoRateHz 回/秒の周期でパン値を更新し、Depth の値に従って左右への振れ幅を調整する。
+        //   - ReturnToCenterProbability の確率で、次のパン値を 0(センター) にする。
+        //   - SmoothedTransition が true の場合は、TransitionLengthSec 秒かけて
+        //     前回のパン値から線形補間して移動する。
+        //   - 定期的に cancel.ThrowIfCancellationRequested(); を呼び出すことで中断要求を処理する。
+
+        var span = waveFileInOut.Span;
+
+        // WAV は 44100Hz, 16bit, Stereo(2ch) と仮定
+        int bytesPerSample = 2 * 2;  // 2ch × 16bit(2byte)
+        int totalSamples = waveFileInOut.Length / bytesPerSample;
+        int sampleRate = 44100;
+
+        double lfoRateHz = settings.LfoRateHz;       // パンを切り替える頻度(Hz)
+        double depth = Math.Clamp(settings.Depth, 0.0, 1.0); // 左右振れ幅(0.0～1.0)
+        double returnCenterProb = Math.Clamp(settings.ReturnToCenterProbability, 0.0, 1.0);
+        double transitionSec = Math.Max(0.0, settings.TransitionLengthSec);
+        bool smooth = settings.SmoothedTransition;
+
+        // パン値 p は -1.0～+1.0 で扱い、p>0 なら右寄り, p<0 なら左寄り, p=0 ならセンター。
+        // ただし、実際の音量への反映は Depth を掛ける。
+
+        // 何サンプルごとにパンを切り替えるか
+        // ※連続的に変化し続けるのではなく、サンプル＆ホールド的に一定のパン値を保ち、
+        //   次の区間で新しいパン値をランダムに設定するイメージ
+        int samplesPerLfo = (lfoRateHz <= 0.0001)
+            ? int.MaxValue
+            : (int)(sampleRate / lfoRateHz);
+
+        // 直前区間のパン値と、現在区間での目標パン値を保持
+        double currentPan = 0.0;
+        double nextPan = 0.0;
+        // 線形補間用に区間開始サンプル位置、区間終了サンプル位置を保持
+        int regionStartSample = 0;
+        int regionEndSample = samplesPerLfo;
+
+        // ランダムパン値を求めるサブ関数
+        double GetRandomPan()
+        {
+            // ReturnToCenterProbabilityの確率で、pan=0を返す
+            if (Random.Shared.NextDouble() < returnCenterProb)
+            {
+                return 0.0; // センター
+            }
+            // そうでなければ -1.0～+1.0 をランダムに返す
+            double p = (Random.Shared.NextDouble() * 2.0) - 1.0; // -1～+1
+            return p;
+        }
+
+        // 最初の次Panを決める
+        nextPan = GetRandomPan();
+
+        // メインループ
+        for (int i = 0; i < totalSamples; i++)
+        {
+            cancel.ThrowIfCancellationRequested();
+
+            // 現在のパン値を算出(線形補間または瞬時切替)
+            double pan;
+            if (smooth)
+            {
+                // regionStartSample ～ regionStartSample+transitionSamples の間は補間
+                // それ以降は nextPan で一定
+                int transitionSamples = (int)(transitionSec * sampleRate);
+                transitionSamples = Math.Min(transitionSamples, (regionEndSample - regionStartSample));
+
+                if (i < regionStartSample + transitionSamples)
+                {
+                    // まだ補間中
+                    double t = (double)(i - regionStartSample) / Math.Max(1, transitionSamples);
+                    pan = currentPan + (nextPan - currentPan) * t;
+                }
+                else
+                {
+                    // 補間完了後は nextPan を維持
+                    pan = nextPan;
+                }
+            }
+            else
+            {
+                // 瞬時に切り替え(最初のサンプルで nextPan にセット)
+                pan = nextPan;
+            }
+
+            // 音声データ読み込み
+            int offset = i * bytesPerSample;
+            short leftSample = BitConverter.ToInt16(span.Slice(offset, 2));
+            short rightSample = BitConverter.ToInt16(span.Slice(offset + 2, 2));
+
+            // short → float計算用 ( -32768～32767 の範囲 )
+            float leftF = leftSample;
+            float rightF = rightSample;
+
+            // panFactor: 実際に左右にかけるゲイン(Depth考慮)
+            //   pan>0 => 右が大きく, 左が小さく
+            //   pan<0 => 左が大きく, 右が小さく
+            //   pan=0 => 左右比は変更なし(Depthが0でなければ、ちょっとでも変わる実装にすることもできるが、ここではセンター維持)
+            // ここではシンプルに以下の式を用いる：
+            //   gainL = 1 - depth * max(0,  pan)
+            //   gainR = 1 - depth * max(0, -pan)
+            double p = Math.Clamp(pan, -1.0, 1.0) * depth;
+            double gainL = 1.0 - Math.Max(0.0, p);
+            double gainR = 1.0 - Math.Max(0.0, -p);
+
+            // 左右へパンを適用
+            float newLeftF = (float)(leftF * gainL);
+            float newRightF = (float)(rightF * gainR);
+
+            // 16bit範囲にクリップして書き戻し
+            short newLeft = (short)Math.Clamp(Math.Round(newLeftF), short.MinValue, short.MaxValue);
+            short newRight = (short)Math.Clamp(Math.Round(newRightF), short.MinValue, short.MaxValue);
+
+            BitConverter.TryWriteBytes(span.Slice(offset, 2), newLeft);
+            BitConverter.TryWriteBytes(span.Slice(offset + 2, 2), newRight);
+
+            // 次の LFO 区間に到達したらパン値を更新
+            if (i >= regionEndSample - 1)
+            {
+                // 新しい区間の始まりとしてパン値更新
+                currentPan = nextPan;
+                nextPan = GetRandomPan();
+
+                regionStartSample = regionEndSample;
+                regionEndSample = regionStartSample + samplesPerLfo;
+
+                // 万一、regionEndSample が総サンプル数を超えても特に問題はないが、ここでは超えたままでもOK
+                // (ループ終了間際に新パン値が更新されるだけ)
+            }
+        }
+
+        /* 実装部分ここまで */
+    }
+}
+#endregion
+
+#region AiAudioEffect_06_Playing
+
+// このクラスが、処理の内容 (効果の程度や挙動の変化) を決定する枢要なパラメータ指定部分である。
+/// <summary>
+/// AiAudioEffect_06_Playing 用の設定パラメータクラス。<br/>
+/// ・ <see cref="EffectRate"/>: 1 秒あたりに「変化」(左右や両方のチャンネル) が何回発生するかの平均回数を指定。<br/>
+/// ・ <see cref="EffectDurationMs"/>: 1 回の「変化」が何ミリ秒続くかを指定。<br/>
+/// ・ <see cref="BothChannelsProbability"/>: 変化時に左右同時に発生する確率。残りは左右いずれか片方のみ。<br/>
+/// </summary>
+public class AiAudioEffect_06_Playing_Settings : IAiAudioEffectSettings
+{
+    /* 実装部分ここから */
+
+    /// <summary>
+    /// 1 秒あたりに「変化」が何回発生するかの平均回数を指定するパラメータ。<br/>
+    /// 例: 2.0 にすると、1 秒あたり約 2 回の変化が入るようになる。
+    /// </summary>
+    public double EffectRate = 2.0;
+
+    /// <summary>
+    /// 1 回の「変化」の長さ(ミリ秒)。<br/>
+    /// 例: 100.0 にすると、100ms (0.1秒) 間、左右いずれか、または両方を強調して効果を与える。
+    /// </summary>
+    public double EffectDurationMs = 100.0;
+
+    /// <summary>
+    /// 変化時に「左右同時」に発生する確率 (0.0～1.0)。<br/>
+    /// 例: 0.3 にすると、約 30% の確率で左右同時、残り 70% は左右いずれか片方のみになる。
+    /// </summary>
+    public double BothChannelsProbability = 0.3;
+
+    /* 実装部分ここまで */
+}
+
+// このクラスが、処理の内容を実装するクラスである。
+public class AiAudioEffect_06_Playing : AiAudioEffectBase
+{
+    // この関数は、そのまま、書き写すこと。
+    protected override IAiAudioEffectSettings NewSettingsFactoryImpl() => new AiAudioEffect_06_Playing_Settings();
+
+    // 効果のバリエーションを増すためのパラメータのランダム設定を、おおまかな、「強・注・弱」の効果の強さの程度の指定をある程度もとにして、助ける関数
+    protected override IAiAudioEffectSettings NewSettingsFactoryWithRandomImpl(AiAudioEffectSpeedType type)
+    {
+        var ret = new AiAudioEffect_06_Playing_Settings();
+
+        /* 実装部分ここから */
+        // type に応じて、「変化」がより激しいか穏やかか、発生頻度や持続時間、左右同時発生率を変化させるサンプル実装
+        switch (type)
+        {
+            case AiAudioEffectSpeedType.Heavy:
+                // Heavy: 1 秒あたり 5～6 回ほど「変化」が起きるように
+                ret.EffectRate = Random.Shared.NextDouble() * (6.0 - 5.0) + 5.0; // 5.0～6.0
+                                                                                 // 変化時間は短めに (50～80ms) として素早く連続するように
+                ret.EffectDurationMs = Random.Shared.NextDouble() * (80.0 - 50.0) + 50.0; // 50.0～80.0
+                                                                                          // 両方チャンネル同時が起こりやすい (0.5～1.0)
+                ret.BothChannelsProbability = Random.Shared.NextDouble() * (1.0 - 0.5) + 0.5;
+                break;
+            case AiAudioEffectSpeedType.Normal:
+                // Normal: 1 秒あたり 2～3 回くらい
+                ret.EffectRate = Random.Shared.NextDouble() * (3.0 - 2.0) + 2.0; // 2.0～3.0
+                                                                                 // 変化時間は中程度 (80～150ms)
+                ret.EffectDurationMs = Random.Shared.NextDouble() * (150.0 - 80.0) + 80.0; // 80.0～150.0
+                                                                                           // 両方チャンネル同時はそこそこ起こる (0.2～0.6)
+                ret.BothChannelsProbability = Random.Shared.NextDouble() * (0.6 - 0.2) + 0.2;
+                break;
+            case AiAudioEffectSpeedType.Light:
+                // Light: 1 秒あたり 0.5～1 回くらい
+                ret.EffectRate = Random.Shared.NextDouble() * (1.0 - 0.5) + 0.5; // 0.5～1.0
+                                                                                 // 変化時間はやや長め (150～250ms)
+                ret.EffectDurationMs = Random.Shared.NextDouble() * (250.0 - 150.0) + 150.0; // 150.0～250.0
+                                                                                             // 両方チャンネル同時はあまり起こらない (0.0～0.3)
+                ret.BothChannelsProbability = Random.Shared.NextDouble() * 0.3;
+                break;
+        }
+        /* 実装部分ここまで */
+
+        return ret;
+    }
+
+    // この関数が、「効果」を生み出す処理を実際に行なう枢要部分である。
+    protected override void ProcessFilterImpl(Memory<byte> waveFileInOut, IAiAudioEffectSettings effectSettings, CancellationToken cancel)
+    {
+        // まず、effectSettings の内容を、扱いやすいように、AiAudioEffect_06_Playing_Settings にキャストする。
+        AiAudioEffect_06_Playing_Settings settings = (AiAudioEffect_06_Playing_Settings)effectSettings;
+
+        /* 実装部分ここから */
+
+        // waveFileInOut には、44.1 kHz / 16-bit / 2ch (ステレオ) の PCM データ(ヘッダ除く) が含まれている。
+        // 1 サンプル (L, R のセット) あたり、4 バイト (16ビット×2ch)。
+        // このデータに対して、「変化」効果を与えるイメージ:
+        //  - 1 秒あたり settings.Rate 回ほどランダムタイミングで「変化」(左右片方 or 両方) を行う
+        //  - 1 回の変化は settings.DurationMs ミリ秒程度
+        //  - 変化が発生しているチャンネルは音量をブーストし、他方チャンネルは少しアテニュエート (減衰)
+        //  - フェードイン・フェードアウトで自然につままれているように感じさせる
+        //  - ランダムな間隔・ランダムなチャンネル (左右 or 両方) で発生
+        //
+        // 実装方針:
+        //  1) サンプル数を計算
+        //  2) 変化をどのタイミングでどのチャンネルに発生させるかの「イベントリスト」を構築
+        //  3) イベントリストをもとに、サンプルごとの「左チャンネルの増幅率」「右チャンネルの増幅率」を計算
+        //  4) waveFileInOut のサンプルを順次読み書きして、増幅率を掛け合わせて書き戻す
+        //
+        // メモ: 巨大なループでは適宜 cancel.ThrowIfCancellationRequested() を呼んで中断を検知すること。
+
+        // 1) サンプル数を計算
+        var waveData = waveFileInOut.Span;
+        int totalBytes = waveData.Length;
+        // 16bit(2 bytes) x 2ch = 4 bytes per frame
+        // フレーム(ステレオ1サンプル) 数
+        int totalFrames = totalBytes / 4;
+        if (totalFrames <= 0) return;
+
+        int sampleRate = 44100; // 本タスク前提: 44.1 kHz
+
+        // 2) 変化イベントのリストを構築
+        //    - 平均的には Rate 回/秒 の頻度
+        //    - 1 回の持続は DurationMs ミリ秒
+        //    - イベント開始～終了まで音量を変更
+        //    - イベントの間隔は (1 / Rate) 秒を中心にランダムとし、実際には ±50% ほどブレさせる例にする
+        List<EffectEvent> events = new();
+
+        double averageIntervalSec = (settings.EffectRate <= 0.0)
+            ? 999999.0 // 万が一 Rate=0 のときは実質発生しない
+            : (1.0 / settings.EffectRate);
+
+        double currentTimeSec = 0.0;
+        double totalDurationSec = (double)totalFrames / sampleRate;
+
+        Random rng = new Random();
+
+        while (currentTimeSec < totalDurationSec)
+        {
+            // 変化イベントの「開始時刻」を決定
+            // 平均は averageIntervalSec、±50% 程度に振れ幅をもたせる
+            // (例えば Heavy なら 1/5～1/6秒程度がベース)
+            double randFactor = rng.NextDouble() * 1.0 + 0.5; // 0.5～1.5
+            double intervalSec = averageIntervalSec * randFactor;
+
+            currentTimeSec += intervalSec;
+            if (currentTimeSec >= totalDurationSec) break; // 全体長を超えれば終了
+
+            double startSec = currentTimeSec;
+            double durSec = settings.EffectDurationMs / 1000.0;
+            double endSec = startSec + durSec;
+            if (endSec > totalDurationSec) endSec = totalDurationSec;
+
+            // 変化するチャンネルをランダムに決定
+            bool both = (rng.NextDouble() < settings.BothChannelsProbability);
+            bool left = both ? true : (rng.NextDouble() < 0.5);
+            bool right = both ? true : !left; // 両方でない限り、片方は left なら right=false, left=false なら right=true
+
+            // Frames (サンプル) 単位に変換
+            int startFrame = (int)(startSec * sampleRate);
+            int endFrame = (int)(endSec * sampleRate);
+
+            var eventObj = new EffectEvent
+            {
+                StartFrame = startFrame,
+                EndFrame = endFrame,
+                ChannelLeft = left,
+                ChannelRight = right
+            };
+            events.Add(eventObj);
+        }
+
+        // 3) イベントをもとに、サンプルごとの「左・右増幅率」を計算する
+        //    ここでは 1.0 (何も変化なし) から、変化中はブースト・他チャンネルをアテニュエートするような
+        //    変化をフェードイン・フェードアウトしながら付与する。
+        //    メモリを大量に消費する可能性があるため、応答速度を優先して double[] で確保しても良い。
+        //    ここではサンプル数分の配列を用意する実装例。
+        double[] leftGains = new double[totalFrames];
+        double[] rightGains = new double[totalFrames];
+        // 全サンプル初期値 = 1.0
+        for (int i = 0; i < totalFrames; i++)
+        {
+            leftGains[i] = 1.0;
+            rightGains[i] = 1.0;
+        }
+
+        // フェードイン・アウトに使う時間(サンプル数) ここでは 10ms 程度 (441 サンプル) にしてみる
+        int fadeSamples = (int)(0.01 * sampleRate);
+
+        // イベントごとに、対応する範囲の leftGains, rightGains を上書き
+        foreach (var ev in events)
+        {
+            int evLen = ev.EndFrame - ev.StartFrame;
+            if (evLen <= 0) continue;
+
+            // 変化中のピーク増幅率 (たとえば 1.8 倍)
+            // 変化中でないチャンネルのアテニュエート率 (たとえば 0.5 倍)
+            // 適宜好みで調整可能
+            double effectBoost = 1.8;
+            double unsetAttenuation = 0.5;
+
+            for (int f = ev.StartFrame; f < ev.EndFrame; f++)
+            {
+                if (f < 0 || f >= totalFrames) continue;
+
+                // cancel チェック (大きいループなのでたまに確認)
+                if ((f % 10000) == 0)
+                {
+                    cancel.ThrowIfCancellationRequested();
+                }
+
+                // フェードイン・アウトによる乗算係数 (0.0～1.0)
+                double fadeFactor = 1.0;
+                int posInEvent = f - ev.StartFrame;
+                int remainInEvent = ev.EndFrame - f - 1;
+
+                // フェードイン: 開始～fadeSamples にかけて線形で 0→1
+                if (posInEvent < fadeSamples)
+                {
+                    fadeFactor *= (double)posInEvent / fadeSamples;
+                }
+                // フェードアウト: 終了手前 fadeSamples にかけて線形で 1→0
+                if (remainInEvent < fadeSamples)
+                {
+                    fadeFactor *= (double)remainInEvent / fadeSamples;
+                }
+
+                // 左チャンネル
+                if (ev.ChannelLeft)
+                {
+                    // 変化対象 => ブースト
+                    double current = leftGains[f];
+                    current *= (1.0 + (effectBoost - 1.0) * fadeFactor);
+                    leftGains[f] = current;
+                }
+                else
+                {
+                    // 変化対象外 => アテニュエート
+                    double current = leftGains[f];
+                    current *= (1.0 - (1.0 - unsetAttenuation) * fadeFactor);
+                    leftGains[f] = current;
+                }
+
+                // 右チャンネル
+                if (ev.ChannelRight)
+                {
+                    // 変化対象 => ブースト
+                    double current = rightGains[f];
+                    current *= (1.0 + (effectBoost - 1.0) * fadeFactor);
+                    rightGains[f] = current;
+                }
+                else
+                {
+                    // 変化対象外 => アテニュエート
+                    double current = rightGains[f];
+                    current *= (1.0 - (1.0 - unsetAttenuation) * fadeFactor);
+                    rightGains[f] = current;
+                }
+            }
+        }
+
+        // 4) 実際に waveFileInOut の各サンプルに対して上記の増幅率を掛け合わせて書き戻す
+        //    16bit short の範囲内にクリップする
+        const short minVal = short.MinValue; // -32768
+        const short maxVal = short.MaxValue; // 32767
+
+        for (int frameIndex = 0; frameIndex < totalFrames; frameIndex++)
+        {
+            cancel.ThrowIfCancellationRequested();
+
+            // waveFileInOut は (L16bit, R16bit) 順で交互に入っている
+            int byteIndex = frameIndex * 4;
+            // 左チャンネルの short 値を取得 (リトルエンディアン)
+            short sampleLeft = (short)(waveData[byteIndex] | (waveData[byteIndex + 1] << 8));
+            // 右チャンネル
+            short sampleRight = (short)(waveData[byteIndex + 2] | (waveData[byteIndex + 3] << 8));
+
+            // 増幅率を掛ける
+            double outLeft = sampleLeft * leftGains[frameIndex];
+            double outRight = sampleRight * rightGains[frameIndex];
+
+            // 16bit にクリップ
+            short finalLeft = (short)Math.Clamp((int)Math.Round(outLeft), minVal, maxVal);
+            short finalRight = (short)Math.Clamp((int)Math.Round(outRight), minVal, maxVal);
+
+            // 書き戻し
+            waveData[byteIndex] = (byte)(finalLeft & 0xFF);
+            waveData[byteIndex + 1] = (byte)((finalLeft >> 8) & 0xFF);
+
+            waveData[byteIndex + 2] = (byte)(finalRight & 0xFF);
+            waveData[byteIndex + 3] = (byte)((finalRight >> 8) & 0xFF);
+        }
+
+        /* 実装部分ここまで */
+    }
+
+    /// <summary>
+    /// 変化イベント(開始フレーム、終了フレーム、左右チャンネルフラグ) の情報を保持する簡易クラス
+    /// </summary>
+    private class EffectEvent
+    {
+        public int StartFrame;
+        public int EndFrame;
+        public bool ChannelLeft;
+        public bool ChannelRight;
+    }
+}
+#endregion
+
+
+
+#region AiAudioEffect_07_Tremolo
+
+/// <summary>
+/// トレモロおよびオートパン(左右振動)エフェクトを付与するための設定値クラス。
+/// </summary>
+public class AiAudioEffect_07_Tremolo_Settings : IAiAudioEffectSettings
+{
+    /// <summary>
+    /// LFO (音量変調を行う低周波オシレータ) の周波数 [Hz]。
+    /// 例: 5.0 ならば、1秒に5回の振幅変化を行う。
+    /// デフォルト: 5.0
+    /// </summary>
+    public double LfoRateHz = 5.0;
+
+    /// <summary>
+    /// トレモロの深さ (変調幅) [0.0～1.0]。1.0 だと音量がゼロまで下がる可能性がある。
+    /// 0.0 で変化なし、0.5 で変化量は半分程度。
+    /// デフォルト: 0.5
+    /// </summary>
+    public double TremoloDepth = 0.5;
+
+    /// <summary>
+    /// オートパンの深さ [0.0～1.0]。1.0 にすると左右が最大限に振れ、0.0 でオートパンなし。
+    /// デフォルト: 0.3
+    /// </summary>
+    public double PanDepth = 0.3;
+
+    /// <summary>
+    /// LFO波形の種類。Sine, Triangle, Square。
+    /// デフォルト: Sine
+    /// </summary>
+    public LfoWaveShape WaveShape = LfoWaveShape.Sine;
+
+    /// <summary>
+    /// LFOのランダム変動量 [0.0～1.0]。
+    /// 大きいほどLFOの周波数や変調がランダムに揺らぎ、予測不能なエフェクトとなる。
+    /// デフォルト: 0.2
+    /// </summary>
+    public double RandomModIntensity = 0.2;
+
+    /// <summary>
+    /// LFOの初期位相をランダムにするかどうか。
+    /// true であれば、処理開始時のLFO位相が毎回ランダムに変わる。
+    /// デフォルト: true
+    /// </summary>
+    public bool EnableRandomPhase = true;
+}
+
+/// <summary>
+/// トレモロおよびオートパン(左右振動)エフェクトを付与するクラス。
+/// </summary>
+public class AiAudioEffect_07_Tremolo : AiAudioEffectBase
+{
+    /// <summary>
+    /// 設定を生成するための基本ファクトリ。実装そのまま。
+    /// </summary>
+    protected override IAiAudioEffectSettings NewSettingsFactoryImpl()
+        => new AiAudioEffect_07_Tremolo_Settings();
+
+    /// <summary>
+    /// 効果のバリエーションを増すためのパラメータをランダム生成する。
+    /// Heavy/Normal/Light の指定により効果の強さを調整した例示的実装。
+    /// </summary>
+    protected override IAiAudioEffectSettings NewSettingsFactoryWithRandomImpl(AiAudioEffectSpeedType type)
+    {
+        var ret = new AiAudioEffect_07_Tremolo_Settings();
+
+        // 例示的に switch-case でパラメータの範囲を変化させる
+        // （トレモロ周波数・深さ・オートパン・ランダム変動などを調整）
+        switch (type)
+        {
+            case AiAudioEffectSpeedType.Heavy:
+                // 強烈な変化を想定
+                ret.LfoRateHz = Random.Shared.NextDouble() * (12.0 - 4.0) + 4.0;       // 4.0～12.0
+                ret.TremoloDepth = Random.Shared.NextDouble() * (1.0 - 0.7) + 0.7;  // 0.7～1.0
+                ret.PanDepth = Random.Shared.NextDouble() * (1.0 - 0.5) + 0.5;      // 0.5～1.0
+                ret.RandomModIntensity = Random.Shared.NextDouble() * (0.8 - 0.3) + 0.3; // 0.3～0.8
+                ret.WaveShape = (LfoWaveShape)Random.Shared.Next(0, 3); // 0,1,2 のいずれか (Sine/Triangle/Square)
+                ret.EnableRandomPhase = (Random.Shared.NextDouble() < 0.8); // 80%程度で位相ランダム
+                break;
+
+            case AiAudioEffectSpeedType.Normal:
+                // 標準的な変化を想定
+                ret.LfoRateHz = Random.Shared.NextDouble() * (8.0 - 2.0) + 2.0;      // 2.0～8.0
+                ret.TremoloDepth = Random.Shared.NextDouble() * (0.7 - 0.3) + 0.3;  // 0.3～0.7
+                ret.PanDepth = Random.Shared.NextDouble() * (0.6 - 0.2) + 0.2;      // 0.2～0.6
+                ret.RandomModIntensity = Random.Shared.NextDouble() * (0.5 - 0.1) + 0.1; // 0.1～0.5
+                ret.WaveShape = (LfoWaveShape)Random.Shared.Next(0, 3);
+                ret.EnableRandomPhase = (Random.Shared.NextDouble() < 0.5); // 50%で位相ランダム
+                break;
+
+            case AiAudioEffectSpeedType.Light:
+                // 弱い変化を想定
+                ret.LfoRateHz = Random.Shared.NextDouble() * (3.0 - 0.5) + 0.5;      // 0.5～3.0
+                ret.TremoloDepth = Random.Shared.NextDouble() * (0.4 - 0.05) + 0.05; // 0.05～0.4
+                ret.PanDepth = Random.Shared.NextDouble() * (0.3 - 0.0) + 0.0;       // 0.0～0.3
+                ret.RandomModIntensity = Random.Shared.NextDouble() * (0.3 - 0.0) + 0.0; // 0.0～0.3
+                ret.WaveShape = (LfoWaveShape)Random.Shared.Next(0, 3);
+                ret.EnableRandomPhase = (Random.Shared.NextDouble() < 0.3); // 30%で位相ランダム
+                break;
+        }
+
+        return ret;
+    }
+
+    /// <summary>
+    /// 実際に WAV データを操作してトレモロ＆オートパンエフェクトを付与するメイン処理。
+    /// </summary>
+    protected override void ProcessFilterImpl(Memory<byte> waveFileInOut, IAiAudioEffectSettings effectSettings, CancellationToken cancel)
+    {
+        // 設定をキャスト
+        AiAudioEffect_07_Tremolo_Settings settings = (AiAudioEffect_07_Tremolo_Settings)effectSettings;
+
+        // 44.1 kHz, 16bit, ステレオ(2ch)を想定
+        const int bytesPerSample = 2;   // 16bit = 2 bytes
+        const int channels = 2;         // ステレオ
+        const int sampleRate = 44100;   // 44.1 kHz
+
+        // 波形データ部分(PCM)を操作するためにSpanを取得
+        Span<byte> audioSpan = waveFileInOut.Span;
+
+        // 全サンプルフレーム数（1フレーム = 左右2chぶんのサンプル）
+        int frameCount = audioSpan.Length / (bytesPerSample * channels);
+
+        // LFOの初期位相を設定
+        double phase = 0.0;
+        if (settings.EnableRandomPhase)
+        {
+            phase = Random.Shared.NextDouble() * Math.PI * 2.0;
+        }
+
+        // LFO位相の増分 (基本周波数に相当)
+        // 後に、ランダムドリフトを加味して変動させる
+        double basePhaseIncrement = 2.0 * Math.PI * settings.LfoRateHz / sampleRate;
+
+        // ランダムドリフトを適用する区間(秒)とそのサンプル数
+        // 例: 0.25秒ごとにLFO周波数を少し変動させる
+        double driftCycleSec = 0.25;
+        int driftCycleSamples = (int)(driftCycleSec * sampleRate);
+
+        // 現在のランダムドリフト値 (周波数追加分, Hz)
+        double currentDriftFreq = 0.0;
+        // 周波数ドリフトを位相インクリメントに変換した値
+        double currentDriftIncrement = 0.0;
+
+        // LFO波形生成用関数
+        // waveShapeに応じて [-1, +1] の範囲の値を返す
+        double LfoWaveValue(double ph, LfoWaveShape shape)
+        {
+            switch (shape)
+            {
+                case LfoWaveShape.Sine:
+                    return Math.Sin(ph);
+                case LfoWaveShape.Triangle:
+                    {
+                        // 三角波: 位相を [0, 2π) -> [-1,1] に変換
+                        // 一般的には|2*(ph/(2π) - floor(0.5 + ph/(2π)))|*2-1 等で表せるが、
+                        // ここでは簡易的に実装
+                        // 0～π で上昇, π～2π で下降
+                        double t = (ph % (2.0 * Math.PI)) / (Math.PI);
+                        // t: 0～2
+                        if (t < 1.0)
+                        {
+                            // 0～1: 上昇
+                            return (t * 2.0) - 1.0; // -1～+1
+                        }
+                        else
+                        {
+                            // 1～2: 下降
+                            return 1.0 - ((t - 1.0) * 2.0); // +1～-1
+                        }
+                    }
+                case LfoWaveShape.Square:
+                    return (Math.Sin(ph) >= 0.0) ? 1.0 : -1.0;
+                default:
+                    return Math.Sin(ph);
+            }
+        }
+
+        // 周波数ランダムドリフトを更新するローカル関数
+        void UpdateRandomDrift()
+        {
+            // settings.RandomModIntensity = 0.2 なら、 周波数(LfoRateHz)の ±20% 程度をランダムで上下させるようなイメージ
+            double maxDriftHz = settings.LfoRateHz * settings.RandomModIntensity;
+            currentDriftFreq = (Random.Shared.NextDouble() * 2.0 - 1.0) * maxDriftHz;
+            // basePhaseIncrement + drift の合計をサンプルレートで割った値に
+            currentDriftIncrement = 2.0 * Math.PI * (settings.LfoRateHz + currentDriftFreq) / sampleRate;
+        }
+
+        // RandomModIntensity > 0 であればランダムドリフトを利用
+        bool useRandomDrift = (settings.RandomModIntensity > 0.0);
+
+        int nextDriftUpdate = 0;
+        if (useRandomDrift)
+        {
+            UpdateRandomDrift();
+            nextDriftUpdate = driftCycleSamples;
+        }
+        else
+        {
+            // ランダムドリフトを使わない場合
+            currentDriftIncrement = basePhaseIncrement;
+        }
+
+        // 実処理ループ
+        for (int i = 0; i < frameCount; i++)
+        {
+            // 中断要求があれば例外をスロー (外側でキャッチする想定)
+            if ((i % 2048) == 0) // 適当な頻度でチェック
+            {
+                cancel.ThrowIfCancellationRequested();
+            }
+
+            // LFO計算
+            double lfoVal = LfoWaveValue(phase, settings.WaveShape); // [-1, +1]
+
+            // トレモロ計算
+            // (1 - depth) + depth * (lfoValの正規化)
+            // lfoVal: -1～+1 -> 0～+1 にシフトするには (lfoVal + 1.0)/2
+            double amplitude = (1.0 - settings.TremoloDepth)
+                               + settings.TremoloDepth * ((lfoVal + 1.0) * 0.5);
+            // ただし 0～1.0 を想定
+
+            // オートパン計算
+            // lfoVal: -1～+1 をそのままパン変化に使う場合、PanDepthを乗じる
+            // 左右のボリューム比率が [ (1 - pan), (1 + pan) ] になるように
+            // pan は [-PanDepth, +PanDepth]
+            double pan = lfoVal * settings.PanDepth; // [-PanDepth, +PanDepth]
+
+            // 左右それぞれの最終ゲインを計算
+            double leftGain = amplitude * (1.0 - 0.5 * pan);  // pan>0 なら右を大きく、左を小さく
+            double rightGain = amplitude * (1.0 + 0.5 * pan); // pan<0 なら左を大きく、右を小さく
+
+            // PCMデータを読み取り (16bit, little-endian)
+            int idx = i * channels * bytesPerSample;
+            short leftSample = (short)(audioSpan[idx] | (audioSpan[idx + 1] << 8));
+            short rightSample = (short)(audioSpan[idx + 2] | (audioSpan[idx + 3] << 8));
+
+            // floatに変換してゲインをかける
+            double leftFloat = leftSample / 32768.0;
+            double rightFloat = rightSample / 32768.0;
+
+            leftFloat *= leftGain;
+            rightFloat *= rightGain;
+
+            // クリッピングしないように -1.0～+1.0 の範囲に収めてshortに変換
+            int newLeft = (int)(leftFloat * 32767.0);
+            int newRight = (int)(rightFloat * 32767.0);
+
+            if (newLeft > short.MaxValue) newLeft = short.MaxValue;
+            if (newLeft < short.MinValue) newLeft = short.MinValue;
+            if (newRight > short.MaxValue) newRight = short.MaxValue;
+            if (newRight < short.MinValue) newRight = short.MinValue;
+
+            // メモリに書き戻し
+            audioSpan[idx] = (byte)(newLeft & 0xFF);
+            audioSpan[idx + 1] = (byte)((newLeft >> 8) & 0xFF);
+            audioSpan[idx + 2] = (byte)(newRight & 0xFF);
+            audioSpan[idx + 3] = (byte)((newRight >> 8) & 0xFF);
+
+            // 次のサンプル向けに位相を進める (ドリフト含め)
+            phase += currentDriftIncrement;
+
+            // ランダムドリフトの更新タイミング
+            if (useRandomDrift)
+            {
+                if (i == nextDriftUpdate)
+                {
+                    UpdateRandomDrift();
+                    nextDriftUpdate += driftCycleSamples;
+                }
+            }
+        }
+    }
+}
+
+/// <summary>
+/// LFOの波形を表す列挙型。
+/// </summary>
+public enum LfoWaveShape
+{
+    Sine = 0,
+    Triangle = 1,
+    Square = 2
+}
+
+#endregion
+
+
+
+#region AiAudioEffect_09_Flanger
+// このクラスが、処理の内容 (効果の程度や挙動の変化) を決定する枢要なパラメータ指定部分である。
+public class AiAudioEffect_09_Flanger_Settings : IAiAudioEffectSettings
+{
+    /*
+     * フランジャーエフェクト用のパラメータ例。すべてのパラメータに、
+     * 標準的な効果が得られる値をデフォルト値として代入する。
+     */
+
+    /// <summary>
+    /// フランジャーの基本ディレイ時間 (ミリ秒)。
+    /// 値が大きいほど、原音に対する遅延音のずれが大きくなる。
+    /// 一般的には 1～5 ms 程度が多い。
+    /// ここでは標準的な 2 ms をデフォルト値とする。
+    /// </summary>
+    public double BaseDelayMs = 2.0;
+
+    /// <summary>
+    /// ディレイ変調の深さ (ミリ秒)。
+    /// LFO によるディレイ時間変化の最大幅。
+    /// 値が大きいほど、うねりが強くなる。
+    /// ここでは標準的な 2 ms をデフォルト値とする。
+    /// </summary>
+    public double DepthMs = 2.0;
+
+    /// <summary>
+    /// 変調周波数 (Hz)。
+    /// フランジャーが 1 秒間に何回うねりのサイクルを作るか。
+    /// 値が大きいと LFO が速く、うねりの速度が速い。
+    /// ここでは標準的な 0.5 Hz をデフォルト値とする。
+    /// </summary>
+    public double RateHz = 0.5;
+
+    /// <summary>
+    /// フィードバック率 (0.0～0.95 程度)。
+    /// 遅延音をどの程度リングバッファに再帰させるか。
+    /// 値が大きいほど効果が強調され、深いうなりが得られるが、
+    /// ホウリングに近づくこともある。
+    /// ここでは 0.3 をデフォルト値とする。
+    /// </summary>
+    public double Feedback = 0.3;
+
+    /// <summary>
+    /// エフェクトのウェット成分とドライ成分のミックス比 (0.0～1.0)。
+    /// 0 なら原音のみ、1 ならエフェクト音のみ。
+    /// ここでは 0.5 をデフォルト値とし、半々にミックスする。
+    /// </summary>
+    public double Mix = 0.5;
+
+    /// <summary>
+    /// ランダム変調を追加的に行うかのフラグ。
+    /// true にすると、LFO 周波数やディレイ時間を
+    /// ランダムに揺らす動作が加わり、予測不能感を高める。
+    /// ここでは false をデフォルト値とする。
+    /// </summary>
+    public bool RandomizeLFO = false;
+}
+
+// このクラスが、処理の内容を実装するクラスである。
+public class AiAudioEffect_09_Flanger : AiAudioEffectBase
+{
+    // この関数は、そのまま、書き写すこと。
+    protected override IAiAudioEffectSettings NewSettingsFactoryImpl() => new AiAudioEffect_09_Flanger_Settings();
+
+    // 効果のバリエーションを増すためのパラメータのランダム設定を、
+    // おおまかな、「強・中・弱」の効果の強さの程度の指定をある程度もとにして行う関数。
+    protected override IAiAudioEffectSettings NewSettingsFactoryWithRandomImpl(AiAudioEffectSpeedType type)
+    {
+        var ret = new AiAudioEffect_09_Flanger_Settings();
+
+        /* 実装部分ここから */
+        switch (type)
+        {
+            case AiAudioEffectSpeedType.Heavy:
+                // 「強い」フランジャー効果を狙う: 深い遅延、速めまたは中程度の LFO、フィードバックも強め
+                ret.BaseDelayMs = Random.Shared.NextDouble() * (5.0 - 2.0) + 2.0;      // 2.0 ～ 5.0 ms
+                ret.DepthMs = Random.Shared.NextDouble() * (4.0 - 2.0) + 2.0;      // 2.0 ～ 4.0 ms
+                ret.RateHz = Random.Shared.NextDouble() * (2.0 - 0.2) + 0.2;      // 0.2 ～ 2.0 Hz
+                ret.Feedback = Random.Shared.NextDouble() * (0.9 - 0.5) + 0.5;      // 0.5 ～ 0.9
+                ret.Mix = Random.Shared.NextDouble() * (1.0 - 0.7) + 0.7;      // 0.7 ～ 1.0
+                ret.RandomizeLFO = (Random.Shared.NextDouble() < 0.8);                 // 80% でランダム変調を付加
+                break;
+
+            case AiAudioEffectSpeedType.Normal:
+                // 「中程度」フランジャー効果: 適度な遅延と深さ、フィードバックは中程度
+                ret.BaseDelayMs = Random.Shared.NextDouble() * (3.0 - 1.0) + 1.0;      // 1.0 ～ 3.0 ms
+                ret.DepthMs = Random.Shared.NextDouble() * (3.0 - 1.0) + 1.0;      // 1.0 ～ 3.0 ms
+                ret.RateHz = Random.Shared.NextDouble() * (1.0 - 0.2) + 0.2;      // 0.2 ～ 1.0 Hz
+                ret.Feedback = Random.Shared.NextDouble() * (0.5 - 0.2) + 0.2;      // 0.2 ～ 0.5
+                ret.Mix = Random.Shared.NextDouble() * (0.7 - 0.3) + 0.3;      // 0.3 ～ 0.7
+                ret.RandomizeLFO = (Random.Shared.NextDouble() < 0.5);                 // 50% でランダム変調を付加
+                break;
+
+            case AiAudioEffectSpeedType.Light:
+                // 「弱い」フランジャー効果: 小さい遅延、浅めの深さ、穏やかな変調
+                ret.BaseDelayMs = Random.Shared.NextDouble() * (2.0 - 0.5) + 0.5;      // 0.5 ～ 2.0 ms
+                ret.DepthMs = Random.Shared.NextDouble() * (2.0 - 0.5) + 0.5;      // 0.5 ～ 2.0 ms
+                ret.RateHz = Random.Shared.NextDouble() * (0.5 - 0.05) + 0.05;    // 0.05 ～ 0.5 Hz
+                ret.Feedback = Random.Shared.NextDouble() * (0.3 - 0.0) + 0.0;      // 0.0 ～ 0.3
+                ret.Mix = Random.Shared.NextDouble() * (0.5 - 0.2) + 0.2;      // 0.2 ～ 0.5
+                ret.RandomizeLFO = (Random.Shared.NextDouble() < 0.3);                 // 30% でランダム変調を付加
+                break;
+        }
+        /* 実装部分ここまで */
+
+        return ret;
+    }
+
+    // この関数が、「効果」を生み出す処理を実際に行なう枢要部分である。
+    protected override void ProcessFilterImpl(Memory<byte> waveFileInOut, IAiAudioEffectSettings effectSettings, CancellationToken cancel)
+    {
+        // まず、effectSettings の内容を、扱いやすいように、AiAudioEffect_09_Flanger_Settings にキャストする。
+        AiAudioEffect_09_Flanger_Settings settings = (AiAudioEffect_09_Flanger_Settings)effectSettings;
+
+        /* 実装部分ここから */
+
+        // waveFileInOut は、44.1 kHz / 2チャンネル / 16ビット PCM の波形データ (ヘッダなし) である。
+        // 1サンプルあたり2バイト、ステレオなので1フレーム4バイト。
+
+        var span = waveFileInOut.Span;
+        int totalBytes = span.Length;
+        // ステレオ 16ビット = 4バイト/フレーム
+        int totalFrames = totalBytes / 4;
+        if (totalFrames == 0) return;
+
+        // フランジャー実装に使用するリングバッファを用意する。
+        // 最大でも 10 ms ほどあれば一般的なフランジャーには十分だが、
+        // ユーザーがもっと大きい値を指定する場合を考慮して安全に確保する。
+        // 例として 50 ms ぶんを確保 (44100Hzで約2205サンプル) にしておく。
+        int maxBufferSamples = 44100 / 20; // 50ms → 2205サンプル程度
+        if (maxBufferSamples < 1) maxBufferSamples = 1;
+        float[] ringBufferL = new float[maxBufferSamples];
+        float[] ringBufferR = new float[maxBufferSamples];
+
+        // 書き込み位置
+        int writePos = 0;
+
+        // LFO 用のフェーズ
+        double lfoPhase = 0.0;
+
+        // サンプリングレート
+        const double sampleRate = 44100.0;
+
+        // ランダム変調用のパラメータ
+        // RandomizeLFO が true の時に、一定間隔で少しずつ変化させる
+        double randomLfoRateOffset = 0.0;    // LFO周波数をランダムにずらす
+        double randomDepthOffset = 0.0;    // DepthMsをランダムに揺らす
+        int randomLfoCounter = 0;
+        // 何フレーム毎にランダム変動を行うか (ここでは 0.1 秒ごと = 4410 フレームごと)
+        int randomLfoInterval = 4410;
+
+        // 各フレームを順に処理
+        for (int i = 0; i < totalFrames; i++)
+        {
+            // 中断要求チェック (頻繁にやると遅いので 1024フレームごと等で良い)
+            if ((i & 1023) == 0) cancel.ThrowIfCancellationRequested();
+
+            // 入力波形読み取り (16ビット、ステレオ)
+            int byteIndex = i * 4;
+            short sampleLeft = (short)(span[byteIndex + 0] | (span[byteIndex + 1] << 8));
+            short sampleRight = (short)(span[byteIndex + 2] | (span[byteIndex + 3] << 8));
+
+            // float に変換(-1.0～1.0)
+            float inL = sampleLeft / 32768.0f;
+            float inR = sampleRight / 32768.0f;
+
+            // LFO変調周波数とDepthにランダム揺らぎを付与 (RandomizeLFO == true の場合)
+            if (settings.RandomizeLFO && randomLfoCounter++ >= randomLfoInterval)
+            {
+                randomLfoCounter = 0;
+                // 周波数を ±(0.1Hz 程度) で揺らす
+                double rnd1 = (Random.Shared.NextDouble() - 0.5) * 0.2;
+                // Depth を ±(1.0ms 程度) で揺らす
+                double rnd2 = (Random.Shared.NextDouble() - 0.5) * 2.0;
+
+                // 反映 (過度にパラメータがおかしくならないよう軽減して加算)
+                randomLfoRateOffset += rnd1;
+                randomDepthOffset += rnd2;
+
+                // クリップ (負の周波数や極端な数値にならないよう制限)
+                if (settings.RateHz + randomLfoRateOffset < 0.01) randomLfoRateOffset = 0.01 - settings.RateHz;
+                if (settings.RateHz + randomLfoRateOffset > 5.0) randomLfoRateOffset = 5.0 - settings.RateHz;
+                if (settings.DepthMs + randomDepthOffset < 0.1) randomDepthOffset = 0.1 - settings.DepthMs;
+                if (settings.DepthMs + randomDepthOffset > 20.0) randomDepthOffset = 20.0 - settings.DepthMs;
+            }
+
+            // 現在の LFO 周波数
+            double currentRateHz = settings.RateHz + (settings.RandomizeLFO ? randomLfoRateOffset : 0.0);
+            // 現在の変調深さ (ms)
+            double currentDepthMs = settings.DepthMs + (settings.RandomizeLFO ? randomDepthOffset : 0.0);
+
+            // LFO位相の計算
+            double lfoValue = Math.Sin(2.0 * Math.PI * lfoPhase);
+
+            // 次のサンプルに進める前に LFO位相を更新
+            // 1フレームあたりの位相増分 = (RateHz / sampleRate)
+            lfoPhase += currentRateHz / sampleRate;
+            // LFO位相を 0～1 の範囲でループさせる
+            if (lfoPhase >= 1.0) lfoPhase -= 1.0;
+
+            // 実効遅延時間 (ms) = BaseDelayMs + (LFOによる変調)
+            // LFO を -1～+1 で変調させるため、DepthMs * 0.5 * lfoValue
+            double delayMs = settings.BaseDelayMs + (currentDepthMs * 0.5 * lfoValue);
+
+            // サンプル数に変換
+            double delaySamples = (delayMs * sampleRate) / 1000.0;
+
+            // リングバッファ読み出し位置 (writePos - 遅延サンプル)
+            // フラクショナル遅延を実現するために補間を行う
+            double readPos = (double)writePos - delaySamples;
+            // リングバッファ範囲内に収める (モジュロ演算)
+            // 負になったら末尾へ回す
+            while (readPos < 0.0)
+            {
+                readPos += maxBufferSamples;
+            }
+            while (readPos >= maxBufferSamples)
+            {
+                readPos -= maxBufferSamples;
+            }
+
+            // 補間用にフロアと小数部を求める
+            int basePos = (int)readPos;
+            double frac = readPos - basePos;
+            int basePos1 = basePos + 1;
+            if (basePos1 >= maxBufferSamples) basePos1 -= maxBufferSamples;
+
+            // リングバッファから遅延サンプルを取り出す (線形補間)
+            float dL0 = ringBufferL[basePos];
+            float dL1 = ringBufferL[basePos1];
+            float delayedL = (float)(dL0 * (1.0 - frac) + dL1 * frac);
+
+            float dR0 = ringBufferR[basePos];
+            float dR1 = ringBufferR[basePos1];
+            float delayedR = (float)(dR0 * (1.0 - frac) + dR1 * frac);
+
+            // 出力サンプル (Wet / Dry ミックス)
+            float outL = inL * (float)(1.0 - settings.Mix) + delayedL * (float)settings.Mix;
+            float outR = inR * (float)(1.0 - settings.Mix) + delayedR * (float)settings.Mix;
+
+            // リングバッファへの書き込み (フィードバックも加味)
+            float fbL = inL + delayedL * (float)settings.Feedback;
+            float fbR = inR + delayedR * (float)settings.Feedback;
+
+            ringBufferL[writePos] = fbL;
+            ringBufferR[writePos] = fbR;
+
+            // 書き込み位置を進める
+            writePos++;
+            if (writePos >= maxBufferSamples) writePos = 0;
+
+            // 出力を short に戻してメモリへ書き込む (クリッピングに注意)
+            short outSampleL = (short)Math.Clamp((int)(outL * 32767.0f), short.MinValue, short.MaxValue);
+            short outSampleR = (short)Math.Clamp((int)(outR * 32767.0f), short.MinValue, short.MaxValue);
+
+            span[byteIndex + 0] = (byte)(outSampleL & 0xFF);
+            span[byteIndex + 1] = (byte)((outSampleL >> 8) & 0xFF);
+            span[byteIndex + 2] = (byte)(outSampleR & 0xFF);
+            span[byteIndex + 3] = (byte)((outSampleR >> 8) & 0xFF);
+        }
+
+        /* 実装部分ここまで */
+    }
+}
+#endregion
+
+
+
+#region AiAudioEffect_12_DelayEcho
+// このクラスが、処理の内容 (効果の程度や挙動の変化) を決定する枢要なパラメータ指定部分である。
+public class AiAudioEffect_12_DelayEcho_Settings : IAiAudioEffectSettings
+{
+    /* 実装部分ここから
+     *
+     * ★ ディレイ・エコー効果を調整するためのパラメータを設定。
+     *   - DelayTimeMs    : 遅延時間（ミリ秒）
+     *   - Feedback       : 反復回数を決めるフィードバック量（0.0～1.0）
+     *   - DryMix         : 原音(ドライ音)の音量比率（0.0～1.0）
+     *   - WetMix         : エコー音(ウェット音)の音量比率（0.0～1.0）
+     *   - PingPong       : ピンポン・ディレイを行うかどうかのフラグ
+     *
+     * ※ デフォルト値は、基本的なエコー効果が聴こえるよう設定。
+     */
+
+    /// <summary>
+    /// 遅延時間（ミリ秒）。たとえば 300ms 程度にするとほどよい残響。
+    /// 短すぎる（50ms 以下）とスラップバックに近く、200～400ms 程度で一般的なエコー感、
+    /// 500ms 以上にすると空間がかなり広く感じられる。
+    /// </summary>
+    public double DelayTimeMs = 300.0;
+
+    /// <summary>
+    /// フィードバック量（0.0～1.0）。0.0 なら1回だけ遅延音が鳴り、
+    /// 1.0 に近いほどディレイ音が何度も反復して長く残る。
+    /// </summary>
+    public double Feedback = 0.5;
+
+    /// <summary>
+    /// 原音(ドライ音)の音量比率（0.0～1.0）。0.0 にすると完全にエコー音だけ、
+    /// 1.0 に近いほど元の音声の存在感が大きい。
+    /// </summary>
+    public double DryMix = 0.8;
+
+    /// <summary>
+    /// エコー音(ウェット音)の音量比率（0.0～1.0）。0.0 にするとエコーが聞こえず、
+    /// 1.0 に近いほどエコー音が大きくなる。
+    /// </summary>
+    public double WetMix = 0.4;
+
+    /// <summary>
+    /// ピンポン・ディレイを有効にするかどうかのフラグ。
+    /// true にすると左右のチャンネルが交互にエコー音を反復し、不思議な広がりが得られる。
+    /// </summary>
+    public bool PingPong = false;
+
+    /* 実装部分ここまで */
+}
+
+// このクラスが、処理の内容を実装するクラスである。
+public class AiAudioEffect_12_DelayEcho : AiAudioEffectBase
+{
+    // この関数は、そのまま、書き写すこと。
+    protected override IAiAudioEffectSettings NewSettingsFactoryImpl() => new AiAudioEffect_12_DelayEcho_Settings();
+
+    // 効果のバリエーションを増すためのパラメータのランダム設定を、おおまかな、「強・注・弱」の効果の強さの程度の指定をある程度もとにして、助ける関数
+    protected override IAiAudioEffectSettings NewSettingsFactoryWithRandomImpl(AiAudioEffectSpeedType type)
+    {
+        var ret = new AiAudioEffect_12_DelayEcho_Settings();
+
+        /* 実装部分ここから
+         *
+         * type の値に従って、ランダムパラメータを設定し、
+         * Heavy -> 強めのエコー（長めのディレイ、高めのフィードバック）、
+         * Normal -> 中程度、
+         * Light -> 短めのディレイ、フィードバックも控えめ、
+         * といった範囲内で乱数を使って設定する例。
+         */
+
+        switch (type)
+        {
+            case AiAudioEffectSpeedType.Heavy:
+                // ディレイタイム 400～800ms
+                ret.DelayTimeMs = Random.Shared.NextDouble() * (800.0 - 400.0) + 400.0;
+                // フィードバック量 0.6～0.9
+                ret.Feedback = Random.Shared.NextDouble() * (0.9 - 0.6) + 0.6;
+                // ドライ音量 0.5～0.8
+                ret.DryMix = Random.Shared.NextDouble() * (0.8 - 0.5) + 0.5;
+                // ウェット音量 0.6～1.0
+                ret.WetMix = Random.Shared.NextDouble() * (1.0 - 0.6) + 0.6;
+                // ピンポン確率 50%
+                ret.PingPong = Random.Shared.NextDouble() < 0.5;
+                break;
+
+            case AiAudioEffectSpeedType.Normal:
+                // ディレイタイム 200～400ms
+                ret.DelayTimeMs = Random.Shared.NextDouble() * (400.0 - 200.0) + 200.0;
+                // フィードバック量 0.3～0.6
+                ret.Feedback = Random.Shared.NextDouble() * (0.6 - 0.3) + 0.3;
+                // ドライ音量 0.7～0.9
+                ret.DryMix = Random.Shared.NextDouble() * (0.9 - 0.7) + 0.7;
+                // ウェット音量 0.3～0.6
+                ret.WetMix = Random.Shared.NextDouble() * (0.6 - 0.3) + 0.3;
+                // ピンポン確率 30%
+                ret.PingPong = Random.Shared.NextDouble() < 0.3;
+                break;
+
+            case AiAudioEffectSpeedType.Light:
+                // ディレイタイム 80～200ms
+                ret.DelayTimeMs = Random.Shared.NextDouble() * (200.0 - 80.0) + 80.0;
+                // フィードバック量 0.1～0.3
+                ret.Feedback = Random.Shared.NextDouble() * (0.3 - 0.1) + 0.1;
+                // ドライ音量 0.9～1.0
+                ret.DryMix = Random.Shared.NextDouble() * (1.0 - 0.9) + 0.9;
+                // ウェット音量 0.1～0.3
+                ret.WetMix = Random.Shared.NextDouble() * (0.3 - 0.1) + 0.1;
+                // ピンポン確率 10%
+                ret.PingPong = Random.Shared.NextDouble() < 0.1;
+                break;
+        }
+
+        /* 実装部分ここまで */
+
+        return ret;
+    }
+
+    // この関数が、「効果」を生み出す処理を実際に行なう枢要部分である。
+    protected override void ProcessFilterImpl(Memory<byte> waveFileInOut, IAiAudioEffectSettings effectSettings, CancellationToken cancel)
+    {
+        // まず、effectSettings の内容を、扱いやすいように、AiAudioEffect_12_DelayEcho_Settings にキャストする。
+        AiAudioEffect_12_DelayEcho_Settings settings = (AiAudioEffect_12_DelayEcho_Settings)effectSettings;
+
+        /* 実装部分ここから */
+
+        // ---- コードの枢要をここに実装してください。----
+
+        // 44.1 kHz / 16ビット / ステレオの WAV データであることを前提にする。
+        // waveFileInOut のサイズ (バイト数) / 4 = ステレオのサンプルフレーム数 となる。
+        // (左チャンネル 2バイト + 右チャンネル 2バイト = 4バイトで1フレーム)
+        int totalBytes = waveFileInOut.Length;
+        int totalFrames = totalBytes / 4; // ステレオのフレーム数
+
+        // 16ビット整数(short)配列へ変換
+        // （NAudio.Waveなどでラップせず、直接バイナリ操作するため）
+        short[] sampleData = new short[totalBytes / 2];
+        Buffer.BlockCopy(waveFileInOut.ToArray(), 0, sampleData, 0, totalBytes);
+
+        // ディレイタイム（サンプル単位）
+        // たとえば 300ms なら、44100 * 0.300 = 13230 サンプル分ほどの遅延となる。
+        int delaySamples = (int)(44100.0 * (settings.DelayTimeMs / 1000.0));
+
+        // 安全のため、最低1サンプル以上確保
+        if (delaySamples < 1)
+        {
+            delaySamples = 1;
+        }
+
+        // ピンポンディレイなどで最大 2秒 ほどを想定したバッファを確保
+        // （必要に応じて拡大しても良い）
+        int maxDelaySamples = 44100 * 2;
+        // 左右それぞれにリングバッファを用意
+        float[] delayBufferLeft = new float[maxDelaySamples];
+        float[] delayBufferRight = new float[maxDelaySamples];
+
+        // リングバッファ読み書きの開始位置
+        // writePos を 0、readPos を (0 - delaySamples) mod maxDelaySamples などで開始すると
+        // 最初のほうの読出しは0が返ってくる形になる。
+        int writePos = 0;
+        int readPos = (maxDelaySamples - delaySamples) % maxDelaySamples;
+
+        // パラメータの取得
+        double feedback = settings.Feedback;  // 0.0～1.0
+        double dryMix = settings.DryMix;       // 0.0～1.0
+        double wetMix = settings.WetMix;       // 0.0～1.0
+        bool pingPong = settings.PingPong;
+
+        // ★ ここではランダムな変化を少し与える例として、
+        //    一定間隔ごとに feedback や wetMix を微調整する実装を簡易で入れてみる。
+        //    （ランダム変化を大きくしたい場合はここを工夫してください）
+        Random rnd = new Random();
+        int nextParamChangeFrame = 0; // 次にパラメータを変化させるサンプルフレーム
+
+        for (int i = 0; i < totalFrames; i++)
+        {
+            // 一定周期でキャンセルをチェック（大きなループのとき）
+            if ((i & 0xFFF) == 0) // 4096フレームごと
+            {
+                cancel.ThrowIfCancellationRequested();
+            }
+
+            // 左右のサンプルを short -> float(-1.0～1.0) に変換
+            short leftS = sampleData[i * 2 + 0];
+            short rightS = sampleData[i * 2 + 1];
+            float left = leftS / 32768.0f;
+            float right = rightS / 32768.0f;
+
+            // リングバッファからディレイ音を取得
+            float delayedLeft = delayBufferLeft[readPos];
+            float delayedRight = delayBufferRight[readPos];
+
+            // 出力サンプルを計算
+            float outLeft;
+            float outRight;
+
+            if (!pingPong)
+            {
+                // 通常のステレオディレイ：LはLを遅延、RはRを遅延
+                outLeft = (float)(left * dryMix) + delayedLeft * (float)wetMix;
+                outRight = (float)(right * dryMix) + delayedRight * (float)wetMix;
+
+                // 次のエコーのためにリングバッファに書き込み
+                delayBufferLeft[writePos] = outLeft * (float)feedback;
+                delayBufferRight[writePos] = outRight * (float)feedback;
+            }
+            else
+            {
+                // ピンポンディレイ：L ← Rの遅延音、R ← Lの遅延音 を混合
+                outLeft = (float)(left * dryMix) + delayedRight * (float)wetMix;
+                outRight = (float)(right * dryMix) + delayedLeft * (float)wetMix;
+
+                // 次のエコーのためにリングバッファに書き込み（左右逆にフィードバック）
+                delayBufferLeft[writePos] = outRight * (float)feedback;
+                delayBufferRight[writePos] = outLeft * (float)feedback;
+            }
+
+            // 計算結果を short に戻す前にクリッピング
+            short outLeftS = (short)Math.Clamp(outLeft * 32767.0f, -32768, 32767);
+            short outRightS = (short)Math.Clamp(outRight * 32767.0f, -32768, 32767);
+
+            // 計算結果を書き戻し（In/Outバッファ）
+            sampleData[i * 2 + 0] = outLeftS;
+            sampleData[i * 2 + 1] = outRightS;
+
+            // リングバッファの読み書き位置を進める
+            readPos = (readPos + 1) % maxDelaySamples;
+            writePos = (writePos + 1) % maxDelaySamples;
+
+            // ★ ランダム変化例：ある程度のフレーム間隔で feedback, wetMix を小幅に揺らす
+            if (i == nextParamChangeFrame)
+            {
+                // ±0.05 の範囲で微調整（0.0～1.0 にクリップ）
+                double fbVariation = feedback + (rnd.NextDouble() * 0.1 - 0.05);
+                double wmVariation = wetMix + (rnd.NextDouble() * 0.1 - 0.05);
+                feedback = Math.Min(Math.Max(fbVariation, 0.0), 1.0);
+                wetMix = Math.Min(Math.Max(wmVariation, 0.0), 1.0);
+
+                // 次の変化タイミングを 20000～40000 フレーム後（約0.45秒～0.90秒後）にセット
+                // （44100Hz換算で）
+                int interval = rnd.Next(20000, 40000);
+                nextParamChangeFrame = i + interval;
+            }
+        }
+
+        // 処理後のデータを waveFileInOut に書き戻す
+        sampleData.CopyTo(waveFileInOut.Span._AsSInt16Span());
+
+        /* 実装部分ここまで */
+    }
+}
+#endregion
+
+
+
+
+
+#region AiAudioEffect_15_SidechainPumping
+// このクラスが、処理の内容 (効果の程度や挙動の変化) を決定する枢要なパラメータ指定部分である。
+public class AiAudioEffect_15_SidechainPumping_Settings : IAiAudioEffectSettings
+{
+    /// <summary>
+    /// ポンピングの深さを指定する。0.0 なら音量ディップなし（効果オフ相当）、1.0 なら最大ディップ。
+    /// デフォルト値 0.7 は比較的はっきりとしたポンピングが得られる標準的な設定。
+    /// </summary>
+    public double PumpDepth = 0.7;
+
+    /// <summary>
+    /// 1秒あたりのポンピング回数。例えば 2.0 なら1秒に2回のディップ（= 2Hz = 1分間に120BPMの4拍とみなせる）。
+    /// デフォルト値 2.0 はやや速いダンスビート的なポンピング。
+    /// </summary>
+    public double PumpFrequency = 2.0;
+
+    /// <summary>
+    /// アタックタイム (ms)。ディップ開始時、音量が最大から最小へ下がるのに要する時間。
+    /// デフォルト 10.0ms は比較的早い立ち上がりで、明瞭なディップを生む。
+    /// </summary>
+    public double AttackTimeMs = 10.0;
+
+    /// <summary>
+    /// リリースタイム (ms)。ディップの後、音量が最小から元に戻るまでの時間。
+    /// デフォルト 300.0ms はゆっくりとした回復で、EDM系にありがちな息をするようなうねりが得られる。
+    /// </summary>
+    public double ReleaseTimeMs = 300.0;
+
+    /// <summary>
+    /// ポンピング周波数や深さをどの程度ランダムに変動させるかを示す強度。
+    /// 0.0 なら変動なし、1.0 なら大きく変化する。デフォルト 0.2。
+    /// </summary>
+    public double VariationIntensity = 0.2;
+
+    /// <summary>
+    /// 何秒ごとにランダム変動を行うかの間隔を指定する (秒)。
+    /// デフォルト 1.0 は1秒に1回程度変動が入り、程よい予測不能感を得られる。
+    /// </summary>
+    public double VariationSpeed = 1.0;
+
+    /// <summary>
+    /// ランダム変動を行うかどうかのフラグ。true なら行う。false なら行わない。
+    /// デフォルト false。
+    /// </summary>
+    public bool UseRandomVariation = false;
+}
+
+// このクラスが、処理の内容を実装するクラスである。
+public class AiAudioEffect_15_SidechainPumping : AiAudioEffectBase
+{
+    // この関数は、そのまま、書き写すこと。
+    protected override IAiAudioEffectSettings NewSettingsFactoryImpl() => new AiAudioEffect_15_SidechainPumping_Settings();
+
+    // 効果のバリエーションを増すためのパラメータのランダム設定を、おおまかな、「強・注・弱」の効果の強さの程度の指定をある程度もとにして、助ける関数
+    protected override IAiAudioEffectSettings NewSettingsFactoryWithRandomImpl(AiAudioEffectSpeedType type)
+    {
+        var ret = new AiAudioEffect_15_SidechainPumping_Settings();
+
+        /* 実装部分ここから */
+        switch (type)
+        {
+            case AiAudioEffectSpeedType.Heavy:
+                // Deepかつ速いポンピングを想定
+                ret.PumpDepth = Random.Shared.NextDouble() * (1.0 - 0.6) + 0.6;    // 0.6～1.0
+                ret.PumpFrequency = Random.Shared.NextDouble() * (4.0 - 1.5) + 1.5;  // 1.5～4.0 (1秒あたり1.5～4回のディップ)
+                ret.AttackTimeMs = Random.Shared.NextDouble() * (30.0 - 5.0) + 5.0; // 5～30ms
+                ret.ReleaseTimeMs = Random.Shared.NextDouble() * (400.0 - 100.0) + 100.0; // 100～400ms
+                ret.VariationIntensity = Random.Shared.NextDouble() * (0.5 - 0.2) + 0.2;  // 0.2～0.5
+                ret.VariationSpeed = Random.Shared.NextDouble() * (1.0 - 0.3) + 0.3;  // 0.3～1.0秒ごとに変動
+                // だいたい 70% くらいの確率でランダム変動を有効化
+                ret.UseRandomVariation = (Random.Shared.NextDouble() < 0.7);
+                break;
+
+            case AiAudioEffectSpeedType.Normal:
+                // 中程度のポンピング
+                ret.PumpDepth = Random.Shared.NextDouble() * (0.8 - 0.4) + 0.4;   // 0.4～0.8
+                ret.PumpFrequency = Random.Shared.NextDouble() * (3.0 - 1.0) + 1.0;  // 1.0～3.0 (1秒あたり1～3回のディップ)
+                ret.AttackTimeMs = Random.Shared.NextDouble() * (50.0 - 10.0) + 10.0; // 10～50ms
+                ret.ReleaseTimeMs = Random.Shared.NextDouble() * (600.0 - 200.0) + 200.0; // 200～600ms
+                ret.VariationIntensity = Random.Shared.NextDouble() * (0.3 - 0.1) + 0.1;  // 0.1～0.3
+                ret.VariationSpeed = Random.Shared.NextDouble() * (2.0 - 1.0) + 1.0;  // 1.0～2.0秒ごとに変動
+                // だいたい 50% くらいの確率でランダム変動を有効化
+                ret.UseRandomVariation = (Random.Shared.NextDouble() < 0.5);
+                break;
+
+            case AiAudioEffectSpeedType.Light:
+                // ゆるめ・控えめのポンピング
+                ret.PumpDepth = Random.Shared.NextDouble() * (0.5 - 0.2) + 0.2;  // 0.2～0.5
+                ret.PumpFrequency = Random.Shared.NextDouble() * (2.0 - 0.5) + 0.5;  // 0.5～2.0 (1秒あたり0.5～2回)
+                ret.AttackTimeMs = Random.Shared.NextDouble() * (80.0 - 20.0) + 20.0; // 20～80ms
+                ret.ReleaseTimeMs = Random.Shared.NextDouble() * (800.0 - 300.0) + 300.0; // 300～800ms
+                ret.VariationIntensity = Random.Shared.NextDouble() * (0.2 - 0.05) + 0.05; // 0.05～0.2
+                ret.VariationSpeed = Random.Shared.NextDouble() * (4.0 - 2.0) + 2.0;  // 2.0～4.0秒ごとに変動
+                // だいたい 30% くらいの確率でランダム変動を有効化
+                ret.UseRandomVariation = (Random.Shared.NextDouble() < 0.3);
+                break;
+        }
+        /* 実装部分ここまで */
+
+        return ret;
+    }
+
+    // この関数が、「効果」を生み出す処理を実際に行なう枢要部分である。
+    protected override void ProcessFilterImpl(Memory<byte> waveFileInOut, IAiAudioEffectSettings effectSettings, CancellationToken cancel)
+    {
+        // まず、effectSettings の内容を、扱いやすいように、AiAudioEffect_15_SidechainPumping_Settings にキャストする。
+        AiAudioEffect_15_SidechainPumping_Settings settings = (AiAudioEffect_15_SidechainPumping_Settings)effectSettings;
+
+        /* 実装部分ここから */
+
+        // この実装例では、次のような「擬似サイドチェイン」手法を用いる:
+        //   1. waveFileInOut には 44.1kHz / 16bit / ステレオ のPCMデータが入っている。
+        //   2. 1サンプル(フレーム)につき 4バイト(左ch 2byte + 右ch 2byte)。
+        //   3. 指定されたポンピング周波数 PumpFrequency(Hz) = 1秒あたりのディップ回数。
+        //   4. アタック(AttackTimeMs)とリリース(ReleaseTimeMs)でゲインを急激に変化させないよう補間。
+        //   5. 一定間隔(VariationSpeed秒ごと)にランダム要素を加味し、PumpFrequencyやPumpDepthを揺らす(UseRandomVariation が true の場合)。
+        //   6. ゲインが変化しすぎてクリップノイズが生じないように注意。
+        //
+        // ポンピングの波形: 1周期を0～1に正規化した位相(phaseInCycle)を用い、
+        //   [0        ~ attackFrac)      : 1 から 1 - PumpDepth へ線形に下げる(アタック)
+        //   [attackFrac ~ attackFrac+releaseFrac) : 1 - PumpDepth から 1 へ線形に戻す(リリース)
+        //   [その他                   ] : 1 (ゲイン最大)
+        //
+        // attackFrac, releaseFrac は PumpFrequency に応じて調整する。周期は (1.0 / PumpFrequency)秒。
+        // ただし attackFrac + releaseFrac が1を超える場合は適宜クリップ（または比率再計算）する。
+        //
+        // ※ 実際のサイドチェインでは別トラックのキックをトリガーにコンプレッサをかけるが、
+        //   ここではトリガーなしのLFO的アプローチでポンピング感を再現する。
+
+        Span<byte> span = waveFileInOut.Span;
+        int totalBytes = span.Length;
+        // 1サンプル(ステレオ1フレーム)あたり4バイト
+        int totalFrames = totalBytes / 4;
+        if (totalFrames == 0) return; // 音声データがない場合は処理終了
+
+        int sampleRate = 44100; // 44.1kHz固定を想定
+
+        // 周期 (秒)
+        double cycleDuration = (settings.PumpFrequency <= 0.0) ? double.MaxValue : (1.0 / settings.PumpFrequency);
+        // Attack と Release を周期(0～1に正規化)で表す
+        double attackFrac = 0.0;
+        double releaseFrac = 0.0;
+        if (cycleDuration < double.MaxValue)
+        {
+            // attackFrac = AttackTimeMs / (周期秒 * 1000)
+            attackFrac = settings.AttackTimeMs / (cycleDuration * 1000.0);
+            // releaseFrac = ReleaseTimeMs / (周期秒 * 1000)
+            releaseFrac = settings.ReleaseTimeMs / (cycleDuration * 1000.0);
+
+            // アタック＋リリースが1を超えるときは、全体を比率でスケールダウンして1に収める
+            double sumAR = attackFrac + releaseFrac;
+            if (sumAR > 1.0)
+            {
+                attackFrac /= sumAR;
+                releaseFrac /= sumAR;
+            }
+        }
+
+        // 現在の位相(0～1の小数でカウントし、超えたら折り返す)
+        double phaseInCycle = 0.0;
+
+        // ランダム変動用の次回変動発生時刻(秒)
+        double nextVariationTime = (settings.UseRandomVariation) ? settings.VariationSpeed : double.MaxValue;
+        // 現在の「実際に使用している」PumpFrequency, PumpDepth
+        double currentFrequency = settings.PumpFrequency;
+        double currentDepth = settings.PumpDepth;
+
+        // 変動などで周期が変わった場合に再計算する関数
+        void RecalcCycle()
+        {
+            cycleDuration = (currentFrequency <= 0.0) ? double.MaxValue : (1.0 / currentFrequency);
+            attackFrac = settings.AttackTimeMs / (cycleDuration * 1000.0);
+            releaseFrac = settings.ReleaseTimeMs / (cycleDuration * 1000.0);
+            double sumAR = attackFrac + releaseFrac;
+            if (sumAR > 1.0)
+            {
+                attackFrac /= sumAR;
+                releaseFrac /= sumAR;
+            }
+        }
+
+        // メインループ
+        double currentTimeSec = 0.0;               // 経過時間(秒)
+        double deltaTimeSec = 1.0 / sampleRate;  // 1フレーム(ステレオ)あたりの時間(秒)
+
+        for (int i = 0; i < totalFrames; i++)
+        {
+            // キャンセル要求が来ていないか一定間隔ごとにチェック（負荷を下げるため適宜）
+            if ((i & 0xFFF) == 0) // 4096サンプルごとにチェック
+            {
+                cancel.ThrowIfCancellationRequested();
+            }
+
+            // ポンピング・ゲイン計算
+            double envelope = 1.0; // ゲイン(0～1)
+
+            // phaseInCycle: 0～1を周期として移動
+            //   0.0 で周期開始点、1.0 で次の周期に折り返し
+            if (attackFrac + releaseFrac > 0.0)
+            {
+                if (phaseInCycle < attackFrac)
+                {
+                    // アタック段階（音量が 1 から (1 - depth) へ線形に下がる）
+                    double r = phaseInCycle / attackFrac;
+                    envelope = 1.0 - currentDepth * r;
+                }
+                else if (phaseInCycle < (attackFrac + releaseFrac))
+                {
+                    // リリース段階（音量が (1 - depth) から 1 へ線形に上がる）
+                    double r = (phaseInCycle - attackFrac) / releaseFrac;
+                    envelope = (1.0 - currentDepth) + currentDepth * r;
+                }
+                else
+                {
+                    // それ以降は 1.0 で一定（最大音量に復帰した状態）
+                    envelope = 1.0;
+                }
+            }
+
+            // 16bitステレオなので、左チャンネル, 右チャンネルの順
+            int byteIndex = i * 4;
+            short sampleLeft = BitConverter.ToInt16(span.Slice(byteIndex, 2));
+            short sampleRight = BitConverter.ToInt16(span.Slice(byteIndex + 2, 2));
+
+            // -32768～32767 の short を -1.0～+1.0 に変換
+            double left = sampleLeft / 32768.0;
+            double right = sampleRight / 32768.0;
+
+            // エンベロープを適用
+            left *= envelope;
+            right *= envelope;
+
+            // short に戻す（クリッピングに注意）
+            short outLeft = (short)Math.Clamp((int)(left * 32768.0), -32768, 32767);
+            short outRight = (short)Math.Clamp((int)(right * 32768.0), -32768, 32767);
+
+            // 書き戻し
+            BitConverter.TryWriteBytes(span.Slice(byteIndex, 2), outLeft);
+            BitConverter.TryWriteBytes(span.Slice(byteIndex + 2, 2), outRight);
+
+            // 位相を進める
+            if (cycleDuration < double.MaxValue)
+            {
+                phaseInCycle += deltaTimeSec / cycleDuration;
+                if (phaseInCycle >= 1.0) phaseInCycle -= 1.0;
+            }
+
+            // 時間を進める
+            currentTimeSec += deltaTimeSec;
+
+            // ランダム変動
+            if (settings.UseRandomVariation && currentTimeSec >= nextVariationTime)
+            {
+                // 次回変動を設定
+                nextVariationTime += settings.VariationSpeed;
+
+                // VariationIntensity を元に、周波数・深さを少し揺らす
+                double freqFactor = 1.0 + (Random.Shared.NextDouble() * 2.0 - 1.0) * settings.VariationIntensity;
+                double depthFactor = 1.0 + (Random.Shared.NextDouble() * 2.0 - 1.0) * settings.VariationIntensity;
+                // 周波数や深さが極端になりすぎないようクランプする
+                currentFrequency = Math.Clamp(currentFrequency * freqFactor, 0.01, 20.0);
+                currentDepth = Math.Clamp(currentDepth * depthFactor, 0.0, 1.0);
+
+                // 再計算
+                RecalcCycle();
+            }
+        }
+
+        /* 実装部分ここまで */
+    }
+}
+#endregion
+
+
+
+
+
 
 #endif
 
