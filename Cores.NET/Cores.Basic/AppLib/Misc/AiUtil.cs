@@ -699,7 +699,7 @@ public class AiTask
 
     public async Task EncodeAndNormalizeAllMusicAsync(string srcDirPath, string dstMusicDirPath, string tmpBaseDir, string albumName, CancellationToken cancel = default)
     {
-        string tmpMusicDirPath = PP.Combine(tmpBaseDir, "0_OrigSong_TMP");
+        string tmpMusicDirPath = PP.Combine(tmpBaseDir, "0_MusicRelease_TMP");
 
         var artistsDirList = await Lfs.EnumDirectoryAsync(srcDirPath, cancel: cancel);
 
@@ -717,7 +717,7 @@ public class AiTask
                     string songTitle = PPWin.GetFileNameWithoutExtension(srcMusicFile.Name)._NormalizeSoftEther(true);
                     string safeSongTitle = PPWin.MakeSafeFileName(songTitle, true, true, true);
 
-                    string tmpOriginalSongWavPath = PP.Combine(tmpMusicDirPath, $"OrigSong - {safeArtistName} - {safeSongTitle}.wav");
+                    string tmpOriginalSongWavPath = PP.Combine(tmpMusicDirPath, $"MusicRelease - {safeArtistName} - {safeSongTitle}.wav");
 
                     var result = await EncodeAndNormalizeMusicAsync(srcMusicFile.FullPath, tmpOriginalSongWavPath, safeSongTitle, cancel: cancel);
 
@@ -795,7 +795,7 @@ public class AiTask
         string adjustedWavFile = await Lfs.GenerateUniqueTempFilePathAsync(srcFilePath, cancel: cancel);
         var result = await FfMpeg.AdjustAudioVolumeAsync(srcFilePath, adjustedWavFile, Settings.AdjustAudioTargetMaxVolume, Settings.AdjustAudioTargetMeanVolume, FfmpegAdjustVolumeOptiono.MeanOnly /* ! */, tagTitle, false, cancel);
 
-        await Lfs.CopyFileAsync(adjustedWavFile, dstWavPath, cancel: cancel);
+        await Lfs.CopyFileAsync(adjustedWavFile, dstWavPath, param: new(flags: FileFlags.AutoCreateDirectory), cancel: cancel);
 
         if (useOkFile)
         {
