@@ -123,12 +123,12 @@ public class AiCompositRule
 public class AiAudioEffectFilter
 {
     public AiAudioEffectBase Effect = null!;
-    public Action<Memory<byte>, CancellationToken> FilterProc = null!;
+    public Action<Memory<byte>, CancellationToken> PerformFilterProc = null!;
     public string FilterName = "";
     public AiAudioEffectSpeedType FilterSpeedType = AiAudioEffectSpeedType.Normal;
     public IAiAudioEffectSettings EffectSettings = null!;
 
-    public AiAudioEffectFilter(AiAudioEffectBase effect, AiAudioEffectSpeedType type, CancellationToken cancel = default)
+    public AiAudioEffectFilter(AiAudioEffectBase effect, AiAudioEffectSpeedType type, double adjustAddVolume = 0.0, CancellationToken cancel = default)
     {
         this.Effect = effect;
         string name = PP.GetFileNameWithoutExtension(effect.ToString()._NotEmptyOrDefault("_unknown"));
@@ -138,9 +138,13 @@ public class AiAudioEffectFilter
         this.FilterName =PP.MakeSafeFileName(name);
         this.FilterSpeedType = type;
         this.EffectSettings = effect.NewSettingsFactoryWithRandom(type);
-        this.FilterProc = (wave, cancel) =>
+        this.PerformFilterProc = (wave, cancel) =>
         {
+            var originalVolume = AiWaveVolumeUtils.CalcMeanVolume(wave, cancel);
+
             this.Effect.ProcessFilter(wave, this.EffectSettings, cancel);
+
+            AiWaveVolumeUtils.AdjustVolume(wave, originalVolume + adjustAddVolume, cancel);
         };
     }
 }
@@ -961,7 +965,8 @@ public class AiTask
 
         var parsed = await this.FfMpeg.EncodeAudioAsync(tmpWavPath, dstAudioFilePath, codec, kbps, metaData: metaData, useOkFile: false, cancel: cancel);
 
-        parsed.Options_UsedBgmSrcFileList = okRead.Value.Options_UsedBgmSrcFileList._CloneDeep();
+        parsed.Options_UsedBgmSrcMusicList = okRead.Value.Options_UsedBgmSrcMusicList._CloneDeep();
+        parsed.Options_UsedOverwriteSrcMusicList = okRead.Value.Options_UsedOverwriteSrcMusicList._CloneDeep();
         parsed.Options_VoiceSegmentsList = okRead.Value.Options_VoiceSegmentsList._CloneDeep();
         parsed.Options_UsedMaterials = usedFiles.Options_UsedMaterials._CloneDeep();
 
@@ -1464,6 +1469,25 @@ public class AiTask
                             }
                         }
                     }
+                    if (seg1.TagStr._IsSamei("<BCX_FINAL_START>"))
+                    {
+                        for (int j = i; j < voiceSegList.Count; j++)
+                        {
+                            var seg2 = voiceSegList[j];
+                            if (seg2.TagStr._IsSamei("<BCX_FINAL_END>") || seg2.TagStr._IsSamei("<BXC_FINAL_END>"))
+                            {
+                                replaceRanges.Add(new AiRandomBgpReplaceRanges
+                                {
+                                    Margin = 30,
+                                    Length = seg2.TimePosition - seg1.TimePosition,
+                                    FadeIn = 4,
+                                    FadeOut = 4,
+                                    StartPosition = seg1.TimePosition - 4,
+                                });
+                                break;
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1531,6 +1555,8 @@ public class AiTask
 
         var retSrcList = await CreateRandomBgmFileAsync(srcMusicWavsDirPath, bgmWavTmpPath, srcDurationMsecs, settings, fadeOutSecs, adjustDelta, cancel);
 
+        List<AiWaveConcatenatedSrcWavList> overwriteSrcList = new();
+
         // 音楽の一部をリプレース処理する
         if (replaceRanges != null && replaceRanges.Any())
         {
@@ -1572,10 +1598,15 @@ public class AiTask
                     continue;
                 }
 
+                var item = new AiWaveConcatenatedSrcWavList
+                {
+                    WavFilePath = srcWavPath,
+                };
+
                 // 置換 wav ファイルの読み込み
                 double srcStartPosition = (srcWavLength - requireLength) * Util.RandDouble0To1();
 
-                ReadOnlyMemory<byte> srcMemory;
+                Memory<byte> srcMemory;
 
                 await using (var srcWavStream = File.Open(srcWavPath, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
@@ -1610,8 +1641,26 @@ public class AiTask
                     srcMemory = await srcWavReader._ReadAllAsync(bytesToProcess, cancel: cancel);
                 }
 
+                if (settings.CreateAudioEffectFilterForOverwriteMusicPartProc != null)
+                {
+                    var filter = settings.CreateAudioEffectFilterForOverwriteMusicPartProc(cancel);
+                    if (filter != null)
+                    {
+                        filter.PerformFilterProc(srcMemory, cancel);
+                        item.FilterName = filter.FilterName;
+                        item.FilterSpeedType = filter.FilterSpeedType;
+                        item.FilterSettings = filter.EffectSettings;
+                        item.TargetStartMsec = (int)(range.StartPosition * 1000);
+                        item.TargetEndMsec = (int)((range.StartPosition + range.Length) * 1000);
+                        item.SourceStartMsec = (int)(srcStartPosition * 1000);
+                        item.SourceEndMsec = (int)((srcStartPosition + requireLength) * 1000);
+                    }
+                }
+
                 // 合成処理
                 ReplaceWavDataWithFadeInOut(targetData, srcMemory, range.StartPosition, range.FadeIn, range.FadeOut);
+
+                overwriteSrcList.Add(item);
             }
 
             string bgmWavTmpPath2 = await Lfs.GenerateUniqueTempFilePathAsync("tmppath", ".wav", cancel: cancel);
@@ -1633,7 +1682,8 @@ public class AiTask
 
         var parsed = await FfMpeg.EncodeAudioAsync(outWavTmpPath, dstFilePath, codec, kbps, useOkFile: false, metaData: newMeta, cancel: cancel);
 
-        parsed.Options_UsedBgmSrcFileList = retSrcList;
+        parsed.Options_UsedBgmSrcMusicList = retSrcList;
+        parsed.Options_UsedOverwriteSrcMusicList = overwriteSrcList;
         parsed.Options_VoiceSegmentsList = okFileMeta.Value?.Options_VoiceSegmentsList;
 
         if (useOkFile)
@@ -1827,18 +1877,18 @@ public class AiTask
     }
 
 
-    public async Task<List<string>> CreateRandomBgmFileAsync(string srcMusicWavsDirPath, string dstWavFilePath, int totalDurationMsecs, AiRandomBgmSettings settings, int fadeOutSecs = AiTask.DefaultFadeoutSecs, double adjustDelta = AiTask.BgmVolumeDeltaForConstant, CancellationToken cancel = default)
+    public async Task<List<AiWaveConcatenatedSrcWavList>> CreateRandomBgmFileAsync(string srcMusicWavsDirPath, string dstWavFilePath, int totalDurationMsecs, AiRandomBgmSettings settings, int fadeOutSecs = AiTask.DefaultFadeoutSecs, double adjustDelta = AiTask.BgmVolumeDeltaForConstant, CancellationToken cancel = default)
     {
         string dstTmpFileName = await Lfs.GenerateUniqueTempFilePathAsync("concat2", ".wav", cancel: cancel);
 
-        List<string> retSrcList = await ConcatWavFileFromRandomDirAsync(srcMusicWavsDirPath, dstTmpFileName, totalDurationMsecs, settings, fadeOutSecs, cancel);
+        List<AiWaveConcatenatedSrcWavList> retSrcList = await ConcatWavFileFromRandomDirAsync(srcMusicWavsDirPath, dstTmpFileName, totalDurationMsecs, settings, fadeOutSecs, cancel);
 
         await FfMpeg.AdjustAudioVolumeAsync(dstTmpFileName, dstWavFilePath, adjustDelta, cancel);
 
         return retSrcList;
     }
 
-    public async Task<List<string>> ConcatWavFileFromRandomDirAsync(string srcMusicWavsDirPath, string dstWavFilePath, int totalDurationMsecs, AiRandomBgmSettings settings, int fadeOutSecs = AiTask.DefaultFadeoutSecs, CancellationToken cancel = default)
+    public async Task<List<AiWaveConcatenatedSrcWavList>> ConcatWavFileFromRandomDirAsync(string srcMusicWavsDirPath, string dstWavFilePath, int totalDurationMsecs, AiRandomBgmSettings settings, int fadeOutSecs = AiTask.DefaultFadeoutSecs, CancellationToken cancel = default)
     {
         var srcWavList = await Lfs.EnumDirectoryAsync(srcMusicWavsDirPath, true, wildcard: "*.wav", cancel: cancel);
 
@@ -1857,9 +1907,9 @@ public class AiTask
         return await ConcatWavFileFromRandomDirAsync(srcQueue, dstWavFilePath, totalDurationMsecs, settings, fadeOutSecs, cancel);
     }
 
-    public async Task<List<string>> ConcatWavFileFromRandomDirAsync(ShuffledEndlessQueue<string> srcMusicWavsFilePathQueue, string dstWavFilePath, int totalDurationMsecs, AiRandomBgmSettings settings, int fadeOutSecs = AiTask.DefaultFadeoutSecs, CancellationToken cancel = default)
+    public async Task<List<AiWaveConcatenatedSrcWavList>> ConcatWavFileFromRandomDirAsync(ShuffledEndlessQueue<string> srcMusicWavsFilePathQueue, string dstWavFilePath, int totalDurationMsecs, AiRandomBgmSettings settings, int fadeOutSecs = AiTask.DefaultFadeoutSecs, CancellationToken cancel = default)
     {
-        List<string> retSrcList;
+        List<AiWaveConcatenatedSrcWavList> retSrcList;
 
         string dstTmpFileName;
 
@@ -1900,12 +1950,12 @@ public class AiTask
         return retSrcList;
     }
 
-    public static async Task<List<string>> ConcatWavFileFromQueueAsync(
+    public static async Task<List<AiWaveConcatenatedSrcWavList>> ConcatWavFileFromQueueAsync(
         ShuffledEndlessQueue<string> srcWavFilesQueue,
         int totalDurationMsecs,
         string dstWavFilePath, CancellationToken cancel = default)
     {
-        List<string> retSrcList = new List<string>();
+        List<AiWaveConcatenatedSrcWavList> retSrcList = new List<AiWaveConcatenatedSrcWavList>();
 
         await Lfs.DeleteFileIfExistsAsync(dstWavFilePath, cancel: cancel);
         await Lfs.EnsureCreateDirectoryForFileAsync(dstWavFilePath, cancel: cancel);
@@ -1950,7 +2000,7 @@ public class AiTask
             await using var sourceStream = File.Open(currentWavPath, FileMode.Open, FileAccess.Read, FileShare.Read);
             await using var readerWav = new WaveFileReader(sourceStream);
 
-            retSrcList.Add(currentWavPath);
+            retSrcList.Add(new AiWaveConcatenatedSrcWavList { WavFilePath = currentWavPath });
 
             int bytesRead;
             // WaveFileReader は通常同期的な Read しか提供しないが、Stream としての ReadAsync は呼び出せる場合がある。
@@ -2750,7 +2800,10 @@ public class AiRandomBgmSettings
     public int Medley_MarginMsecs = 15 * 1000;
 
     [JsonIgnore]
-    public Func<CancellationToken, AiAudioEffectFilter?>? CreateAudioEffectFilterProc = null!;
+    public Func<CancellationToken, AiAudioEffectFilter?>? CreateAudioEffectFilterForNormalMusicPartProc = null!;
+
+    [JsonIgnore]
+    public Func<CancellationToken, AiAudioEffectFilter?>? CreateAudioEffectFilterForOverwriteMusicPartProc = null!;
 }
 
 // 以下のコード By ChatGPT
@@ -3035,6 +3088,19 @@ public static class AiWaveUtil
     }
 }
 
+public class AiWaveConcatenatedSrcWavList
+{
+    public string WavFilePath = null!;
+    public string? FilterName;
+    public AiAudioEffectSpeedType? FilterSpeedType;
+    public IAiAudioEffectSettings? FilterSettings;
+    public int TargetStartMsec;
+    public int TargetEndMsec;
+    public int SourceStartMsec;
+    public int SourceEndMsec;
+}
+
+
 public static class AiWaveConcatenateWithCrossFadeUtil
 {
     /// <summary>
@@ -3049,7 +3115,7 @@ public static class AiWaveConcatenateWithCrossFadeUtil
     /// <param name="dstWavFilePath">出力先 wav ファイル パス</param>
     /// <param name="cancel">キャンセル用トークン</param>
     /// <returns></returns>
-    public static async Task<List<string>> ConcatenateAsync(
+    public static async Task<List<AiWaveConcatenatedSrcWavList>> ConcatenateAsync(
         ShuffledEndlessQueue<string> srcWavFilesQueue,
         int totalDurationMsecs,
         AiRandomBgmSettings settings,
@@ -3067,7 +3133,7 @@ public static class AiWaveConcatenateWithCrossFadeUtil
             throw new ArgumentException("パラメータが不正です。");
         }
 
-        List<string> retSrcList = new List<string>();
+        List<AiWaveConcatenatedSrcWavList> retSrcList = new List<AiWaveConcatenatedSrcWavList>();
 
         //------------------------------------------------------------
         // まずは1つ目の WAV ファイルからフォーマット情報を取得する
@@ -3132,8 +3198,6 @@ public static class AiWaveConcatenateWithCrossFadeUtil
                     continue;
                 }
 
-                retSrcList.Add(wavPath);
-
                 // ランダム開始位置 (0 ～ (fileTotalMs - thisFilePartMSecs))
                 int maxStartMs = fileTotalMs - thisFilePartMSecs;
                 if (maxStartMs < 0) maxStartMs = 0; // 念のため
@@ -3175,20 +3239,33 @@ public static class AiWaveConcatenateWithCrossFadeUtil
                     }
                 }
 
-                if (settings.CreateAudioEffectFilterProc != null)
+                AiWaveConcatenatedSrcWavList item = new AiWaveConcatenatedSrcWavList { WavFilePath = wavPath };
+
+                item.SourceStartMsec = startMs;
+                item.SourceEndMsec = thisFilePartMSecs;
+
+                if (settings.CreateAudioEffectFilterForNormalMusicPartProc != null)
                 {
-                    var filter = settings.CreateAudioEffectFilterProc(cancel);
+                    var filter = settings.CreateAudioEffectFilterForNormalMusicPartProc(cancel);
                     if (filter != null)
                     {
-                        Where();
                         // オーディオフィルタ関数を適用。ただし、float の波形データは直接扱えないので、いったん byte[] に変換し、フィルタを通し、また float[] に戻す処理が必要
                         var partWaveData = AiWaveUtil.ConvertFloatArrayToPcm16Memory(partBuffer, cancel);
 
-                        filter.FilterProc(partWaveData, cancel);
+                        filter.PerformFilterProc(partWaveData, cancel);
 
                         partBuffer = AiWaveUtil.ConvertPcm16ToFloatArray(partWaveData, cancel);
+
+                        item.FilterName = filter.FilterName;
+                        item.FilterSettings = filter.EffectSettings;
+                        item.FilterSpeedType = filter.FilterSpeedType;
                     }
                 }
+
+                item.TargetStartMsec = currentTotalLengthMsecs;
+                item.TargetEndMsec = currentTotalLengthMsecs + thisFilePartMSecs - settings.Medley_FadeInOutMsecs;
+
+                retSrcList.Add(item);
 
                 // フェードイン／フェードアウトを適用
                 ApplyFadeInOut(partBuffer, fadeSamples);

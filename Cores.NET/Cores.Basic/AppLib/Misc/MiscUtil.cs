@@ -188,7 +188,8 @@ public class FfMpegParsedList
 
     public List<FfMpegParsed> All = new List<FfMpegParsed>();
 
-    public List<string>? Options_UsedBgmSrcFileList = null;
+    public List<AiWaveConcatenatedSrcWavList>? Options_UsedBgmSrcMusicList = null;
+    public List<AiWaveConcatenatedSrcWavList>? Options_UsedOverwriteSrcMusicList = null;
 
     public List<MediaVoiceSegment>? Options_VoiceSegmentsList = null;
 
@@ -379,7 +380,7 @@ public class FfMpegUtil
         return ret;
     }
 
-    public async Task<FfMpegParsedList> EncodeAudioAsync(string srcFilePath, string dstFilePath, FfMpegAudioCodec codec, int kbps = 0, int speedPercent = 100, MediaMetaData? metaData = null, string tagTitle = "", bool useOkFile = true, IEnumerable<string>? sourceFilePathList = null, int headOnlySecs = 0, List<MediaVoiceSegment>? voiceSegments = null, CancellationToken cancel = default)
+    public async Task<FfMpegParsedList> EncodeAudioAsync(string srcFilePath, string dstFilePath, FfMpegAudioCodec codec, int kbps = 0, int speedPercent = 100, MediaMetaData? metaData = null, string tagTitle = "", bool useOkFile = true, IEnumerable<AiWaveConcatenatedSrcWavList>? sourceFilePathList = null, int headOnlySecs = 0, List<MediaVoiceSegment>? voiceSegments = null, CancellationToken cancel = default)
     {
         if (kbps <= 0) kbps = CoresConfig.DefaultFfMpegExecSettings.FfMpegDefaultAudioKbps;
         if (speedPercent <= 0) speedPercent = 100;
@@ -532,7 +533,7 @@ public class FfMpegUtil
 
         if (sourceFilePathList != null)
         {
-            ret.Options_UsedBgmSrcFileList = sourceFilePathList.ToList();
+            ret.Options_UsedBgmSrcMusicList = sourceFilePathList.ToList();
         }
 
         if (useOkFile)
