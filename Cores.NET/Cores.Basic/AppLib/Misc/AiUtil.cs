@@ -4244,7 +4244,11 @@ public abstract class AiAudioEffectBase
     protected abstract void ProcessFilterImpl(Memory<byte> waveFileInOut, IAiAudioEffectSettings effectSettings, CancellationToken cancel);
 
     public IAiAudioEffectSettings NewSettingsFactory() => NewSettingsFactoryImpl();
-    public IAiAudioEffectSettings NewSettingsFactoryWithRandom(AiAudioEffectSpeedType type = AiAudioEffectSpeedType.Normal) => NewSettingsFactoryWithRandomImpl(type);
+    public IAiAudioEffectSettings NewSettingsFactoryWithRandom(AiAudioEffectSpeedType type = AiAudioEffectSpeedType.Normal)
+    {
+        if (type == AiAudioEffectSpeedType.Heavy) type = AiAudioEffectSpeedType.Normal; // 当面
+        return NewSettingsFactoryWithRandomImpl(type);
+    }
     public void ProcessFilter(Memory<byte> waveFileInOut, IAiAudioEffectSettings settings, CancellationToken cancel = default) => ProcessFilterImpl(waveFileInOut, settings, cancel);
     public void ProcessFilterRandom(Memory<byte> waveFileInOut, AiAudioEffectSpeedType type, CancellationToken cancel = default) => ProcessFilter(waveFileInOut, NewSettingsFactoryWithRandom(type), cancel);
 }
