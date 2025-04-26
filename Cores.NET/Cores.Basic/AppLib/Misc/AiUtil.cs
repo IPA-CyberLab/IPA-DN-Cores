@@ -1747,7 +1747,7 @@ public class AiTask
 
                     var effect = AiAudioEffectCollection.AllCollectionRandomQueue.Dequeue();
 
-                    AiAudioEffectFilter filter = new AiAudioEffectFilter(effect, speedType, 4.0, cancel: cancel);
+                    AiAudioEffectFilter filter = new AiAudioEffectFilter(effect, speedType, 3.0 + (double)seg.Level, cancel: cancel);
 
                     int dataStartPositionInBytes = (int)AiWaveUtil.GetWavDataPositionInByteFromTime(seg.TimePosition, voiceWavFormat);
                     int dataEndPositionInBytes = (int)AiWaveUtil.GetWavDataPositionInByteFromTime(seg.TimePosition + seg.TimeLength, voiceWavFormat);
