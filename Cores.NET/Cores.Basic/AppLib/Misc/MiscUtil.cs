@@ -68,6 +68,7 @@ using IPA.Cores.Basic.Legacy;
 using HtmlAgilityPack;
 using System.Text.Json.Serialization;
 using Newtonsoft.Json.Converters;
+using Newtonsoft.Json.Linq;
 
 namespace IPA.Cores.Basic;
 
@@ -184,9 +185,21 @@ public class MediaVoiceSegment
 
     public int Level;
     public string? FilterName;
-    [JsonConverter(typeof(StringEnumConverter))]
+    [Newtonsoft.Json.JsonConverter(typeof(StringEnumConverter))]
     public AiAudioEffectSpeedType? FilterSpeedType;
-    public IAiAudioEffectSettings? FilterSettings;
+    public JObject? FilterSettings;
+}
+
+public class MediaUsedMaterialsSegment
+{
+    public string WavPath = "";
+    public double StartSecs;
+    public double LengthSecs;
+
+    public string? FilterName;
+    [Newtonsoft.Json.JsonConverter(typeof(StringEnumConverter))]
+    public AiAudioEffectSpeedType? FilterSpeedType;
+    public JObject? FilterSettings;
 }
 
 public class FfMpegParsedList
@@ -201,7 +214,7 @@ public class FfMpegParsedList
 
     public List<MediaVoiceSegment>? Options_VoiceSegmentsList = null;
 
-    public List<Tuple<string, double, double>>? Options_UsedMaterials = null;
+    public List<MediaUsedMaterialsSegment>? Options_UsedMaterialsList = null;
 
     public FfMpegParsedList()
     {

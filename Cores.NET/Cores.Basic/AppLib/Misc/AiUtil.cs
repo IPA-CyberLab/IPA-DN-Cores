@@ -63,6 +63,7 @@ using System.Text.RegularExpressions;
 using System.Buffers.Binary;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
+using Newtonsoft.Json.Linq;
 
 namespace IPA.Cores.Basic;
 
@@ -84,6 +85,9 @@ public static class AiUtilVersion
 public class AiCompositWaveSettings
 {
     public List<AiCompositRule> RulesList = null!;
+
+    [JsonIgnore]
+    public Func<AiTaskOperationDesc, CancellationToken, AiAudioEffectFilter?>? CreateAudioEffectFilter = null;
 }
 
 public class AiCompositWaveParam
@@ -96,6 +100,7 @@ public class AiCompositWaveParam
     public double VolumeDelta = -17;
     public double VolumeDeltaRandomRange = 10;
     public double DurationWhenEndTagIsEmpty = 5;
+    public AiAudioEffectSpeedType? EffectType = null;
 }
 
 public class AiCompositRuleData
@@ -155,6 +160,25 @@ public class AiVoiceFilterRule
     public string StartTagStr = Str.NewGuid();
     public string EndTagStr = Str.NewGuid();
     public Func<AiAudioEffectFilter?>? CreateFilterProc = null!;
+}
+
+public class AiTaskOperationDesc
+{
+    public double StartPosition = 0;
+    public double EndPosition = 0;
+    public AiCompositRule Rule = null!;
+    public IEndlessQueue<string> MatFilesQueue = null!;
+
+    public string Calced_MaterialWavPath = "";
+    public double Calced_TargetPositionSecs;
+    public double Calced_MeterialPositionSecs;
+    public double Calced_LengthSecs;
+    public double Calced_FadeInSecs;
+    public double Calced_FadeOutSecs;
+    public double Calced_VolumeDelta_Left;
+    public double Calced_VolumeDelta_Right;
+
+    public AiAudioEffectFilter? Filter = null;
 }
 
 public class AiTask
@@ -969,28 +993,11 @@ public class AiTask
         parsed.Options_UsedBgmSrcMusicList = okRead.Value.Options_UsedBgmSrcMusicList._CloneDeep();
         parsed.Options_UsedOverwriteSrcMusicList = okRead.Value.Options_UsedOverwriteSrcMusicList._CloneDeep();
         parsed.Options_VoiceSegmentsList = okRead.Value.Options_VoiceSegmentsList._CloneDeep();
-        parsed.Options_UsedMaterials = usedFiles.Options_UsedMaterials._CloneDeep();
+        parsed.Options_UsedMaterialsList = usedFiles.Options_UsedMaterialsList._CloneDeep();
 
         await Lfs.WriteOkFileAsync(dstAudioFilePath, parsed, digest, AiUtilVersion.CurrentVersion, cancel: cancel);
 
         return parsed;
-    }
-
-    private class OperationDesc
-    {
-        public double StartPosition = 0;
-        public double EndPosition = 0;
-        public AiCompositRule Rule = null!;
-        public IEndlessQueue<string> MatFilesQueue = null!;
-
-        public string Calced_MaterialWavPath = "";
-        public double Calced_TargetPositionSecs;
-        public double Calced_MeterialPositionSecs;
-        public double Calced_LengthSecs;
-        public double Calced_FadeInSecs;
-        public double Calced_FadeOutSecs;
-        public double Calced_VolumeDelta_Left;
-        public double Calced_VolumeDelta_Right;
     }
 
     public async Task<FfMpegParsedList> CompositWaveFileByAcxBcxTagsWithManyWavMaterialsAsync(string targetSrcWavPath, FfMpegParsedList targetSrcMetaData, string dstWavPath,
@@ -1000,9 +1007,9 @@ public class AiTask
     {
         FfMpegParsedList ret = targetSrcMetaData._CloneDeep();
 
-        ret.Options_UsedMaterials = new();
+        ret.Options_UsedMaterialsList = new();
 
-        List<OperationDesc> opList = new();
+        List<AiTaskOperationDesc> opList = new();
 
         var segments = targetSrcMetaData.Options_VoiceSegmentsList;
         segments._NullCheck();
@@ -1031,12 +1038,12 @@ public class AiTask
                                         double thisLen = Math.Min(originalLen * Util.GenRandInterval(rule.RuleData.Multiplemode_SpanRatio._ToTimeSpanSecs()).TotalSeconds, originalLen);
                                         double thisStart = seg.TimePosition + (originalLen - thisLen) * Util.RandDouble0To1();
 
-                                        opList.Add(new OperationDesc { StartPosition = thisStart, EndPosition = thisStart + thisLen, Rule = rule, MatFilesQueue = rule.RuleData.MaterialsWavPathQueue });
+                                        opList.Add(new AiTaskOperationDesc { StartPosition = thisStart, EndPosition = thisStart + thisLen, Rule = rule, MatFilesQueue = rule.RuleData.MaterialsWavPathQueue });
                                     }
                                 }
                                 else
                                 {
-                                    opList.Add(new OperationDesc { StartPosition = seg.TimePosition, EndPosition = seg2.TimePosition, Rule = rule, MatFilesQueue = rule.RuleData.MaterialsWavPathQueue });
+                                    opList.Add(new AiTaskOperationDesc { StartPosition = seg.TimePosition, EndPosition = seg2.TimePosition, Rule = rule, MatFilesQueue = rule.RuleData.MaterialsWavPathQueue });
                                 }
                                 break;
                             }
@@ -1058,12 +1065,12 @@ public class AiTask
                                 double thisLen = Math.Min(originalLen * Util.GenRandInterval(rule.RuleData.Multiplemode_SpanRatio._ToTimeSpanSecs()).TotalSeconds, originalLen);
                                 double thisStart = seg.TimePosition + (originalLen - thisLen) * Util.RandDouble0To1();
 
-                                opList.Add(new OperationDesc { StartPosition = thisStart, EndPosition = thisStart + thisLen, Rule = rule, MatFilesQueue = rule.RuleData.MaterialsWavPathQueue });
+                                opList.Add(new AiTaskOperationDesc { StartPosition = thisStart, EndPosition = thisStart + thisLen, Rule = rule, MatFilesQueue = rule.RuleData.MaterialsWavPathQueue });
                             }
                         }
                         else
                         {
-                            opList.Add(new OperationDesc { StartPosition = seg.TimePosition, EndPosition = seg2.TimePosition, Rule = rule, MatFilesQueue = rule.RuleData.MaterialsWavPathQueue });
+                            opList.Add(new AiTaskOperationDesc { StartPosition = seg.TimePosition, EndPosition = seg2.TimePosition, Rule = rule, MatFilesQueue = rule.RuleData.MaterialsWavPathQueue });
                         }
                     }
                 }
@@ -1101,7 +1108,27 @@ public class AiTask
                     break;
                 }
 
-                ret.Options_UsedMaterials.Add(new(wavFilePath, op.StartPosition, wantLength));
+                MediaUsedMaterialsSegment used = new MediaUsedMaterialsSegment
+                {
+                    WavPath = wavFilePath,
+                    LengthSecs = op.StartPosition,
+                    StartSecs = wantLength,
+                };
+
+                if (settings.CreateAudioEffectFilter != null)
+                {
+                    var filter = settings.CreateAudioEffectFilter(op, cancel);
+                    if (filter != null)
+                    {
+                        op.Filter = filter;
+
+                        used.FilterName = filter.FilterName;
+                        used.FilterSettings = filter.EffectSettings._ToJObject();
+                        used.FilterSpeedType = filter.FilterSpeedType;
+                    }
+                }
+
+                ret.Options_UsedMaterialsList.Add(used);
 
                 double before_length = param.MaxRandBeforeLengthSecs * Util.RandDouble0To1();
                 double after_length = param.MaxRandAfterLengthSecs * Util.RandDouble0To1();
@@ -1318,7 +1345,7 @@ public class AiTask
     }
 
     async Task CompositWaveWithFadeAsync(string targetSrcWavPath, string dstWavPath,
-        IEnumerable<OperationDesc> operations, CancellationToken cancel = default)
+        IEnumerable<AiTaskOperationDesc> operations, CancellationToken cancel = default)
     {
         Memory<byte> targetSrcData;
         WaveFormat targetSrcWaveFormat;
@@ -1341,7 +1368,7 @@ public class AiTask
 
                 try
                 {
-                    ReadOnlyMemory<byte> matSrcData;
+                    Memory<byte> matSrcData;
 
                     //Console.WriteLine(op.MeterialWavPath);
                     await using (var matFileStream = File.Open(op.Calced_MaterialWavPath, FileMode.Open, FileAccess.Read, FileShare.Read))
@@ -1376,6 +1403,13 @@ public class AiTask
                         matReader.Seek(sourceStartByte, SeekOrigin.Begin);
 
                         matSrcData = await matReader._ReadAllAsync(bytesToProcess, cancel: cancel);
+
+                        if (op.Filter != null)
+                        {
+                            // フィルタ適用
+                            //Where();
+                            op.Filter.PerformFilterProc(matSrcData, cancel);
+                        }
                     }
 
                     AiWaveMixUtil.MixWaveData(targetSrcData, matSrcData, op.Calced_TargetPositionSecs, 0, op.Calced_LengthSecs, op.Calced_VolumeDelta_Left, op.Calced_VolumeDelta_Right, op.Calced_FadeInSecs, op.Calced_FadeOutSecs);
@@ -1688,7 +1722,7 @@ public class AiTask
                         filter.PerformFilterProc(srcMemory, cancel);
                         item.FilterName = filter.FilterName;
                         item.FilterSpeedType = filter.FilterSpeedType;
-                        item.FilterSettings = filter.EffectSettings;
+                        item.FilterSettings = filter.EffectSettings._ToJObject();
                         item.TargetStartMsec = (int)(range.StartPosition * 1000);
                         item.TargetEndMsec = (int)((range.StartPosition + range.Length) * 1000);
                         item.SourceStartMsec = (int)(srcStartPosition * 1000);
@@ -1763,7 +1797,7 @@ public class AiTask
                         filter.PerformFilterProc(voiceProcessTarget, cancel);
 
                         seg.FilterName = filter.FilterName;
-                        seg.FilterSettings = filter.EffectSettings;
+                        seg.FilterSettings = filter.EffectSettings._ToJObject();
                         seg.FilterSpeedType = filter.FilterSpeedType;
                     }
                 }
@@ -3205,7 +3239,7 @@ public class AiWaveConcatenatedSrcWavList
     public string? FilterName;
     [JsonConverter(typeof(StringEnumConverter))]
     public AiAudioEffectSpeedType? FilterSpeedType;
-    public IAiAudioEffectSettings? FilterSettings;
+    public JObject? FilterSettings;
     public int TargetStartMsec;
     public int TargetEndMsec;
     public int SourceStartMsec;
@@ -3369,7 +3403,7 @@ public static class AiWaveConcatenateWithCrossFadeUtil
                         partBuffer = AiWaveUtil.ConvertPcm16ToFloatArray(partWaveData, cancel);
 
                         item.FilterName = filter.FilterName;
-                        item.FilterSettings = filter.EffectSettings;
+                        item.FilterSettings = filter.EffectSettings._ToJObject();
                         item.FilterSpeedType = filter.FilterSpeedType;
                     }
                 }
@@ -5627,7 +5661,7 @@ public class AiAudioEffect_07_Tremolo : AiAudioEffectBase
         switch (type)
         {
             case AiAudioEffectSpeedType.Heavy:
-                // 強烈な変化を想定
+/*                // 強烈な変化を想定
                 ret.LfoRateHz = Random.Shared.NextDouble() * (12.0 - 4.0) + 4.0;       // 4.0～12.0
                 ret.TremoloDepth = Random.Shared.NextDouble() * (1.0 - 0.7) + 0.7;  // 0.7～1.0
                 ret.PanDepth = Random.Shared.NextDouble() * (1.0 - 0.5) + 0.5;      // 0.5～1.0
@@ -5635,7 +5669,7 @@ public class AiAudioEffect_07_Tremolo : AiAudioEffectBase
                 ret.WaveShape = (LfoWaveShape)Random.Shared.Next(0, 3); // 0,1,2 のいずれか (Sine/Triangle/Square)
                 ret.EnableRandomPhase = (Random.Shared.NextDouble() < 0.8); // 80%程度で位相ランダム
                 break;
-
+*/
             case AiAudioEffectSpeedType.Normal:
                 // 標準的な変化を想定
                 ret.LfoRateHz = Random.Shared.NextDouble() * (8.0 - 2.0) + 2.0;      // 2.0～8.0

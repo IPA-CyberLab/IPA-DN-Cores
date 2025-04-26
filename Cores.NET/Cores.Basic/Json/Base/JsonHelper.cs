@@ -93,6 +93,12 @@ namespace IPA.Cores.Helper.Basic
         public static dynamic? _JsonToDynamic(this string str)
             => Json.DeserializeDynamic(str);
 
+        public static JObject? _ToJObject(this object? obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, bool base64url = false, Type? type = null, JsonFlags jsonFlags = JsonFlags.None)
+        {
+            string str = obj._ObjectToJson(includeNull, escapeHtml, maxDepth, compact, referenceHandling, base64url, type, jsonFlags);
+            return _JsonToJsonObject(str, includeNull, maxDepth, jsonFlags);
+        }
+
         public static JObject? _JsonToJsonObject(this string str, bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, JsonFlags jsonFlags = JsonFlags.None)
             => str._JsonToObject<JObject>(includeNull, maxDepth, jsonFlags: jsonFlags);
 
