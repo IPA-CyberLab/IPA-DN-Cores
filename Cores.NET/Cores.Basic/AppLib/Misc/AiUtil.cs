@@ -61,6 +61,7 @@ using IPA.Cores.Helper.Basic;
 using static IPA.Cores.Globals.Basic;
 using System.Text.RegularExpressions;
 using System.Buffers.Binary;
+using Newtonsoft.Json;
 
 namespace IPA.Cores.Basic;
 
@@ -117,6 +118,38 @@ public class AiCompositRule
     {
         this._RuleDataCreated = new(getter: () => this.GetRuleProc());
     }
+}
+
+public class AiAudioEffectFilter
+{
+    public AiAudioEffectBase Effect = null!;
+    public Action<Memory<byte>, CancellationToken> FilterProc = null!;
+    public string FilterName = "";
+    public AiAudioEffectSpeedType FilterSpeedType = AiAudioEffectSpeedType.Normal;
+    public IAiAudioEffectSettings EffectSettings = null!;
+
+    public AiAudioEffectFilter(AiAudioEffectBase effect, AiAudioEffectSpeedType type, CancellationToken cancel = default)
+    {
+        this.Effect = effect;
+        string name = PP.GetFileNameWithoutExtension(effect.ToString()._NotEmptyOrDefault("_unknown"));
+        if (name.StartsWith(".")) name = name.Substring(1);
+        if (name._IsEmpty()) name = "_unknown";
+
+        this.FilterName =PP.MakeSafeFileName(name);
+        this.FilterSpeedType = type;
+        this.EffectSettings = effect.NewSettingsFactoryWithRandom(type);
+        this.FilterProc = (wave, cancel) =>
+        {
+            this.Effect.ProcessFilter(wave, this.EffectSettings, cancel);
+        };
+    }
+}
+
+public class AiVoiceFilterRule
+{
+    public string StartTagStr = Str.NewGuid();
+    public string EndTagStr = Str.NewGuid();
+    public Func<AiAudioEffectFilter?>? CreateFilterProc = null!;
 }
 
 public class AiTask
@@ -2715,6 +2748,9 @@ public class AiRandomBgmSettings
     public int Medley_FadeInOutMsecs = 5 * 1000;
     public int Medley_PlusMinusPercentage = 44;
     public int Medley_MarginMsecs = 15 * 1000;
+
+    [JsonIgnore]
+    public Func<CancellationToken, AiAudioEffectFilter?>? CreateAudioEffectFilterProc = null!;
 }
 
 // 以下のコード By ChatGPT
@@ -2894,6 +2930,111 @@ public static class AiWaveMixUtil
     }
 }
 
+public static class AiWaveUtil
+{
+    /// <summary>
+    /// 1. float[] -> 16bit PCM (ステレオ 44.1kHz) の生データ (ヘッダなし) を表す Memory<byte> に変換する。
+    /// </summary>
+    /// <param name="floatBuffer">
+    ///     NAudio の ISampleProvider.Read() などで取得したインターリーブ済みステレオの float 配列。
+    ///     サンプルレート 44.1kHz, 2ch, フォーマットは -1.0f ～ +1.0f を想定。
+    /// </param>
+    /// <param name="cancel">巨大なループを回す際のキャンセル用トークン</param>
+    /// <returns>16bit PCM (ステレオ) の生バイトデータ (WAV ヘッダを含まない波形部分のみ)</returns>
+    public static Memory<byte> ConvertFloatArrayToPcm16Memory(
+        float[] floatBuffer,
+        CancellationToken cancel
+    )
+    {
+        if (floatBuffer == null) throw new ArgumentNullException(nameof(floatBuffer));
+
+        // 16ビットPCM (2バイト) x サンプル数 だけのバイト配列を確保する。
+        // float配列はステレオ(2ch)をインターリーブしているが、変換は単純に
+        // 「各 float サンプルを 16bit(short) にする」だけなので、
+        // サンプル数 x 2 バイト = バイト数になる。
+        // （チャンネル数は気にせず、単純にサンプルの数だけループを回せばよい）
+        int totalSamples = floatBuffer.Length;
+        int totalBytes = totalSamples * sizeof(short); // short = 2 bytes
+        var byteArray = new byte[totalBytes];
+
+        // NAudio.WaveBuffer を使うと、ShortBuffer[i] を簡単に扱える
+        // (内部的には GCHandle でバッファを Pin してくれる)。
+        var waveBuffer = new WaveBuffer(byteArray);
+
+        for (int i = 0; i < totalSamples; i++)
+        {
+            // 適宜キャンセル要求をチェック (大きい配列を想定するなら頻度調整)
+            if ((i % 10000) == 0)
+            {
+                cancel.ThrowIfCancellationRequested();
+            }
+
+            // float(-1.0～+1.0) を 16bit PCM(-32768～32767) に変換
+            // ここでは Math.Round で四捨五入後にキャストする例。
+            // (NAudio の規定実装では単純に (short)(floatVal * 32767) などがよく使われる)
+            float sampleFloat = floatBuffer[i];
+
+            // クリッピングは適宜必要に応じて実装
+            if (sampleFloat > 1.0f) sampleFloat = 1.0f;
+            if (sampleFloat < -1.0f) sampleFloat = -1.0f;
+
+            waveBuffer.ShortBuffer[i] = (short)Math.Round(sampleFloat * 32767.0f);
+        }
+
+        // 返り値は Memory<byte> にして返す
+        return new Memory<byte>(byteArray);
+    }
+
+    /// <summary>
+    /// 2. 16bit PCM (ステレオ 44.1kHz) の生データ (ヘッダなし) -> float[] に変換する。
+    /// </summary>
+    /// <param name="pcmData">
+    ///     「44.1kHz / 2ch / 16bit PCM」の生データ (WAVヘッダなし)。
+    ///     ステレオの場合、各サンプルがインターリーブされている。
+    /// </param>
+    /// <param name="cancel">巨大なループを回す際のキャンセル用トークン</param>
+    /// <returns>変換後の float[] (インターリーブ済みステレオのサンプル列)</returns>
+    public static float[] ConvertPcm16ToFloatArray(
+        ReadOnlyMemory<byte> pcmData,
+        CancellationToken cancel
+    )
+    {
+        // byte -> short に変換するので、2 バイトで 1サンプル
+        // ステレオかどうかにかかわらず、単純にトータルサンプル数 = (バイト数 / 2)。
+        // たとえば「2ch 16bit」でも、(バイト配列の合計長)/2 が short の個数になる。
+        // ステレオなら、左サンプル / 右サンプル が交互に格納されている、というだけ。
+        int totalBytes = pcmData.Length;
+        if (totalBytes % 2 != 0)
+        {
+            throw new ArgumentException("PCMデータが 2 バイト単位になっていません。壊れている可能性があります。");
+        }
+        int totalSamples = totalBytes / sizeof(short);
+
+        // 変換先 float 配列
+        float[] floatArray = new float[totalSamples];
+
+        // NAudio.WaveBuffer は ReadOnlyMemory<byte> から直接作れないため、
+        // 必要ならば一旦 ToArray() する。サイズが巨大な場合は別途工夫が要る。
+        var byteArray = pcmData.ToArray();
+        var waveBuffer = new WaveBuffer(byteArray);
+
+        for (int i = 0; i < totalSamples; i++)
+        {
+            if ((i % 10000) == 0)
+            {
+                cancel.ThrowIfCancellationRequested();
+            }
+
+            // short(-32768～32767) -> float(-1.0～+1.0 近辺)
+            short sampleShort = waveBuffer.ShortBuffer[i];
+            float sampleFloat = sampleShort / 32768.0f; // -1.0 ～ 約+0.9999
+            floatArray[i] = sampleFloat;
+        }
+
+        return floatArray;
+    }
+}
+
 public static class AiWaveConcatenateWithCrossFadeUtil
 {
     /// <summary>
@@ -3031,6 +3172,21 @@ public static class AiWaveConcatenateWithCrossFadeUtil
                     for (int i = totalRead; i < readSamples; i++)
                     {
                         partBuffer[i] = 0f;
+                    }
+                }
+
+                if (settings.CreateAudioEffectFilterProc != null)
+                {
+                    var filter = settings.CreateAudioEffectFilterProc(cancel);
+                    if (filter != null)
+                    {
+                        Where();
+                        // オーディオフィルタ関数を適用。ただし、float の波形データは直接扱えないので、いったん byte[] に変換し、フィルタを通し、また float[] に戻す処理が必要
+                        var partWaveData = AiWaveUtil.ConvertFloatArrayToPcm16Memory(partBuffer, cancel);
+
+                        filter.FilterProc(partWaveData, cancel);
+
+                        partBuffer = AiWaveUtil.ConvertPcm16ToFloatArray(partWaveData, cancel);
                     }
                 }
 
@@ -3828,6 +3984,28 @@ public enum AiAudioEffectSpeedType
     Heavy = 0,
     Normal = 1,
     Light = 2,
+}
+
+public static class AiAudioEffectCollection
+{
+    public static IReadOnlyList<AiAudioEffectBase> AllCollectionList { get; }
+    public static ShuffledEndlessQueue<AiAudioEffectBase> AllCollectionRandomQueue { get; }
+
+    static AiAudioEffectCollection()
+    {
+        List<AiAudioEffectBase> allc = new();
+
+        allc.Add(new AiAudioEffect_02_NearFar());
+        allc.Add(new AiAudioEffect_02_NearFar());
+        allc.Add(new AiAudioEffect_04_FreeFall());
+        allc.Add(new AiAudioEffect_05_Flap());
+        allc.Add(new AiAudioEffect_07_Tremolo());
+        allc.Add(new AiAudioEffect_07_Tremolo());
+
+        AllCollectionList = allc;
+
+        AllCollectionRandomQueue = new(allc);
+    }
 }
 
 public interface IAiAudioEffectSettings
