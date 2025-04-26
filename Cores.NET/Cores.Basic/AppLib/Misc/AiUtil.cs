@@ -115,21 +115,21 @@ public class AiCompositRule
 {
     public string StartTagStr = Str.NewGuid();
     public string EndTagStr = Str.NewGuid();
-    public Func<AiCompositRuleData> GetRuleProc = null!;
+    public Func<AiCompositRuleData> GetRuleFunc = null!;
 
-    public AiCompositRuleData RuleData => _RuleDataCreated;
-    readonly CachedProperty<AiCompositRuleData> _RuleDataCreated;
+    public AiCompositRuleData RuleData => _RuleDataCreatedInternal;
+    readonly CachedProperty<AiCompositRuleData> _RuleDataCreatedInternal;
 
     public AiCompositRule()
     {
-        this._RuleDataCreated = new(getter: () => this.GetRuleProc());
+        this._RuleDataCreatedInternal = new(getter: () => this.GetRuleFunc());
     }
 }
 
 public class AiAudioEffectFilter
 {
     public AiAudioEffectBase Effect = null!;
-    public Action<Memory<byte>, CancellationToken> PerformFilterProc = null!;
+    public Action<Memory<byte>, CancellationToken> PerformFilterFunc = null!;
     public string FilterName = "";
     public AiAudioEffectSpeedType FilterSpeedType = AiAudioEffectSpeedType.Normal;
     public IAiAudioEffectSettings EffectSettings = null!;
@@ -144,7 +144,7 @@ public class AiAudioEffectFilter
         this.FilterName = PP.MakeSafeFileName(name);
         this.FilterSpeedType = type;
         this.EffectSettings = effect.NewSettingsFactoryWithRandom(type);
-        this.PerformFilterProc = (wave, cancel) =>
+        this.PerformFilterFunc = (wave, cancel) =>
         {
             var originalVolume = AiWaveVolumeUtils.CalcMeanVolume(wave, cancel);
 
@@ -159,7 +159,7 @@ public class AiVoiceFilterRule
 {
     public string StartTagStr = Str.NewGuid();
     public string EndTagStr = Str.NewGuid();
-    public Func<AiAudioEffectFilter?>? CreateFilterProc = null!;
+    public Func<AiAudioEffectFilter?>? CreateFilterFunc = null!;
 }
 
 public class AiTaskOperationDesc
@@ -1408,7 +1408,7 @@ public class AiTask
                         {
                             // フィルタ適用
                             //Where();
-                            op.Filter.PerformFilterProc(matSrcData, cancel);
+                            op.Filter.PerformFilterFunc(matSrcData, cancel);
                         }
                     }
 
@@ -1719,7 +1719,7 @@ public class AiTask
                     var filter = settings.CreateAudioEffectFilterForOverwriteMusicPartProc(cancel);
                     if (filter != null)
                     {
-                        filter.PerformFilterProc(srcMemory, cancel);
+                        filter.PerformFilterFunc(srcMemory, cancel);
                         item.FilterName = filter.FilterName;
                         item.FilterSpeedType = filter.FilterSpeedType;
                         item.FilterSettings = filter.EffectSettings._ToJObject();
@@ -1794,7 +1794,7 @@ public class AiTask
                     {
                         var voiceProcessTarget = voiceWavData.Slice(dataStartPositionInBytes, dataLengthInBytes);
 
-                        filter.PerformFilterProc(voiceProcessTarget, cancel);
+                        filter.PerformFilterFunc(voiceProcessTarget, cancel);
 
                         seg.FilterName = filter.FilterName;
                         seg.FilterSettings = filter.EffectSettings._ToJObject();
@@ -2300,7 +2300,7 @@ public class AiUtilSeedVcEngine : AiUtilBasicEngine
             result = await this.RunVEnvPythonCommandsAsync(
                 $"python inference.py --source test_in_data/_aiutil_src.wav --target test_in_data/_aiutil_sample.wav " +
                 $"--output test_out_dir --diffusion-steps {diffusionSteps} --length-adjust 1.0 --inference-cfg-rate 1.0 --f0-condition False " +
-                $"--auto-f0-adjust False --semi-tone-shift 0 --config runs/test01_kuraki/config_dit_mel_seed_uvit_whisper_small_wavenet.yml " +
+                $"--auto-f0-adjust False --semi-tone-shift 0 --config runs/test02/config_dit_mel_seed_uvit_whisper_small_wavenet.yml " +
                 $"--fp16 True", timeout, printTag: tag, cancel: cancel);
         }
         else
@@ -2308,7 +2308,7 @@ public class AiUtilSeedVcEngine : AiUtilBasicEngine
             result = await this.RunVEnvPythonCommandsAsync(
                 $"python inference.py --source test_in_data/_aiutil_src.wav --target test_in_data/_aiutil_sample.wav " +
                 $"--output test_out_dir --diffusion-steps {diffusionSteps} --length-adjust 1.0 --inference-cfg-rate 1.0 --f0-condition True " +
-                $"--auto-f0-adjust True --semi-tone-shift 0 --config runs/test01_kuraki/config_dit_mel_seed_uvit_whisper_base_f0_44k.yml " +
+                $"--auto-f0-adjust True --semi-tone-shift 0 --config runs/test02/config_dit_mel_seed_uvit_whisper_base_f0_44k.yml " +
                 $"--fp16 True", timeout, printTag: tag, cancel: cancel);
         }
 
@@ -3398,7 +3398,7 @@ public static class AiWaveConcatenateWithCrossFadeUtil
                         // オーディオフィルタ関数を適用。ただし、float の波形データは直接扱えないので、いったん byte[] に変換し、フィルタを通し、また float[] に戻す処理が必要
                         var partWaveData = AiWaveUtil.ConvertFloatArrayToPcm16Memory(partBuffer, cancel);
 
-                        filter.PerformFilterProc(partWaveData, cancel);
+                        filter.PerformFilterFunc(partWaveData, cancel);
 
                         partBuffer = AiWaveUtil.ConvertPcm16ToFloatArray(partWaveData, cancel);
 
