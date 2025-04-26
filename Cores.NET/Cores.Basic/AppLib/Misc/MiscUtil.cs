@@ -66,6 +66,8 @@ using System.Xml;
 using IPA.Cores.Basic.Legacy;
 
 using HtmlAgilityPack;
+using System.Text.Json.Serialization;
+using Newtonsoft.Json.Converters;
 
 namespace IPA.Cores.Basic;
 
@@ -170,8 +172,8 @@ public class FfMpegParsed
 
 public class MediaVoiceSegment
 {
-    public long DataPosition;
-    public long DataLength;
+    public long DataPosition; // この値は怪しい？
+    public long DataLength; // この値は怪しい？
     public double TimePosition;
     public double TimeLength;
     public string? VoiceText;
@@ -179,6 +181,12 @@ public class MediaVoiceSegment
     public int SpeakerId;
     public bool IsBlank;
     public bool IsTag;
+
+    public int Level;
+    public string? FilterName;
+    [JsonConverter(typeof(StringEnumConverter))]
+    public AiAudioEffectSpeedType? FilterSpeedType;
+    public IAiAudioEffectSettings? FilterSettings;
 }
 
 public class FfMpegParsedList

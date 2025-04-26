@@ -62,6 +62,7 @@ using static IPA.Cores.Globals.Basic;
 using System.Text.RegularExpressions;
 using System.Buffers.Binary;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 
 namespace IPA.Cores.Basic;
 
@@ -131,11 +132,11 @@ public class AiAudioEffectFilter
     public AiAudioEffectFilter(AiAudioEffectBase effect, AiAudioEffectSpeedType type, double adjustAddVolume = 0.0, CancellationToken cancel = default)
     {
         this.Effect = effect;
-        string name = PP.GetFileNameWithoutExtension(effect.ToString()._NotEmptyOrDefault("_unknown"));
+        string name = PP.GetExtension(effect.ToString()._NotEmptyOrDefault("_unknown"));
         if (name.StartsWith(".")) name = name.Substring(1);
         if (name._IsEmpty()) name = "_unknown";
 
-        this.FilterName =PP.MakeSafeFileName(name);
+        this.FilterName = PP.MakeSafeFileName(name);
         this.FilterSpeedType = type;
         this.EffectSettings = effect.NewSettingsFactoryWithRandom(type);
         this.PerformFilterProc = (wave, cancel) =>
@@ -1447,9 +1448,47 @@ public class AiTask
             var voiceSegList = okFileMeta.Value?.Options_VoiceSegmentsList;
             if (voiceSegList != null && voiceSegList.Count >= 1 && replaceWavsDirPath._IsFilled())
             {
+                int currentLevel = 1;
+
                 for (int i = 0; i < voiceSegList.Count; i++)
                 {
                     var seg1 = voiceSegList[i];
+
+                    if (seg1.TagStr._IsSamei("<ACX_START>"))
+                    {
+                        currentLevel += 1;
+                    }
+                    else if (seg1.TagStr._IsSamei("<ACX_END>"))
+                    {
+                        currentLevel -= 1;
+                    }
+                    else if (seg1.TagStr._IsSamei("<BCX_START>"))
+                    {
+                        currentLevel += 2;
+                    }
+                    else if (seg1.TagStr._IsSamei("<BCX_FINAL_START>"))
+                    {
+                        currentLevel += 2;
+                    }
+                    else if (seg1.TagStr._IsSamei("<XCSSTART>"))
+                    {
+                        currentLevel += 2;
+                    }
+                    else if (seg1.TagStr._IsSamei("<XCSEND>"))
+                    {
+                        currentLevel -= 2;
+                    }
+                    else if (seg1.TagStr._IsSamei("<BCX_END>") || seg1.TagStr._IsSamei("<BXC_END>"))
+                    {
+                        currentLevel -= 2;
+                    }
+                    else if (seg1.TagStr._IsSamei("<BCX_FINAL_END>") || seg1.TagStr._IsSamei("<BXC_FINAL_END>"))
+                    {
+                        currentLevel -= 2;
+                    }
+
+                    seg1.Level = currentLevel;
+
                     if (seg1.TagStr._IsSamei("<BCX_START>"))
                     {
                         for (int j = i; j < voiceSegList.Count; j++)
@@ -1676,9 +1715,72 @@ public class AiTask
             bgmWavTmpPath = bgmWavTmpPath2;
         }
 
+        string voiceWavTmpPath2 = await Lfs.GenerateUniqueTempFilePathAsync("voiceWavTmpPath2", ".wav");
+
+        // voiceWavTmpPath の後処理
+        {
+            Memory<byte> voiceWavData;
+            WaveFormat voiceWavFormat;
+            await using (var voiceWavStream = File.Open(voiceWavTmpPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                await using var voiceWavReader = new WaveFileReader(voiceWavStream);
+                voiceWavFormat = voiceWavReader.WaveFormat;
+                CheckWavFormat(voiceWavFormat);
+
+                voiceWavData = await voiceWavStream._ReadToEndAsync();
+            }
+
+            foreach (var seg in okFileMeta.Value?.Options_VoiceSegmentsList!)
+            {
+                //if (seg.DataLength != 0 && seg.IsBlank == false && seg.IsTag == false)
+                {
+                    AiAudioEffectSpeedType speedType = AiAudioEffectSpeedType.Light;
+
+                    if (seg.Level == 2)
+                    {
+                        speedType = AiAudioEffectSpeedType.Normal;
+                    }
+                    else if (seg.Level >= 3)
+                    {
+                        speedType = AiAudioEffectSpeedType.Heavy;
+                    }
+
+                    var effect = AiAudioEffectCollection.AllCollectionRandomQueue.Dequeue();
+
+                    AiAudioEffectFilter filter = new AiAudioEffectFilter(effect, speedType, 4.0, cancel: cancel);
+
+                    int dataStartPositionInBytes = (int)AiWaveUtil.GetWavDataPositionInByteFromTime(seg.TimePosition, voiceWavFormat);
+                    int dataEndPositionInBytes = (int)AiWaveUtil.GetWavDataPositionInByteFromTime(seg.TimePosition + seg.TimeLength, voiceWavFormat);
+                    int dataLengthInBytes = dataEndPositionInBytes - dataStartPositionInBytes;
+
+                    if (voiceWavData.Length < (dataStartPositionInBytes + dataLengthInBytes))
+                    {
+                    }
+                    else
+                    {
+                        var voiceProcessTarget = voiceWavData.Slice(dataStartPositionInBytes, dataLengthInBytes);
+
+                        filter.PerformFilterProc(voiceProcessTarget, cancel);
+
+                        seg.FilterName = filter.FilterName;
+                        seg.FilterSettings = filter.EffectSettings;
+                        seg.FilterSpeedType = filter.FilterSpeedType;
+                    }
+                }
+            }
+
+            // 結果を wav に書き出す
+            await using (var voiceWavTmpPath2Stream = File.Create(voiceWavTmpPath2))
+            {
+                await using var writer = new WaveFileWriter(voiceWavTmpPath2Stream, voiceWavFormat);
+
+                await writer.WriteAsync(voiceWavData, cancellationToken: cancel);
+            }
+        }
+
         string outWavTmpPath = await Lfs.GenerateUniqueTempFilePathAsync("bgmadded_file", ".wav", cancel: cancel);
 
-        await FfMpeg.AddBgmToVoiceFileAsync(voiceWavTmpPath, bgmWavTmpPath, outWavTmpPath, smoothMode: smoothMode, cancel: cancel);
+        await FfMpeg.AddBgmToVoiceFileAsync(voiceWavTmpPath2, bgmWavTmpPath, outWavTmpPath, smoothMode: smoothMode, cancel: cancel);
 
         var parsed = await FfMpeg.EncodeAudioAsync(outWavTmpPath, dstFilePath, codec, kbps, useOkFile: false, metaData: newMeta, cancel: cancel);
 
@@ -2985,6 +3087,15 @@ public static class AiWaveMixUtil
 
 public static class AiWaveUtil
 {
+    public static long GetWavDataPositionInByteFromTime(double timeSecs, WaveFormat format)
+    {
+        double exact = timeSecs * format.AverageBytesPerSecond;
+
+        long byteOffset = (long)Math.Round(exact);
+        byteOffset -= byteOffset % format.BlockAlign; // 必ずフレーム境界に
+        return byteOffset;
+    }
+
     /// <summary>
     /// 1. float[] -> 16bit PCM (ステレオ 44.1kHz) の生データ (ヘッダなし) を表す Memory<byte> に変換する。
     /// </summary>
@@ -3092,6 +3203,7 @@ public class AiWaveConcatenatedSrcWavList
 {
     public string WavFilePath = null!;
     public string? FilterName;
+    [JsonConverter(typeof(StringEnumConverter))]
     public AiAudioEffectSpeedType? FilterSpeedType;
     public IAiAudioEffectSettings? FilterSettings;
     public int TargetStartMsec;
@@ -3546,6 +3658,7 @@ public class ProcessAudioEffect2Setting
     /// </summary>
     public EffectType EffectMode { get; set; } = EffectType.Basic;
 
+    [Flags]
     public enum EffectType
     {
         Basic,
@@ -4056,11 +4169,12 @@ public static class AiWaveVolumeUtils
     }
 }
 
+[Flags]
 public enum AiAudioEffectSpeedType
 {
-    Heavy = 0,
+    Light = 0,
     Normal = 1,
-    Light = 2,
+    Heavy = 2,
 }
 
 public static class AiAudioEffectCollection
@@ -5720,6 +5834,7 @@ public class AiAudioEffect_07_Tremolo : AiAudioEffectBase
 /// <summary>
 /// LFOの波形を表す列挙型。
 /// </summary>
+[Flags]
 public enum LfoWaveShape
 {
     Sine = 0,
