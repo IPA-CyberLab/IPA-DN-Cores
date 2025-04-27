@@ -182,6 +182,9 @@ public class MediaVoiceSegment
     public int SpeakerId;
     public bool IsBlank;
     public bool IsTag;
+    public double BlankDuration;
+    public bool IsSleep;
+    public double SleepDuration;
 
     public int Level;
     public string? FilterName;
