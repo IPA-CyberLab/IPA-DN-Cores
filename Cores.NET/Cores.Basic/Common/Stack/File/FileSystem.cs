@@ -1370,6 +1370,21 @@ public class PathParser
         return GetRelativeFileName(dirPath, baseDirPath);
     }
 
+    public string ReplaceFullFilePathExtension(string srcFilePath, string newExtension)
+    {
+        newExtension = newExtension.Trim();
+
+        if (newExtension.StartsWith(".") == false)
+        {
+            newExtension = "." + newExtension;
+        }
+
+        string dir = PP.GetDirectoryName(srcFilePath);
+        string fn1 = PP.GetFileNameWithoutExtension(srcFilePath, false);
+
+        return PP.Combine(dir, fn1 + newExtension);
+    }
+
     public string GetRelativeFileName(string filePath, string baseDirPath)
     {
         filePath = filePath._TrimNonNull();

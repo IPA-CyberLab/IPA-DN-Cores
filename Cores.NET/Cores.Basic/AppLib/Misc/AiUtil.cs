@@ -2450,6 +2450,7 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
                 {
                     IsBlank = true,
                     SpeakerId = speakerId,
+                    BlankDuration = Util.GenRandInterval((0.75)._ToTimeSpanSecs()).TotalSeconds, // 0.75 秒 +/- 30%
                 };
 
                 wavFileNameIndexToSegmentMappingTable[wavFileNameIndex] = new(segmentForVoice, segmentForBlank);
@@ -2457,6 +2458,57 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
                 segmentsList.Add(segmentForVoice);
 
                 segmentsList.Add(segmentForBlank);
+            }
+            else if (textBlockList[i].Key.StartsWith("<SLEEP:", StrCmp))
+            {
+                // 特別タグ: <SLEEP:xxx>
+                string innerText = textBlockList[i].Key._RemoveQuotation('<', '>');
+                if (innerText._IsFilled())
+                {
+                    if (innerText._GetKeyAndValue(out var sleepTagStr, out var durationStr, ":"))
+                    {
+                        double durationOriginal = Math.Min(durationStr._ToDouble(), 3600);
+                        double duration = Math.Max(durationOriginal - 0.1, 0.11);
+                        WaveFormat waveFormat = new WaveFormat(24000, 16, 1);
+                        int silenceBytes = AiWaveUtil.GetWavDataSizeInByteFromTime(duration, waveFormat);
+
+                        int speakerId = 0;
+
+                        byte[] blockWavData = new byte[silenceBytes];
+
+                        var tmpPath = await Lfs.GenerateUniqueTempFilePathAsync($"{tagTitle}_{i:D8}_speaker{speakerId:D3}", ".wav", cancel: cancel);
+
+                        await Lfs.WriteDataToFileAsync(tmpPath, blockWavData, FileFlags.AutoCreateDirectory, cancel: cancel);
+
+                        blockWavFileNameList.Add(tmpPath);
+                        int wavFileNameIndex = blockWavFileNameList.Count - 1;
+
+                        totalFileSize += blockWavData.LongLength;
+
+                        Con.WriteLine($"{SimpleAiName}: {tagTitle}: Text to Wav (Sleep): {(i + 1)._ToString3()}/{textBlockList.Count._ToString3()}, Size: {totalFileSize._ToString3()} bytes, Speaker: {speakerId:D3}");
+
+                        var segmentForVoice = new MediaVoiceSegment
+                        {
+                            VoiceText = "",
+                            SpeakerId = speakerId,
+                            IsSleep = true,
+                            SleepDuration = duration,
+                        };
+
+                        var segmentForBlank = new MediaVoiceSegment
+                        {
+                            IsBlank = true,
+                            SpeakerId = speakerId,
+                            BlankDuration = 0.1,
+                        };
+
+                        wavFileNameIndexToSegmentMappingTable[wavFileNameIndex] = new(segmentForVoice, segmentForBlank);
+
+                        segmentsList.Add(segmentForVoice);
+
+                        segmentsList.Add(segmentForBlank);
+                    }
+                }
             }
             else
             {
@@ -2544,8 +2596,12 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
                         }
                     }
 
-                    double silenceDurationSeconds = 0.5; // 0.5 秒
-                    int silenceBytes = (int)(bytesPerSecond * silenceDurationSeconds);
+                    double silenceDurationSeconds = segmentForBlank.BlankDuration;
+                    if (silenceDurationSeconds < 0.00001)
+                    {
+                        silenceDurationSeconds = 0.5; // 未設定の場合は 0.5 秒
+                    }
+                    int silenceBytes = AiWaveUtil.GetWavDataSizeInByteFromTime(silenceDurationSeconds, waveFormat);
 
                     var silenceBuffer = new byte[silenceBytes];
 
@@ -2601,6 +2657,22 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
     // テキスト文字列からタグとそれ以外を分離
     public static KeyValueList<string, bool> SplitTextToNormalAndTag(string text)
     {
+        // 前処理: 1 行特別タグ ( < > なし) の変換
+        var lines = text._GetLines();
+        StringWriter w = new();
+        foreach (var line in lines)
+        {
+            // "SLEEP:xxx" タグ -> "<SLEEP:xxx>" タグ
+            string line2 = line;
+            if (line.StartsWith("SLEEP:", StrCmp) && line._IsAscii())
+            {
+                line2 = $"<{line}>";
+            }
+            w.WriteLine(line2);
+        }
+
+        text = w.ToString();
+
         StringBuilder b = new StringBuilder();
 
         KeyValueList<string, bool> ret = new();
@@ -3121,6 +3193,15 @@ public static class AiWaveMixUtil
 
 public static class AiWaveUtil
 {
+    public static int GetWavDataSizeInByteFromTime(double timeSecs, WaveFormat format)
+    {
+        double exact = timeSecs * format.AverageBytesPerSecond;
+
+        int byteOffset = (int)Math.Round(exact);
+        byteOffset -= byteOffset % format.BlockAlign; // 必ずフレーム境界に
+        return byteOffset;
+    }
+
     public static long GetWavDataPositionInByteFromTime(double timeSecs, WaveFormat format)
     {
         double exact = timeSecs * format.AverageBytesPerSecond;
@@ -5665,15 +5746,15 @@ public class AiAudioEffect_07_Tremolo : AiAudioEffectBase
         switch (type)
         {
             case AiAudioEffectSpeedType.Heavy:
-/*                // 強烈な変化を想定
-                ret.LfoRateHz = Random.Shared.NextDouble() * (12.0 - 4.0) + 4.0;       // 4.0～12.0
-                ret.TremoloDepth = Random.Shared.NextDouble() * (1.0 - 0.7) + 0.7;  // 0.7～1.0
-                ret.PanDepth = Random.Shared.NextDouble() * (1.0 - 0.5) + 0.5;      // 0.5～1.0
-                ret.RandomModIntensity = Random.Shared.NextDouble() * (0.8 - 0.3) + 0.3; // 0.3～0.8
-                ret.WaveShape = (LfoWaveShape)Random.Shared.Next(0, 3); // 0,1,2 のいずれか (Sine/Triangle/Square)
-                ret.EnableRandomPhase = (Random.Shared.NextDouble() < 0.8); // 80%程度で位相ランダム
-                break;
-*/
+            /*                // 強烈な変化を想定
+                            ret.LfoRateHz = Random.Shared.NextDouble() * (12.0 - 4.0) + 4.0;       // 4.0～12.0
+                            ret.TremoloDepth = Random.Shared.NextDouble() * (1.0 - 0.7) + 0.7;  // 0.7～1.0
+                            ret.PanDepth = Random.Shared.NextDouble() * (1.0 - 0.5) + 0.5;      // 0.5～1.0
+                            ret.RandomModIntensity = Random.Shared.NextDouble() * (0.8 - 0.3) + 0.3; // 0.3～0.8
+                            ret.WaveShape = (LfoWaveShape)Random.Shared.Next(0, 3); // 0,1,2 のいずれか (Sine/Triangle/Square)
+                            ret.EnableRandomPhase = (Random.Shared.NextDouble() < 0.8); // 80%程度で位相ランダム
+                            break;
+            */
             case AiAudioEffectSpeedType.Normal:
                 // 標準的な変化を想定
                 ret.LfoRateHz = Random.Shared.NextDouble() * (8.0 - 2.0) + 2.0;      // 2.0～8.0
