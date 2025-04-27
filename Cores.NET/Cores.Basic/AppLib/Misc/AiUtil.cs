@@ -1111,8 +1111,8 @@ public class AiTask
                 MediaUsedMaterialsSegment used = new MediaUsedMaterialsSegment
                 {
                     WavPath = wavFilePath,
-                    LengthSecs = op.StartPosition,
-                    StartSecs = wantLength,
+                    LengthSecs = wantLength,
+                    StartSecs = op.StartPosition,
                 };
 
                 if (settings.CreateAudioEffectFilter != null)
