@@ -1482,7 +1482,7 @@ public class AiTask
             var voiceSegList = okFileMeta.Value?.Options_VoiceSegmentsList;
             if (voiceSegList != null && voiceSegList.Count >= 1 && replaceWavsDirPath._IsFilled())
             {
-                int currentLevel = 1;
+                int currentLevel = 0;
 
                 for (int i = 0; i < voiceSegList.Count; i++)
                 {
@@ -1506,11 +1506,11 @@ public class AiTask
                     }
                     else if (seg1.TagStr._IsSamei("<XCSSTART>"))
                     {
-                        currentLevel += 2;
+                        currentLevel += 1;
                     }
                     else if (seg1.TagStr._IsSamei("<XCSEND>"))
                     {
-                        currentLevel -= 2;
+                        currentLevel -= 1;
                     }
                     else if (seg1.TagStr._IsSamei("<BCX_END>") || seg1.TagStr._IsSamei("<BXC_END>"))
                     {
@@ -1766,39 +1766,42 @@ public class AiTask
 
             foreach (var seg in okFileMeta.Value?.Options_VoiceSegmentsList!)
             {
-                //if (seg.DataLength != 0 && seg.IsBlank == false && seg.IsTag == false)
+                if (seg.DataLength != 0 && seg.IsBlank == false && seg.IsTag == false)
                 {
-                    AiAudioEffectSpeedType speedType = AiAudioEffectSpeedType.Light;
-
-                    if (seg.Level == 2)
+                    if (seg.Level >= 1)
                     {
-                        speedType = AiAudioEffectSpeedType.Normal;
-                    }
-                    else if (seg.Level >= 3)
-                    {
-                        speedType = AiAudioEffectSpeedType.Heavy;
-                    }
+                        AiAudioEffectSpeedType speedType = AiAudioEffectSpeedType.Light;
 
-                    var effect = AiAudioEffectCollection.AllCollectionRandomQueue.Dequeue();
+                        if (seg.Level == 2)
+                        {
+                            speedType = AiAudioEffectSpeedType.Normal;
+                        }
+                        else if (seg.Level >= 3)
+                        {
+                            speedType = AiAudioEffectSpeedType.Heavy;
+                        }
 
-                    AiAudioEffectFilter filter = new AiAudioEffectFilter(effect, speedType, 3.0 + (double)seg.Level, cancel: cancel);
+                        var effect = AiAudioEffectCollection.AllCollectionRandomQueue.Dequeue();
 
-                    int dataStartPositionInBytes = (int)AiWaveUtil.GetWavDataPositionInByteFromTime(seg.TimePosition, voiceWavFormat);
-                    int dataEndPositionInBytes = (int)AiWaveUtil.GetWavDataPositionInByteFromTime(seg.TimePosition + seg.TimeLength, voiceWavFormat);
-                    int dataLengthInBytes = dataEndPositionInBytes - dataStartPositionInBytes;
+                        AiAudioEffectFilter filter = new AiAudioEffectFilter(effect, speedType, 1.5 + (double)seg.Level, cancel: cancel);
 
-                    if (voiceWavData.Length < (dataStartPositionInBytes + dataLengthInBytes))
-                    {
-                    }
-                    else
-                    {
-                        var voiceProcessTarget = voiceWavData.Slice(dataStartPositionInBytes, dataLengthInBytes);
+                        int dataStartPositionInBytes = (int)AiWaveUtil.GetWavDataPositionInByteFromTime(seg.TimePosition, voiceWavFormat);
+                        int dataEndPositionInBytes = (int)AiWaveUtil.GetWavDataPositionInByteFromTime(seg.TimePosition + seg.TimeLength, voiceWavFormat);
+                        int dataLengthInBytes = dataEndPositionInBytes - dataStartPositionInBytes;
 
-                        filter.PerformFilterFunc(voiceProcessTarget, cancel);
+                        if (voiceWavData.Length < (dataStartPositionInBytes + dataLengthInBytes))
+                        {
+                        }
+                        else
+                        {
+                            var voiceProcessTarget = voiceWavData.Slice(dataStartPositionInBytes, dataLengthInBytes);
 
-                        seg.FilterName = filter.FilterName;
-                        seg.FilterSettings = filter.EffectSettings._ToJObject();
-                        seg.FilterSpeedType = filter.FilterSpeedType;
+                            filter.PerformFilterFunc(voiceProcessTarget, cancel);
+
+                            seg.FilterName = filter.FilterName;
+                            seg.FilterSettings = filter.EffectSettings._ToJObject();
+                            seg.FilterSpeedType = filter.FilterSpeedType;
+                        }
                     }
                 }
             }
@@ -2230,6 +2233,12 @@ public class AiUtilSeedVcEngine : AiUtilBasicEngine
         this.FfMpeg = ffMpeg;
     }
 
+    class SilentRange
+    {
+        public double StartTime;
+        public double Duration;
+    }
+
     public async Task<AvUtilSeedVcMetaData> ConvertAsync(string srcWavPath, string dstWavPath, string voiceSamplePath, int diffusionSteps, string tagTitle = "", bool useOkFile = true, List<MediaVoiceSegment>? voiceSegments = null, CancellationToken cancel = default)
     {
         if (tagTitle._IsEmpty()) tagTitle = PP.GetFileNameWithoutExtension(srcWavPath);
@@ -2245,9 +2254,26 @@ public class AiUtilSeedVcEngine : AiUtilBasicEngine
             }
         }
 
+        List<SilentRange> silentRangeList = new();
+
+        if (voiceSegments != null)
+        {
+            var tmpList = voiceSegments.ToArray().Reverse().ToList();
+            foreach (var item in tmpList)
+            {
+                if (item.IsBlank || item.IsSleep)
+                {
+                    if (item.TimeLength >= 0.01)
+                    {
+                        silentRangeList.Add(new SilentRange { StartTime = item.TimePosition, Duration = item.TimeLength, });
+                    }
+                }
+            }
+        }
+
         await TaskUtil.RetryAsync(async c =>
         {
-            await ConvertInternalAsync(srcWavPath, dstWavPath, voiceSamplePath, diffusionSteps, tagTitle, cancel);
+            await ConvertInternalAsync(srcWavPath, dstWavPath, voiceSamplePath, diffusionSteps, silentRangeList, tagTitle, cancel);
 
             return true;
         },
@@ -2266,7 +2292,7 @@ public class AiUtilSeedVcEngine : AiUtilBasicEngine
         return meta;
     }
 
-    async Task ConvertInternalAsync(string srcWavPath, string dstWavPath, string voiceSamplePath, int diffusionSteps, string tagTitle = "", CancellationToken cancel = default)
+    async Task ConvertInternalAsync(string srcWavPath, string dstWavPath, string voiceSamplePath, int diffusionSteps, IEnumerable<SilentRange>? silentRanges = null, string tagTitle = "", CancellationToken cancel = default)
     {
         string aiSrcPath = BaseDirPath._CombinePath("test_in_data", "_aiutil_src.wav");
 
@@ -2325,9 +2351,51 @@ public class AiUtilSeedVcEngine : AiUtilBasicEngine
         var files = await Lfs.EnumDirectoryAsync(aiOutDir, wildcard: "*.wav", cancel: cancel);
         var aiDstFile = files.Single();
 
+        string tmpSrcPath = aiDstFile.FullPath;
+
+        // 出力結果の最後の部分を指定した秒数分無音で埋める (Seed-VC の不具合があり、無音部分からゴーストが発生するため)
+        if (silentRanges != null && silentRanges.Any())
+        {
+            Memory<byte> voiceWavData;
+            WaveFormat voiceWavFormat;
+            await using (var voiceWavStream = File.Open(aiDstFile.FullPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            {
+                await using var voiceWavReader = new WaveFileReader(voiceWavStream);
+                voiceWavFormat = voiceWavReader.WaveFormat;
+                voiceWavData = await voiceWavStream._ReadToEndAsync();
+            }
+
+            double srcLen = AiWaveUtil.CalcWavDurationFromSizeInByte(voiceWavData.Length, voiceWavFormat);
+
+            foreach (var range in silentRanges)
+            {
+                if (range.Duration >= 0.1)
+                {
+                    int zeroStartInByte = (int)AiWaveUtil.GetWavDataPositionInByteFromTime(range.StartTime, voiceWavFormat);
+
+                    if (zeroStartInByte < voiceWavData.Length)
+                    {
+                        Memory<byte> silentData = AiWaveUtil.GenerateSilentNoiseData(range.Duration, voiceWavFormat);
+
+                        silentData.CopyTo(voiceWavData.Slice(zeroStartInByte, Math.Min(silentData.Length, voiceWavData.Length - zeroStartInByte)));
+                    }
+                }
+            }
+
+            tmpSrcPath = await Lfs.GenerateUniqueTempFilePathAsync("silent", ".wav", cancel: cancel);
+
+            // 結果を wav に書き出す
+            await using (var voiceWavTmpPath2Stream = File.Create(tmpSrcPath))
+            {
+                await using var writer = new WaveFileWriter(voiceWavTmpPath2Stream, voiceWavFormat);
+
+                await writer.WriteAsync(voiceWavData, cancellationToken: cancel);
+            }
+        }
+
         await Lfs.DeleteFileIfExistsAsync(dstWavPath, cancel: cancel);
 
-        await FfMpeg.AdjustAudioVolumeAsync(aiDstFile.FullPath, dstWavPath, Settings.AdjustAudioTargetMaxVolume, Settings.AdjustAudioTargetMeanVolume, FfmpegAdjustVolumeOptiono.MeanOnly, tagTitle, false, cancel);
+        await FfMpeg.AdjustAudioVolumeAsync(tmpSrcPath, dstWavPath, Settings.AdjustAudioTargetMaxVolume, Settings.AdjustAudioTargetMeanVolume, FfmpegAdjustVolumeOptiono.MeanOnly, tagTitle, false, cancel);
     }
 
     async Task DeleteAllAiProcessOutputFilesAsync(CancellationToken cancel = default)
@@ -2470,15 +2538,20 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
                         double durationOriginal = Math.Min(durationStr._ToDouble(), 3600);
                         double duration = Math.Max(durationOriginal - 0.1, 0.11);
                         WaveFormat waveFormat = new WaveFormat(24000, 16, 1);
-                        int silenceBytes = AiWaveUtil.GetWavDataSizeInByteFromTime(duration, waveFormat);
 
                         int speakerId = 0;
-
-                        byte[] blockWavData = new byte[silenceBytes];
+                        byte[] blockWavData = AiWaveUtil.GenerateSilentNoiseData(duration, waveFormat);
 
                         var tmpPath = await Lfs.GenerateUniqueTempFilePathAsync($"{tagTitle}_{i:D8}_speaker{speakerId:D3}", ".wav", cancel: cancel);
 
-                        await Lfs.WriteDataToFileAsync(tmpPath, blockWavData, FileFlags.AutoCreateDirectory, cancel: cancel);
+                        MemoryStream waveMs = new();
+                        await using (WaveFileWriter writer = new(waveMs, waveFormat))
+                        {
+                            await writer.WriteAsync(blockWavData, cancel);
+                            await writer.FlushAsync();
+                        }
+
+                        await Lfs.WriteDataToFileAsync(tmpPath, waveMs.ToArray(), FileFlags.AutoCreateDirectory, cancel: cancel);
 
                         blockWavFileNameList.Add(tmpPath);
                         int wavFileNameIndex = blockWavFileNameList.Count - 1;
@@ -2601,9 +2674,8 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
                     {
                         silenceDurationSeconds = 0.5; // 未設定の場合は 0.5 秒
                     }
-                    int silenceBytes = AiWaveUtil.GetWavDataSizeInByteFromTime(silenceDurationSeconds, waveFormat);
 
-                    var silenceBuffer = new byte[silenceBytes];
+                    var silenceBuffer = AiWaveUtil.GenerateSilentNoiseData(silenceDurationSeconds, waveFormat);
 
                     segmentForBlank.DataPosition = writer.Position;
 
@@ -3193,6 +3265,231 @@ public static class AiWaveMixUtil
 
 public static class AiWaveUtil
 {
+    /// <summary>
+    /// 指定された WaveFormat / 長さ(duration秒) / レベル(db dB) の微小ノイズ(生PCMデータ)を生成する
+    /// </summary>
+    /// <param name="waveFormat">使用したい WaveFormat (サンプリングレート, ビット深度など)</param>
+    /// <param name="duration">生成するデータの長さ(秒)</param>
+    /// <param name="db">ノイズの音量(dB)。例: -80.0</param>
+    /// <returns>wav ヘッダなしのPCMデータ(byte配列)</returns>
+    public static byte[] GenerateSilentNoiseData(double durationSeconds, WaveFormat format, double dbFS = -80.0)
+    {
+        if (dbFS >= 0) throw new ArgumentOutOfRangeException(
+            nameof(dbFS), "dbFS は 0 より小さい必要があります (0dBFS がフルスケール)");
+
+        // dB → 振幅係数 (0.0001 ≒ -80 dBFS)
+        double amp = Math.Pow(10.0, dbFS / 20.0);
+
+        int totalFrames = (int)Math.Round(format.SampleRate * durationSeconds);
+        int bufferSize = totalFrames * format.BlockAlign;
+        byte[] buffer = new byte[bufferSize];
+
+        Random rng = new Random();                 // 高度な用途なら RNGCryptoServiceProvider などでも可
+        int offset = 0;
+
+        for (int frame = 0; frame < totalFrames; frame++)
+        {
+            for (int ch = 0; ch < format.Channels; ch++)
+            {
+                double sample = (rng.NextDouble() * 2.0 - 1.0) * amp; // -1.0〜+1.0 にスケール後、振幅係数を掛ける
+
+                switch (format.Encoding)
+                {
+                    case WaveFormatEncoding.IeeeFloat:
+                        float f = (float)sample;                // +/-1.0 がフルスケール
+                        BitConverter.GetBytes(f)
+                                    .CopyTo(buffer, offset);
+                        offset += 4;
+                        break;
+
+                    case WaveFormatEncoding.Pcm:
+                        switch (format.BitsPerSample)
+                        {
+                            case 16:
+                                short s16 = (short)(sample * short.MaxValue);
+                                BitConverter.GetBytes(s16).CopyTo(buffer, offset);
+                                offset += 2;
+                                break;
+
+                            case 24:
+                                int s24 = (int)(sample * 8_388_607); // 2^23-1
+                                buffer[offset++] = (byte)(s24 & 0xFF);
+                                buffer[offset++] = (byte)((s24 >> 8) & 0xFF);
+                                buffer[offset++] = (byte)((s24 >> 16) & 0xFF);
+                                break;
+
+                            case 32:
+                                int s32 = (int)(sample * int.MaxValue);
+                                BitConverter.GetBytes(s32).CopyTo(buffer, offset);
+                                offset += 4;
+                                break;
+
+                            case 8:
+                                // 8-bit PCM は 0–255 の unsigned。128 が 0。
+                                byte s8 = (byte)(128 + sample * 127);
+                                buffer[offset++] = s8;
+                                break;
+
+                            default:
+                                throw new NotSupportedException(
+                                    $"PCM {format.BitsPerSample}-bit には未対応です");
+                        }
+                        break;
+
+                    default:
+                        throw new NotSupportedException(
+                            $"Encoding {format.Encoding} には未対応です");
+                }
+            }
+        }
+        return buffer;
+    }
+    /// <summary>
+    /// Box-Muller 法で N(0,1) のガウシアン乱数を1つ生成する。
+    /// </summary>
+    private static double NextGaussian(Random rand)
+    {
+        // 2つの一様乱数 u1, u2 を用意 (0 ~ 1)
+        double u1 = 1.0 - rand.NextDouble(); // 0 は引かないようにする (logの発散回避)
+        double u2 = 1.0 - rand.NextDouble();
+        // Box-Muller transform
+        double radius = Math.Sqrt(-2.0 * Math.Log(u1));
+        double theta = 2.0 * Math.PI * u2;
+        double z = radius * Math.Sin(theta);
+        return z;
+    }
+
+    /// <summary>
+    /// 指定した WaveFormat (PCM) と duration (秒) から、-80dB 程度の微小ノイズで埋めた
+    /// RAW PCM データ(byte配列)を返す (WAVヘッダなし)。
+    /// dB 値を変えれば -80dB 以外のレベルにも対応可能。
+    /// </summary>
+    /// <param name="waveFormat">PCM形式の WaveFormat</param>
+    /// <param name="duration">生成するノイズの秒数</param>
+    /// <param name="db">埋め込むノイズのレベル(dB)。例: -80.0</param>
+    /// <returns>生成した生PCMデータ（WAVヘッダ無し）</returns>
+    /// <exception cref="NotSupportedException">非対応エンコーディングやビット深度の場合に発生</exception>
+    public static byte[] GenerateSilentNoiseData2(double duration, WaveFormat waveFormat, double db = -80.0)
+    {
+        // エンコーディングが PCM 以外は例外
+        if (waveFormat.Encoding != WaveFormatEncoding.Pcm)
+        {
+            throw new NotSupportedException("WaveFormatEncoding.Pcm 以外はサポートしていません。");
+        }
+
+        int sampleRate = waveFormat.SampleRate;    // サンプルレート
+        int channels = waveFormat.Channels;      // チャンネル数
+        int bits = waveFormat.BitsPerSample; // ビット深度 (8,16,24,32など)
+
+        // duration 秒分のフレーム数を計算
+        int totalFrames = (int)Math.Round(sampleRate * duration);
+        if (totalFrames < 0) totalFrames = 0;
+
+        // dB -> 振幅（リニア値）に変換 (10^(dB/20))
+        double amplitude = Math.Pow(10.0, db / 20.0);
+
+        // サンプルあたりのバイト数 (例: 16bit→2, 24bit→3, 32bit→4)
+        int bytesPerSample = bits / 8;
+
+        // 全サンプル数(フレーム数×チャンネル数)から、最終的な配列サイズを求める
+        long totalSampleCount = (long)totalFrames * channels;
+        long totalBytes = totalSampleCount * bytesPerSample;
+        if (totalBytes > int.MaxValue)
+        {
+            // 常識的には超えないはずだが、一応ガード
+            throw new Exception("生成しようとしているデータサイズが大きすぎます。");
+        }
+
+        byte[] buffer = new byte[totalBytes];
+
+        // 正規分布用のランダム生成 (Box-Muller 法の一例)
+        Random rand = new Random();
+        double NextGaussian()
+        {
+            // Box-Muller 変換
+            double u1 = 1.0 - rand.NextDouble();
+            double u2 = 1.0 - rand.NextDouble();
+            return Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Cos(2.0 * Math.PI * u2);
+        }
+
+        // ビット深度に応じて書き込み方法を切り替え
+        // （8bitはUnsigned、16bit以上はSignedで小数→整数変換）
+        for (int n = 0; n < totalFrames; n++)
+        {
+            for (int ch = 0; ch < channels; ch++)
+            {
+                // ガウス分布で[-1,1]程度の乱数を生成したものに振幅を掛ける
+                double sample = amplitude * NextGaussian();
+
+                // 書き込む先頭インデックス
+                int idx = (int)((n * channels + ch) * bytesPerSample);
+
+                switch (bits)
+                {
+                    case 8:
+                        {
+                            // 8bit PCM: 0～255 (Unsigned)
+                            // sample=-1.0 → 0, sample=+1.0 → 255 になるよう一応スケーリング
+                            double val = sample * 127.5 + 127.5;
+                            // 範囲クリップ
+                            if (val < 0.0) val = 0.0;
+                            if (val > 255.0) val = 255.0;
+                            buffer[idx] = (byte)Math.Round(val);
+                            break;
+                        }
+                    case 16:
+                        {
+                            // 16bit PCM: -32768～32767
+                            double val = sample * short.MaxValue;  // short.MaxValue=32767
+                            if (val < short.MinValue) val = short.MinValue;
+                            if (val > short.MaxValue) val = short.MaxValue;
+                            short s = (short)Math.Round(val);
+                            buffer[idx] = (byte)(s & 0xFF);
+                            buffer[idx + 1] = (byte)((s >> 8) & 0xFF);
+                            break;
+                        }
+                    case 24:
+                        {
+                            // 24bit PCM: -8388608～8388607
+                            const double max24 = 8388607.0;
+                            double val = sample * max24;
+                            if (val < -8388608.0) val = -8388608.0;
+                            if (val > 8388607.0) val = 8388607.0;
+                            int i24 = (int)Math.Round(val);
+                            buffer[idx] = (byte)(i24 & 0xFF);
+                            buffer[idx + 1] = (byte)((i24 >> 8) & 0xFF);
+                            buffer[idx + 2] = (byte)((i24 >> 16) & 0xFF);
+                            break;
+                        }
+                    case 32:
+                        {
+                            // 32bit PCM: -2147483648～2147483647
+                            const double max32 = 2147483647.0;
+                            double val = sample * max32;
+                            if (val < int.MinValue) val = int.MinValue;
+                            if (val > int.MaxValue) val = int.MaxValue;
+                            int i32 = (int)Math.Round(val);
+                            buffer[idx] = (byte)(i32 & 0xFF);
+                            buffer[idx + 1] = (byte)((i32 >> 8) & 0xFF);
+                            buffer[idx + 2] = (byte)((i32 >> 16) & 0xFF);
+                            buffer[idx + 3] = (byte)((i32 >> 24) & 0xFF);
+                            break;
+                        }
+                    default:
+                        throw new NotSupportedException($"未対応のビット深度です: {bits}bit PCM");
+                }
+            }
+        }
+
+        return buffer;
+    }
+
+
+    public static double CalcWavDurationFromSizeInByte(long size, WaveFormat format)
+    {
+        return (double)size / (double)format.AverageBytesPerSecond;
+    }
+
     public static int GetWavDataSizeInByteFromTime(double timeSecs, WaveFormat format)
     {
         double exact = timeSecs * format.AverageBytesPerSecond;
