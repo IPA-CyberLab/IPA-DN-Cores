@@ -512,7 +512,7 @@ public class AiTask
 
         foreach (var seriesDir in seriesDirList.Where(x => x.IsDirectory && x.IsCurrentOrParentDirectory == false && x.Name.StartsWith("_") == false).OrderBy(x => x.Name, StrCmpi))
         {
-            var srcTextList = await Lfs.EnumDirectoryAsync(seriesDir.FullPath, true, cancel: cancel);
+            var srcTextList = await Lfs.EnumDirectoryAsync(seriesDir.FullPath, false, cancel: cancel);
 
             foreach (var srcTextFile in srcTextList.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Text) && x.Name.StartsWith("_") == false && x.Name.EndsWith(".ok.txt", StrCmpi) == false).OrderBy(x => x.Name, StrCmpi)
                 ._Shuffle()
@@ -2356,40 +2356,52 @@ public class AiUtilSeedVcEngine : AiUtilBasicEngine
         // 出力結果の最後の部分を指定した秒数分無音で埋める (Seed-VC の不具合があり、無音部分からゴーストが発生するため)
         if (silentRanges != null && silentRanges.Any())
         {
-            Memory<byte> voiceWavData;
-            WaveFormat voiceWavFormat;
-            await using (var voiceWavStream = File.Open(aiDstFile.FullPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            try
             {
-                await using var voiceWavReader = new WaveFileReader(voiceWavStream);
-                voiceWavFormat = voiceWavReader.WaveFormat;
-                voiceWavData = await voiceWavStream._ReadToEndAsync();
-            }
-
-            double srcLen = AiWaveUtil.CalcWavDurationFromSizeInByte(voiceWavData.Length, voiceWavFormat);
-
-            foreach (var range in silentRanges)
-            {
-                if (range.Duration >= 0.1)
+                Memory<byte> voiceWavData;
+                WaveFormat voiceWavFormat;
+                await using (var voiceWavStream = File.Open(aiDstFile.FullPath, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
-                    int zeroStartInByte = (int)AiWaveUtil.GetWavDataPositionInByteFromTime(range.StartTime, voiceWavFormat);
+                    await using var voiceWavReader = new WaveFileReader(voiceWavStream);
+                    voiceWavFormat = voiceWavReader.WaveFormat;
+                    voiceWavData = await voiceWavStream._ReadToEndAsync();
+                }
 
-                    if (zeroStartInByte < voiceWavData.Length)
+                double srcLen = AiWaveUtil.CalcWavDurationFromSizeInByte(voiceWavData.Length, voiceWavFormat);
+
+                foreach (var range in silentRanges)
+                {
+                    if (range.Duration >= 0.1)
                     {
-                        Memory<byte> silentData = AiWaveUtil.GenerateSilentNoiseData(range.Duration, voiceWavFormat);
+                        int zeroStartInByte = (int)AiWaveUtil.GetWavDataPositionInByteFromTime(range.StartTime, voiceWavFormat);
 
-                        silentData.CopyTo(voiceWavData.Slice(zeroStartInByte, Math.Min(silentData.Length, voiceWavData.Length - zeroStartInByte)));
+                        if (zeroStartInByte < voiceWavData.Length)
+                        {
+                            Memory<byte> silentData = AiWaveUtil.GenerateSilentNoiseData(range.Duration, voiceWavFormat);
+
+                            int silentDataLength = Math.Min(silentData.Length, voiceWavData.Length - zeroStartInByte);
+
+                            silentData = silentData.Slice(0, silentDataLength);
+
+                            silentData.CopyTo(voiceWavData.Slice(zeroStartInByte));
+                        }
                     }
                 }
+
+                tmpSrcPath = await Lfs.GenerateUniqueTempFilePathAsync("silent", ".wav", cancel: cancel);
+
+                // 結果を wav に書き出す
+                await using (var voiceWavTmpPath2Stream = File.Create(tmpSrcPath))
+                {
+                    await using var writer = new WaveFileWriter(voiceWavTmpPath2Stream, voiceWavFormat);
+
+                    await writer.WriteAsync(voiceWavData, cancellationToken: cancel);
+                }
             }
-
-            tmpSrcPath = await Lfs.GenerateUniqueTempFilePathAsync("silent", ".wav", cancel: cancel);
-
-            // 結果を wav に書き出す
-            await using (var voiceWavTmpPath2Stream = File.Create(tmpSrcPath))
+            catch (Exception ex)
             {
-                await using var writer = new WaveFileWriter(voiceWavTmpPath2Stream, voiceWavFormat);
-
-                await writer.WriteAsync(voiceWavData, cancellationToken: cancel);
+                ex._Error();
+                throw;
             }
         }
 
