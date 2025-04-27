@@ -1482,7 +1482,7 @@ public class AiTask
             var voiceSegList = okFileMeta.Value?.Options_VoiceSegmentsList;
             if (voiceSegList != null && voiceSegList.Count >= 1 && replaceWavsDirPath._IsFilled())
             {
-                int currentLevel = 1;
+                int currentLevel = 0;
 
                 for (int i = 0; i < voiceSegList.Count; i++)
                 {
@@ -1506,11 +1506,11 @@ public class AiTask
                     }
                     else if (seg1.TagStr._IsSamei("<XCSSTART>"))
                     {
-                        currentLevel += 2;
+                        currentLevel += 1;
                     }
                     else if (seg1.TagStr._IsSamei("<XCSEND>"))
                     {
-                        currentLevel -= 2;
+                        currentLevel -= 1;
                     }
                     else if (seg1.TagStr._IsSamei("<BCX_END>") || seg1.TagStr._IsSamei("<BXC_END>"))
                     {
@@ -1766,39 +1766,42 @@ public class AiTask
 
             foreach (var seg in okFileMeta.Value?.Options_VoiceSegmentsList!)
             {
-                //if (seg.DataLength != 0 && seg.IsBlank == false && seg.IsTag == false)
+                if (seg.DataLength != 0 && seg.IsBlank == false && seg.IsTag == false)
                 {
-                    AiAudioEffectSpeedType speedType = AiAudioEffectSpeedType.Light;
-
-                    if (seg.Level == 2)
+                    if (seg.Level >= 1)
                     {
-                        speedType = AiAudioEffectSpeedType.Normal;
-                    }
-                    else if (seg.Level >= 3)
-                    {
-                        speedType = AiAudioEffectSpeedType.Heavy;
-                    }
+                        AiAudioEffectSpeedType speedType = AiAudioEffectSpeedType.Light;
 
-                    var effect = AiAudioEffectCollection.AllCollectionRandomQueue.Dequeue();
+                        if (seg.Level == 2)
+                        {
+                            speedType = AiAudioEffectSpeedType.Normal;
+                        }
+                        else if (seg.Level >= 3)
+                        {
+                            speedType = AiAudioEffectSpeedType.Heavy;
+                        }
 
-                    AiAudioEffectFilter filter = new AiAudioEffectFilter(effect, speedType, 3.0 + (double)seg.Level, cancel: cancel);
+                        var effect = AiAudioEffectCollection.AllCollectionRandomQueue.Dequeue();
 
-                    int dataStartPositionInBytes = (int)AiWaveUtil.GetWavDataPositionInByteFromTime(seg.TimePosition, voiceWavFormat);
-                    int dataEndPositionInBytes = (int)AiWaveUtil.GetWavDataPositionInByteFromTime(seg.TimePosition + seg.TimeLength, voiceWavFormat);
-                    int dataLengthInBytes = dataEndPositionInBytes - dataStartPositionInBytes;
+                        AiAudioEffectFilter filter = new AiAudioEffectFilter(effect, speedType, 1.5 + (double)seg.Level, cancel: cancel);
 
-                    if (voiceWavData.Length < (dataStartPositionInBytes + dataLengthInBytes))
-                    {
-                    }
-                    else
-                    {
-                        var voiceProcessTarget = voiceWavData.Slice(dataStartPositionInBytes, dataLengthInBytes);
+                        int dataStartPositionInBytes = (int)AiWaveUtil.GetWavDataPositionInByteFromTime(seg.TimePosition, voiceWavFormat);
+                        int dataEndPositionInBytes = (int)AiWaveUtil.GetWavDataPositionInByteFromTime(seg.TimePosition + seg.TimeLength, voiceWavFormat);
+                        int dataLengthInBytes = dataEndPositionInBytes - dataStartPositionInBytes;
 
-                        filter.PerformFilterFunc(voiceProcessTarget, cancel);
+                        if (voiceWavData.Length < (dataStartPositionInBytes + dataLengthInBytes))
+                        {
+                        }
+                        else
+                        {
+                            var voiceProcessTarget = voiceWavData.Slice(dataStartPositionInBytes, dataLengthInBytes);
 
-                        seg.FilterName = filter.FilterName;
-                        seg.FilterSettings = filter.EffectSettings._ToJObject();
-                        seg.FilterSpeedType = filter.FilterSpeedType;
+                            filter.PerformFilterFunc(voiceProcessTarget, cancel);
+
+                            seg.FilterName = filter.FilterName;
+                            seg.FilterSettings = filter.EffectSettings._ToJObject();
+                            seg.FilterSpeedType = filter.FilterSpeedType;
+                        }
                     }
                 }
             }
