@@ -183,12 +183,7 @@ public class AiTaskOperationDesc
 
 public class AiTask
 {
-    public const double BgmVolumeDeltaForConstant = -9.3;
-    public const double BgmVolumeDeltaForSmooth = -0.0;
-
     public static readonly RefLong TotalGpuProcessTimeMsecs = new RefLong();
-
-    public const int DefaultFadeoutSecs = 10;
 
     public FfMpegUtil FfMpeg { get; }
     public AiUtilBasicSettings Settings { get; }
@@ -1433,7 +1428,7 @@ public class AiTask
         }
     }
 
-    public async Task AddRandomBgmToAllVoiceFilesAsync(string srcVoiceDirRoot, string dstDirRoot, string srcMusicWavsDirPath, string replaceWavsDirPath, FfMpegAudioCodec codec, AiRandomBgmSettings settings, bool smoothMode, int kbps = 0, int fadeOutSecs = AiTask.DefaultFadeoutSecs, string? oldTagStr = null, string? newTagStr = null, double? adjustDeltaForConstant = null, CancellationToken cancel = default)
+    public async Task AddRandomBgmToAllVoiceFilesAsync(string srcVoiceDirRoot, string dstDirRoot, FfMpegAudioCodec codec, AiRandomBgmSettingsFactory settingsFactory, int kbps = 0, string? oldTagStr = null, string? newTagStr = null, CancellationToken cancel = default)
     {
         var srcFiles = await Lfs.EnumDirectoryAsync(srcVoiceDirRoot, true, cancel: cancel);
 
@@ -1444,14 +1439,27 @@ public class AiTask
 
             string dstDirPath = PP.Combine(dstDirRoot, relativeDirPth);
 
-            Con.WriteLine($"Add BGM: '{srcFile.FullPath}' -> '{dstDirPath}'");
+            var settingsList = settingsFactory.GetBgmSettingListProc(srcFile.FullPath);
 
-            var result = await AddRandomBgmToVoiceFileAsync(srcFile.FullPath, dstDirPath, srcMusicWavsDirPath, replaceWavsDirPath, codec, settings, smoothMode, kbps, fadeOutSecs, true, oldTagStr, newTagStr, adjustDeltaForConstant, cancel);
+            HashSet<string> keyNames = new HashSet<string>(StrCmpi);
+            settingsList._DoForEach(x => keyNames.Add(x.Key));
+
+            foreach (var key in keyNames.OrderBy(x => x, StrCmpi))
+            {
+                Con.WriteLine($"Add BGM ({key}): '{srcFile.FullPath}' -> '{dstDirPath}'");
+
+                var bgmSettings = settingsList.Where(x => x.Key._IsSamei(key)).First();
+
+                var result = await AddRandomBgmToVoiceFileAsync(srcFile.FullPath, dstDirPath, codec, bgmSettings, kbps, true, oldTagStr, newTagStr, cancel);
+            }
         }
     }
 
-    public async Task<(FfMpegParsedList Parsed, string DestFileName)> AddRandomBgmToVoiceFileAsync(string srcVoiceFilePath, string dstDir, string srcMusicWavsDirPath, string replaceWavsDirPath, FfMpegAudioCodec codec, AiRandomBgmSettings settings, bool smoothMode, int kbps = 0, int fadeOutSecs = AiTask.DefaultFadeoutSecs, bool useOkFile = true, string? oldTagStr = null, string? newTagStr = null, double? adjustDeltaForConstant = null, CancellationToken cancel = default)
+    public async Task<(FfMpegParsedList Parsed, string DestFileName)> AddRandomBgmToVoiceFileAsync(string srcVoiceFilePath, string dstDir, FfMpegAudioCodec codec, KeyValuePair<string, AiRandomBgmSettings> settings, int kbps = 0, bool useOkFile = true, string? oldTagStr = null, string? newTagStr = null, CancellationToken cancel = default)
     {
+        string srcMusicWavsDirPath = settings.Value.SrcBgmDirPath;
+        string replaceWavsDirPath = settings.Value.ReplaceBgmDirPath;
+
         List<AiRandomBgpReplaceRanges> replaceRanges = new();
 
         var srcVoiceFileMetaData = await FfMpeg.ReadMetaDataWithFfProbeAsync(srcVoiceFilePath, cancel: cancel);
@@ -1567,8 +1575,17 @@ public class AiTask
 
         MediaMetaData newMeta = srcMeta._CloneDeep();
 
+        string newTagStrAddForKey = "";
+        if (settings.Key._IsFilled())
+        {
+            newTagStrAddForKey += "_" + settings.Key;
+        }
+
         if (oldTagStr._IsFilled() && newTagStr._IsFilled())
         {
+
+            newTagStr += newTagStrAddForKey;
+
             newMeta.Album = newMeta.Album._ReplaceStr(oldTagStr, newTagStr);
             newMeta.AlbumArtist = newMeta.AlbumArtist._ReplaceStr(oldTagStr, newTagStr);
             newMeta.Title = newMeta.Title._ReplaceStr(oldTagStr, newTagStr);
@@ -1576,10 +1593,11 @@ public class AiTask
         }
         else
         {
-            newMeta.Album = newMeta.Album._ReplaceStr(" - x", " - bgm_x");
-            newMeta.AlbumArtist = newMeta.AlbumArtist._ReplaceStr(" - x", " - bgm_x");
-            newMeta.Title = newMeta.Title._ReplaceStr(" - x", " - bgm_x");
-            newMeta.Artist = newMeta.Artist._ReplaceStr(" - x", " - bgm_x");
+            string bgm_x_replace_dst_str = $" - bgm{newTagStrAddForKey}_x";
+            newMeta.Album = newMeta.Album._ReplaceStr(" - x", bgm_x_replace_dst_str);
+            newMeta.AlbumArtist = newMeta.AlbumArtist._ReplaceStr(" - x", bgm_x_replace_dst_str);
+            newMeta.Title = newMeta.Title._ReplaceStr(" - x", bgm_x_replace_dst_str);
+            newMeta.Artist = newMeta.Artist._ReplaceStr(" - x", bgm_x_replace_dst_str);
         }
 
         string dstFileName;
@@ -1592,7 +1610,7 @@ public class AiTask
         else
         {
             string tmp1 = PP.GetFileNameWithoutExtension(srcVoiceFilePath);
-            string tmp2 = "bgm_" + tmp1;
+            string tmp2 = $"bgm{newTagStrAddForKey}_" + tmp1;
 
             dstFileName = tmp2 + dstExtension;
         }
@@ -1604,9 +1622,9 @@ public class AiTask
             throw new CoresLibException($"dstFilePath == srcVoiceFilePath: '{srcVoiceFilePath}'");
         }
 
-        double adjustDelta = smoothMode ? AiTask.BgmVolumeDeltaForSmooth : (adjustDeltaForConstant ?? AiTask.BgmVolumeDeltaForConstant);
+        double adjustDelta = settings.Value.SmoothMode ? settings.Value.BgmVolumeDeltaForSmooth : settings.Value.BgmVolumeDeltaForConstant;
 
-        string digest = $"srcDurationMsecs={srcDurationMsecs},fadeOutSecs={fadeOutSecs},smoothMode={smoothMode},adjustDelta ={adjustDelta},codec={codec},kbps={kbps},meta={newMeta._ObjectToJson()._Digest()}";
+        string digest = $"srcDurationMsecs={srcDurationMsecs},fadeOutSecs={settings.Value.TailFadeoutSecs},smoothMode={settings.Value.SmoothMode},adjustDelta ={adjustDelta},codec={codec},kbps={kbps},meta={newMeta._ObjectToJson()._Digest()}";
 
         if (useOkFile)
         {
@@ -1626,7 +1644,7 @@ public class AiTask
 
         string bgmWavTmpPath = await Lfs.GenerateUniqueTempFilePathAsync("bgmfile", ".wav", cancel: cancel);
 
-        var retSrcList = await CreateRandomBgmFileAsync(srcMusicWavsDirPath, bgmWavTmpPath, srcDurationMsecs, settings, fadeOutSecs, adjustDelta, cancel);
+        var retSrcList = await CreateRandomBgmFileAsync(srcMusicWavsDirPath, bgmWavTmpPath, srcDurationMsecs, settings.Value, settings.Value.TailFadeoutSecs, adjustDelta, cancel);
 
         List<AiWaveConcatenatedSrcWavList> overwriteSrcList = new();
 
@@ -1714,9 +1732,9 @@ public class AiTask
                     srcMemory = await srcWavReader._ReadAllAsync(bytesToProcess, cancel: cancel);
                 }
 
-                if (settings.CreateAudioEffectFilterForOverwriteMusicPartProc != null)
+                if (settings.Value.CreateAudioEffectFilterForOverwriteMusicPartProc != null)
                 {
-                    var filter = settings.CreateAudioEffectFilterForOverwriteMusicPartProc(cancel);
+                    var filter = settings.Value.CreateAudioEffectFilterForOverwriteMusicPartProc(cancel);
                     if (filter != null)
                     {
                         filter.PerformFilterFunc(srcMemory, cancel);
@@ -1817,7 +1835,7 @@ public class AiTask
 
         string outWavTmpPath = await Lfs.GenerateUniqueTempFilePathAsync("bgmadded_file", ".wav", cancel: cancel);
 
-        await FfMpeg.AddBgmToVoiceFileAsync(voiceWavTmpPath2, bgmWavTmpPath, outWavTmpPath, smoothMode: smoothMode, cancel: cancel);
+        await FfMpeg.AddBgmToVoiceFileAsync(voiceWavTmpPath2, bgmWavTmpPath, outWavTmpPath, smoothMode: settings.Value.SmoothMode, cancel: cancel);
 
         var parsed = await FfMpeg.EncodeAudioAsync(outWavTmpPath, dstFilePath, codec, kbps, useOkFile: false, metaData: newMeta, cancel: cancel);
 
@@ -1840,7 +1858,7 @@ public class AiTask
 
 
     public async Task AddRandomMaterialsToAllVoiceAndAudioFilesAsync(string srcVoiceAudioFilePath, string dstDirRoot, string srcMaterialsDirPath, FfMpegAudioCodec codec,
-        AiCompositWaveSettings settings,
+        AiRandomBgmSettingsFactory settingsFactory,
         int kbps = 0, string? oldTagStr = null, string? newTagStr = null, CancellationToken cancel = default)
     {
         var srcFiles = await Lfs.EnumDirectoryAsync(srcVoiceAudioFilePath, true, cancel: cancel);
@@ -1856,10 +1874,20 @@ public class AiTask
 
                 string dstDirPath = PP.Combine(dstDirRoot, relativeDirPth);
 
-                Con.WriteLine($"Add Random Materials: '{srcFile.FullPath}' -> '{dstDirPath}'");
+                var settingsList = settingsFactory.GetBgmSettingListProc(srcFile.FullPath);
 
-                var result = await AddRandomMaterialsToVoiceAndAudioFileAsync(srcFile.FullPath, dstDirPath,
-                    settings, codec, kbps, oldTagStr, newTagStr, cancel: cancel);
+                HashSet<string> keyNames = new HashSet<string>(StrCmpi);
+                settingsList._DoForEach(x => keyNames.Add(x.Key));
+
+                foreach (var key in keyNames.OrderBy(x => x, StrCmpi))
+                {
+                    Con.WriteLine($"Add Random Materials: '{srcFile.FullPath}' -> '{dstDirPath}'");
+
+                    var bgmSettings = settingsList.Where(x => x.Key._IsSamei(key)).First();
+
+                    var result = await AddRandomMaterialsToVoiceAndAudioFileAsync(srcFile.FullPath, dstDirPath,
+                        bgmSettings, codec, kbps, oldTagStr, newTagStr, cancel: cancel);
+                }
             }
             catch (Exception ex)
             {
@@ -1869,7 +1897,7 @@ public class AiTask
     }
 
     public async Task<(FfMpegParsedList Parsed, string DestFileName)> AddRandomMaterialsToVoiceAndAudioFileAsync(
-        string srcVoiceAudioFilePath, string dstDir, AiCompositWaveSettings settings, FfMpegAudioCodec codec,
+        string srcVoiceAudioFilePath, string dstDir, KeyValuePair<string, AiRandomBgmSettings> settings, FfMpegAudioCodec codec,
         int kbps = 0, string? oldTagStr = null, string? newTagStr = null, CancellationToken cancel = default)
     {
         var srcVoiceAudioFileMetaData = await FfMpeg.ReadMetaDataWithFfProbeAsync(srcVoiceAudioFilePath, cancel: cancel);
@@ -1906,8 +1934,16 @@ public class AiTask
 
         MediaMetaData newMeta = srcMeta._CloneDeep();
 
+        string newTagStrAddForKey = "";
+        if (settings.Key._IsFilled())
+        {
+            newTagStrAddForKey += "_" + settings.Key;
+        }
+
         if (oldTagStr._IsFilled() && newTagStr._IsFilled())
         {
+            newTagStr += newTagStrAddForKey;
+
             newMeta.Album = newMeta.Album._ReplaceStr(oldTagStr, newTagStr, true);
             newMeta.AlbumArtist = newMeta.AlbumArtist._ReplaceStr(oldTagStr, newTagStr, true);
             newMeta.Title = newMeta.Title._ReplaceStr(oldTagStr, newTagStr, true);
@@ -1915,10 +1951,13 @@ public class AiTask
         }
         else
         {
-            newMeta.Album = newMeta.Album._ReplaceStr(" - bgm_x", " - eff_x", true);
-            newMeta.AlbumArtist = newMeta.AlbumArtist._ReplaceStr(" - bgm_x", " - eff_x", true);
-            newMeta.Title = newMeta.Title._ReplaceStr(" - bgm_x", " - eff_x", true);
-            newMeta.Artist = newMeta.Artist._ReplaceStr(" - bgm_x", " - eff_x", true);
+            string bgm_x_replace_src_str = $" - bgm{newTagStrAddForKey}_x";
+            string bgm_x_replace_dst_str = $" - eff{newTagStrAddForKey}_x";
+
+            newMeta.Album = newMeta.Album._ReplaceStr(bgm_x_replace_src_str, bgm_x_replace_dst_str, true);
+            newMeta.AlbumArtist = newMeta.AlbumArtist._ReplaceStr(bgm_x_replace_src_str, bgm_x_replace_dst_str, true);
+            newMeta.Title = newMeta.Title._ReplaceStr(bgm_x_replace_src_str, bgm_x_replace_dst_str, true);
+            newMeta.Artist = newMeta.Artist._ReplaceStr(bgm_x_replace_src_str, bgm_x_replace_dst_str, true);
         }
 
         string dstFileName;
@@ -1931,8 +1970,8 @@ public class AiTask
         else
         {
             string tmp1 = PP.GetFileNameWithoutExtension(srcVoiceAudioFilePath);
-            if (tmp1.StartsWith("bgm_", StrCmpi)) tmp1 = tmp1.Substring(4); // ファイル名から "bgm_" を消す
-            string tmp2 = "eff_" + tmp1;
+            if (tmp1.StartsWith($"bgm{newTagStrAddForKey}_", StrCmpi)) tmp1 = tmp1.Substring(4); // ファイル名から "bgm_" を消す
+            string tmp2 = $"eff{newTagStrAddForKey}_" + tmp1;
 
             dstFileName = tmp2 + dstExtension;
         }
@@ -1944,12 +1983,12 @@ public class AiTask
             throw new CoresLibException($"dstFilePath == srcVoiceFilePath: '{srcVoiceAudioFilePath}'");
         }
 
-        var parsed = await this.CompositAudioFileByAcxBcxTagsWithManyWavMaterialsAsync(srcVoiceAudioFilePath, dstFilePath, codec, kbps, settings, 1.0, newMeta, cancel: cancel);
+        var parsed = await this.CompositAudioFileByAcxBcxTagsWithManyWavMaterialsAsync(srcVoiceAudioFilePath, dstFilePath, codec, kbps, settings.Value.CompositWaveSettings, 1.0, newMeta, cancel: cancel);
 
         return (parsed, dstFilePath);
     }
 
-    public async Task<List<string>> CreateManyMusicMixAsync(DateTimeOffset timeStamp, IEnumerable<string> srcWavFilesPathList, string destDirPath, string albumName, string artist, AiRandomBgmSettings settings, FfMpegAudioCodec codec = FfMpegAudioCodec.Aac, int kbps = 0, int numRotate = 1, int minTracks = 1, int durationOfSingleFileMsecs = 3 * 60 * 60 * 1000, int fadeOutSecs = AiTask.DefaultFadeoutSecs, CancellationToken cancel = default)
+    public async Task<List<string>> CreateManyMusicMixAsync(DateTimeOffset timeStamp, IEnumerable<string> srcWavFilesPathList, string destDirPath, string albumName, string artist, AiRandomBgmSettings settings, FfMpegAudioCodec codec = FfMpegAudioCodec.Aac, int kbps = 0, int numRotate = 1, int minTracks = 1, int durationOfSingleFileMsecs = 3 * 60 * 60 * 1000, CancellationToken cancel = default)
     {
         List<string> ret = new List<string>();
 
@@ -1985,7 +2024,7 @@ public class AiTask
 
             string dstTmpFileName = await Lfs.GenerateUniqueTempFilePathAsync("concat3", ".wav", cancel: cancel);
 
-            var srcFilesList = await ConcatWavFileFromRandomDirAsync(q, dstTmpFileName, durationOfSingleFileMsecs, settings, fadeOutSecs, cancel);
+            var srcFilesList = await ConcatWavFileFromRandomDirAsync(q, dstTmpFileName, durationOfSingleFileMsecs, settings, cancel);
 
             MediaMetaData meta = new MediaMetaData
             {
@@ -2016,7 +2055,7 @@ public class AiTask
     }
 
 
-    public async Task<List<AiWaveConcatenatedSrcWavList>> CreateRandomBgmFileAsync(string srcMusicWavsDirPath, string dstWavFilePath, int totalDurationMsecs, AiRandomBgmSettings settings, int fadeOutSecs = AiTask.DefaultFadeoutSecs, double adjustDelta = AiTask.BgmVolumeDeltaForConstant, CancellationToken cancel = default)
+    public async Task<List<AiWaveConcatenatedSrcWavList>> CreateRandomBgmFileAsync(string srcMusicWavsDirPath, string dstWavFilePath, int totalDurationMsecs, AiRandomBgmSettings settings, int fadeOutSecs, double adjustDelta, CancellationToken cancel = default)
     {
         string dstTmpFileName = await Lfs.GenerateUniqueTempFilePathAsync("concat2", ".wav", cancel: cancel);
 
@@ -2027,7 +2066,7 @@ public class AiTask
         return retSrcList;
     }
 
-    public async Task<List<AiWaveConcatenatedSrcWavList>> ConcatWavFileFromRandomDirAsync(string srcMusicWavsDirPath, string dstWavFilePath, int totalDurationMsecs, AiRandomBgmSettings settings, int fadeOutSecs = AiTask.DefaultFadeoutSecs, CancellationToken cancel = default)
+    public async Task<List<AiWaveConcatenatedSrcWavList>> ConcatWavFileFromRandomDirAsync(string srcMusicWavsDirPath, string dstWavFilePath, int totalDurationMsecs, AiRandomBgmSettings settings, int fadeOutSecs, CancellationToken cancel = default)
     {
         var srcWavList = await Lfs.EnumDirectoryAsync(srcMusicWavsDirPath, true, wildcard: "*.wav", cancel: cancel);
 
@@ -2043,16 +2082,16 @@ public class AiTask
 
         ShuffledEndlessQueue<string> srcQueue = new ShuffledEndlessQueue<string>(fileNamesList);
 
-        return await ConcatWavFileFromRandomDirAsync(srcQueue, dstWavFilePath, totalDurationMsecs, settings, fadeOutSecs, cancel);
+        return await ConcatWavFileFromRandomDirAsync(srcQueue, dstWavFilePath, totalDurationMsecs, settings, cancel);
     }
 
-    public async Task<List<AiWaveConcatenatedSrcWavList>> ConcatWavFileFromRandomDirAsync(ShuffledEndlessQueue<string> srcMusicWavsFilePathQueue, string dstWavFilePath, int totalDurationMsecs, AiRandomBgmSettings settings, int fadeOutSecs = AiTask.DefaultFadeoutSecs, CancellationToken cancel = default)
+    public async Task<List<AiWaveConcatenatedSrcWavList>> ConcatWavFileFromRandomDirAsync(ShuffledEndlessQueue<string> srcMusicWavsFilePathQueue, string dstWavFilePath, int totalDurationMsecs, AiRandomBgmSettings settings, CancellationToken cancel = default)
     {
         List<AiWaveConcatenatedSrcWavList> retSrcList;
 
         string dstTmpFileName;
 
-        if (fadeOutSecs <= 0)
+        if (settings.TailFadeoutSecs <= 0)
         {
             dstTmpFileName = dstWavFilePath;
         }
@@ -2070,14 +2109,14 @@ public class AiTask
             retSrcList = await AiWaveConcatenateWithCrossFadeUtil.ConcatenateAsync(srcMusicWavsFilePathQueue, totalDurationMsecs, settings, dstTmpFileName, cancel);
         }
 
-        if (fadeOutSecs > 0)
+        if (settings.TailFadeoutSecs > 0)
         {
             await Lfs.DeleteFileIfExistsAsync(dstWavFilePath, cancel: cancel);
             await Lfs.EnsureCreateDirectoryForFileAsync(dstWavFilePath, cancel: cancel);
 
             int totalSecs = totalDurationMsecs / 1000;
-            int startSecs = Math.Max(totalSecs - fadeOutSecs, 0);
-            int fadeSecs = Math.Min(fadeOutSecs, totalSecs - startSecs);
+            int startSecs = Math.Max(totalSecs - settings.TailFadeoutSecs, 0);
+            int fadeSecs = Math.Min(settings.TailFadeoutSecs, totalSecs - startSecs);
 
             await FfMpeg.RunFfMpegAsync($"-y -i {dstTmpFileName._EnsureQuotation()} -vn -reset_timestamps 1 -ar 44100 -ac 2 -c:a pcm_s16le " +
                 $"-map_metadata -1 -f wav -af \"afade=t=out:st={startSecs}:d={fadeSecs}\" {dstWavFilePath._EnsureQuotation()}",
@@ -2258,6 +2297,7 @@ public class AiUtilSeedVcEngine : AiUtilBasicEngine
 
         if (voiceSegments != null)
         {
+            // 最後の部分のみ無音化
             var tmpList = voiceSegments.ToArray().Reverse().ToList();
             foreach (var item in tmpList)
             {
@@ -2267,6 +2307,10 @@ public class AiUtilSeedVcEngine : AiUtilBasicEngine
                     {
                         silentRangeList.Add(new SilentRange { StartTime = item.TimePosition, Duration = item.TimeLength, });
                     }
+                }
+                else
+                {
+                    break;
                 }
             }
         }
@@ -2552,7 +2596,8 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
                         WaveFormat waveFormat = new WaveFormat(24000, 16, 1);
 
                         int speakerId = 0;
-                        byte[] blockWavData = AiWaveUtil.GenerateSilentNoiseData(duration, waveFormat);
+                        int silenceBytes = AiWaveUtil.GetWavDataSizeInByteFromTime(duration, waveFormat);
+                        byte[] blockWavData = new byte[silenceBytes];
 
                         var tmpPath = await Lfs.GenerateUniqueTempFilePathAsync($"{tagTitle}_{i:D8}_speaker{speakerId:D3}", ".wav", cancel: cancel);
 
@@ -2687,7 +2732,9 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
                         silenceDurationSeconds = 0.5; // 未設定の場合は 0.5 秒
                     }
 
-                    var silenceBuffer = AiWaveUtil.GenerateSilentNoiseData(silenceDurationSeconds, waveFormat);
+                    int silenceBytes = AiWaveUtil.GetWavDataSizeInByteFromTime(silenceDurationSeconds, waveFormat);
+
+                    var silenceBuffer = new byte[silenceBytes];
 
                     segmentForBlank.DataPosition = writer.Position;
 
@@ -3083,13 +3130,30 @@ public class AiRandomBgpReplaceRanges
     public double Margin;
 }
 
+public class AiRandomBgmSettingsFactory
+{
+    public Func<string, KeyValueList<string, AiRandomBgmSettings>> GetBgmSettingListProc = null!;
+}
+
 public class AiRandomBgmSettings
 {
     public bool Medley = false;
+    public bool SmoothMode = false;
+    public int TailFadeoutSecs = 10;
+    public double BgmVolumeDeltaForConstant = -9.3;
+    public double BgmVolumeDeltaForSmooth = -0.0;
+
     public int Medley_SingleFilePartMSecs = 100 * 1000;
     public int Medley_FadeInOutMsecs = 5 * 1000;
     public int Medley_PlusMinusPercentage = 44;
     public int Medley_MarginMsecs = 15 * 1000;
+
+    public string SrcBgmDirPath = "";
+
+    public string ReplaceBgmDirPath = "";
+
+    [JsonIgnore]
+    public AiCompositWaveSettings CompositWaveSettings = null!;
 
     [JsonIgnore]
     public Func<CancellationToken, AiAudioEffectFilter?>? CreateAudioEffectFilterForNormalMusicPartProc = null!;
@@ -3369,131 +3433,6 @@ public static class AiWaveUtil
         double theta = 2.0 * Math.PI * u2;
         double z = radius * Math.Sin(theta);
         return z;
-    }
-
-    /// <summary>
-    /// 指定した WaveFormat (PCM) と duration (秒) から、-80dB 程度の微小ノイズで埋めた
-    /// RAW PCM データ(byte配列)を返す (WAVヘッダなし)。
-    /// dB 値を変えれば -80dB 以外のレベルにも対応可能。
-    /// </summary>
-    /// <param name="waveFormat">PCM形式の WaveFormat</param>
-    /// <param name="duration">生成するノイズの秒数</param>
-    /// <param name="db">埋め込むノイズのレベル(dB)。例: -80.0</param>
-    /// <returns>生成した生PCMデータ（WAVヘッダ無し）</returns>
-    /// <exception cref="NotSupportedException">非対応エンコーディングやビット深度の場合に発生</exception>
-    public static byte[] GenerateSilentNoiseData2(double duration, WaveFormat waveFormat, double db = -80.0)
-    {
-        // エンコーディングが PCM 以外は例外
-        if (waveFormat.Encoding != WaveFormatEncoding.Pcm)
-        {
-            throw new NotSupportedException("WaveFormatEncoding.Pcm 以外はサポートしていません。");
-        }
-
-        int sampleRate = waveFormat.SampleRate;    // サンプルレート
-        int channels = waveFormat.Channels;      // チャンネル数
-        int bits = waveFormat.BitsPerSample; // ビット深度 (8,16,24,32など)
-
-        // duration 秒分のフレーム数を計算
-        int totalFrames = (int)Math.Round(sampleRate * duration);
-        if (totalFrames < 0) totalFrames = 0;
-
-        // dB -> 振幅（リニア値）に変換 (10^(dB/20))
-        double amplitude = Math.Pow(10.0, db / 20.0);
-
-        // サンプルあたりのバイト数 (例: 16bit→2, 24bit→3, 32bit→4)
-        int bytesPerSample = bits / 8;
-
-        // 全サンプル数(フレーム数×チャンネル数)から、最終的な配列サイズを求める
-        long totalSampleCount = (long)totalFrames * channels;
-        long totalBytes = totalSampleCount * bytesPerSample;
-        if (totalBytes > int.MaxValue)
-        {
-            // 常識的には超えないはずだが、一応ガード
-            throw new Exception("生成しようとしているデータサイズが大きすぎます。");
-        }
-
-        byte[] buffer = new byte[totalBytes];
-
-        // 正規分布用のランダム生成 (Box-Muller 法の一例)
-        Random rand = new Random();
-        double NextGaussian()
-        {
-            // Box-Muller 変換
-            double u1 = 1.0 - rand.NextDouble();
-            double u2 = 1.0 - rand.NextDouble();
-            return Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Cos(2.0 * Math.PI * u2);
-        }
-
-        // ビット深度に応じて書き込み方法を切り替え
-        // （8bitはUnsigned、16bit以上はSignedで小数→整数変換）
-        for (int n = 0; n < totalFrames; n++)
-        {
-            for (int ch = 0; ch < channels; ch++)
-            {
-                // ガウス分布で[-1,1]程度の乱数を生成したものに振幅を掛ける
-                double sample = amplitude * NextGaussian();
-
-                // 書き込む先頭インデックス
-                int idx = (int)((n * channels + ch) * bytesPerSample);
-
-                switch (bits)
-                {
-                    case 8:
-                        {
-                            // 8bit PCM: 0～255 (Unsigned)
-                            // sample=-1.0 → 0, sample=+1.0 → 255 になるよう一応スケーリング
-                            double val = sample * 127.5 + 127.5;
-                            // 範囲クリップ
-                            if (val < 0.0) val = 0.0;
-                            if (val > 255.0) val = 255.0;
-                            buffer[idx] = (byte)Math.Round(val);
-                            break;
-                        }
-                    case 16:
-                        {
-                            // 16bit PCM: -32768～32767
-                            double val = sample * short.MaxValue;  // short.MaxValue=32767
-                            if (val < short.MinValue) val = short.MinValue;
-                            if (val > short.MaxValue) val = short.MaxValue;
-                            short s = (short)Math.Round(val);
-                            buffer[idx] = (byte)(s & 0xFF);
-                            buffer[idx + 1] = (byte)((s >> 8) & 0xFF);
-                            break;
-                        }
-                    case 24:
-                        {
-                            // 24bit PCM: -8388608～8388607
-                            const double max24 = 8388607.0;
-                            double val = sample * max24;
-                            if (val < -8388608.0) val = -8388608.0;
-                            if (val > 8388607.0) val = 8388607.0;
-                            int i24 = (int)Math.Round(val);
-                            buffer[idx] = (byte)(i24 & 0xFF);
-                            buffer[idx + 1] = (byte)((i24 >> 8) & 0xFF);
-                            buffer[idx + 2] = (byte)((i24 >> 16) & 0xFF);
-                            break;
-                        }
-                    case 32:
-                        {
-                            // 32bit PCM: -2147483648～2147483647
-                            const double max32 = 2147483647.0;
-                            double val = sample * max32;
-                            if (val < int.MinValue) val = int.MinValue;
-                            if (val > int.MaxValue) val = int.MaxValue;
-                            int i32 = (int)Math.Round(val);
-                            buffer[idx] = (byte)(i32 & 0xFF);
-                            buffer[idx + 1] = (byte)((i32 >> 8) & 0xFF);
-                            buffer[idx + 2] = (byte)((i32 >> 16) & 0xFF);
-                            buffer[idx + 3] = (byte)((i32 >> 24) & 0xFF);
-                            break;
-                        }
-                    default:
-                        throw new NotSupportedException($"未対応のビット深度です: {bits}bit PCM");
-                }
-            }
-        }
-
-        return buffer;
     }
 
 
