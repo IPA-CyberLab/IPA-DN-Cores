@@ -464,49 +464,53 @@ public class AiTask
         return ret;
     }
 
-    public async Task ConvertAllTextToVoiceAsync(string srcDirPath, string srcSampleVoiceFileNameOrRandDir, string speakerIdStrOrListFilePath, bool mixedMode, int diffusionSteps, string dstVoiceDirPath, string tmpVoiceBoxDir, string tmpVoiceWavDir, int[]? speedPercentList = null,
+    public async Task ConvertAllTextToVoiceAsync(string srcDirPath, AiVoiceSettingFactory settingsFactory, string dstVoiceDirPath, string tmpVoiceBoxDir, string tmpVoiceWavDir, int[]? speedPercentList = null,
         Func<Task>? finalizeProc = null,
         CancellationToken cancel = default)
     {
-        ShuffledEndlessQueue<string>? sampleVoiceFileNameShuffleQueue = null;
-        if (await Lfs.IsDirectoryExistsAsync(srcSampleVoiceFileNameOrRandDir, cancel))
-        {
-            var randSampleVoiceFilesList = await Lfs.EnumDirectoryAsync(srcSampleVoiceFileNameOrRandDir, false, wildcard: "*.wav", cancel: cancel);
-            if (randSampleVoiceFilesList.Any())
-            {
-                sampleVoiceFileNameShuffleQueue = new ShuffledEndlessQueue<string>(randSampleVoiceFilesList.Select(x => x.FullPath));
-            }
-            else
-            {
-                throw new CoresLibException($"Directory '{srcSampleVoiceFileNameOrRandDir}' has no music files.");
-            }
-        }
-
-        ShuffledEndlessQueue<int>? speakerIdShuffleForRotatin = null;
-
-        List<int> speakerIdListInOneFile = new List<int>();
-
-        if (speakerIdStrOrListFilePath._IsNumber())
-        {
-            speakerIdListInOneFile.Add(speakerIdStrOrListFilePath._ToInt());
-            mixedMode = false;
-        }
-        else
-        {
-            if (mixedMode == false)
-            {
-                speakerIdShuffleForRotatin = new ShuffledEndlessQueue<int>(await ReadSpeakerIDListAsync(speakerIdStrOrListFilePath, cancel));
-            }
-            else
-            {
-                speakerIdListInOneFile = await ReadSpeakerIDListAsync(speakerIdStrOrListFilePath, cancel);
-            }
-        }
-
         var seriesDirList = await Lfs.EnumDirectoryAsync(srcDirPath, cancel: cancel);
 
         foreach (var seriesDir in seriesDirList.Where(x => x.IsDirectory && x.IsCurrentOrParentDirectory == false && x.Name.StartsWith("_") == false).OrderBy(x => x.Name, StrCmpi))
         {
+            var settings = settingsFactory.GetAiVoiceSetting(seriesDir.FullPath);
+
+            bool mixedMode = settings.MixedMode;
+
+            ShuffledEndlessQueue<string>? sampleVoiceFileNameShuffleQueue = null;
+            if (await Lfs.IsDirectoryExistsAsync(settings.SrcSampleVoiceFileNameOrRandDir, cancel))
+            {
+                var randSampleVoiceFilesList = await Lfs.EnumDirectoryAsync(settings.SrcSampleVoiceFileNameOrRandDir, false, wildcard: "*.wav", cancel: cancel);
+                if (randSampleVoiceFilesList.Any())
+                {
+                    sampleVoiceFileNameShuffleQueue = new ShuffledEndlessQueue<string>(randSampleVoiceFilesList.Select(x => x.FullPath));
+                }
+                else
+                {
+                    throw new CoresLibException($"Directory '{settings.SrcSampleVoiceFileNameOrRandDir}' has no music files.");
+                }
+            }
+
+            ShuffledEndlessQueue<int>? speakerIdShuffleForRotatin = null;
+
+            List<int> speakerIdListInOneFile = new List<int>();
+
+            if (settings.SpeakerIdStrOrListFilePath._IsNumber())
+            {
+                speakerIdListInOneFile.Add(settings.SpeakerIdStrOrListFilePath._ToInt());
+                mixedMode = false;
+            }
+            else
+            {
+                if (mixedMode == false)
+                {
+                    speakerIdShuffleForRotatin = new ShuffledEndlessQueue<int>(await ReadSpeakerIDListAsync(settings.SpeakerIdStrOrListFilePath, cancel));
+                }
+                else
+                {
+                    speakerIdListInOneFile = await ReadSpeakerIDListAsync(settings.SpeakerIdStrOrListFilePath, cancel);
+                }
+            }
+
             var srcTextList = await Lfs.EnumDirectoryAsync(seriesDir.FullPath, false, cancel: cancel);
 
             foreach (var srcTextFile in srcTextList.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Text) && x.Name.StartsWith("_") == false && x.Name.EndsWith(".ok.txt", StrCmpi) == false).OrderBy(x => x.Name, StrCmpi)
@@ -515,7 +519,7 @@ public class AiTask
             {
                 try
                 {
-                    string srcSampleVoiceFile = srcSampleVoiceFileNameOrRandDir;
+                    string srcSampleVoiceFile = settings.SrcSampleVoiceFileNameOrRandDir;
 
                     if (sampleVoiceFileNameShuffleQueue != null)
                     {
@@ -545,7 +549,7 @@ public class AiTask
                         speakerIdListForThisFile = speakerIdListInOneFile.ToList();
                     }
 
-                    await ConvertTextToVoiceAsync(srcText, srcSampleVoiceFile, dstVoiceDirPath, tmpVoiceBoxDir, tmpVoiceWavDir, speakerIdListForThisFile, diffusionSteps, seriesName, storyTitle, speedPercentList, cancel);
+                    await ConvertTextToVoiceAsync(srcText, srcSampleVoiceFile, dstVoiceDirPath, tmpVoiceBoxDir, tmpVoiceWavDir, speakerIdListForThisFile, settings.DiffusionSteps, seriesName, storyTitle, speedPercentList, cancel);
 
                     // テキストファイルの先頭に _ を付ける
                     string newFilePath = PP.Combine(PP.GetDirectoryName(srcTextFile.FullPath), "_" + PP.GetFileName(srcTextFile.FullPath));
@@ -603,7 +607,7 @@ public class AiTask
 
         string digest = $"voiceSamplePath={srcSampleVoicePath},diffusionSteps={diffusionSteps},targetMaxVolume={Settings.AdjustAudioTargetMaxVolume},targetMeanVolume={Settings.AdjustAudioTargetMeanVolume},headOnlySecs={headOnlySecs}";
 
-        if (useOkFile == false || await Lfs.IsOkFileExists(tmpVoiceWavPath, digest, AiUtilVersion.CurrentVersion, cancel) == false)
+        if (useOkFile == false || await Lfs.IsOkFileExists(tmpVoiceWavPath, digest, AiUtilVersion.CurrentVersion, cancel: cancel) == false)
         {
             await FfMpeg.EncodeAudioAsync(srcPath, srcTmpWavPath, FfMpegAudioCodec.Wav, tagTitle: tagTitle, headOnlySecs: headOnlySecs, cancel: cancel);
 
@@ -1457,9 +1461,6 @@ public class AiTask
 
     public async Task<(FfMpegParsedList Parsed, string DestFileName)> AddRandomBgmToVoiceFileAsync(string srcVoiceFilePath, string dstDir, FfMpegAudioCodec codec, KeyValuePair<string, AiRandomBgmSettings> settings, int kbps = 0, bool useOkFile = true, string? oldTagStr = null, string? newTagStr = null, CancellationToken cancel = default)
     {
-        string srcMusicWavsDirPath = settings.Value.SrcBgmDirPath;
-        string replaceWavsDirPath = settings.Value.ReplaceBgmDirPath;
-
         List<AiRandomBgpReplaceRanges> replaceRanges = new();
 
         var srcVoiceFileMetaData = await FfMpeg.ReadMetaDataWithFfProbeAsync(srcVoiceFilePath, cancel: cancel);
@@ -1488,7 +1489,7 @@ public class AiTask
             }
 
             var voiceSegList = okFileMeta.Value?.Options_VoiceSegmentsList;
-            if (voiceSegList != null && voiceSegList.Count >= 1 && replaceWavsDirPath._IsFilled())
+            if (voiceSegList != null && voiceSegList.Count >= 1 && settings.Value.ReplaceBgmDirPath._IsFilled())
             {
                 int currentLevel = 0;
 
@@ -1644,7 +1645,7 @@ public class AiTask
 
         string bgmWavTmpPath = await Lfs.GenerateUniqueTempFilePathAsync("bgmfile", ".wav", cancel: cancel);
 
-        var retSrcList = await CreateRandomBgmFileAsync(srcMusicWavsDirPath, bgmWavTmpPath, srcDurationMsecs, settings.Value, settings.Value.TailFadeoutSecs, adjustDelta, cancel);
+        var retSrcList = await CreateRandomBgmFileAsync(settings.Value.SrcBgmDirOrFilePath, bgmWavTmpPath, srcDurationMsecs, settings.Value, settings.Value.TailFadeoutSecs, adjustDelta, cancel);
 
         List<AiWaveConcatenatedSrcWavList> overwriteSrcList = new();
 
@@ -1662,7 +1663,7 @@ public class AiTask
                 targetData = await targetWavStream._ReadToEndAsync();
             }
 
-            var replaceSrcWavFiles = (await Lfs.EnumDirectoryAsync(replaceWavsDirPath, true, cancel: cancel)).Where(x => x.IsFile && x.Name._IsExtensionMatch(".wav"));
+            var replaceSrcWavFiles = (await Lfs.EnumDirectoryAsync(settings.Value.ReplaceBgmDirPath, true, cancel: cancel)).Where(x => x.IsFile && x.Name._IsExtensionMatch(".wav"));
             ShuffledEndlessQueue<string> q = new(replaceSrcWavFiles.Select(x => x.FullPath));
 
             foreach (var range in replaceRanges)
@@ -2055,26 +2056,26 @@ public class AiTask
     }
 
 
-    public async Task<List<AiWaveConcatenatedSrcWavList>> CreateRandomBgmFileAsync(string srcMusicWavsDirPath, string dstWavFilePath, int totalDurationMsecs, AiRandomBgmSettings settings, int fadeOutSecs, double adjustDelta, CancellationToken cancel = default)
+    public async Task<List<AiWaveConcatenatedSrcWavList>> CreateRandomBgmFileAsync(string srcMusicWavsDirOrFilePath, string dstWavFilePath, int totalDurationMsecs, AiRandomBgmSettings settings, int fadeOutSecs, double adjustDelta, CancellationToken cancel = default)
     {
         string dstTmpFileName = await Lfs.GenerateUniqueTempFilePathAsync("concat2", ".wav", cancel: cancel);
 
-        List<AiWaveConcatenatedSrcWavList> retSrcList = await ConcatWavFileFromRandomDirAsync(srcMusicWavsDirPath, dstTmpFileName, totalDurationMsecs, settings, fadeOutSecs, cancel);
+        List<AiWaveConcatenatedSrcWavList> retSrcList = await ConcatWavFileFromRandomDirAsync(srcMusicWavsDirOrFilePath, dstTmpFileName, totalDurationMsecs, settings, fadeOutSecs, cancel);
 
         await FfMpeg.AdjustAudioVolumeAsync(dstTmpFileName, dstWavFilePath, adjustDelta, cancel);
 
         return retSrcList;
     }
 
-    public async Task<List<AiWaveConcatenatedSrcWavList>> ConcatWavFileFromRandomDirAsync(string srcMusicWavsDirPath, string dstWavFilePath, int totalDurationMsecs, AiRandomBgmSettings settings, int fadeOutSecs, CancellationToken cancel = default)
+    public async Task<List<AiWaveConcatenatedSrcWavList>> ConcatWavFileFromRandomDirAsync(string srcMusicWavsDirOrFilePath, string dstWavFilePath, int totalDurationMsecs, AiRandomBgmSettings settings, int fadeOutSecs, CancellationToken cancel = default)
     {
-        var srcWavList = await Lfs.EnumDirectoryAsync(srcMusicWavsDirPath, true, wildcard: "*.wav", cancel: cancel);
+        FileSystemEntity[] srcWavList = await Lfs.EnumDirectoryAsync(srcMusicWavsDirOrFilePath, true, flags: EnumDirectoryFlags.AllowDirectFilePath, cancel: cancel);
 
         List<string> fileNamesList = new List<string>();
 
-        foreach (var srcWav in srcWavList.Where(x => x.IsFile).OrderBy(x => x.FullPath, StrCmpi))
+        foreach (var srcWav in srcWavList.Where(x => x.IsFile && x.Name._IsExtensionMatch(".wav")).OrderBy(x => x.FullPath, StrCmpi))
         {
-            if (await Lfs.IsOkFileExists(srcWav.FullPath, cancel: cancel))
+            if (await Lfs.IsOkFileExists(srcWav.FullPath, ifOkDirNotExistsRetOk: true, cancel: cancel))
             {
                 fileNamesList.Add(srcWav.FullPath);
             }
@@ -2102,7 +2103,7 @@ public class AiTask
 
         if (settings.Medley == false)
         {
-            retSrcList = await ConcatWavFileFromQueueAsync(srcMusicWavsFilePathQueue, totalDurationMsecs, dstTmpFileName, cancel);
+            retSrcList = await ConcatWavFileFromQueueAsync(srcMusicWavsFilePathQueue, totalDurationMsecs, dstTmpFileName, settings.Concat_UseTailIfSingle, cancel: cancel);
         }
         else
         {
@@ -2131,7 +2132,7 @@ public class AiTask
     public static async Task<List<AiWaveConcatenatedSrcWavList>> ConcatWavFileFromQueueAsync(
         ShuffledEndlessQueue<string> srcWavFilesQueue,
         int totalDurationMsecs,
-        string dstWavFilePath, CancellationToken cancel = default)
+        string dstWavFilePath, bool useTailIfSingleFile, CancellationToken cancel = default)
     {
         List<AiWaveConcatenatedSrcWavList> retSrcList = new List<AiWaveConcatenatedSrcWavList>();
 
@@ -2157,6 +2158,7 @@ public class AiTask
         await using var firstFileStream = File.Open(firstWavPath, FileMode.Open, FileAccess.Read, FileShare.Read);
         await using var firstReader = new WaveFileReader(firstFileStream);
         WaveFormat waveFormat = firstReader.WaveFormat;
+        AiTask.CheckWavFormat(waveFormat);
 
         // 3. 書き出し先 WaveFileWriter を準備
         //    WaveFileWriter はコンストラクタが同期的だが、FileStream は async で開く。
@@ -2169,6 +2171,8 @@ public class AiTask
         long totalBytesToWrite = totalSamples * waveFormat.BlockAlign;
         long writtenBytes = 0;
 
+        bool isSingleSource = (srcWavFilesQueue.RealCount == 1);
+
         // 5. ソース WAV ファイルを順番に読み込み、合計サイズに達するまで書き込む
         var buffer = new byte[65536];
         while (srcWavFilesQueue.Count > 0 && writtenBytes < totalBytesToWrite)
@@ -2178,7 +2182,30 @@ public class AiTask
             await using var sourceStream = File.Open(currentWavPath, FileMode.Open, FileAccess.Read, FileShare.Read);
             await using var readerWav = new WaveFileReader(sourceStream);
 
-            retSrcList.Add(new AiWaveConcatenatedSrcWavList { WavFilePath = currentWavPath });
+            AiTask.CheckWavFormat(readerWav.WaveFormat);
+
+            if (isSingleSource)
+            {
+                long thisFileTotalSamples = readerWav.Length / waveFormat.BlockAlign;
+                if (thisFileTotalSamples > ((totalBytesToWrite - writtenBytes) / waveFormat.BlockAlign))
+                {
+                    if (useTailIfSingleFile)
+                    {
+                        // 元ファイルが 1 個のみの場合で、元ファイルのサイズのほうが先ファイルよりも長い場合
+                        // 元ファイルの末尾部分を書き出すことにする
+                        readerWav.Seek((thisFileTotalSamples - (totalBytesToWrite - writtenBytes) / waveFormat.BlockAlign) * waveFormat.BlockAlign, SeekOrigin.Begin);
+                    }
+                }
+            }
+
+            retSrcList.Add(new AiWaveConcatenatedSrcWavList
+            {
+                WavFilePath = currentWavPath,
+                SourceStartMsec = (int)(AiWaveUtil.CalcWavDurationFromSizeInByte(readerWav.Position, readerWav.WaveFormat) * 1000),
+                SourceEndMsec = (int)(AiWaveUtil.CalcWavDurationFromSizeInByte(readerWav.Length, readerWav.WaveFormat) * 1000),
+                TargetStartMsec = (int)(AiWaveUtil.CalcWavDurationFromSizeInByte(writtenBytes, readerWav.WaveFormat) * 1000),
+                TargetEndMsec = (int)(AiWaveUtil.CalcWavDurationFromSizeInByte(writtenBytes + readerWav.Length - readerWav.Position, readerWav.WaveFormat) * 1000),
+            });
 
             int bytesRead;
             // WaveFileReader は通常同期的な Read しか提供しないが、Stream としての ReadAsync は呼び出せる場合がある。
@@ -2793,6 +2820,12 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
         StringWriter w = new();
         foreach (var line in lines)
         {
+            // EOF 以降を無視
+            if (line._InStri("EOAI_DATA") || line._InStri("EOAI_TITLE") || line._InStri("EOAI_METADATA") || line._IsSameiTrim("[EOF]"))
+            {
+                break;
+            }
+
             // "SLEEP:xxx" タグ -> "<SLEEP:xxx>" タグ
             string line2 = line;
             if (line.StartsWith("SLEEP:", StrCmp) && line._IsAscii())
@@ -3130,6 +3163,19 @@ public class AiRandomBgpReplaceRanges
     public double Margin;
 }
 
+public class AiVoiceSettingFactory
+{
+    public Func<string, AiVoiceSettings> GetAiVoiceSetting = null!;
+}
+
+public class AiVoiceSettings
+{
+    public string SrcSampleVoiceFileNameOrRandDir = "";
+    public string SpeakerIdStrOrListFilePath = "";
+    public bool MixedMode = false;
+    public int DiffusionSteps = 50;
+}
+
 public class AiRandomBgmSettingsFactory
 {
     public Func<string, KeyValueList<string, AiRandomBgmSettings>> GetBgmSettingListProc = null!;
@@ -3143,12 +3189,14 @@ public class AiRandomBgmSettings
     public double BgmVolumeDeltaForConstant = -9.3;
     public double BgmVolumeDeltaForSmooth = -0.0;
 
+    public bool Concat_UseTailIfSingle = false;
+
     public int Medley_SingleFilePartMSecs = 100 * 1000;
     public int Medley_FadeInOutMsecs = 5 * 1000;
     public int Medley_PlusMinusPercentage = 44;
     public int Medley_MarginMsecs = 15 * 1000;
 
-    public string SrcBgmDirPath = "";
+    public string SrcBgmDirOrFilePath = "";
 
     public string ReplaceBgmDirPath = "";
 

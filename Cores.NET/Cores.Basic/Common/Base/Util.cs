@@ -9222,6 +9222,8 @@ public class ShuffledEndlessQueue<T> : IEndlessQueue<T>
 
     public int Count => (this.AllItemsList.Count == 0 ? 0 : int.MaxValue);
 
+    public int RealCount => this.AllItemsList.Count;
+
     public ShuffledEndlessQueue(IEnumerable<T> elements, int randContinueCount = 0)
     {
         this.RandContinueCount = randContinueCount;
