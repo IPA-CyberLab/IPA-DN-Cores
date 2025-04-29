@@ -432,7 +432,7 @@ public class AiTask
 
                 string storyTitle = testName + "_" + i.ToString("D5");
 
-                await ConvertTextToVoiceAsync(thisText, sampleVoicePath, dstVoiceDirPath, tmpVoiceBoxDir, tmpVoiceWavDir, randIntListTokutei, diffusionSteps, seriesName, storyTitle, new int[] { 100 }, cancel);
+                await ConvertTextToVoiceAsync(thisText, sampleVoicePath, dstVoiceDirPath, tmpVoiceBoxDir, tmpVoiceWavDir, randIntListTokutei, diffusionSteps, seriesName, storyTitle, false, new int[] { 100 }, cancel);
             }
             catch (Exception ex)
             {
@@ -549,7 +549,7 @@ public class AiTask
                         speakerIdListForThisFile = speakerIdListInOneFile.ToList();
                     }
 
-                    await ConvertTextToVoiceAsync(srcText, srcSampleVoiceFile, dstVoiceDirPath, tmpVoiceBoxDir, tmpVoiceWavDir, speakerIdListForThisFile, settings.DiffusionSteps, seriesName, storyTitle, speedPercentList, cancel);
+                    await ConvertTextToVoiceAsync(srcText, srcSampleVoiceFile, dstVoiceDirPath, tmpVoiceBoxDir, tmpVoiceWavDir, speakerIdListForThisFile, settings.DiffusionSteps, seriesName, storyTitle, settings.OverwriteSilent, speedPercentList, cancel);
 
                     // テキストファイルの先頭に _ を付ける
                     string newFilePath = PP.Combine(PP.GetDirectoryName(srcTextFile.FullPath), "_" + PP.GetFileName(srcTextFile.FullPath));
@@ -613,7 +613,7 @@ public class AiTask
 
             await using (var seedvc = new AiUtilSeedVcEngine(this.Settings, this.FfMpeg))
             {
-                await seedvc.ConvertAsync(srcTmpWavPath, tmpVoiceWavPath, srcSampleVoicePath, diffusionSteps, tagTitle, false, cancel: cancel);
+                await seedvc.ConvertAsync(srcTmpWavPath, tmpVoiceWavPath, srcSampleVoicePath, diffusionSteps, false, tagTitle, false, cancel: cancel);
                 if (useOkFile) await Lfs.WriteOkFileAsync(tmpVoiceWavPath, new OkFileEmptyMetaData(), digest, AiUtilVersion.CurrentVersion, cancel);
                 await Lfs.DeleteFileIfExistsAsync(srcTmpWavPath, cancel: cancel);
             }
@@ -643,7 +643,7 @@ public class AiTask
         }
     }
 
-    public async Task ConvertTextToVoiceAsync(string srcText, string srcSampleVoicePath, string dstVoiceDirPath, string tmpVoiceBoxDir, string tmpVoiceWavDir, IEnumerable<int> speakerIdList, int diffusionSteps, string seriesName, string storyTitle, int[]? speedPercentList = null, CancellationToken cancel = default)
+    public async Task ConvertTextToVoiceAsync(string srcText, string srcSampleVoicePath, string dstVoiceDirPath, string tmpVoiceBoxDir, string tmpVoiceWavDir, IEnumerable<int> speakerIdList, int diffusionSteps, string seriesName, string storyTitle, bool overwriteSilent, int[]? speedPercentList = null, CancellationToken cancel = default)
     {
         if (speedPercentList == null || speedPercentList.Any() == false)
             speedPercentList = new int[] { 100 };
@@ -685,7 +685,7 @@ public class AiTask
 
         await using (var seedvc = new AiUtilSeedVcEngine(this.Settings, this.FfMpeg))
         {
-            vcMetaData = await seedvc.ConvertAsync(tmpVoiceBoxWavPath, tmpVoiceWavPath, srcSampleVoicePath, diffusionSteps, tagTitle, true, parsed.Options_VoiceSegmentsList, cancel: cancel);
+            vcMetaData = await seedvc.ConvertAsync(tmpVoiceBoxWavPath, tmpVoiceWavPath, srcSampleVoicePath, diffusionSteps, overwriteSilent, tagTitle, true, parsed.Options_VoiceSegmentsList, cancel: cancel);
         }
 
         foreach (int speed in speedPercentList)
@@ -736,7 +736,7 @@ public class AiTask
 
         await using (var seedvc = new AiUtilSeedVcEngine(this.Settings, this.FfMpeg, true))
         {
-            vcMetaData = await seedvc.ConvertAsync(normalizedVocalWavPath, changedVocalCachePath, sampleVoicePath, diffusionSteps, PP.GetFileNameWithoutExtension(srcVocalWavPath), true, null, cancel: cancel);
+            vcMetaData = await seedvc.ConvertAsync(normalizedVocalWavPath, changedVocalCachePath, sampleVoicePath, diffusionSteps, false, PP.GetFileNameWithoutExtension(srcVocalWavPath), true, null, cancel: cancel);
         }
 
         double targetVocalVolume = srcMusicParsed.Item2.VolumeDetect_MeanVolume - dbDelta;
@@ -2305,7 +2305,7 @@ public class AiUtilSeedVcEngine : AiUtilBasicEngine
         public double Duration;
     }
 
-    public async Task<AvUtilSeedVcMetaData> ConvertAsync(string srcWavPath, string dstWavPath, string voiceSamplePath, int diffusionSteps, string tagTitle = "", bool useOkFile = true, List<MediaVoiceSegment>? voiceSegments = null, CancellationToken cancel = default)
+    public async Task<AvUtilSeedVcMetaData> ConvertAsync(string srcWavPath, string dstWavPath, string voiceSamplePath, int diffusionSteps, bool overwriteSilent, string tagTitle = "", bool useOkFile = true, List<MediaVoiceSegment>? voiceSegments = null, CancellationToken cancel = default)
     {
         if (tagTitle._IsEmpty()) tagTitle = PP.GetFileNameWithoutExtension(srcWavPath);
 
@@ -2324,7 +2324,6 @@ public class AiUtilSeedVcEngine : AiUtilBasicEngine
 
         if (voiceSegments != null)
         {
-            // 最後の部分のみ無音化
             var tmpList = voiceSegments.ToArray().Reverse().ToList();
             foreach (var item in tmpList)
             {
@@ -2337,7 +2336,11 @@ public class AiUtilSeedVcEngine : AiUtilBasicEngine
                 }
                 else
                 {
-                    break;
+                    if (overwriteSilent == false)
+                    {
+                        // overwriteSilent が off の場合は、最後の部分のみ無音化
+                        break;
+                    }
                 }
             }
         }
@@ -3217,6 +3220,7 @@ public class AiVoiceSettings
     public string SpeakerIdStrOrListFilePath = "";
     public bool MixedMode = false;
     public int DiffusionSteps = 50;
+    public bool OverwriteSilent = false;
 }
 
 public class AiRandomBgmSettingsFactory
