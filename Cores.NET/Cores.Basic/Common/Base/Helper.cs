@@ -461,6 +461,7 @@ public static class BasicHelper
     public static bool _IsAscii(this char c) => Str.IsAscii(c);
     public static bool _IsAscii(this string str) => Str.IsAscii(str);
 
+    public static List<KeyValuePair<string, string>> _GetLinesWithExactCrlfNewLines(this string srcText) => Str.GetLinesWithExactCrlfNewLines(srcText);
     public static string[] _GetLines(this string s, bool removeEmpty = false, bool stripCommentsFromLine = false, IEnumerable<string>? commentStartStrList = null, bool singleLineAtLeast = false, bool trim = false, ICollection<string>? strippedStrList = null, bool commentMustBeWholeLine = false)
         => Str.GetLines(s, removeEmpty, stripCommentsFromLine, commentStartStrList, singleLineAtLeast, trim, strippedStrList, commentMustBeWholeLine);
     public static bool _GetKeyAndValue(this string s, out string key, out string value, string splitStr = Consts.Strings.DefaultKeyAndValueSplitStr) => Str.GetKeyAndValue(s, out key, out value, splitStr);
@@ -3960,6 +3961,12 @@ public static class BasicHelper
 
     public static string _InsertStrIntoStr(this string targetStr, string insertStr, int position, bool allowInsertAtEoL = false)
         => Str.InsertStrIntoStr(targetStr, insertStr, position, allowInsertAtEoL);
+
+    public static Tuple<string, string, string> _AdvancedTrim(this string? srcText,
+        bool trimStart = true,
+        bool trimEnd = true,
+        char[]? splitCharList = null)
+        => Str.AdvancedTrim(srcText, trimStart, trimEnd, splitCharList);
 }
 
 

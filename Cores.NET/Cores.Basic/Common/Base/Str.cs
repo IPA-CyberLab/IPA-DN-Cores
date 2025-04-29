@@ -8961,6 +8961,303 @@ namespace IPA.Cores.Basic
             return str;
         }
 
+        public static string NormalizeComfortableUrl(string srcUrl)
+        {
+            if (srcUrl == null) return "";
+
+            try
+            {
+                string[] amazonStoreHostNameList = new string[]
+                    {
+                    "www.amazon.co.jp",
+                    "www.amazon.com",
+                    "www.amazon.co.uk",
+                    };
+
+                string[] defaultFileNamesList = new string[]
+                    {
+                    "index.html",
+                    "index.htm",
+                    "index.cgi",
+                    "default.html",
+                    "default.htm",
+                    "default.asp",
+                    "default.aspx",
+                    "index.php",
+                    "index.pl",
+                    "index.py",
+                    "index.rb",
+                    "index.xhtml",
+                    "index.shtml",
+                    "index.phtml",
+                    "index.jsp",
+                    "index.wml",
+                    "welcome.html",
+                    "index.nginx-debian.html",
+                    };
+
+                var originalLines = GetLinesWithExactCrlfNewLines(srcUrl);
+
+                List<KeyValuePair<string, string>> lineDataDestination = new List<KeyValuePair<string, string>>();
+
+                foreach (var lineDataOriginal in originalLines)
+                {
+                    var lineData = lineDataOriginal;
+                    string line = lineData.Key;
+
+                    var trimmedLine = AdvancedTrim(line);
+
+                    string line2 = trimmedLine.Item1;
+
+                    bool isUrlLineOrEmptyLine = false;
+
+                    if (line2.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                        line2.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (TryParseUrl(line2, out Uri uri, out QueryStringList qs))
+                        {
+                            string absolutePath = uri.AbsolutePath;
+
+                            // ディレクトリ名が省略されている場合、これを追加
+                            if (string.IsNullOrEmpty(uri.Query)) // Query string がある場合は、ここはいじらない
+                            {
+                                if (uri.AbsolutePath.EndsWith("/") == false)
+                                {
+                                    string? tmp1 = uri.Segments.LastOrDefault();
+                                    if (tmp1 == null) tmp1 = "";
+                                    if (tmp1.Length >= 3 && tmp1.Substring(1, tmp1.Length - 2).Contains("."))
+                                    {
+                                        // /a/b/c/test.pdf のように、最後のパスに拡張子が含まれている場合: 何もしない
+                                    }
+                                    else
+                                    {
+                                        // それ以外の場合: "/" を追加
+                                        absolutePath = uri.AbsolutePath + "/";
+                                    }
+                                }
+                            }
+
+                            // 末尾が index.html などの場合、これを削除
+                            foreach (var defFileName in defaultFileNamesList)
+                            {
+                                if (absolutePath.EndsWith(defFileName, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    absolutePath = absolutePath.Substring(absolutePath.Length - defFileName.Length);
+                                }
+                            }
+
+                            if (string.IsNullOrEmpty(absolutePath))
+                            {
+                                absolutePath = "/";
+                            }
+
+                            string query = "";
+
+                            if (string.IsNullOrEmpty(uri.Query) == false && uri.Query != "?")
+                            {
+                                query = uri.Query;
+                            }
+
+                            string fragment = "";
+
+                            if (string.IsNullOrEmpty(uri.Fragment) == false && uri.Fragment != "#")
+                            {
+                                fragment = uri.Fragment;
+                            }
+
+                            foreach (var amazonHostNameCandidate in amazonStoreHostNameList)
+                            {
+                                if (amazonHostNameCandidate.Equals(uri.Host, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    // Amazon 商品 URL を簡略化
+                                    string[] tokens = uri.AbsolutePath.Split(new char[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+                                    if (tokens.Length >= 3 && tokens[1].Equals("dp", StringComparison.OrdinalIgnoreCase) && tokens[2].Length == 10)
+                                    {
+                                        absolutePath = "/dp/" + tokens[2] + "/";
+                                        query = "";
+                                        fragment = "";
+                                    }
+                                    else if (tokens.Length >= 3 && tokens[0].Equals("gp", StringComparison.OrdinalIgnoreCase) && tokens[1].Equals("product", StringComparison.OrdinalIgnoreCase) && tokens[2].Length == 10)
+                                    {
+                                        absolutePath = "/dp/" + tokens[2] + "/";
+                                        query = "";
+                                        fragment = "";
+                                    }
+                                    break;
+                                }
+                            }
+
+                            if (uri.Host.Equals("www.ebay.com", StringComparison.OrdinalIgnoreCase))
+                            {
+                                // ebay 商品 URL を簡略化
+                                string[] tokens = uri.AbsolutePath.Split(new char[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+                                if (tokens.Length >= 2 && tokens[0].Equals("itm", StringComparison.OrdinalIgnoreCase) && tokens[1].Length >= 10)
+                                {
+                                    absolutePath = "/itm/" + tokens[1] + "/";
+                                    query = "";
+                                    fragment = "";
+                                }
+                            }
+
+                            string dstText = uri.Scheme + "://" + uri.Host + (uri.IsDefaultPort ? "" : ":" + uri.Port) + absolutePath + query + fragment;
+                            trimmedLine = new Tuple<string, string, string>(dstText, trimmedLine.Item2, trimmedLine.Item3);
+
+                            isUrlLineOrEmptyLine = true;
+                        }
+                    }
+
+                    if (string.IsNullOrEmpty(line2))
+                    {
+                        isUrlLineOrEmptyLine = true;
+                    }
+
+                    if (isUrlLineOrEmptyLine == false)
+                    {
+                        // URL でも空白行でもない行が出現したら、処理を一切しない
+                        return srcUrl;
+                    }
+
+                    lineData = new KeyValuePair<string, string>(trimmedLine.Item2 + trimmedLine.Item1 + trimmedLine.Item3, lineData.Value);
+
+                    lineDataDestination.Add(lineData);
+                }
+
+                StringBuilder b = new StringBuilder();
+                foreach (var lineData in lineDataDestination)
+                {
+                    b.Append(lineData.Key);
+                    b.Append(lineData.Value);
+                }
+
+                return b.ToString();
+            }
+            catch
+            {
+                return srcUrl;
+            }
+        }
+
+        public static Tuple<string, string, string> AdvancedTrim(
+            string? srcText,
+            bool trimStart = true,
+            bool trimEnd = true,
+            char[]? splitCharList = null)
+        {
+            if (srcText == null) srcText = "";
+            if (splitCharList == null)
+            {
+                splitCharList = new char[] { ' ', '　', '\t', '\n', '\r', };
+            }
+
+            int len = srcText.Length;
+
+            // トリムの開始位置と終了位置を決めるための変数を用意
+            int startIndex = 0;
+            int endIndex = len - 1;
+
+            // 先頭のトリム
+            if (trimStart)
+            {
+                while (startIndex < len)
+                {
+                    if (!splitCharList.Contains(srcText[startIndex]))
+                    {
+                        break;
+                    }
+                    startIndex++;
+                }
+            }
+
+            // 末尾のトリム
+            if (trimEnd)
+            {
+                while (endIndex >= startIndex)
+                {
+                    if (!splitCharList.Contains(srcText[endIndex]))
+                    {
+                        break;
+                    }
+                    endIndex--;
+                }
+            }
+
+            // 先頭・末尾それぞれトリムされた文字列を取得
+            // (trimStart = true のときのみ先頭が削られるので、その削られた部分を removedStart に入れる)
+            string removedStart = (trimStart && startIndex > 0)
+                ? srcText.Substring(0, startIndex)
+                : "";
+
+            // (trimEnd = true のときのみ末尾が削られるので、その削られた部分を removedEnd に入れる)
+            string removedEnd = (trimEnd && endIndex < len - 1)
+                ? srcText.Substring(endIndex + 1)
+                : "";
+
+            // トリム後の本体文字列
+            string trimmedString;
+            if (startIndex > endIndex)
+            {
+                // すべてがトリム対象になってしまった場合は空文字を返す
+                trimmedString = "";
+            }
+            else
+            {
+                trimmedString = srcText.Substring(startIndex, endIndex - startIndex + 1);
+            }
+
+            return new Tuple<string, string, string>(trimmedString, removedStart, removedEnd);
+        }
+
+        public static List<KeyValuePair<string, string>> GetLinesWithExactCrlfNewLines(string srcText)
+        {
+            if (srcText == null) srcText = "";
+
+            List<KeyValuePair<string, string>> ret = new List<KeyValuePair<string, string>>();
+
+            int len = srcText.Length;
+
+            StringBuilder b = new StringBuilder();
+
+            for (int i = 0; i < len; i++)
+            {
+                char c = srcText[i];
+
+                if (c == '\r')
+                {
+                    char c2 = (char)0;
+                    if (i < (len - 1))
+                    {
+                        c2 = srcText[i + 1];
+                    }
+                    if (c2 == '\n')
+                    {
+                        ret.Add(new KeyValuePair<string, string>(b.ToString(), "\r\n"));
+                        i++;
+                    }
+                    else
+                    {
+                        ret.Add(new KeyValuePair<string, string>(b.ToString(), "\r"));
+                    }
+                    b.Clear();
+                }
+                else if (c == '\n')
+                {
+                    ret.Add(new KeyValuePair<string, string>(b.ToString(), "\n"));
+                    b.Clear();
+                }
+                else
+                {
+                    b.Append(c);
+                }
+            }
+
+            if (b.Length >= 1)
+            {
+                ret.Add(new KeyValuePair<string, string>(b.ToString(), ""));
+            }
+
+            return ret;
+        }
+
         // 改行コードを正規化する
         [return: NotNullIfNotNull("str")]
         public static string? NormalizeCrlf(string str, CrlfStyle style = CrlfStyle.LocalPlatform, bool ensureLastLineCrlf = false)
@@ -11398,7 +11695,7 @@ public static class UnicodeStdKangxiMapUtil
     // '⿔' (0x2fd4) <--> '龜' (0x9f9c)
     // '⿕' (0x2fd5) <--> '龠' (0x9fa0)
 
-    public static readonly IReadOnlyList<char> StrangeCharList = new char[] {
+    public static readonly IEnumerable<char> StrangeCharList = new char[] {
         (char)0x2e83 /* '⺃' */,
         (char)0x2e85 /* '⺅' */,
         (char)0x2e89 /* '⺉' */,
@@ -11698,7 +11995,25 @@ public static class UnicodeStdKangxiMapUtil
         (char)0x2fd5 /* '⿕' */,
         };
 
-    public static readonly IReadOnlyList<char> NormalCharList = new char[] {
+    public static readonly IEnumerable<char> StrangeCharList2 = new char[] {
+        (char)0xF06C /* 箇条書きの中黒点 (大) */,
+        (char)0xF09F /* 箇条書きの中黒点 (小) */,
+        (char)0x2022, // 中黒 (大)
+        (char)0x00B7, // 中黒 (小)
+        (char)0x0387, // 中黒 (小)
+        (char)0x2219, // 中黒 (小)
+        (char)0x22C5, // 中黒 (小)
+        (char)0x30FB, // 中黒 (小)
+        (char)0xFF65, // 中黒 (小)
+        (char)0xF06E, // ■
+        (char)0xF0B2, // □
+        (char)0xF0FC, // ✓
+        (char)0xF0D8, // ➢
+        (char)0xf075, // ◆
+        };
+
+
+    public static readonly IEnumerable<char> NormalCharList = new char[] {
         (char)0x4e5a /* '乚' */,
         (char)0x4ebb /* '亻' */,
         (char)0x5202 /* '刂' */,
@@ -11998,27 +12313,51 @@ public static class UnicodeStdKangxiMapUtil
         (char)0x9fa0 /* '龠' */,
         };
 
+    public static readonly IEnumerable<char> NormalCharList2 = new char[] {
+        '●' /* 箇条書きの中黒点 (大) */,
+        '・' /* 箇条書きの中黒点 (小) */,
+        '・', // 中黒 (小)
+        '・', // 中黒 (小)
+        '・', // 中黒 (小)
+        '・', // 中黒 (小)
+        '・', // 中黒 (小)
+        '・', // 中黒 (小)
+        '・', // 中黒 (小)
+        '■', // ■
+        '□', // □
+        '✓', // ✓
+        '➢', // ➢
+        '◆', // ◆
+    };
+
     public static readonly string StrangeCharArrayStr;
     public static readonly string NormalCharArrayStr;
+
+    public static readonly string StrangeCharArrayStr2;
+    public static readonly string NormalCharArrayStr2;
 
     static UnicodeStdKangxiMapUtil()
     {
         StrangeCharArrayStr = new string(StrangeCharList.ToArray());
         NormalCharArrayStr = new string(NormalCharList.ToArray());
+
+        StrangeCharArrayStr2 = new string(StrangeCharList2.ToArray());
+        NormalCharArrayStr2 = new string(NormalCharList2.ToArray());
     }
 
     public static char StrangeToNormal(char c)
     {
         int i = StrangeCharArrayStr.IndexOf(c);
-        if (i == -1) return c;
-        return NormalCharArrayStr[i];
-    }
-
-    public static char NormalToStrange(char c)
-    {
-        int i = NormalCharArrayStr.IndexOf(c);
-        if (i == -1) return c;
-        return StrangeCharArrayStr[i];
+        if (i != -1)
+        {
+            return NormalCharArrayStr[i];
+        }
+        i = StrangeCharArrayStr2.IndexOf(c);
+        if (i != -1)
+        {
+            return NormalCharArrayStr2[i];
+        }
+        return c;
     }
 
     public static string StrangeToNormal(string str)
@@ -12031,6 +12370,13 @@ public static class UnicodeStdKangxiMapUtil
             a[i] = StrangeToNormal(a[i]);
         }
         return new string(a);
+    }
+
+    public static char NormalToStrange(char c)
+    {
+        int i = NormalCharArrayStr.IndexOf(c);
+        if (i == -1) return StrangeCharArrayStr[i];
+        return c;
     }
 
     public static string NormalToStrange(string str)
