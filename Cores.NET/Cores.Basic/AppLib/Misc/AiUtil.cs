@@ -2815,6 +2815,26 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
     // テキスト文字列からタグとそれ以外を分離
     public static KeyValueList<string, bool> SplitTextToNormalAndTag(string text)
     {
+        // "SLEEP:" の前に必ず改行を入れる
+        StringBuilder tmpBuilder = new();
+        string[] tmpTokens = text._Split(StringSplitOptions.None, "SLEEP:");
+        for (int k = 0; k < tmpTokens.Length; k++)
+        {
+            string pref = tmpTokens.ElementAtOrDefault(k - 1)._NonNull();
+            string cur = tmpTokens.ElementAtOrDefault(k)._NonNull();
+
+            if (k >= 1)
+            {
+                if (pref.EndsWith("<") == false)
+                {
+                    tmpBuilder.AppendLine();
+                }
+                tmpBuilder.Append("SLEEP:");
+            }
+            tmpBuilder.Append(cur);
+        }
+        text = tmpBuilder.ToString();
+
         // 前処理: 1 行特別タグ ( < > なし) の変換
         var lines = text._GetLines();
         StringWriter w = new();
@@ -2830,37 +2850,30 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
             string line2 = line;
             if (line.StartsWith("SLEEP:", StrCmp))
             {
-                if (line._IsAscii())
+                StringBuilder sleepStrBuilder = new();
+                StringBuilder restStrBuilder = new();
+                int mode2 = 0;
+                foreach (char c in line)
                 {
-                    line2 = $"<{line}>";
-                }
-                else
-                {
-                    StringBuilder sleepStrBuilder = new();
-                    StringBuilder restStrBuilder = new();
-                    int mode2 = 0;
-                    foreach (char c in line)
+                    if (mode2 == 0)
                     {
-                        if (mode2 == 0)
+                        if (c._IsAscii() && c != ' ' && c != '\t')
                         {
-                            if (c._IsAscii() && c != ' ' && c != '\t')
-                            {
-                                sleepStrBuilder.Append(c);
-                            }
-                            else
-                            {
-                                mode2 = 1;
-                            }
+                            sleepStrBuilder.Append(c);
                         }
-
-                        if (mode2 == 1)
+                        else
                         {
-                            restStrBuilder.Append(c);
+                            mode2 = 1;
                         }
                     }
 
-                    line2 = $"<{sleepStrBuilder.ToString()}> {restStrBuilder.ToString()}";
+                    if (mode2 == 1)
+                    {
+                        restStrBuilder.Append(c);
+                    }
                 }
+
+                line2 = $"<{sleepStrBuilder.ToString()}> {restStrBuilder.ToString()}";
             }
             w.WriteLine(line2);
         }
