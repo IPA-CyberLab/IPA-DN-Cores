@@ -2828,9 +2828,39 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
 
             // "SLEEP:xxx" タグ -> "<SLEEP:xxx>" タグ
             string line2 = line;
-            if (line.StartsWith("SLEEP:", StrCmp) && line._IsAscii())
+            if (line.StartsWith("SLEEP:", StrCmp))
             {
-                line2 = $"<{line}>";
+                if (line._IsAscii())
+                {
+                    line2 = $"<{line}>";
+                }
+                else
+                {
+                    StringBuilder sleepStrBuilder = new();
+                    StringBuilder restStrBuilder = new();
+                    int mode2 = 0;
+                    foreach (char c in line)
+                    {
+                        if (mode2 == 0)
+                        {
+                            if (c._IsAscii() && c != ' ' && c != '\t')
+                            {
+                                sleepStrBuilder.Append(c);
+                            }
+                            else
+                            {
+                                mode2 = 1;
+                            }
+                        }
+
+                        if (mode2 == 1)
+                        {
+                            restStrBuilder.Append(c);
+                        }
+                    }
+
+                    line2 = $"<{sleepStrBuilder.ToString()}> {restStrBuilder.ToString()}";
+                }
             }
             w.WriteLine(line2);
         }
