@@ -1432,7 +1432,7 @@ public class AiTask
         }
     }
 
-    public async Task AddRandomBgmToAllVoiceFilesAsync(string srcVoiceDirRoot, string dstDirRoot, FfMpegAudioCodec codec, AiRandomBgmSettingsFactory settingsFactory, int kbps = 0, string? oldTagStr = null, string? newTagStr = null, CancellationToken cancel = default)
+    public async Task AddRandomBgmToAllVoiceFilesAsync(string srcVoiceDirRoot, string dstDirRoot, FfMpegAudioCodec codec, AiRandomBgmSettingsFactory settingsFactory, int kbps = 0, string? oldTagStr = null, string? newTagStr = null, object? userParam = null, CancellationToken cancel = default)
     {
         var srcFiles = await Lfs.EnumDirectoryAsync(srcVoiceDirRoot, true, cancel: cancel);
 
@@ -1443,7 +1443,7 @@ public class AiTask
 
             string dstDirPath = PP.Combine(dstDirRoot, relativeDirPth);
 
-            var settingsList = settingsFactory.GetBgmSettingListProc(srcFile.FullPath);
+            var settingsList = settingsFactory.GetBgmSettingListProc(srcFile.FullPath, userParam);
 
             HashSet<string> keyNames = new HashSet<string>(StrCmpi);
             settingsList._DoForEach(x => keyNames.Add(x.Key));
@@ -1860,7 +1860,7 @@ public class AiTask
 
     public async Task AddRandomMaterialsToAllVoiceAndAudioFilesAsync(string srcVoiceAudioFilePath, string dstDirRoot, string srcMaterialsDirPath, FfMpegAudioCodec codec,
         AiRandomBgmSettingsFactory settingsFactory,
-        int kbps = 0, string? oldTagStr = null, string? newTagStr = null, CancellationToken cancel = default)
+        int kbps = 0, string? oldTagStr = null, string? newTagStr = null, object? userParam = null, CancellationToken cancel = default)
     {
         var srcFiles = await Lfs.EnumDirectoryAsync(srcVoiceAudioFilePath, true, cancel: cancel);
 
@@ -1875,7 +1875,7 @@ public class AiTask
 
                 string dstDirPath = PP.Combine(dstDirRoot, relativeDirPth);
 
-                var settingsList = settingsFactory.GetBgmSettingListProc(srcFile.FullPath);
+                var settingsList = settingsFactory.GetBgmSettingListProc(srcFile.FullPath, userParam);
 
                 HashSet<string> keyNames = new HashSet<string>(StrCmpi);
                 settingsList._DoForEach(x => keyNames.Add(x.Key));
@@ -3221,7 +3221,7 @@ public class AiVoiceSettings
 
 public class AiRandomBgmSettingsFactory
 {
-    public Func<string, KeyValueList<string, AiRandomBgmSettings>> GetBgmSettingListProc = null!;
+    public Func<string, object?, KeyValueList<string, AiRandomBgmSettings>> GetBgmSettingListProc = null!;
 }
 
 public class AiRandomBgmSettings
