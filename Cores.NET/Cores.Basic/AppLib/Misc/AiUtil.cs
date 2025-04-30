@@ -549,6 +549,14 @@ public class AiTask
                         speakerIdListForThisFile = speakerIdListInOneFile.ToList();
                     }
 
+                    if (settings.ReplaceStrList != null)
+                    {
+                        foreach (var kv in settings.ReplaceStrList)
+                        {
+                            srcText = srcText._ReplaceStr(kv.Key, kv.Value);
+                        }
+                    }
+
                     await ConvertTextToVoiceAsync(srcText, srcSampleVoiceFile, dstVoiceDirPath, tmpVoiceBoxDir, tmpVoiceWavDir, speakerIdListForThisFile, settings.DiffusionSteps, seriesName, storyTitle, settings.OverwriteSilent, speedPercentList, cancel);
 
                     // テキストファイルの先頭に _ を付ける
@@ -2325,22 +2333,37 @@ public class AiUtilSeedVcEngine : AiUtilBasicEngine
         if (voiceSegments != null)
         {
             var tmpList = voiceSegments.ToArray().Reverse().ToList();
-            foreach (var item in tmpList)
+            int mode = 0;
+            for (int i = 0; i < tmpList.Count; i++)
             {
-                if (item.IsBlank || item.IsSleep)
+                var cur = tmpList[i];
+                var next = tmpList.ElementAtOrDefault(i - 1); // (リスト上は Reverse により逆順になっているので注意)
+
+                if (cur.IsBlank || cur.IsSleep)
                 {
-                    if (item.TimeLength >= 0.01)
+                    if (cur.TimeLength >= 0.01)
                     {
-                        silentRangeList.Add(new SilentRange { StartTime = item.TimePosition, Duration = item.TimeLength, });
+                        if (mode == 0)
+                        {
+                            // 末尾部分
+                            silentRangeList.Add(new SilentRange { StartTime = cur.TimePosition, Duration = cur.TimeLength, });
+                        }
+                        else
+                        {
+                            if (overwriteSilent)
+                            {
+                                // 途中の Sleep と、それに続く Blank 部分 (Sleep の直前の Blank 部分は無音化しない)
+                                if (cur.IsSleep && next != null && next.IsBlank)
+                                {
+                                    silentRangeList.Add(new SilentRange { StartTime = cur.TimePosition, Duration = cur.TimeLength + next.TimeLength, });
+                                }
+                            }
+                        }
                     }
                 }
                 else
                 {
-                    if (overwriteSilent == false)
-                    {
-                        // overwriteSilent が off の場合は、最後の部分のみ無音化
-                        break;
-                    }
+                    mode = 1;
                 }
             }
         }
@@ -3221,6 +3244,7 @@ public class AiVoiceSettings
     public bool MixedMode = false;
     public int DiffusionSteps = 50;
     public bool OverwriteSilent = false;
+    public KeyValueList<string, string>? ReplaceStrList = new KeyValueList<string, string>();
 }
 
 public class AiRandomBgmSettingsFactory
