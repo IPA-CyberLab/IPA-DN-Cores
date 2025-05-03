@@ -8860,7 +8860,7 @@ namespace IPA.Cores.Basic
         }
 
         // 数値かどうか取得
-        public static bool IsNumber(string? str)
+        public static bool IsNumber(string? str) // 挙動変更するな！！
         {
             str = str._NonNullTrim();
             Str.RemoveSpaceChar(ref str);
@@ -8879,7 +8879,7 @@ namespace IPA.Cores.Basic
 
             return true;
         }
-        public static bool IsNumber(char c)
+        public static bool IsNumber(char c) // 挙動変更するな！！
         {
             if (c >= '0' && c <= '9')
             {

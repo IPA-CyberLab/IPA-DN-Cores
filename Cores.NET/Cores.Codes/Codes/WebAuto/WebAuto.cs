@@ -73,6 +73,7 @@ using OpenQA.Selenium.Interactions;
 
 using OpenQA.Selenium.DevTools;
 using OpenQA.Selenium.DevTools.V134;
+using OpenQA.Selenium.DevTools.V134.Browser;
 //using OpenQA.Selenium.DevTools.V134.Network;
 //using DevToolsSessionDomains = OpenQA.Selenium.DevTools.V134.DevToolsSessionDomains;
 
@@ -220,6 +221,14 @@ public class WebAutoSettings
     public int FindElementWaitTimeoutMsecs = WebAutoConsts.DefaultWaitTimeoutMsecs;
 }
 
+public class WebAutoDownloadedFile
+{
+    public FilePath? DownloadedFilePath = null!;
+    public string SuggestedFileName = null!;
+    public Memory<byte> FileBody;
+    public string LinkTextStr = null!;
+}
+
 public class WebAutoWindow : AsyncService
 {
     AsyncLock Lock => this.Auto.WindowLock;
@@ -230,10 +239,14 @@ public class WebAutoWindow : AsyncService
 
     public string WindowHandle { get; }
 
+    string DownloadTmpDirPath { get; }
+
     public WebAutoWindow(WebAuto auto, bool tabMode, bool autoCloseOnDispose) : base()
     {
         try
         {
+            this.DownloadTmpDirPath = auto.DownloadTmpDirRoot._CombinePath("d_" + Str.GenRandStr().Substring(0, 16).ToLowerInvariant());
+
             this.Auto = auto;
             this.AutoCloseOnDispose = autoCloseOnDispose;
 
@@ -393,6 +406,184 @@ public class WebAutoWindow : AsyncService
         }
     }
 
+    class DevTools
+    {
+        public DevToolsSession Session = null!;
+        public OpenQA.Selenium.DevTools.V134.DevToolsSessionDomains Domain = null!;
+    }
+
+    ResultOrExeption<DevTools>? CurrentDevTools = null;
+
+    async Task<ResultOrExeption<DevTools>> Internal_GetDevToolsSessionMainAsync()
+    {
+        await Task.CompletedTask;
+        try
+        {
+            var session = Driver.GetDevToolsSession();
+            var domain = session.GetVersionSpecificDomains<OpenQA.Selenium.DevTools.V134.DevToolsSessionDomains>();
+
+            return new ResultOrExeption<DevTools>(new DevTools { Session = session, Domain = domain });
+        }
+        catch (Exception ex)
+        {
+            return new ResultOrExeption<DevTools>(ex);
+        }
+    }
+
+    async Task<DevTools> GetDevToolsSessionAsync()
+    {
+        if (CurrentDevTools == null) CurrentDevTools = await Internal_GetDevToolsSessionMainAsync();
+
+        return CurrentDevTools!;
+    }
+
+    public async Task<WebAutoDownloadedFile> DownloadFileAsync(IWebElement clickToDownload, string clickLinkStr, FilePath? destFilePath = null, bool useSuggestedFileNameAsDestPath = false, int startTimeout = 10 * 1000, int downloadTimeout = 30 * 1000, CancellationToken cancel = default)
+    {
+        Where();
+        // 一時ディレクトリの作成
+        string downloadDir = this.DownloadTmpDirPath._CombinePath("x_" + Str.GenRandStr().Substring(0, 16).ToLowerInvariant());
+
+        try
+        {
+            var devTools = await GetDevToolsSessionAsync();
+            var devToolsDomain = devTools.Domain;
+
+            await devToolsDomain.Browser.SetDownloadBehavior(new SetDownloadBehaviorCommandSettings
+            {
+                Behavior = "allow",
+                DownloadPath = downloadDir,
+                EventsEnabled = true,
+            });
+
+            await Lfs.CreateDirectoryAsync(downloadDir, flags: FileFlags.OnCreateSetCompressionFlag, cancel: cancel);
+
+            string? downloadGuid = null;
+            string? suggestedFileName = null;
+
+            bool isDownloadCompleted = false;
+            AsyncManualResetEvent startedEvent = new();
+            AsyncManualResetEvent completedEvent = new();
+
+            EventHandler<DownloadWillBeginEventArgs> downloadStartEvent = (sender, e) =>
+            {
+                downloadGuid = e.Guid;
+                suggestedFileName = e.SuggestedFilename;
+                startedEvent.Set(true);
+            };
+
+            EventHandler<DownloadProgressEventArgs> downloadProgressEvent = (sender, e) =>
+            {
+                if (e.Guid != downloadGuid) return;
+                if (e.State == "completed")
+                {
+                    isDownloadCompleted = true;
+                    completedEvent.Set(true);
+                }
+                else if (e.State == "interrupted")
+                {
+                    isDownloadCompleted = false;
+                    completedEvent.Set(true);
+                }
+            };
+
+            // ダウンロード関係イベントの設定
+            devToolsDomain.Browser.DownloadWillBegin += downloadStartEvent;
+            devToolsDomain.Browser.DownloadProgress += downloadProgressEvent;
+
+            try
+            {
+                this.StartActionAt(clickToDownload).Click().Perform();
+
+                await Task.Yield();
+
+                // 開始まで待機
+                await startedEvent.WaitAsync(startTimeout, cancel);
+
+                if (startedEvent.IsSet == false)
+                {
+                    throw new CoresException("File download did not started.");
+                }
+
+                // 完了まで待機
+                await completedEvent.WaitAsync(downloadTimeout, cancel);
+
+                if (isDownloadCompleted)
+                {
+                    suggestedFileName = PPWin.MakeSafeFileName(suggestedFileName._NotEmptyOrDefault("unknown.dat"), false, true, true);
+
+                    var srcFile = (await Lfs.EnumDirectoryAsync(downloadDir, cancel: cancel)).Where(x => x.IsFile).Single();
+
+                    if (destFilePath != null)
+                    {
+                        var destFilePath2 = destFilePath;
+
+                        if (useSuggestedFileNameAsDestPath)
+                        {
+                            destFilePath2 = destFilePath2.GetParentDirectory().Combine(suggestedFileName);
+                        }
+
+                        await Lfs.CopyFileAsync(srcFile.FullPath, destFilePath2.PathString,
+                            new CopyFileParams(flags: destFilePath.Flags.BitAdd(FileFlags.AutoCreateDirectory)), destFileSystem: destFilePath.FileSystem, cancel: cancel);
+
+                        return new WebAutoDownloadedFile { DownloadedFilePath = destFilePath2, SuggestedFileName = suggestedFileName, LinkTextStr = clickLinkStr };
+                    }
+                    else
+                    {
+                        return new WebAutoDownloadedFile { DownloadedFilePath = null, SuggestedFileName = suggestedFileName, LinkTextStr = clickLinkStr, FileBody = await Lfs.ReadDataFromFileAsync(srcFile.FullPath, cancel: cancel) };
+                    }
+                }
+                else
+                {
+                    if (downloadGuid != null)
+                    {
+                        try
+                        {
+                            await devToolsDomain.Browser.CancelDownload(new OpenQA.Selenium.DevTools.V134.Browser.CancelDownloadCommandSettings
+                            {
+                                Guid = downloadGuid,
+                            });
+                        }
+                        catch { }
+                    }
+
+                    throw new CoresException("File download aborted.");
+                }
+            }
+            finally
+            {
+                // ダウンロード関係イベントの削除
+                try
+                {
+                    devToolsDomain.Browser.DownloadWillBegin -= downloadStartEvent;
+                    devToolsDomain.Browser.DownloadProgress -= downloadProgressEvent;
+                }
+                catch (Exception ex)
+                {
+                    ex._Error();
+                }
+            }
+        }
+        finally
+        {
+            await DeleteDownloadTempDirAsync();
+        }
+    }
+
+    async Task DeleteDownloadTempDirAsync(CancellationToken cancel = default)
+    {
+        try
+        {
+            if (await Lfs.IsDirectoryExistsAsync(this.DownloadTmpDirPath, cancel))
+            {
+                //await Lfs.DeleteDirectoryAsync(this.DownloadTmpDirPath, true, forcefulUseInternalRecursiveDelete: true);
+            }
+        }
+        catch (Exception ex)
+        {
+            ex._Error();
+        }
+    }
+
     protected override async Task CleanupImplAsync(Exception? ex)
     {
         try
@@ -416,7 +607,10 @@ public class WebAutoWindow : AsyncService
                         ex2._Error();
                     }
                 }
+
             }
+
+            await DeleteDownloadTempDirAsync();
         }
         finally
         {
@@ -435,6 +629,8 @@ public class WebAuto : AsyncService
     public ChromeDriver Driver { get; }
     public bool IsNewProcessStarted { get; }
 
+    public string DownloadTmpDirRoot { get; }
+
     readonly static AsyncLock StartupLock = new AsyncLock();
 
     public readonly AsyncLock WindowLock = new AsyncLock();
@@ -443,6 +639,8 @@ public class WebAuto : AsyncService
     {
         try
         {
+            this.DownloadTmpDirRoot = Env.MyLocalTempDir._CombinePath("_down_tmp");
+
             this.Settings = settings;
 
             int port = settings.ChromeDebuggerPort;

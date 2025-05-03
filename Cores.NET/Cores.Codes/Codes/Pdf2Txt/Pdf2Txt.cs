@@ -69,7 +69,9 @@ namespace IPA.Cores.Codes;
 
 public static class Pdf2Txt
 {
-    public static async Task<PdfDocument> LoadPdfFromFileAsync(string fileName, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, FileSystem? fs = null, CancellationToken cancel = default)
+    public const int DefaultMaxPdfFileSize = 2_100_000_000;
+
+    public static async Task<PdfDocument> LoadPdfFromFileAsync(string fileName, int maxSize = DefaultMaxPdfFileSize, FileFlags flags = FileFlags.None, FileSystem? fs = null, CancellationToken cancel = default)
     {
 
         fs ??= Lfs;
@@ -78,7 +80,7 @@ public static class Pdf2Txt
 
         return LoadPdf(data);
     }
-    public static PdfDocument LoadPdfFromFile(string fileName, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, FileSystem? fs = null, CancellationToken cancel = default)
+    public static PdfDocument LoadPdfFromFile(string fileName, int maxSize = DefaultMaxPdfFileSize, FileFlags flags = FileFlags.None, FileSystem? fs = null, CancellationToken cancel = default)
         => LoadPdfFromFileAsync(fileName, maxSize, flags, fs, cancel)._GetResult();
 
     public static PdfDocument LoadPdf(ReadOnlyMemory<byte> pdfBody)
@@ -99,6 +101,15 @@ public static class Pdf2Txt
 
         return builder.Build();
     }
+
+    public static async Task<string> ExtraceTextFromPdfAsync(FilePath filePath, int maxSize = DefaultMaxPdfFileSize, CancellationToken cancel = default)
+    {
+        using var pdf = await LoadPdfFromFileAsync(filePath, flags: filePath.Flags, fs: filePath.FileSystem, cancel: cancel);
+
+        return pdf.ExtractTextFromPdf();
+    }
+    public static Task<string> ExtraceTextFromPdfAsync(string filePath, int maxSize = DefaultMaxPdfFileSize, CancellationToken cancel = default)
+        => ExtraceTextFromPdfAsync(new FilePath(filePath), maxSize, cancel);
 
     public static string ExtractTextFromPdf(this PdfDocument pdf)
     {
