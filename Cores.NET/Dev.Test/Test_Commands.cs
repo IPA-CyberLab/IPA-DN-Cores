@@ -99,7 +99,15 @@ partial class TestDevCommands
             {
                 var fileinfo = (await downloader.GetDownloadUrlFromPageAsync(pageInfo));
 
-                var destDir = rootDirPath.GetSubDirectory(PPWin.MakeSafeFileName(fileinfo.SpecifiedVersion, true, true, true));
+                var uri = fileinfo.Url._ParseUrl();
+                string tmp1 = uri.AbsolutePath;
+                int j = tmp1._Search(fileinfo.FileName);
+                if (j != -1) tmp1 = tmp1.Substring(0, j);
+                string tmp2 = tmp1._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.RemoveEmptyEntries, "/")._Combine("_");
+                tmp2 = PP.MakeSafeFileName(tmp2, true, true, true);
+                if (tmp2._IsEmpty()) tmp2 = "_unknown_dir_";
+
+                var destDir = rootDirPath.GetSubDirectory(PPWin.MakeSafeFileName(fileinfo.SpecifiedVersion, true, true, true), tmp2);
 
                 RefLong size = new();
                 var result = await downloader.DownloadPackageFileAsync(destDir, fileinfo, size);
