@@ -68,6 +68,86 @@ partial class TestDevCommands
     }
 
     [ConsoleCommand(
+    "DownloadGitLabCePackages command",
+    "DownloadGitLabCePackages [searchBaseUrl] /dir:dest_dir_path /versions:16.8.1,16.8.10",
+    "DownloadGitLabCePackages command")]
+    public static async Task<int> DownloadGitLabCePackages(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
+                new ConsoleParam("[searchBaseUrl]", ConsoleService.Prompt, "Search Base URL: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("dir", ConsoleService.Prompt, "Dest dir path: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("versions", ConsoleService.Prompt, "Versions: ", ConsoleService.EvalNotEmpty, null),
+            };
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        var rootDirPath = new DirectoryPath(vl["dir"].StrValue);
+
+        await using var downloader = new GitLabDownloader();
+
+        var pageInfoList = await downloader.EnumeratePackagePagesAsync(new(vl.DefaultParam.StrValue, vl["versions"].StrValue._Split(StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries, ",", "/", " ", "\t", ";")));
+
+        int numOk = 0;
+        int numError = 0;
+        long totalSize = 0;
+
+        Con.WriteLine(pageInfoList._PrintAsJson());
+
+        foreach (var pageInfo in pageInfoList)
+        {
+            try
+            {
+                var fileinfo = (await downloader.GetDownloadUrlFromPageAsync(pageInfo));
+
+                var uri = fileinfo.Url._ParseUrl();
+                string tmp1 = uri.AbsolutePath;
+                int j = tmp1._Search(fileinfo.FileName);
+                if (j != -1) tmp1 = tmp1.Substring(0, j);
+                string tmp2 = tmp1._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.RemoveEmptyEntries, "/")._Combine("_");
+                tmp2 = PP.MakeSafeFileName(tmp2, true, true, true);
+                if (tmp2._IsEmpty()) tmp2 = "_unknown_dir_";
+
+                var destDir = rootDirPath.GetSubDirectory(PPWin.MakeSafeFileName(fileinfo.SpecifiedVersion, true, true, true), tmp2);
+
+                RefLong size = new();
+                var result = await downloader.DownloadPackageFileAsync(destDir, fileinfo, size);
+
+                totalSize += size.Value;
+
+                numOk++;
+            }
+            catch (Exception ex)
+            {
+                Con.WriteError($"Error: '{pageInfo.Url}'");
+                ex._Error();
+
+                numError++;
+            }
+        }
+
+        Con.WriteError(
+            $"Result: Num_OK: {numOk}, NumError: {numError}, Total Size = {totalSize._ToString3()} bytes.");
+
+        return 0;
+    }
+
+    [ConsoleCommand(
+        "JunkSample command",
+        "JunkSample [filename] /abc:def",
+        "JunkSample command")]
+    static int JunkSample(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
+                new ConsoleParam("[filename]", ConsoleService.Prompt, "filename: ", ConsoleService.EvalNotEmpty, null),
+                new ConsoleParam("abc", ConsoleService.Prompt, "abc: ", ConsoleService.EvalNotEmpty, null),
+            };
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        return 0;
+    }
+
+    [ConsoleCommand(
         "PrependLineNumber command",
         "PrependLineNumber [srcFile] [/DEST:destfile]",
         "Prepend Line Number.")]

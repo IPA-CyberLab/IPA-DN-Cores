@@ -382,7 +382,7 @@ public class FfMpegUtil
 
         if (smoothMode == false)
         {
-            filterStr = "-filter_complex \"amix=inputs=2:duration=longest:dropout_transition=0\"" + normalizeFilterAddStr +  " ";
+            filterStr = "-filter_complex \"amix=inputs=2:duration=longest:dropout_transition=0\"" + normalizeFilterAddStr + " ";
         }
         else
         {
@@ -6051,6 +6051,307 @@ public class DirQueueManager : AsyncServiceWithMainLoop
         try
         {
             await this.Si._DisposeSafeAsync2();
+        }
+        finally
+        {
+            await base.CleanupImplAsync(ex);
+        }
+    }
+}
+
+
+public class GitLabDownloaderDownloadPageInfo
+{
+    public string SpecifiedVersion { get; }
+    public string Url { get; }
+
+    public GitLabDownloaderDownloadPageInfo(string specifiedVersion, string url)
+    {
+        SpecifiedVersion = specifiedVersion;
+        Url = url;
+    }
+}
+
+public class GitLabDownloaderDownloadFileInfo
+{
+    public string SpecifiedVersion { get; }
+    public string FileName { get; }
+    public string Url { get; }
+    public StrDictionary<string> Checksums { get; }
+
+    public string GetSHA1Checksum() => Checksums._GetStrFirst("SHA1");
+
+    public GitLabDownloaderDownloadFileInfo(string specifiedVersion, string fileName, string url, StrDictionary<string> checksums)
+    {
+        SpecifiedVersion = specifiedVersion;
+        FileName = fileName;
+        Url = url;
+        Checksums = checksums;
+    }
+}
+
+public class GitLabDownloaderEnumeratePackagePagesOptions
+{
+    public string SearchBaseUrl { get; }
+    public IEnumerable<string> VersionStr { get; }
+
+    public GitLabDownloaderEnumeratePackagePagesOptions(string searchBaseUrl, string versionStr)
+    {
+        this.SearchBaseUrl = searchBaseUrl;
+        this.VersionStr = versionStr.Trim()._NotEmptyCheck()._SingleList();
+    }
+
+    public GitLabDownloaderEnumeratePackagePagesOptions(string searchBaseUrl, IEnumerable<string> versionStrList)
+    {
+        this.SearchBaseUrl = searchBaseUrl;
+        this.VersionStr = versionStrList.Select(x => x.Trim()._NotEmptyCheck()).Distinct(StrCmpi).ToList().ToList();
+    }
+
+    public KeyValueList<string, string> GetVersionStringForSearch()
+    {
+        KeyValueList<string, string> ret = new();
+        foreach (string key in this.VersionStr)
+        {
+            {
+                string ver = key;
+                if (ver.EndsWith("-") == false)
+                {
+                    ver = ver + "-";
+                }
+
+                if (ver.StartsWith("-") == false)
+                {
+                    ver = "-" + ver;
+                }
+
+                if (ver.Length >= 4)
+                {
+                    ret.Add(key, ver);
+                }
+            }
+            {
+                string ver = key;
+                if (ver.EndsWith("_") == false)
+                {
+                    ver = ver + "_";
+                }
+
+                if (ver.StartsWith("-") == false)
+                {
+                    ver = "-" + ver;
+                }
+
+                if (ver.Length >= 4)
+                {
+                    ret.Add(key, ver);
+                }
+            }
+            {
+                string ver = key;
+                if (ver.EndsWith("-") == false)
+                {
+                    ver = ver + "-";
+                }
+
+                if (ver.StartsWith("_") == false)
+                {
+                    ver = "_" + ver;
+                }
+
+                if (ver.Length >= 4)
+                {
+                    ret.Add(key, ver);
+                }
+            }
+        }
+        return ret;
+    }
+
+    string NormalizeVersionStr(string ver)
+    {
+        if (ver._IsEmpty()) throw new CoresLibException(nameof(ver));
+
+        if (ver.EndsWith("-") == false)
+        {
+            ver += "-";
+        }
+
+        if (ver.StartsWith("-") == false)
+        {
+            ver = "-" + ver;
+        }
+
+        return ver;
+    }
+
+}
+
+public class GitLabDownloader : AsyncService
+{
+    readonly WebApi WebClient;
+
+    public GitLabDownloader()
+    {
+        try
+        {
+            this.WebClient = new WebApi(new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true }, doNotUseTcpStack: true));
+        }
+        catch (Exception ex)
+        {
+            this._DisposeSafe(ex);
+            throw;
+        }
+    }
+
+    public async Task<GitLabDownloaderDownloadFileInfo> DownloadPackageFileAsync(DirectoryPath destDir, GitLabDownloaderDownloadFileInfo fileInfo, RefLong? fileSize = null, CancellationToken cancel = default)
+    {
+        var destFile = destDir.Combine(fileInfo.FileName);
+
+        return await TaskUtil.RetryAsync(async () =>
+        {
+            var okRead = await destFile.FileSystem.ReadOkFileAsync<GitLabDownloaderDownloadFileInfo>(destFile, fileInfo.GetSHA1Checksum(), cancel: cancel);
+
+            if (okRead.IsOk && okRead.Value != null)
+            {
+                Con.WriteLine($"'{destDir}' already exists. Skip.");
+
+                fileSize?.Set((await destFile.GetFileMetadataAsync(cancel: cancel)).Size);
+                return okRead.Value;
+            }
+
+            Con.WriteLine($"Downloading '{fileInfo.Url}'...");
+
+            using var reporter = new ProgressReporter(new ProgressReporterSetting(fileSizeStr: true));
+
+            await using var a = await SimpleHttpDownloader.DownloadToFileAsync(destFile, fileInfo.Url, reporter: reporter, options: new WebApiOptions(new WebApiSettings { SslAcceptAnyCerts = true }, doNotUseTcpStack: true));
+
+            Con.WriteLine($"Download '{fileInfo.Url}' completed. File size = {a.DataSize!.Value._ToString3()}");
+
+            Con.WriteLine($"Checking the checksum... (Original SHA1 = {fileInfo.GetSHA1Checksum()._NormalizeHexString()})");
+
+            var cacled = await FileUtil.CalcFileHashAsync(destFile, System.Security.Cryptography.SHA1.Create(), bufferSize: 1024 * 1024, cancel: cancel);
+            string calcedStr = cacled._GetHexString();
+            Con.WriteLine($"                        (Real file SHA1 = {calcedStr})");
+
+            if (calcedStr._IsSameHex(fileInfo.GetSHA1Checksum()._NormalizeHexString()) == false)
+            {
+                Con.WriteError($" ** Error: Invalid checksum.");
+                throw new CoresRetryableException(" ** Error: Invalid checksum.");
+            }
+            Con.WriteLine($"Checksum OK. Download completed: '{destFile}'");
+
+            await destFile.FileSystem.WriteOkFileAsync(destFile, fileInfo, fileInfo.GetSHA1Checksum(), cancel: cancel);
+
+            fileSize?.Set(a.DataSize!.Value);
+
+            return fileInfo;
+
+        }, 100, 5, cancel, true);
+    }
+
+    public async Task<GitLabDownloaderDownloadFileInfo> GetDownloadUrlFromPageAsync(GitLabDownloaderDownloadPageInfo pageInfo, CancellationToken cancel = default)
+    {
+        Con.WriteLine($"Accessing the file page URL '{pageInfo.Url}'...");
+
+        WebRet result = await TaskUtil.RetryAsync(async () =>
+        {
+            return await WebClient.SimpleQueryAsync(WebMethods.GET, pageInfo.Url, cancel);
+        }, 100, 5, cancel, true);
+
+        string htmlText = result.Data._GetString_UTF8();
+
+        var html = htmlText._ParseHtml();
+
+        var downloadFilenameTag = html.DocumentNode.SelectSingleNode("//div[@class='main-package-details']//h1");
+
+        string downloadFilename = downloadFilenameTag.InnerText.Trim();
+
+        var downloadLink = html.DocumentNode.SelectSingleNode("//div[@class='package-path']/following-sibling::div//a");
+
+        string downloadUrl = downloadLink.Attributes.Where(x => x.Name._IsSamei("href")).First().Value;
+
+        if (downloadUrl._InStri(downloadFilename) == false)
+        {
+            throw new CoresLibException($"downloadUrl '{downloadUrl}' does not contain '{downloadFilename}'.");
+        }
+
+        downloadFilename = PPWin.MakeSafeFileName(downloadFilename, true, true, true);
+
+        var checksumTable = html.DocumentNode.SelectSingleNode("//div[contains(@class, 'checksums')]/table").ParseTable(new HtmlTableParseOption(new string[] { "Type", "Value" }, findTBody: true));
+
+        StrDictionary<string> checksums = new();
+
+        foreach (var row in checksumTable.DataList)
+        {
+            checksums.Add(row["Type"].SimpleText.Trim(), row["Value"].SimpleText.Trim());
+        }
+
+        return new GitLabDownloaderDownloadFileInfo(pageInfo.SpecifiedVersion, downloadFilename, downloadUrl, checksums);
+    }
+
+    public async Task<List<GitLabDownloaderDownloadPageInfo>> EnumeratePackagePagesAsync(GitLabDownloaderEnumeratePackagePagesOptions options, CancellationToken cancel = default)
+    {
+        List<GitLabDownloaderDownloadPageInfo> ret = new();
+
+        var verItemList = options.GetVersionStringForSearch();
+
+        foreach (var verStr in verItemList.Select(x => x.Key).Distinct(StrCmpi).OrderBy(x => x, StrCmpi))
+        {
+            var verStrForSearchList = verItemList.Where(x => x.Key._IsSamei(verStr)).Select(x => x.Value).Distinct(StrCmpi).OrderBy(x => x, StrCmpi);
+
+            foreach (var varStrForSearch in verStrForSearchList)
+            {
+                for (int i = 1; ; i++)
+                {
+                    string url = $"{options.SearchBaseUrl}?dist=&filter=all&page={i}&q={varStrForSearch}";
+
+                    Con.WriteLine($"Accessing the list URL '{url}'...");
+
+                    WebRet result = await TaskUtil.RetryAsync(async () =>
+                    {
+                        return await WebClient.SimpleQueryAsync(WebMethods.GET, url, cancel);
+                    }, 100, 5, cancel, true);
+
+                    string htmlText = result.Data._GetString_UTF8();
+
+                    var html = htmlText._ParseHtml();
+
+                    try
+                    {
+                        var table = html.ParseTable("//table[@class='table-minimal basic results']", new HtmlTableParseOption(findTBody: true));
+
+                        foreach (var row in table.DataList)
+                        {
+                            var link = row["Name"].TdNode.SelectSingleNode(".//a[1]");
+                            string href = link.Attributes.Where(x => x.Name._IsSamei("href")).First().Value;
+
+                            href = url._CombineUrl(href).ToString();
+
+                            if (ret.Where(x => x.Url._IsSamei(href)).Any() == false) // 重複排除
+                            {
+                                string tmp1 = verStr;
+                                if (tmp1._IsEmpty()) tmp1 = "_unknown";
+                                ret.Add(new(verStr, href));
+                            }
+                        }
+                    }
+                    catch (NullReferenceException)
+                    {
+                        // これ以上なし
+                        break;
+                    }
+                }
+            }
+        }
+
+        return ret.ToList();
+    }
+
+    protected override async Task CleanupImplAsync(Exception? ex)
+    {
+        try
+        {
+            await this.WebClient._DisposeSafeAsync();
         }
         finally
         {
