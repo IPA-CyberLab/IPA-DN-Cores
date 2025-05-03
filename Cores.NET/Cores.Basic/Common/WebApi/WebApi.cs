@@ -1061,6 +1061,21 @@ public static class SimpleHttpDownloader
             throw;
         }
     }
+
+    public static async Task<SimpleHttpDownloaderStreamResult> DownloadToFileAsync(FilePath destFilePath, string url, WebMethods method = WebMethods.GET, WebApiOptions? options = null, RemoteCertificateValidationCallback? sslServerCertValicationCallback = null, ProgressReporterBase? reporter = null, CancellationToken cancel = default)
+    {
+        await using var result = await DownloadGetStreamAsync(url, method, options, sslServerCertValicationCallback, cancel);
+
+        await using var file = await destFilePath.CreateAsync(additionalFlags: FileFlags.AutoCreateDirectory, cancel: cancel);
+
+        await using var fileStream = file.GetStream(true);
+
+        var totalSize = await result.Stream.CopyBetweenStreamAsync(fileStream, reporter: reporter, estimatedSize: result.DataSize ?? -1, cancel: cancel);
+
+        result.DataSize = totalSize;
+
+        return result;
+    }
 }
 
 public class SimpleHttpDownloaderResult
@@ -1101,7 +1116,7 @@ public class SimpleHttpDownloaderStreamResult : IAsyncDisposable
     {
         await this.Stream._DisposeSafeAsync();
 
-        await this.WebApi._DisposeSafeAsync2();
+        await this.WebApi._DisposeSafeAsync();
     }
 }
 

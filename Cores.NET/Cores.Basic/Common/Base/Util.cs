@@ -7175,7 +7175,13 @@ namespace IPA.Cores.Basic
         readonly IEqualityComparer<TValue>? ValueComparer;
         readonly HashSet<TValue> EmptyValueSet;
 
-        public HashSetDictionary(IEqualityComparer<TKey>? keyComparer = null, IEqualityComparer<TValue>? valueComparer = null) : base(keyComparer)
+        public HashSetDictionary() : base() // for JSON serializer
+        {
+            this.ValueComparer = null;
+            this.EmptyValueSet = new HashSet<TValue>(this.ValueComparer);
+        }
+
+        public HashSetDictionary(IEqualityComparer<TKey>? keyComparer, IEqualityComparer<TValue>? valueComparer = null) : base(keyComparer)
         {
             this.ValueComparer = valueComparer;
             this.EmptyValueSet = new HashSet<TValue>(this.ValueComparer);
@@ -7211,17 +7217,19 @@ namespace IPA.Cores.Basic
 
     public class ConcurrentStrDictionary<TValue> : ConcurrentDictionary<string, TValue>
     {
-        public ConcurrentStrDictionary(IEqualityComparer<string>? comparer = null) : base(comparer ?? StrComparer.IgnoreCaseComparer) { }
+        public ConcurrentStrDictionary() : base(StrComparer.IgnoreCaseComparer) { } // for JSON serializer
+        public ConcurrentStrDictionary(IEqualityComparer<string>? comparer) : base(comparer ?? StrComparer.IgnoreCaseComparer) { }
     }
 
     public class StrDictionary<TValue> : Dictionary<string, TValue>
     {
-        public StrDictionary(IEqualityComparer<string>? comparer = null) : base(comparer ?? StrComparer.IgnoreCaseComparer) { }
+        public StrDictionary() : base(StrComparer.IgnoreCaseComparer) { } // for JSON serializer
+        public StrDictionary(IEqualityComparer<string>? comparer) : base(comparer ?? StrComparer.IgnoreCaseComparer) { }
     }
 
     public class KeyValueList<TKey, TValue> : List<KeyValuePair<TKey, TValue>>
     {
-        public KeyValueList(){}
+        public KeyValueList(){ } // for JSON serializer
 
         public KeyValueList(IEnumerable<KeyValuePair<TKey, TValue>> srcData)
         {

@@ -93,11 +93,18 @@ public class HtmlTableParseOption
 {
     public readonly string[]? AlternativeHeaders;
     public int SkipHeaderRowCount;
+    public bool FindTBody;
 
-    public HtmlTableParseOption(string[]? alternativeHeaders = null, int skipHeaderRowCount = 0)
+    public HtmlTableParseOption(string[]? alternativeHeaders = null, int skipHeaderRowCount = 0, bool findTBody = false)
     {
         this.AlternativeHeaders = alternativeHeaders;
         this.SkipHeaderRowCount = skipHeaderRowCount;
+        this.FindTBody = findTBody;
+
+        if (findTBody && skipHeaderRowCount != 0)
+        {
+            throw new CoresLibException($"findTBody == true && skipHeaderRowCount({skipHeaderRowCount}) != 0");
+        }
     }
 }
 
@@ -117,36 +124,78 @@ public class HtmlParsedTableWithHeader
 
         this.TableNode = table_node;
 
-        var rows = TableNode.SelectNodes("tr");
+        HtmlNodeCollection rows;
 
-        if (rows.Count <= 0) throw new ApplicationException("Table: rows.Count <= 0");
+        int skipHeaderRowCount;
 
-        // ヘッダリストの取得
-        HeaderList = new List<string>();
-
-        if (ParseOption.AlternativeHeaders == null)
+        if (parseOption.FindTBody == false)
         {
-            var header_coulmns = rows[ParseOption.SkipHeaderRowCount].SelectNodes("td");
+            rows = TableNode.SelectNodes("tr");
 
-            if (header_coulmns == null)
+            // ヘッダリストの取得
+            HeaderList = new List<string>();
+
+            if (ParseOption.AlternativeHeaders == null)
             {
-                header_coulmns = rows[ParseOption.SkipHeaderRowCount].SelectNodes("th");
+                var header_coulmns = rows[ParseOption.SkipHeaderRowCount].SelectNodes("td");
+
+                if (header_coulmns == null)
+                {
+                    header_coulmns = rows[ParseOption.SkipHeaderRowCount].SelectNodes("th");
+                }
+
+                foreach (var column in header_coulmns)
+                {
+                    HeaderList.Add(column.GetSimpleText());
+                }
+
+                skipHeaderRowCount = 1 + ParseOption.SkipHeaderRowCount;
             }
-
-            foreach (var column in header_coulmns)
+            else
             {
-                HeaderList.Add(column.GetSimpleText());
+                HeaderList = ParseOption.AlternativeHeaders.ToList();
+
+                skipHeaderRowCount = ParseOption.SkipHeaderRowCount;
             }
         }
         else
         {
-            HeaderList = ParseOption.AlternativeHeaders.ToList();
+            rows = TableNode.SelectSingleNode("tbody").SelectNodes("tr");
+
+            // ヘッダリストの取得
+            HeaderList = new List<string>();
+
+            if (ParseOption.AlternativeHeaders == null)
+            {
+                var header_tr = TableNode.SelectSingleNode("thead").SelectNodes("tr");
+
+                var header_coulmns = header_tr[0].SelectNodes("td");
+
+                if (header_coulmns == null)
+                {
+                    header_coulmns = header_tr[0].SelectNodes("th");
+                }
+
+                foreach (var column in header_coulmns)
+                {
+                    HeaderList.Add(column.GetSimpleText());
+                }
+            }
+            else
+            {
+                HeaderList = ParseOption.AlternativeHeaders.ToList();
+            }
+
+            skipHeaderRowCount = 0;
         }
+
+        if (rows.Count <= 0) throw new ApplicationException("Table: rows.Count <= 0");
+
 
         // データリストの取得
         this.DataList = new List<Dictionary<string, HtmlParsedTableData>>();
 
-        for (int i = (1 + ParseOption.SkipHeaderRowCount); i < rows.Count; i++)
+        for (int i = skipHeaderRowCount; i < rows.Count; i++)
         {
             var td_list = rows[i].SelectNodes("td");
 
