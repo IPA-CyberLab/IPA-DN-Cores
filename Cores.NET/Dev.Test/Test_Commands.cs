@@ -91,6 +91,8 @@ partial class TestDevCommands
         int numError = 0;
         long totalSize = 0;
 
+        Con.WriteLine(pageInfoList._PrintAsJson());
+
         foreach (var pageInfo in pageInfoList)
         {
             try

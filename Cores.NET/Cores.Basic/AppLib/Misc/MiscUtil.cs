@@ -6098,13 +6098,73 @@ public class GitLabDownloaderEnumeratePackagePagesOptions
     public GitLabDownloaderEnumeratePackagePagesOptions(string searchBaseUrl, string versionStr)
     {
         this.SearchBaseUrl = searchBaseUrl;
-        this.VersionStr = NormalizeVersionStr(versionStr)._SingleList();
+        this.VersionStr = versionStr.Trim()._NotEmptyCheck()._SingleList();
     }
 
     public GitLabDownloaderEnumeratePackagePagesOptions(string searchBaseUrl, IEnumerable<string> versionStrList)
     {
         this.SearchBaseUrl = searchBaseUrl;
-        this.VersionStr = versionStrList.Select(x => NormalizeVersionStr(x)).Distinct(StrCmpi).ToList();
+        this.VersionStr = versionStrList.Select(x => x.Trim()._NotEmptyCheck()).Distinct(StrCmpi).ToList().ToList();
+    }
+
+    public KeyValueList<string, string> GetVersionStringForSearch()
+    {
+        KeyValueList<string, string> ret = new();
+        foreach (string key in this.VersionStr)
+        {
+            {
+                string ver = key;
+                if (ver.EndsWith("-") == false)
+                {
+                    ver = ver + "-";
+                }
+
+                if (ver.StartsWith("-") == false)
+                {
+                    ver = "-" + ver;
+                }
+
+                if (ver.Length >= 4)
+                {
+                    ret.Add(key, ver);
+                }
+            }
+            {
+                string ver = key;
+                if (ver.EndsWith("_") == false)
+                {
+                    ver = ver + "_";
+                }
+
+                if (ver.StartsWith("-") == false)
+                {
+                    ver = "-" + ver;
+                }
+
+                if (ver.Length >= 4)
+                {
+                    ret.Add(key, ver);
+                }
+            }
+            {
+                string ver = key;
+                if (ver.EndsWith("-") == false)
+                {
+                    ver = ver + "-";
+                }
+
+                if (ver.StartsWith("_") == false)
+                {
+                    ver = "_" + ver;
+                }
+
+                if (ver.Length >= 4)
+                {
+                    ret.Add(key, ver);
+                }
+            }
+        }
+        return ret;
     }
 
     string NormalizeVersionStr(string ver)
@@ -6123,6 +6183,7 @@ public class GitLabDownloaderEnumeratePackagePagesOptions
 
         return ver;
     }
+
 }
 
 public class GitLabDownloader : AsyncService
@@ -6232,46 +6293,53 @@ public class GitLabDownloader : AsyncService
     {
         List<GitLabDownloaderDownloadPageInfo> ret = new();
 
-        foreach (string verStr in options.VersionStr)
+        var verItemList = options.GetVersionStringForSearch();
+
+        foreach (var verStr in verItemList.Select(x => x.Key).Distinct(StrCmpi).OrderBy(x => x, StrCmpi))
         {
-            for (int i = 1; ; i++)
+            var verStrForSearchList = verItemList.Where(x => x.Key._IsSamei(verStr)).Select(x => x.Value).Distinct(StrCmpi).OrderBy(x => x, StrCmpi);
+
+            foreach (var varStrForSearch in verStrForSearchList)
             {
-                string url = $"{options.SearchBaseUrl}?dist=&filter=all&page={i}&q={verStr}";
-
-                Con.WriteLine($"Accessing the list URL '{url}'...");
-
-                WebRet result = await TaskUtil.RetryAsync(async () =>
+                for (int i = 1; ; i++)
                 {
-                    return await WebClient.SimpleQueryAsync(WebMethods.GET, url, cancel);
-                }, 100, 5, cancel, true);
+                    string url = $"{options.SearchBaseUrl}?dist=&filter=all&page={i}&q={varStrForSearch}";
 
-                string htmlText = result.Data._GetString_UTF8();
+                    Con.WriteLine($"Accessing the list URL '{url}'...");
 
-                var html = htmlText._ParseHtml();
-
-                try
-                {
-                    var table = html.ParseTable("//table[@class='table-minimal basic results']", new HtmlTableParseOption(findTBody: true));
-
-                    foreach (var row in table.DataList)
+                    WebRet result = await TaskUtil.RetryAsync(async () =>
                     {
-                        var link = row["Name"].TdNode.SelectSingleNode(".//a[1]");
-                        string href = link.Attributes.Where(x => x.Name._IsSamei("href")).First().Value;
+                        return await WebClient.SimpleQueryAsync(WebMethods.GET, url, cancel);
+                    }, 100, 5, cancel, true);
 
-                        href = url._CombineUrl(href).ToString();
+                    string htmlText = result.Data._GetString_UTF8();
 
-                        if (ret.Where(x => x.Url._IsSamei(href)).Any() == false) // 重複排除
+                    var html = htmlText._ParseHtml();
+
+                    try
+                    {
+                        var table = html.ParseTable("//table[@class='table-minimal basic results']", new HtmlTableParseOption(findTBody: true));
+
+                        foreach (var row in table.DataList)
                         {
-                            string tmp1 = verStr.Trim('-');
-                            if (tmp1._IsEmpty()) tmp1 = "_unknown";
-                            ret.Add(new(verStr.Trim('-'), href));
+                            var link = row["Name"].TdNode.SelectSingleNode(".//a[1]");
+                            string href = link.Attributes.Where(x => x.Name._IsSamei("href")).First().Value;
+
+                            href = url._CombineUrl(href).ToString();
+
+                            if (ret.Where(x => x.Url._IsSamei(href)).Any() == false) // 重複排除
+                            {
+                                string tmp1 = verStr;
+                                if (tmp1._IsEmpty()) tmp1 = "_unknown";
+                                ret.Add(new(verStr, href));
+                            }
                         }
                     }
-                }
-                catch when (i >= 2)
-                {
-                    // これ以上なし
-                    break;
+                    catch (NullReferenceException)
+                    {
+                        // これ以上なし
+                        break;
+                    }
                 }
             }
         }
