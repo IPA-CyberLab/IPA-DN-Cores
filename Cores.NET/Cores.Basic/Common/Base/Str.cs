@@ -6297,7 +6297,7 @@ namespace IPA.Cores.Basic
         }
 
         // オブジェクトのデータを CSV に変換する
-        public static string ObjectDataToCsv<T>(T obj, FieldReaderWriter? rw = null) where T : notnull
+        public static string ObjectDataToCsv<T>(T obj, FieldReaderWriter? rw = null, IEnumerable<string>? additionalStrList = null) where T : notnull
         {
             if (rw == null) rw = obj._GetFieldReaderWriter(false);
 
@@ -6315,6 +6315,14 @@ namespace IPA.Cores.Basic
                 }
 
                 o.Add(str);
+            }
+
+            if (additionalStrList != null)
+            {
+                foreach (var s in additionalStrList)
+                {
+                    o.Add(s._NonNull());
+                }
             }
 
             return CombineStringArrayForCsv(o);
