@@ -415,6 +415,9 @@ public static class BasicHelper
     public static double _ToDouble(this string? s) => Str.StrToDouble(s);
     public static decimal _ToDecimal(this string? s) => Str.StrToDecimal(s);
 
+    public static int _DirtyStrToInt(this string? s) => Str.DirtyStrToInt(s);
+    public static long _DirtyStrToLong(this string? s) => Str.DirtyStrToLong(s);
+
     public static bool _IsSame(this string? s, string? t, bool ignoreCase = false) => ((s == null && t == null) ? true : ((s == null || t == null) ? false : (ignoreCase ? Str.StrCmpi(s, t) : Str.StrCmp(s, t))));
     public static bool _IsSame(this string? s, string? t, StringComparison comparison) => ((s == null && t == null) ? true : ((s == null || t == null) ? false : string.Equals(s, t, comparison)));
     public static bool _IsSamei(this string? s, string? t) => _IsSame(s, t, true);

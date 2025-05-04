@@ -1176,6 +1176,46 @@ namespace IPA.Cores.Basic
         }
     }
 
+
+    public class PrefixZenkakuNumberStrComparer : IEqualityComparer<string?>, IComparer<string?>
+    {
+        public static PrefixZenkakuNumberStrComparer Comparer { get; } = new PrefixZenkakuNumberStrComparer();
+
+        public int Compare(string? x, string? y)
+        {
+            x = x._NonNullTrim();
+            y = y._NonNullTrim();
+
+            if ((IgnoreCase)x == y) return 0;
+
+            x = Str.NormalizePrefixZenkakuNumberForSortFast(x);
+            y = Str.NormalizePrefixZenkakuNumberForSortFast(y);
+
+            return string.Compare(x, y, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public bool Equals(string? x, string? y)
+        {
+            x = x._NonNullTrim();
+            y = y._NonNullTrim();
+
+            if ((IgnoreCase)x == y) return true;
+
+            x = Str.NormalizePrefixZenkakuNumberForSortFast(x);
+            y = Str.NormalizePrefixZenkakuNumberForSortFast(y);
+
+            return string.Equals(x, y, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public int GetHashCode(string? obj)
+        {
+            obj = obj._NonNullTrim();
+
+            return obj.GetHashCode(StringComparison.OrdinalIgnoreCase);
+        }
+
+    }
+
     public class StrComparer : IEqualityComparer<string?>, IComparer<string?>
     {
         public static StrComparer IgnoreCaseComparer { get; } = new StrComparer(false);
@@ -1190,6 +1230,8 @@ namespace IPA.Cores.Basic
 
         public static FqdnReverseStrComparer FqdnReverseStrComparer { get; } = new FqdnReverseStrComparer();
         public static HttpFqdnReverseStrComparer HttpFqdnReverseStrComparer { get; } = new HttpFqdnReverseStrComparer();
+
+        public static PrefixZenkakuNumberStrComparer PrefixZenkakuNumberStrComparer { get; } = new PrefixZenkakuNumberStrComparer();
 
         readonly static Singleton<StringComparison, StrComparer> FromComparisonCache = new Singleton<StringComparison, StrComparer>(x => new StrComparer(x));
 
@@ -1376,6 +1418,97 @@ namespace IPA.Cores.Basic
             suitableEncodingListForJapaneseWin32.Add(Utf8Encoding);
 
             SuitableEncodingListForJapaneseWin32 = suitableEncodingListForJapaneseWin32;
+        }
+
+        static readonly FastCache<string, string> Cache_NormalizePrefixZenkakuNumberFast = new FastCache<string, string>(int.MaxValue, comparer: StrComparer.SensitiveCaseTrimComparer);
+
+        public static string? NormalizePrefixZenkakuNumberFast(string number)
+        {
+            string? ret = Cache_NormalizePrefixZenkakuNumberFast.GetOrCreate(number, s => NormalizePrefixZenkakuNumberInternal(s));
+
+            return ret;
+        }
+
+        static string? NormalizePrefixZenkakuNumberInternal(string str)
+        {
+            str = str._NonNullTrim();
+
+            string[] tokens = str._Split(StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries, " ", "　", "\t");
+
+            if (tokens.Length >= 1)
+            {
+                str = tokens[0];
+
+                str = Str.HankakuToZenkaku(str);
+
+                if (str.Length >= 3)
+                {
+                    if (str[1] == '－')
+                    {
+                        string tmp2 = Str.ZenkakuToHankaku(str).ToUpperInvariant();
+                        if (tmp2[0] >= 'A' && tmp2[0] <= 'Z')
+                        {
+                            return str;
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        static readonly FastCache<string, string> Cache_NormalizePrefixZenkakuNumberForSortFast = new FastCache<string, string>(int.MaxValue, comparer: StrComparer.SensitiveCaseTrimComparer);
+
+        public static string? NormalizePrefixZenkakuNumberForSortFast(string str)
+        {
+            string? ret = Cache_NormalizePrefixZenkakuNumberForSortFast.GetOrCreate(str, s => NormalizePrefixZenkakuNumberForSortInternal(s));
+
+            return ret;
+        }
+
+        static string? NormalizePrefixZenkakuNumberForSortInternal(string str)
+        {
+            string? normalized = NormalizePrefixZenkakuNumberFast(str);
+            if (normalized._IsEmpty()) return null;
+
+            string hankaku = Str.ZenkakuToHankaku(normalized).ToUpperInvariant();
+
+            if (hankaku._GetKeyAndValue(out var a, out var b, "-"))
+            {
+                if (a._IsFilled() && b._IsFilled())
+                {
+                    if (a.Length == 1)
+                    {
+                        int i = b._DirtyStrToInt();
+
+                        string tmp = a + "-" + i.ToString("D10");
+
+                        return tmp.ToUpperInvariant();
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        public static string? FileNameToPrefixZenkakuNumber(string filename)
+        {
+            string tmp1 = PP.GetFileNameWithoutExtension(filename);
+            string[] tokens = tmp1._Split(StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries, " ", "\t", "　");
+            if (tokens.Length >= 2)
+            {
+                string receiptNumber = tokens[0];
+                if (receiptNumber[1] == '－')
+                {
+                    string tmp2 = Str.ZenkakuToHankaku(receiptNumber).ToUpperInvariant();
+
+                    if (tmp2[0] >= 'A' && tmp2[0] <= 'Z')
+                    {
+                        return receiptNumber;
+                    }
+                }
+            }
+
+            return null;
         }
 
         public static string InsertStrIntoStr(string targetStr, string insertStr, int position, bool allowInsertAtEoL = false)
@@ -7143,6 +7276,77 @@ namespace IPA.Cores.Basic
                 }
 
                 return 0;
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+
+        // 指定した文字列を先頭部分からパースし、数字部分のみを抽出して無理矢理 long に変換する
+        public static long DirtyStrToLong(string? str)
+        {
+            try
+            {
+                str = str._NonNullTrim();
+
+                Str.RemoveSpaceChar(ref str);
+                Str.NormalizeString(ref str, true, true, false, false);
+                str = str.Replace(",", "");
+
+                str = str._NonNullTrim();
+
+                bool negative = false;
+
+                if (str.Length >= 1)
+                {
+                    if (str[0] == '-')
+                    {
+                        negative = true;
+                        str = str.Substring(1);
+                    }
+
+                    StringBuilder b = new();
+
+                    foreach (char c in str)
+                    {
+                        if (c >= '0' && c <= '9')
+                        {
+                            b.Append(c);
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+
+                    long i = StrToLong(b.ToString());
+
+                    if (negative)
+                    {
+                        i = i * -1;
+                    }
+
+                    return i;
+                }
+
+                return 0;
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+        public static int DirtyStrToInt(string? str)
+        {
+            try
+            {
+                checked
+                {
+                    long v = DirtyStrToLong(str);
+
+                    return (int)v;
+                }
             }
             catch
             {
