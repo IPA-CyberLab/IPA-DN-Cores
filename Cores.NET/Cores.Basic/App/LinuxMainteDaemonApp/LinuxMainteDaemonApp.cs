@@ -410,7 +410,7 @@ public class LinuxMainteDaemonApp : AsyncService
                         // まだ存在しないユーザーを只今作成します
                         await EasyExec.ExecBashAsync($"useradd -m -s {Consts.LinuxCommands.Bash} {def.Username}", debug: true);
 
-                        await SendNoticeAsync($"新規ユーザー作成: {def.Username}", $"ユーザー {def.Username} をシステムが代行して作成しました。恐ろしいことですね！！");
+                        await SendNoticeAsync($"新規ユーザー作成: {def.Username}", $"ユーザー {def.Username} をシステムが代行して作成しました。");
 
                         await EasyExec.ExecBashAsync($"edquota -p sys_quota_default {def.Username}", debug: true);
                         await EasyExec.ExecBashAsync($"passwd {def.Username}", easyInputStr: $"{def.Password}\n{def.Password}\n", debug: true);
@@ -431,7 +431,7 @@ public class LinuxMainteDaemonApp : AsyncService
                         // すでに無効化されている既存ユーザーを只今有効化します
                         await EasyExec.ExecBashAsync($"passwd -u {def.Username}", debug: true);
 
-                        await SendNoticeAsync($"ユーザーの再有効化: {def.Username}", $"すでに無効化されていたユーザー {def.Username} をシステムが復活させました。恐ろしいことですね！！");
+                        await SendNoticeAsync($"ユーザーの再有効化: {def.Username}", $"すでに無効化されていたユーザー {def.Username} をシステムが復活させました。");
                     }
                     else
                     {
@@ -502,7 +502,7 @@ public class LinuxMainteDaemonApp : AsyncService
                         // まだ無効化されていない既存ユーザーを只今無効化します
                         await EasyExec.ExecBashAsync($"passwd -l {def.Username}", debug: true);
 
-                        await SendNoticeAsync($"ユーザーの無効化: {def.Username}", $"ユーザー {def.Username} をシステムが無効化しました。なかなかのもんですね！！");
+                        await SendNoticeAsync($"ユーザーの無効化: {def.Username}", $"ユーザー {def.Username} をシステムが無効化しました。");
                     }
                 }
             }
