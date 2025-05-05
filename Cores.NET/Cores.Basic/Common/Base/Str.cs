@@ -1445,6 +1445,36 @@ namespace IPA.Cores.Basic
         static Encoding GetAlternativeEncodingIfNullOrCodePage0(Encoding? enc, Func<Encoding> getAlternativeEncodingProc)
         {
             bool isNull = false;
+            Console.WriteLine($"GetAlternativeEncodingIfNullOrCodePage0");
+            Console.WriteLine($"  {enc != null}");
+            try
+            {
+                Console.WriteLine($"  {enc.ToString()}");
+            }
+            catch { }
+            try
+            {
+                Console.WriteLine($"  CodePage = {enc.CodePage}");
+            }
+            catch { }
+            try
+            {
+                Console.WriteLine($"  BodyName = {enc.BodyName}");
+            }
+            catch { }
+            try
+            {
+                Console.WriteLine($"  WebName = {enc.WebName}");
+            }
+            catch { }
+            try
+            {
+                string str1 = Str.GenRandStr();
+                Console.WriteLine($"  str1 = {str1}");
+                string str2 = enc.GetString(enc.GetBytes(str1));
+                Console.WriteLine($"  str1 = {str2}");
+            }
+            catch { }
             if (enc == null || enc.CodePage == 0)
             {
                 isNull = true;
