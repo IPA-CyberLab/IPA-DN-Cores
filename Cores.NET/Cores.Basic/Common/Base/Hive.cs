@@ -124,7 +124,16 @@ public class RuntimeJsonHiveSerializer : HiveSerializer
         ret.Write(Str.NewLine_Bytes_Local);
         ret.Write(Str.NewLine_Bytes_Local);
 
-        return ret.Memory;
+        // Linux 上でも改行コードが \r \n になってしまう (ライブラリの仕様) ため、強制的に \n に変換する
+        if (Env.IsWindows == false)
+        {
+            return Str.NormalizeCrlf(ret.Memory.Span, style: CrlfStyle.LocalPlatform, false);
+        }
+        else
+        {
+            // Windows ではそのまま応答する
+            return ret.Memory;
+        }
     }
 
     [return: MaybeNull]
