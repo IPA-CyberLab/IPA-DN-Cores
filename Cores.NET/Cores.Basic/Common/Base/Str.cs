@@ -1445,36 +1445,36 @@ namespace IPA.Cores.Basic
         static Encoding GetAlternativeEncodingIfNullOrCodePage0(Encoding? enc, Func<Encoding> getAlternativeEncodingProc)
         {
             bool isNull = false;
-            Console.WriteLine($"GetAlternativeEncodingIfNullOrCodePage0");
-            Console.WriteLine($"  {enc != null}");
-            try
-            {
-                Console.WriteLine($"  {enc.ToString()}");
-            }
-            catch { }
-            try
-            {
-                Console.WriteLine($"  CodePage = {enc.CodePage}");
-            }
-            catch { }
-            try
-            {
-                Console.WriteLine($"  BodyName = {enc.BodyName}");
-            }
-            catch { }
-            try
-            {
-                Console.WriteLine($"  WebName = {enc.WebName}");
-            }
-            catch { }
-            try
-            {
-                string str1 = Str.GenRandStr();
-                Console.WriteLine($"  str1 = {str1}");
-                string str2 = enc.GetString(enc.GetBytes(str1));
-                Console.WriteLine($"  str1 = {str2}");
-            }
-            catch { }
+            //Console.WriteLine($"GetAlternativeEncodingIfNullOrCodePage0");
+            //Console.WriteLine($"  {enc != null}");
+            //try
+            //{
+            //    Console.WriteLine($"  {enc.ToString()}");
+            //}
+            //catch { }
+            //try
+            //{
+            //    Console.WriteLine($"  CodePage = {enc.CodePage}");
+            //}
+            //catch { }
+            //try
+            //{
+            //    Console.WriteLine($"  BodyName = {enc.BodyName}");
+            //}
+            //catch { }
+            //try
+            //{
+            //    Console.WriteLine($"  WebName = {enc.WebName}");
+            //}
+            //catch { }
+            //try
+            //{
+            //    string str1 = Str.GenRandStr();
+            //    Console.WriteLine($"  str1 = {str1}");
+            //    string str2 = enc.GetString(enc.GetBytes(str1));
+            //    Console.WriteLine($"  str1 = {str2}");
+            //}
+            //catch { }
             if (enc == null || enc.CodePage == 0)
             {
                 isNull = true;
@@ -1483,6 +1483,14 @@ namespace IPA.Cores.Basic
             {
                 try
                 {
+                    if (_DefaultIfException(() => enc.BodyName, "")._IsEmpty())
+                    {
+                        // エンコーディングが System.Text.ConsoleEncoding の場合、BodyName の取得に失敗する。
+                        // その原因は、.NET 6 のライブラリのバグにより、_codePage プライベート変数の値が 0 になっているためである。
+                        // この場合、コードページ番号を元にして Encoding を明確に取得する。
+                        enc = Encoding.GetEncoding(enc.CodePage);
+                    }
+
                     string str1 = Str.GenRandStr();
                     string str2 = enc.GetString(enc.GetBytes(str1));
                     if (str1 != str2)
