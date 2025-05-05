@@ -566,9 +566,9 @@ namespace IPA.Cores.Basic
             this.EasyRealtimeRecvBufCallbackAsync = easyRealtimeRecvBufCallbackAsync;
             this.EasyRealtimeRecvBufCallbackDelayTickMsecs = easyRealtimeRecvBufCallbackDelayTickMsecs;
             this.AdditionalEnvVars = additionalEnvVars;
-            this.InputEncoding = inputEncoding ?? Console.InputEncoding;
-            this.OutputEncoding = outputEncoding ?? Console.OutputEncoding;
-            this.ErrorEncoding = errorEncoding ?? Console.OutputEncoding;
+            this.InputEncoding = inputEncoding ?? Env.ConsoleInputEncoding;
+            this.OutputEncoding = outputEncoding ?? Env.ConsoleOutputEncoding;
+            this.ErrorEncoding = errorEncoding ?? Env.ConsoleErrorEncoding;
         }
 
         public ExecOptions(string commandName, IEnumerable<string> argumentsList, string? currentDirectory = null, ExecFlags flags = ExecFlags.Default,
@@ -606,9 +606,9 @@ namespace IPA.Cores.Basic
             this.EasyRealtimeRecvBufCallbackAsync = easyRealtimeRecvBufCallbackAsync;
             this.EasyRealtimeRecvBufCallbackDelayTickMsecs = easyRealtimeRecvBufCallbackDelayTickMsecs;
             this.AdditionalEnvVars = additionalEnvVars;
-            this.InputEncoding = inputEncoding ?? Console.InputEncoding;
-            this.OutputEncoding = outputEncoding ?? Console.OutputEncoding;
-            this.ErrorEncoding = errorEncoding ?? Console.OutputEncoding;
+            this.InputEncoding = inputEncoding ?? Env.ConsoleInputEncoding;
+            this.OutputEncoding = outputEncoding ?? Env.ConsoleOutputEncoding;
+            this.ErrorEncoding = errorEncoding ?? Env.ConsoleErrorEncoding;
         }
     }
 

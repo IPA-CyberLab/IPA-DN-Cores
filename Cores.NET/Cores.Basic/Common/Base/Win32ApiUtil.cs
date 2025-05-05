@@ -116,6 +116,22 @@ namespace IPA.Cores.Basic
             return Win32Api.Shell32.IsUserAnAdmin();
         }
 
+        public static Encoding? GetConsoleOutputEncoding()
+        {
+            try
+            {
+                uint codepage = Win32Api.Kernel32.GetConsoleOutputCP();
+
+                if (codepage >= 1)
+                {
+                    return Encoding.GetEncoding((int)codepage);
+                }
+            }
+            catch { }
+
+            return null;
+        }
+
         public static bool IsUncServerRootPath(string path, [NotNullWhen(true)] out string? normalizedPath)
         {
             normalizedPath = null;

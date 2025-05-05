@@ -104,6 +104,9 @@ public static class Win32Api
         public static extern bool CloseHandle(IntPtr handle);
 
         [DllImport(Libraries.Kernel32, SetLastError = true)]
+        public static extern uint GetConsoleOutputCP();
+
+        [DllImport(Libraries.Kernel32, SetLastError = true)]
         public static extern SafeProcessHandle GetCurrentProcess();
 
         [DllImport(Libraries.Kernel32, SetLastError = true, ExactSpelling = true)]

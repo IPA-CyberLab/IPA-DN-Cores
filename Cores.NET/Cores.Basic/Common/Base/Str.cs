@@ -1420,6 +1420,57 @@ namespace IPA.Cores.Basic
             SuitableEncodingListForJapaneseWin32 = suitableEncodingListForJapaneseWin32;
         }
 
+        public static Encoding ConsoleInputEncoding => ConsoleInputEncodingInternal;
+        public static Encoding ConsoleOutputEncoding => ConsoleOutputEncodingInternal;
+        public static Encoding ConsoleErrorEncoding => ConsoleErrorEncodingInternal;
+
+        static Singleton<Encoding> ConsoleInputEncodingInternal = new(() => GetAlternativeEncodingIfNullOrCodePage0(_DefaultIfException(() => Console.InputEncoding, null), () => GuessSystemConsoleEncodingByApi()));
+        static Singleton<Encoding> ConsoleOutputEncodingInternal = new(() => GetAlternativeEncodingIfNullOrCodePage0(_DefaultIfException(() => Console.OutputEncoding, null), () => GuessSystemConsoleEncodingByApi()));
+        static Singleton<Encoding> ConsoleErrorEncodingInternal = new(() => GetAlternativeEncodingIfNullOrCodePage0(_DefaultIfException(() => Console.OutputEncoding, null), () => GuessSystemConsoleEncodingByApi()));
+
+        static Encoding GuessSystemConsoleEncodingByApi()
+        {
+            if (Env.IsWindows)
+            {
+                var ret = Win32ApiUtil.GetConsoleOutputEncoding();
+                if (ret != null)
+                {
+                    return ret;
+                }
+            }
+
+            return Str.Utf8Encoding;
+        }
+
+        static Encoding GetAlternativeEncodingIfNullOrCodePage0(Encoding? enc, Func<Encoding> getAlternativeEncodingProc)
+        {
+            bool isNull = false;
+            if (enc == null || enc.CodePage == 0)
+            {
+                isNull = true;
+            }
+            else
+            {
+                try
+                {
+                    string str1 = Str.GenRandStr();
+                    string str2 = enc.GetString(enc.GetBytes(str1));
+                    if (str1 != str2)
+                    {
+                        isNull = true;
+                    }
+                }
+                catch
+                {
+                    isNull = true;
+                }
+            }
+
+            if (isNull == false) return enc!;
+
+            return getAlternativeEncodingProc();
+        }
+
         static readonly FastCache<string, string> Cache_NormalizePrefixZenkakuNumberFast = new FastCache<string, string>(int.MaxValue, comparer: StrComparer.SensitiveCaseTrimComparer);
 
         public static string? NormalizePrefixZenkakuNumberFast(string number)

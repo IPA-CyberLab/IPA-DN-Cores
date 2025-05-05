@@ -156,6 +156,18 @@ public static partial class Basic
         get => Time.HighResTick64;
     }
 
+    public static T _DefaultIfException<T>(Func<T> getValueProc, T defaultValue)
+    {
+        try
+        {
+            return getValueProc();
+        }
+        catch
+        {
+            return defaultValue;
+        }
+    }
+
     [MethodImpl(Inline)]
     public static void Where(object? message = null, [CallerFilePath] string filename = "", [CallerLineNumber] int line = 0, [CallerMemberName] string? caller = null, bool printThreadId = false)
         => Dbg.Where(message, filename, line, caller, printThreadId);

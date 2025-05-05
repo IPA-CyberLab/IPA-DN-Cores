@@ -39,6 +39,7 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Linq;
+using System.Text;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Basic.Legacy;
@@ -110,6 +111,9 @@ public class EnvInfoSnapshot
     public bool IsOnGitHubActions = Env.IsOnGitHubActions;
     public string GitCoresLibCommitId = Env.GitCoresLibCommitId;
     public string GitAppCommitId = Env.GitAppCommitId;
+    public string ConsoleInputEncoding = $"{Env.ConsoleInputEncoding.BodyName} / {Env.ConsoleInputEncoding.CodePage} / {Env.ConsoleInputEncoding.EncodingName}";
+    public string ConsoleOutputEncoding = $"{Env.ConsoleOutputEncoding.BodyName} / {Env.ConsoleOutputEncoding.CodePage} / {Env.ConsoleOutputEncoding.EncodingName}";
+    public string ConsoleErrorEncoding = $"{Env.ConsoleErrorEncoding.BodyName} / {Env.ConsoleErrorEncoding.CodePage} / {Env.ConsoleErrorEncoding.EncodingName}";
 }
 
 [Flags]
@@ -276,6 +280,11 @@ public static class Env
 
     public static string GitCoresLibCommitId { get; }
     public static string GitAppCommitId { get; }
+
+    public static Encoding ConsoleInputEncoding => Str.ConsoleInputEncoding;
+    public static Encoding ConsoleOutputEncoding => Str.ConsoleOutputEncoding;
+    public static Encoding ConsoleErrorEncoding => Str.ConsoleErrorEncoding;
+
 
     // 初期化
     static Env()

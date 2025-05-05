@@ -5280,6 +5280,33 @@ HOST: www.google.com
 
     public static void Test_Generic()
     {
+        if (true)
+        {
+            /*Encoding? enc = Win32ApiUtil.GetConsoleOutputEncoding();
+            enc = Console.OutputEncoding;*/
+
+            //var enc2 = Str.GetAlternativeEncodingIfNullOrCodePage0(null!, () => 932 /*, () => null! */);
+            //Limbo.ObjectVolatileSlow = Str.TestFunc1(null, () => 932);
+
+            //int a = Str.StrToInt("123");
+
+            //Limbo.ObjectSlow = Win32ApiUtil.GetConsoleOutputEncoding();
+
+
+            //Limbo.ObjectVolatileSlow = a;
+
+            //Limbo.ObjectVolatileSlow = TestClass250506.TestFunc1(null, () => 932);
+            //TestClass250506.Test();
+
+            Str.ConsoleErrorEncoding.CodePage._Print();
+            Str.ConsoleInputEncoding.CodePage._Print();
+            Str.ConsoleOutputEncoding.CodePage._Print();
+
+            var x = Str.ConsoleErrorEncoding;
+
+            return;
+        }
+
         if (false)
         {
             string tmp1 = @"○□□⽇本国憲法朕は、□□⽇本国□□⺠の総意に基";
