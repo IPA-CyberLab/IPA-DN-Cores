@@ -318,7 +318,7 @@ public static class UnixApi
                 else if (resultLength < buffer.Length)
                 {
                     // success
-                    return Encoding.UTF8.GetString(buffer, 0, resultLength);
+                    return Str.Utf8Encoding.GetString(buffer, 0, resultLength);
                 }
             }
             finally

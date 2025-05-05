@@ -5298,11 +5298,18 @@ HOST: www.google.com
             //Limbo.ObjectVolatileSlow = TestClass250506.TestFunc1(null, () => 932);
             //TestClass250506.Test();
 
-            Str.ConsoleErrorEncoding.CodePage._Print();
-            Str.ConsoleInputEncoding.CodePage._Print();
-            Str.ConsoleOutputEncoding.CodePage._Print();
+            //Str.ConsoleErrorEncoding.CodePage._Print();
+            //Str.ConsoleInputEncoding.CodePage._Print();
+            //Str.ConsoleOutputEncoding.CodePage._Print();
 
-            var x = Str.ConsoleErrorEncoding;
+            //var x = Str.ConsoleErrorEncoding;
+
+            MemoryStream ms = new MemoryStream();
+            using (var w = new StreamWriter(ms, Str.Utf8Encoding))
+            {
+                w.WriteLine("Hello");
+            }
+            ms.ToArray()._GetHexString(" ")._Print();
 
             return;
         }

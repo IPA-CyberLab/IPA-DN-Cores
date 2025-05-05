@@ -249,7 +249,7 @@ public static class Json
     public static byte[] GetDigest(object? obj, bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = true, bool referenceHandling = false, Type? type = null, JsonFlags jsonFlags = JsonFlags.None)
     {
         using HashCalcStream hashStream = new HashCalcStream(SHA1.Create());
-        using StreamWriter writer = new StreamWriter(hashStream, Str.Utf8Encoding);
+        using StreamWriter writer = new StreamWriter(hashStream, System.Text.Encoding.UTF8); // ここでは必ず  System.Text.Encoding.UTF8 を作成する (互換性の問題。挙動変更しないため)
 
         Serialize(writer, obj, includeNull, escapeHtml, maxDepth, compact, referenceHandling, type, jsonFlags);
 

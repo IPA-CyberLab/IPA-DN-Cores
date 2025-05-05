@@ -1408,9 +1408,9 @@ namespace IPA.Cores.Basic
             ISO88591Encoding = Encoding.GetEncoding("iso-8859-1");
             GB2312Encoding = Encoding.GetEncoding("gb2312");
             EucKrEncoding = Encoding.GetEncoding("euc-kr");
-            Utf8Encoding = Encoding.UTF8;
-            UniEncoding = Encoding.Unicode;
-            BomUtf8 = Str.GetBOM(Str.Utf8Encoding)!;
+            Utf8Encoding = new UTF8Encoding(false);
+            UniEncoding = new UnicodeEncoding(false, false);
+            BomUtf8 = Str.GetBOM(Str.Utf8Encoding)!; 
 
             var suitableEncodingListForJapaneseWin32 = new List<Encoding>();
             suitableEncodingListForJapaneseWin32.Add(ShiftJisEncoding);
@@ -3359,7 +3359,7 @@ namespace IPA.Cores.Basic
 
             detectedEncoding = Str.GetEncoding(data, out bomSize)!;
             if (detectedEncoding == null)
-                detectedEncoding = Encoding.UTF8;
+                detectedEncoding = Str.Utf8Encoding;
 
             data = data.Slice(bomSize);
 
@@ -6869,7 +6869,7 @@ namespace IPA.Cores.Basic
             => HashStr(str);
         public static byte[] HashStr(string? str)
         {
-            return Secure.HashSHA1(Encoding.UTF8.GetBytes(str._NonNull()));
+            return Secure.HashSHA1(Str.Utf8Encoding.GetBytes(str._NonNull()));
         }
         public static ulong HashStrToLong(string str)
         {
@@ -6881,7 +6881,7 @@ namespace IPA.Cores.Basic
         public static byte[] HashStrSHA256(string? str)
         {
             str = str._NonNull();
-            return Secure.HashSHA256(Encoding.UTF8.GetBytes(str));
+            return Secure.HashSHA256(Str.Utf8Encoding.GetBytes(str));
         }
 
         // SHA-256 パスワードハッシュ
@@ -8557,13 +8557,13 @@ namespace IPA.Cores.Basic
         // 文字列を Base 64 エンコードする
         public static string Encode64(string str)
         {
-            return Convert.ToBase64String(Encoding.UTF8.GetBytes(str)).Replace("/", "(").Replace("+", ")");
+            return Convert.ToBase64String(Str.Utf8Encoding.GetBytes(str)).Replace("/", "(").Replace("+", ")");
         }
 
         // 文字列を Base 64 デコードする
         public static string Decode64(string str)
         {
-            return Encoding.UTF8.GetString(Convert.FromBase64String(str.Replace(")", "+").Replace("(", "/")));
+            return Str.Utf8Encoding.GetString(Convert.FromBase64String(str.Replace(")", "+").Replace("(", "/")));
         }
 
 
