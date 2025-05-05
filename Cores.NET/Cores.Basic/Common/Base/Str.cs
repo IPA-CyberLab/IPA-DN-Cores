@@ -1401,15 +1401,15 @@ namespace IPA.Cores.Basic
         {
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
-            AsciiEncoding = Encoding.ASCII;
-            ShiftJisEncoding = Encoding.GetEncoding("shift_jis");
-            ISO2022JPEncoding = Encoding.GetEncoding("ISO-2022-JP");
-            EucJpEncoding = Encoding.GetEncoding("euc-jp");
-            ISO88591Encoding = Encoding.GetEncoding("iso-8859-1");
-            GB2312Encoding = Encoding.GetEncoding("gb2312");
-            EucKrEncoding = Encoding.GetEncoding("euc-kr");
-            Utf8Encoding = new UTF8Encoding(false);
-            UniEncoding = new UnicodeEncoding(false, false);
+            AsciiEncoding = GetNonBomEncoding(Encoding.ASCII);
+            ShiftJisEncoding = GetNonBomEncoding(Encoding.GetEncoding("shift_jis"));
+            ISO2022JPEncoding = GetNonBomEncoding(Encoding.GetEncoding("ISO-2022-JP"));
+            EucJpEncoding = GetNonBomEncoding(Encoding.GetEncoding("euc-jp"));
+            ISO88591Encoding = GetNonBomEncoding(Encoding.GetEncoding("iso-8859-1"));
+            GB2312Encoding = GetNonBomEncoding(Encoding.GetEncoding("gb2312"));
+            EucKrEncoding = GetNonBomEncoding(Encoding.GetEncoding("euc-kr"));
+            Utf8Encoding = GetNonBomEncoding(Encoding.UTF8);
+            UniEncoding = GetNonBomEncoding(Encoding.Unicode);
             BomUtf8 = Str.GetBOM(Str.Utf8Encoding)!; 
 
             var suitableEncodingListForJapaneseWin32 = new List<Encoding>();
@@ -1418,6 +1418,40 @@ namespace IPA.Cores.Basic
             suitableEncodingListForJapaneseWin32.Add(Utf8Encoding);
 
             SuitableEncodingListForJapaneseWin32 = suitableEncodingListForJapaneseWin32;
+        }
+
+        public static Encoding GetNonBomEncoding(Encoding src)
+        {
+            try
+            {
+                if (_DefaultIfException(() => src.BodyName, "")._IsEmpty())
+                {
+                    // エンコーディングが System.Text.ConsoleEncoding の場合、BodyName の取得に失敗する。
+                    // その原因は、.NET 6 のライブラリのバグにより、_codePage プライベート変数の値が 0 になっているためである。
+                    // この場合、コードページ番号を元にして Encoding を明確に取得する。
+                    src = Encoding.GetEncoding(src.CodePage);
+                }
+            }
+            catch { }
+
+            try
+            {
+                if (src.GetPreamble().Length >= 1)
+                {
+                    switch (src.CodePage)
+                    {
+                        case 65001:
+                            return new UTF8Encoding(false);
+                        case 1200:
+                            return new UnicodeEncoding(false, false);
+                        case 1201:
+                            return new UnicodeEncoding(true, false);
+                    }
+                }
+            }
+            catch { }
+
+            return src;
         }
 
         public static Encoding ConsoleInputEncoding => ConsoleInputEncodingInternal;
