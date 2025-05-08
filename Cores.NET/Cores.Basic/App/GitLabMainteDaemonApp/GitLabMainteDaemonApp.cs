@@ -787,7 +787,7 @@ public class GitLabMainteDaemonApp : AsyncService
                 var now = DtOffsetNow;
 
                 // 新規申請中のユーザーが増えたら各ユーザーにもメールで管理者に連絡するよう催促する
-                foreach (var pendingUser in newPendingUsers.Where(x => x.commit_email._CheckMailAddress()).OrderBy(x => x.commit_email, StrCmpi).ToList())
+                foreach (var pendingUser in pendingUsers.Where(x => x.commit_email._CheckMailAddress()).OrderBy(x => x.commit_email, StrCmpi).ToList())
                 {
                     try
                     {
