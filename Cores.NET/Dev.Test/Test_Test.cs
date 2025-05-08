@@ -1403,6 +1403,8 @@ static class TestClass
                     }
                 }
 
+                Con.WriteLine($"Current value: {hiveData.ManagedData.Value}");
+
                 //hiveData2.AccessData(true, (x) =>
                 //{
                 //    x.Value._Print();
@@ -5280,6 +5282,13 @@ HOST: www.google.com
 
     public static void Test_Generic()
     {
+
+        if (true)
+        {
+            HiveTest_201201();
+            return;
+        }
+
         if (true)
         {
             /*Encoding? enc = Win32ApiUtil.GetConsoleOutputEncoding();
@@ -6421,12 +6430,6 @@ HOST: www.google.com
 
                 $"suffix = {suffix}\nplusOne = {plusOne}\nhostname = {hostname}\n\n"._Print();
             }
-            return;
-        }
-
-        if (true)
-        {
-            HiveTest_201201();
             return;
         }
 

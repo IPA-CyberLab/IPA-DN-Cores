@@ -770,8 +770,7 @@ public enum HiveSyncPolicy
     AutoReadFromFile = 2,               // 物理ファイルの内容が変更されたら、自動的にメモリに読み込む
     AutoWriteToFile = 4,                // メモリの内容が変更されたら、自動的に物理ファイルに書き込む
 
-    AutoReadWriteFile = AutoReadFromFile | AutoWriteToFile, // ※ 2020/11/01 注意! うまく動かない。データ -> ファイル の更新が優先され、ファイルの内容をいじっても更新されない。たぶんバグ。
-                                                            // つまり、動的に上書きされたくないなら、ReadOnly を推奨。
+    AutoReadWriteFile = AutoReadFromFile | AutoWriteToFile, // ※ 2020/11/01 時点ではバグがあったが、2020/12/01 時点で改善されている模様。
 }
 
 public interface IHiveData

@@ -339,7 +339,12 @@ public class GitLabMainteDaemonSettings : INormalizable
 
     public string Title = "";
 
+    public string AdminNameStr = "";
+
     public long MaxAccessLogFileSizeInSpecificDir = 0;
+
+    public int NewUserSaisokuIntervalSecs = 0;
+    public Dictionary<string, DateTimeOffset> LastNewUserSaisokuSentTime = new(StrCmpi);
 
     public void Normalize()
     {
@@ -351,6 +356,11 @@ public class GitLabMainteDaemonSettings : INormalizable
 
         this.MailSettings ??= new SmtpBassicSettings();
         this.MailSettings.Normalize();
+
+        if (this.AdminNameStr._IsEmpty())
+        {
+            this.AdminNameStr = "本システムの管理者: XXX YYY  連絡方法: 電子メール xxx@example.org  Slack: 「aaa」というワークスペースの「#aaa」というスレッド";
+        }
 
         this.DefaultGroupsAllUsersWillJoin ??= new List<string>();
         if (this.DefaultGroupsAllUsersWillJoin.Count == 0)
@@ -410,6 +420,13 @@ public class GitLabMainteDaemonSettings : INormalizable
             this.ExtsAsMimeTypeUtf8.Add(".xml");
         }
 
+        LastNewUserSaisokuSentTime ??= new(StrCmpi);
+
+        if (NewUserSaisokuIntervalSecs <= 0)
+        {
+            NewUserSaisokuIntervalSecs = 45;
+        }
+
         this.ExtsAsMimeTypeUtf8 = this.ExtsAsMimeTypeUtf8.Distinct().OrderBy(x => x).ToList();
 
         if (MaxAccessLogFileSizeInSpecificDir <= 0)
@@ -450,7 +467,7 @@ public class GitLabMainteDaemonApp : AsyncService
         try
         {
             // Settings を読み込む
-            this.SettingsHive = new HiveData<GitLabMainteDaemonSettings>(Hive.SharedLocalConfigHive, $"GitLabMainteDaemon", null, HiveSyncPolicy.AutoReadFromFile);
+            this.SettingsHive = new HiveData<GitLabMainteDaemonSettings>(Hive.SharedLocalConfigHive, $"GitLabMainteDaemon", null, HiveSyncPolicy.AutoReadWriteFile);
 
             this.GitLabClient = new GitLabMainteClient(this.Settings.GitLabClientSettings);
 
@@ -458,7 +475,7 @@ public class GitLabMainteDaemonApp : AsyncService
 
             this.MainLoop1Task = TaskUtil.StartAsyncTaskAsync(Loop1_MainteUsersAsync(this.GrandCancel));
 
-            this.MainLoop2Task = TaskUtil.StartAsyncTaskAsync(Loop2_MainteUsersAsync(this.GrandCancel));
+            this.MainLoop2Task = TaskUtil.StartAsyncTaskAsync(Loop2_MainteRepositoriesAsync(this.GrandCancel));
 
             // Log Browser を立ち上げる
             var logBrowserOptions = new LogBrowserOptions(
@@ -571,7 +588,7 @@ public class GitLabMainteDaemonApp : AsyncService
 
 
     // Git リポジトリの自動ダウンロード
-    async Task Loop2_MainteUsersAsync(CancellationToken cancel = default)
+    async Task Loop2_MainteRepositoriesAsync(CancellationToken cancel = default)
     {
         long lastHookTick = -1;
 
@@ -706,65 +723,174 @@ public class GitLabMainteDaemonApp : AsyncService
         {
             bool hasError = false;
 
-            // 新規申請中のユーザーが増えたらメールで知らせる
             try
             {
-                // ユーザーの列挙
+                // 新規申請中のユーザーが増えたら管理者にメールで知らせる
                 var users = await this.GitLabClient.EnumUsersAsync(cancel);
 
                 var pendingUsers = users.Where(x => x.IsSystemUser() == false && x.state == "blocked_pending_approval").OrderBy(x => x.id);
 
                 var newPendingUsers = pendingUsers.Where(u => lastPendingUsers.Where(a => a.id == u.id).Any() == false);
 
-                StringWriter w = new StringWriter();
-
-                string url = this.Settings.GitLabClientSettings.GitLabBaseUrl._CombineUrl("/admin/users?filter=blocked_pending_approval").ToString();
-
-                string subject = $"{url._ParseUrl().Host} にユーザー {newPendingUsers.Select(x => ("[" + x.commit_email._NonNullTrim() + " " + x.name + " " + x.username + "]"))._Combine(" ,")} の参加申請がありました";
-
-                w.WriteLine(subject + "。");
-                w.WriteLine();
-
-                w.WriteLine($"GitLab のアドレス: {url}");
-                w.WriteLine();
-
-                w.WriteLine($"現在時刻: {DtOffsetNow._ToDtStr()}");
-
-                w.WriteLine();
-
-                w.WriteLine($"新しい申請中のユーザー ({newPendingUsers.Count()}):");
-
-                int num = 0;
-
-                foreach (var user in newPendingUsers)
                 {
-                    lastPendingUsers.Add(user._CloneDeep());
+                    StringWriter w = new StringWriter();
 
-                    w.WriteLine("- " + user.name + " " + user.username + " " + user.commit_email);
+                    string url = this.Settings.GitLabClientSettings.GitLabBaseUrl._CombineUrl("/admin/users?filter=blocked_pending_approval").ToString();
 
-                    num++;
+                    string subject = $"{url._ParseUrl().Host} にユーザー {newPendingUsers.Select(x => ("[" + x.commit_email._NonNullTrim() + " " + x.name + " " + x.username + "]"))._Combine(" ,")} の参加申請がありました";
+
+                    w.WriteLine(subject + "。");
+                    w.WriteLine();
+
+                    w.WriteLine($"GitLab のアドレス: {url}");
+                    w.WriteLine();
+
+                    w.WriteLine($"現在時刻: {DtOffsetNow._ToDtStr()}");
+
+                    w.WriteLine();
+
+                    w.WriteLine($"新しい申請中のユーザー ({newPendingUsers.Count()}):");
+
+                    int num = 0;
+
+                    foreach (var user in newPendingUsers)
+                    {
+                        lastPendingUsers.Add(user._CloneDeep());
+
+                        w.WriteLine("- " + user.name + " " + user.username + " " + user.commit_email);
+
+                        num++;
+                    }
+
+                    w.WriteLine();
+
+                    w.WriteLine($"現在申請中のユーザー一覧 ({pendingUsers.Count()})");
+
+                    foreach (var user in pendingUsers)
+                    {
+                        w.WriteLine("- " + user.name + " " + user.username + " " + user.commit_email);
+                    }
+
+                    w.WriteLine();
+
+                    w.WriteLine($"GitLab のアドレス: {url}");
+                    w.WriteLine();
+                    w.WriteLine();
+
+                    //Dbg.Where();
+                    if (num >= 1)
+                    {
+                        await this.SendMailAsync(subject, w.ToString(), cancel);
+                    }
                 }
 
-                w.WriteLine();
+                var now = DtOffsetNow;
 
-                w.WriteLine($"現在申請中のユーザー一覧 ({pendingUsers.Count()})");
-
-                foreach (var user in pendingUsers)
+                // 新規申請中のユーザーが増えたら各ユーザーにもメールで管理者に連絡するよう催促する
+                foreach (var pendingUser in newPendingUsers.Where(x => x.commit_email._CheckMailAddress()).OrderBy(x => x.commit_email, StrCmpi).ToList())
                 {
-                    w.WriteLine("- " + user.name + " " + user.username + " " + user.commit_email);
+                    try
+                    {
+                        bool sendNow = false;
+                        bool isFirstTime = false;
+
+                        if (this.Settings.LastNewUserSaisokuSentTime.TryGetValue(pendingUser.commit_email!, out var lastDt) == false)
+                        {
+                            sendNow = true;
+                            isFirstTime = true;
+                        }
+
+                        else if (lastDt.AddSeconds(this.Settings.NewUserSaisokuIntervalSecs) < now)
+                        {
+                            sendNow = true;
+                        }
+
+                        if (sendNow)
+                        {
+                            this.Settings.LastNewUserSaisokuSentTime[pendingUser.commit_email!] = now; // タイムスタンプの更新を最初にする
+
+                            using StringWriter writer = new();
+
+                            string subject = $"{this.Settings.GitLabClientSettings.GitLabBaseUrl._ParseUrl().Host} の Git システムへの参加登録について";
+
+                            writer.WriteLine($"{this.Settings.GitLabClientSettings.GitLabBaseUrl._ParseUrl().Host} の Git システムへの参加登録について");
+                            writer.WriteLine();
+                            writer.WriteLine($"{pendingUser.commit_email} 様");
+                            writer.WriteLine();
+                            writer.WriteLine($"{this.Settings.GitLabClientSettings.GitLabBaseUrl} の Git システムへの参加登録申請をいただき、ありがとうございます。");
+                            writer.WriteLine();
+                            writer.WriteLine("本メールは、Git システムによって自動的に送付しております。");
+                            writer.WriteLine("本メールの送信元メールアドレスには、返信できません。");
+                            writer.WriteLine();
+                            writer.WriteLine();
+                            writer.WriteLine("【参加登録申請の後、登録承認には、管理者への連絡が必ず必要です】");
+                            writer.WriteLine();
+                            writer.WriteLine("上記の URL のトップ画面にもご案内を掲載しておりますが、");
+                            writer.WriteLine("本 Git システムへの参加登録申請をいただいた後、");
+                            writer.WriteLine("この Git サーバーの管理者 (以下に記載) に、");
+                            writer.WriteLine("必ず、参加登録しようとした Google アカウントの ID を伝達していただく");
+                            writer.WriteLine("必要があります。電子メールまたは Slack 等の既存の一応信頼できる");
+                            writer.WriteLine("連絡手段で連絡ください。管理者がその内容を確認し、問題無い場合は、");
+                            writer.WriteLine("できるだけ早くアクセス権を付与します。");
+                            writer.WriteLine();
+                            writer.WriteLine("上記のご連絡がない場合、管理者においては、参加登録があった ID が");
+                            writer.WriteLine("真の関係者の ID であるかどうか判断することができないため、");
+                            writer.WriteLine("アカウント登録は Pending 状態となったままとなり、");
+                            writer.WriteLine("Git システムへのログインができない状態が続きます。");
+                            writer.WriteLine();
+                            writer.WriteLine("ご不明な点は、管理者までご連絡いただくか、Slack やメール等で");
+                            writer.WriteLine("すでに Git システムに参加されていると思われる方に相談してみて");
+                            writer.WriteLine("ください。");
+                            writer.WriteLine();
+                            writer.WriteLine("なお、長期間ご連絡がない Pending 状態のアカウントの登録申請は、");
+                            writer.WriteLine("定期的に削除させていただく場合があります。");
+                            writer.WriteLine();
+                            writer.WriteLine("その場合も、再度、参加登録を申請いただくことができます。");
+                            writer.WriteLine();
+                            writer.WriteLine();
+                            writer.WriteLine("よろしくお願い申し上げます。");
+                            writer.WriteLine();
+                            writer.WriteLine();
+                            writer.WriteLine($"[{this.Settings.GitLabClientSettings.GitLabBaseUrl} システムの管理者情報]");
+                            writer.WriteLine($"{this.Settings.AdminNameStr}");
+                            writer.WriteLine();
+
+                            writer.NewLine = Str.NewLine_Str_Windows;
+
+                            string writerBody = writer.ToString();
+
+                            // ユーザーに送付
+                            try
+                            {
+                                await SmtpUtil.SendAsync(this.Settings.SmtpSettings, this.Settings.MailSettings.MailFrom, pendingUser.commit_email!, subject, writerBody, true, cancel);
+                            }
+                            catch (Exception ex)
+                            {
+                                ex._Error();
+                            }
+
+                            if (isFirstTime)
+                            {
+                                // 管理者に送付
+                                try
+                                {
+                                    await this.SendMailAsync(subject, writerBody, cancel);
+                                }
+                                catch (Exception ex)
+                                {
+                                    ex._Error();
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Error();
+
+                        hasError = true;
+                    }
                 }
 
-                w.WriteLine();
-
-                w.WriteLine($"GitLab のアドレス: {url}");
-                w.WriteLine();
-                w.WriteLine();
-
-                //Dbg.Where();
-                if (num >= 1)
-                {
-                    await this.SendMailAsync(subject, w.ToString(), cancel);
-                }
             }
             catch (Exception ex)
             {
@@ -887,7 +1013,7 @@ public class GitLabMainteDaemonApp : AsyncService
             FileFlags.WriteOnlyIfChanged,
             cancel: cancel);
 
-        PublishConfigData ? config = await Lfs.ReadJsonFromFileAsync<PublishConfigData>(publishPath, cancel: cancel, nullIfError: true);
+        PublishConfigData? config = await Lfs.ReadJsonFromFileAsync<PublishConfigData>(publishPath, cancel: cancel, nullIfError: true);
 
         if (config == null)
         {
