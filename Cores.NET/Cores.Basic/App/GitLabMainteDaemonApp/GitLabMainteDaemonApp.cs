@@ -424,7 +424,7 @@ public class GitLabMainteDaemonSettings : INormalizable
 
         if (NewUserSaisokuIntervalSecs <= 0)
         {
-            NewUserSaisokuIntervalSecs = 45;
+            NewUserSaisokuIntervalSecs = 73 * 60 * 60;
         }
 
         this.ExtsAsMimeTypeUtf8 = this.ExtsAsMimeTypeUtf8.Distinct().OrderBy(x => x).ToList();
@@ -816,13 +816,19 @@ public class GitLabMainteDaemonApp : AsyncService
 
                             using StringWriter writer = new();
 
-                            string subject = $"{this.Settings.GitLabClientSettings.GitLabBaseUrl._ParseUrl().Host} の Git システムへの参加登録について";
+                            string subject = $"{this.Settings.GitLabClientSettings.GitLabBaseUrl._ParseUrl().Host} の Git システムへの参加ご登録について";
 
-                            writer.WriteLine($"{this.Settings.GitLabClientSettings.GitLabBaseUrl._ParseUrl().Host} の Git システムへの参加登録について");
+                            if (isFirstTime == false)
+                            {
+                                subject += " [再送]";
+                            }
+
+                            writer.WriteLine($"{subject}");
                             writer.WriteLine();
                             writer.WriteLine($"{pendingUser.commit_email} 様");
                             writer.WriteLine();
-                            writer.WriteLine($"{this.Settings.GitLabClientSettings.GitLabBaseUrl} の Git システムへの参加登録申請をいただき、ありがとうございます。");
+                            writer.WriteLine($"このたびは、{this.Settings.GitLabClientSettings.GitLabBaseUrl} の Git システムへの参加登録申請をいただき、誠にありがとうございます。");
+                            writer.WriteLine();
                             writer.WriteLine();
                             writer.WriteLine("本メールは、Git システムによって自動的に送付しております。");
                             writer.WriteLine("本メールの送信元メールアドレスには、返信できません。");
@@ -843,15 +849,16 @@ public class GitLabMainteDaemonApp : AsyncService
                             writer.WriteLine("アカウント登録は Pending 状態となったままとなり、");
                             writer.WriteLine("Git システムへのログインができない状態が続きます。");
                             writer.WriteLine();
-                            writer.WriteLine("ご不明な点は、管理者までご連絡いただくか、Slack やメール等で");
-                            writer.WriteLine("すでに Git システムに参加されていると思われる方に相談してみて");
-                            writer.WriteLine("ください。");
                             writer.WriteLine();
                             writer.WriteLine("なお、長期間ご連絡がない Pending 状態のアカウントの登録申請は、");
                             writer.WriteLine("定期的に削除させていただく場合があります。");
                             writer.WriteLine();
-                            writer.WriteLine("その場合も、再度、参加登録を申請いただくことができます。");
+                            writer.WriteLine("後日、その場合も、再度、参加登録を申請いただくことができます。");
                             writer.WriteLine();
+                            writer.WriteLine();
+                            writer.WriteLine("ご不明な点は、管理者までご連絡いただくか、Slack やメール等で");
+                            writer.WriteLine("すでに Git システムに参加されていると思われる方に相談してみて");
+                            writer.WriteLine("ください。");
                             writer.WriteLine();
                             writer.WriteLine("よろしくお願い申し上げます。");
                             writer.WriteLine();
