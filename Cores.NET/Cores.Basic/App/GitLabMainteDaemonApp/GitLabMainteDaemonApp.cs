@@ -738,7 +738,7 @@ public class GitLabMainteDaemonApp : AsyncService
 
                     string url = this.Settings.GitLabClientSettings.GitLabBaseUrl._CombineUrl("/admin/users?filter=blocked_pending_approval").ToString();
 
-                    string subject = $"{url._ParseUrl().Host} にユーザー {newPendingUsers.Select(x => ("[" + x.commit_email._NonNullTrim() + " " + x.name + " " + x.username + "]"))._Combine(" ,")} の参加申請がありました";
+                    string subject = $"{url._ParseUrl().Host} にユーザー {newPendingUsers.Take(2).Select(x => ("[" + x.commit_email._NonNullTrim() + " " + x.name + " " + x.username + "]"))._Combine(" ,")} の参加申請がありました";
 
                     w.WriteLine(subject + "。");
                     w.WriteLine();
