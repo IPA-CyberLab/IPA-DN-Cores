@@ -447,7 +447,7 @@ public class GitLabMainteDaemonApp : AsyncService
     readonly HiveData<GitLabMainteDaemonSettings> SettingsHive;
 
     // 'Config\GitLabMainteDaemon' のデータ
-    public GitLabMainteDaemonSettings Settings => SettingsHive.GetManagedDataSnapshot();
+    public GitLabMainteDaemonSettings Settings => SettingsHive.ManagedData;
 
     readonly CriticalSection LockList = new CriticalSection<GitLabMainteDaemonApp>();
 
@@ -732,6 +732,7 @@ public class GitLabMainteDaemonApp : AsyncService
 
                 var newPendingUsers = pendingUsers.Where(u => lastPendingUsers.Where(a => a.id == u.id).Any() == false);
 
+                try
                 {
                     StringWriter w = new StringWriter();
 
@@ -782,6 +783,10 @@ public class GitLabMainteDaemonApp : AsyncService
                     {
                         await this.SendMailAsync(subject, w.ToString(), cancel);
                     }
+                }
+                catch (Exception ex)
+                {
+                    ex._Error();
                 }
 
                 var now = DtOffsetNow;
@@ -852,7 +857,9 @@ public class GitLabMainteDaemonApp : AsyncService
                             writer.WriteLine();
                             writer.WriteLine();
                             writer.WriteLine($"[{this.Settings.GitLabClientSettings.GitLabBaseUrl} システムの管理者情報]");
+                            writer.WriteLine();
                             writer.WriteLine($"{this.Settings.AdminNameStr}");
+                            writer.WriteLine();
                             writer.WriteLine();
 
                             writer.NewLine = Str.NewLine_Str_Windows;

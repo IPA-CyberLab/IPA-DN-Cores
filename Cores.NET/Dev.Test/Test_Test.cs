@@ -1378,10 +1378,10 @@ static class TestClass
 
     static void HiveTest_201201()
     {
-        using var hiveData = new HiveData<HiveTest_201201_Data>(Hive.SharedLocalConfigHive, "HiveTest/TestConfigData",
+        using var hiveData3 = new HiveData<HiveTest_201201_Data>(Hive.SharedLocalConfigHive, "HiveTest/TestConfigData3",
                 getDefaultDataFunc: () => new HiveTest_201201_Data(),
                 policy: HiveSyncPolicy.AutoReadFromFile | HiveSyncPolicy.AutoWriteToFile,
-                serializer: HiveSerializerSelection.RichJson);
+                serializer: HiveSerializerSelection.DefaultRuntimeJson);
 
         using var hiveData2 = new HiveData<HiveTest_201201_Data>(Hive.SharedLocalConfigHive, $"HiveTest/TestConfigData2", () => new HiveTest_201201_Data(), HiveSyncPolicy.None);
 
@@ -1393,17 +1393,17 @@ static class TestClass
             {
                 if (cancel.IsCancellationRequested) break;
 
-                hiveData.GetManagedDataSnapshot().Value._Print();
+                hiveData3.ManagedData._Print();
 
-                lock (hiveData.DataLock)
+                lock (hiveData3.DataLock)
                 {
-                    if ((hiveData.ManagedData.Value % 2) == 0)
+                    if ((hiveData3.ManagedData.Value % 2) == 0)
                     {
-                        hiveData.ManagedData.Value++;
+                        hiveData3.ManagedData.Value++;
                     }
                 }
 
-                Con.WriteLine($"Current value: {hiveData.ManagedData.Value}");
+                Con.WriteLine($"Current value: {hiveData3.ManagedData.Value}");
 
                 //hiveData2.AccessData(true, (x) =>
                 //{
