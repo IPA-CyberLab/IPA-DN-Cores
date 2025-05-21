@@ -2305,6 +2305,45 @@ namespace IPA.Cores.Basic
             }
         }
 
+        // HHMMSS をパースする
+        public static bool TryParseHHMMSS(string str, out TimeSpan ts)
+        {
+            ts = TimeSpan.Zero;
+
+            try
+            {
+                if (str.Length == 6 && str.All(x => x >= '0' && x <= '9'))
+                {
+                    if (str == "000000")
+                    {
+                        ts = TimeSpan.Zero;
+                        return true;
+                    }
+
+                    if (str == "999999")
+                    {
+                        ts = TimeSpan.MaxValue;
+                        return true;
+                    }
+
+
+                    int hour = str.Substring(0, 2)._ToInt();
+                    int minute = str.Substring(2, 2)._ToInt();
+                    int second = str.Substring(4, 2)._ToInt();
+
+                    var dtThis = new DateTime(2000, 1, 1, hour, minute, second);
+                    var dtBase = new DateTime(2000, 1, 1, 0, 0, 0);
+
+                    ts = dtThis - dtBase;
+
+                    return true;
+                }
+            }
+            catch { }
+
+            return false;
+        }
+
         // YYMMDD または YYYYMMDD をパースする
         public static bool TryParseYYMMDD(string str, out DateTime date)
         {
