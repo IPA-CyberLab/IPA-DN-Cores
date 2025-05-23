@@ -486,6 +486,7 @@ namespace IPA.Cores.Basic
         public T ReadJsonFromFile<T>(string path, FileFlags flags = FileFlags.None, CancellationToken cancel = default,
             bool includeNull = false, int? maxDepth = Json.DefaultMaxDepth, bool nullIfError = false, bool withBackup = false, JsonFlags jsonFlags = JsonFlags.None, IList<JsonConverter>? converters = null)
             => ReadJsonFromFileAsync<T>(path, flags, cancel, includeNull, maxDepth, nullIfError, withBackup, jsonFlags, converters)._GetResult();
+
     }
 }
 

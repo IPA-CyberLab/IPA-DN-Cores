@@ -436,6 +436,11 @@ public static class Json
         }
     }
 
+    public static string SerializeJObject(JObject o)
+    {
+        return o.ToString();
+    }
+
     public static string SerializeDynamic(dynamic d)
     {
         JObject o = (JObject)d;
@@ -446,6 +451,12 @@ public static class Json
     public static dynamic? DeserializeDynamic(string str)
     {
         dynamic? ret = JObject.Parse(str);
+        return ret;
+    }
+
+    public static JObject DeserializeJObject(string str)
+    {
+        JObject ret = JObject.Parse(str);
         return ret;
     }
 
