@@ -104,11 +104,19 @@ public class ImageMagickOptions
     }
 }
 
+[Flags]
+public enum ImageMagickExtractImageFormat
+{
+    Bmp = 0,
+    Png,
+}
+
 public class ImageMagickExtractImageOption
 {
     public int Width = 2480;
     public int Height = 3508;
     public int Density = 300;
+    public ImageMagickExtractImageFormat Format = ImageMagickExtractImageFormat.Bmp;
 }
 
 public class ImageMagickBuildPdfOption
@@ -151,6 +159,11 @@ public class ImageMagickUtil
 
         string ext = ".bmp";
 
+        if (option.Format == ImageMagickExtractImageFormat.Png)
+        {
+            ext = ".png";
+        }
+
         await Lfs.CreateDirectoryAsync(dstDir, cancel: cancel);
 
         var existingFiles = (await Lfs.EnumDirectoryAsync(dstDir, false, cancel: cancel)).Where(x => x.IsFile && x.Name._IsExtensionMatch(ext));
@@ -162,8 +175,15 @@ public class ImageMagickUtil
 
         string dstStr = (PP.RemoveLastSeparatorChar(dstDir) + @"\page_%05d" + ext)._EnsureQuotation();
 
+        string bmpOptions = "-depth 8 -type TrueColor BMP3:";
+
+        if (option.Format == ImageMagickExtractImageFormat.Png)
+        {
+            bmpOptions = "";
+        }
+
         var result = await RunMagickAsync(
-            $"-density {option.Density} {pdfPath._EnsureQuotation()} -resize {option.Width}x{option.Height} -depth 8 -type TrueColor BMP3:{dstStr}",
+            $"-density {option.Density} {pdfPath._EnsureQuotation()} -resize {option.Width}x{option.Height} {bmpOptions}{dstStr}",
             cancel: cancel);
     }
 
