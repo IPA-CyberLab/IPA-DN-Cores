@@ -92,14 +92,31 @@ public class ImageMagickOptions
 {
     public string MagickExePath = "";
     public string MogrifyPath = "";
+    public string ExifToolPath = "";
     public Encoding Encoding = Str.Utf8Encoding;
     public int MaxStdOutBufferSize = CoresConfig.DefaultFfMpegExecSettings.FfMpegDefaultMaxStdOutBufferSize;
 
-    public ImageMagickOptions(string magickExePath, string mogrifyPath)
+    public ImageMagickOptions(string magickExePath, string mogrifyPath, string exifToolPath)
     {
         this.MagickExePath = magickExePath;
         this.MogrifyPath = mogrifyPath;
+        this.ExifToolPath = exifToolPath;
     }
+}
+
+public class ImageMagickExtractImageOption
+{
+    public int Width = 2480;
+    public int Height = 3508;
+    public int Density = 300;
+}
+
+public class ImageMagickBuildPdfOption
+{
+    public int Density = 300;
+    public string ExtWildcard = "*.png";
+    public string Compress = "jpeg";
+    public int Quality = 40;
 }
 
 public class ImageMagickUtil
@@ -109,6 +126,52 @@ public class ImageMagickUtil
     public ImageMagickUtil(ImageMagickOptions options)
     {
         this.Options = options;
+    }
+
+    public async Task BuildPdfFromImagesAsync(string srcImgDirPath, string dstPdfPath, ImageMagickBuildPdfOption? option = null, CancellationToken cancel = default)
+    {
+        option ??= new();
+
+        await Lfs.DeleteFileIfExistsAsync(dstPdfPath, raiseException: true, cancel: cancel);
+
+        await Lfs.EnsureCreateDirectoryForFileAsync(dstPdfPath, cancel: cancel);
+
+        string srcStr = PP.Combine(srcImgDirPath._RemoveQuotation(), option.ExtWildcard)._EnsureQuotation();
+
+        var result = await RunMagickAsync(
+            $"-density {option.Density} -units PixelsPerInch {srcStr} -gravity center -background white -compress {option.Compress} -quality {option.Quality} {dstPdfPath._EnsureQuotation()}",
+            cancel: cancel);
+
+        await ClearPdfTitleMetaData(dstPdfPath, cancel);
+    }
+
+    public async Task ExtractImagesFromPdfAsync(string pdfPath, string dstDir, ImageMagickExtractImageOption? option = null, CancellationToken cancel = default)
+    {
+        option ??= new();
+
+        string ext = ".bmp";
+
+        await Lfs.CreateDirectoryAsync(dstDir, cancel: cancel);
+
+        var existingFiles = (await Lfs.EnumDirectoryAsync(dstDir, false, cancel: cancel)).Where(x => x.IsFile && x.Name._IsExtensionMatch(ext));
+
+        foreach (var file in existingFiles)
+        {
+            await Lfs.DeleteFileIfExistsAsync(file.FullPath, raiseException: true, cancel: cancel);
+        }
+
+        string dstStr = (PP.RemoveLastSeparatorChar(dstDir) + @"\page_%05d" + ext)._EnsureQuotation();
+
+        var result = await RunMagickAsync(
+            $"-density {option.Density} {pdfPath._EnsureQuotation()} -resize {option.Width}x{option.Height} -depth 8 -type TrueColor BMP3:{dstStr}",
+            cancel: cancel);
+    }
+
+    public async Task ClearPdfTitleMetaData(string pdfPath, CancellationToken cancel = default)
+    {
+        var result = await RunExifToolAsync(
+            $"-overwrite_original -all:all=\"\" {pdfPath._EnsureQuotation()}",
+            cancel: cancel);
     }
 
     public async Task<double> GetDeskewRotateDegreeAsync(string filePath, int sampleSize = 1920, int thresholdPercent = 40, double maxDegree = 1.0, CancellationToken cancel = default)
@@ -145,6 +208,19 @@ public class ImageMagickUtil
         Con.WriteLine($"[*Run*] {Options.MogrifyPath} {arguments}");
 
         EasyExecResult ret = await EasyExec.ExecAsync(Options.MogrifyPath, arguments, PP.GetDirectoryName(Options.MogrifyPath),
+            flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdOut | ExecFlags.EasyPrintRealtimeStdErr,
+            timeout: Timeout.Infinite, cancel: cancel, throwOnErrorExitCode: true,
+            easyOutputMaxSize: Options.MaxStdOutBufferSize,
+            inputEncoding: Options.Encoding, outputEncoding: Options.Encoding, errorEncoding: Options.Encoding);
+
+        return ret;
+    }
+
+    public async Task<EasyExecResult> RunExifToolAsync(string arguments, CancellationToken cancel = default)
+    {
+        Con.WriteLine($"[*Run*] {Options.ExifToolPath} {arguments}");
+
+        EasyExecResult ret = await EasyExec.ExecAsync(Options.ExifToolPath, arguments, PP.GetDirectoryName(Options.ExifToolPath),
             flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdOut | ExecFlags.EasyPrintRealtimeStdErr,
             timeout: Timeout.Infinite, cancel: cancel, throwOnErrorExitCode: true,
             easyOutputMaxSize: Options.MaxStdOutBufferSize,
