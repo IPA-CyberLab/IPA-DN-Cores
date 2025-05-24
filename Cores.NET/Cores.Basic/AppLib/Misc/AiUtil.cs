@@ -2286,9 +2286,146 @@ public class AiUtilBasicSettings
     public string AiTest_VoiceBox_ExePath = "";
     public string AiTest_VoiceBox_ExeArgs = "";
     public string AiTest_SeedVc_BaseDir = "";
+    public string AiTest_RealEsrgan_BaseDir = "";
     public double AdjustAudioTargetMaxVolume = CoresConfig.DefaultAiUtilSettings.AdjustAudioTargetMaxVolume;
     public double AdjustAudioTargetMeanVolume = CoresConfig.DefaultAiUtilSettings.AdjustAudioTargetMeanVolume;
     public int VoiceBoxLocalhostPort = Consts.Ports.VoiceVox;
+}
+
+public class AiUtilRealEsrganPerformOption
+{
+    public string Model = "RealESRGAN_x4plus";
+    public int Tile = 512;
+    public int Pad = 16;
+    public double OutScale = 1.0;
+    public bool Skip = false;
+}
+
+public class AiUtilRealEsrganEngine : AiUtilBasicEngine
+{
+    public AiUtilRealEsrganEngine(AiUtilBasicSettings settings) : base(settings, "Real-ESRGAN", settings.AiTest_RealEsrgan_BaseDir)
+    {
+        try
+        {
+        }
+        catch (Exception ex)
+        {
+            this._DisposeSafe(ex);
+            throw;
+        }
+    }
+
+    public async Task PerformAsync(string srcImgDirPath, string imgExtension, string dstImgDirPath, AiUtilRealEsrganPerformOption? option = null, CancellationToken cancel = default)
+    {
+        imgExtension._CheckStrFilled(nameof(imgExtension));
+
+        if (imgExtension.StartsWith(".") == false) imgExtension = "." + imgExtension;
+
+        option ??= new();
+        
+        await Lfs.CreateDirectoryAsync(dstImgDirPath, cancel: cancel);
+
+        var existingFiles = (await Lfs.EnumDirectoryAsync(dstImgDirPath, false, cancel: cancel)).Where(x => x.IsFile);
+        foreach (var exf in existingFiles)
+        {
+            await Lfs.DeleteFileIfExistsAsync(exf.FullPath, raiseException: true, cancel: cancel);
+        }
+
+        if (option.Skip)
+        {
+            Con.WriteLine($"Real-ESRGAN: Skip: Copying from '{srcImgDirPath}' to '{dstImgDirPath}' ...");
+            var srcImgFiles2 = (await Lfs.EnumDirectoryAsync(srcImgDirPath, false, cancel: cancel)).Where(x => x.IsFile && x.Name._IsExtensionMatch(imgExtension)).OrderBy(x => x.Name, StrCmpi);
+            int n2 = 0;
+            foreach (var src in srcImgFiles2)
+            {
+                n2++;
+
+                string fn = $"{n2:D5}" + imgExtension;
+                string dstFilePath = PP.Combine(dstImgDirPath, fn);
+
+                await Lfs.CopyFileAsync(src.FullPath, dstFilePath);
+            }
+            Con.WriteLine("Real-ESRGAN: Skip: Done.");
+            return;
+        }
+
+        string pythonBatchInDir = PP.Combine(this.BaseDirPath, "dn_batch_in");
+        string pythonBatchOutDir = PP.Combine(this.BaseDirPath, "dn_batch_out");
+
+        await Lfs.CreateDirectoryAsync(pythonBatchInDir, cancel: cancel);
+        await Lfs.CreateDirectoryAsync(pythonBatchOutDir, cancel: cancel);
+
+        existingFiles = (await Lfs.EnumDirectoryAsync(pythonBatchInDir, false, cancel: cancel)).Where(x => x.IsFile);
+        foreach (var exf in existingFiles)
+        {
+            await Lfs.DeleteFileIfExistsAsync(exf.FullPath, raiseException: true, cancel: cancel);
+        }
+
+        existingFiles = (await Lfs.EnumDirectoryAsync(pythonBatchOutDir, false, cancel: cancel)).Where(x => x.IsFile);
+        foreach (var exf in existingFiles)
+        {
+            await Lfs.DeleteFileIfExistsAsync(exf.FullPath, raiseException: true, cancel: cancel);
+        }
+
+        Con.WriteLine($"Real-ESRGAN: Pre: Copying from '{srcImgDirPath}' to '{pythonBatchInDir}' ...");
+        var srcImgFiles = (await Lfs.EnumDirectoryAsync(srcImgDirPath, false, cancel: cancel)).Where(x => x.IsFile && x.Name._IsExtensionMatch(imgExtension)).OrderBy(x => x.Name, StrCmpi);
+        int n = 0;
+        foreach (var src in srcImgFiles)
+        {
+            n++;
+
+            string fn = $"{n:D5}" + imgExtension;
+            string dstFilePath = PP.Combine(pythonBatchInDir, fn);
+
+            await Lfs.CopyFileAsync(src.FullPath, dstFilePath);
+        }
+        Con.WriteLine("Real-ESRGAN: Pre: Done.");
+
+        int timeout = (srcImgFiles.Count() + 10) * 30 * 1000;
+
+        IEnumerable<FileSystemEntity> generatedImgFiles = null!;
+
+        await TaskUtil.RetryAsync(async c =>
+        {
+            await PerformInternalAsync(option, timeout, cancel);
+
+            generatedImgFiles = (await Lfs.EnumDirectoryAsync(pythonBatchOutDir, false, cancel: cancel)).Where(x => x.IsFile && x.Name._IsExtensionMatch(imgExtension)).OrderBy(x => x.Name, StrCmpi);
+            return true;
+        },
+        5, 200, cancel, true);
+
+        Con.WriteLine($"Real-ESRGAN: Post: Copying from '{pythonBatchOutDir}' to '{dstImgDirPath}' ...");
+
+        if (generatedImgFiles.Count() != srcImgFiles.Count())
+        {
+            throw new CoresException($"Real-ESRGAN: Post: generatedImgFiles.Count({generatedImgFiles.Count()}) != srcImgFiles.Count({srcImgFiles.Count()})");
+        }
+
+        foreach (var src in generatedImgFiles)
+        {
+            string dstFilePath = PP.Combine(dstImgDirPath, src.Name);
+
+            await Lfs.CopyFileAsync(src.FullPath, dstFilePath);
+        }
+        Con.WriteLine("Real-ESRGAN: Post: Done.");
+    }
+
+    async Task PerformInternalAsync(AiUtilRealEsrganPerformOption option, int timeout, CancellationToken cancel)
+    {
+        var result = await this.RunVEnvPythonCommandsAsync(
+            $"python Real-ESRGAN/inference_realesrgan.py -n {option.Model} -i dn_batch_in -o dn_batch_out --tile {option.Tile} --tile_pad {option.Pad} --outscale {option.OutScale:F2}", timeout, printTag: this.SimpleAiName, cancel: cancel);
+    }
+
+    protected override async Task CleanupImplAsync(Exception? ex)
+    {
+        try
+        {
+        }
+        finally
+        {
+            await base.CleanupImplAsync(ex);
+        }
+    }
 }
 
 public class AvUtilSeedVcMetaData
