@@ -88,6 +88,71 @@ public static partial class CoresConfig
     }
 }
 
+public class ImageMagickOptions
+{
+    public string MagickExePath = "";
+    public string MogrifyPath = "";
+    public Encoding Encoding = Str.Utf8Encoding;
+    public int MaxStdOutBufferSize = CoresConfig.DefaultFfMpegExecSettings.FfMpegDefaultMaxStdOutBufferSize;
+
+    public ImageMagickOptions(string magickExePath, string mogrifyPath)
+    {
+        this.MagickExePath = magickExePath;
+        this.MogrifyPath = mogrifyPath;
+    }
+}
+
+public class ImageMagickUtil
+{
+    public ImageMagickOptions Options;
+
+    public ImageMagickUtil(ImageMagickOptions options)
+    {
+        this.Options = options;
+    }
+
+    public async Task<double> GetDeskewRotateDegreeAsync(string filePath, int sampleSize = 1920, int thresholdPercent = 40, double maxDegree = 1.0, CancellationToken cancel = default)
+    {
+        var result = await RunMagickAsync(
+            $"{filePath._EnsureQuotation()} -resize \"{sampleSize}x{sampleSize}>\" -deskew {thresholdPercent}% -format \"%[deskew:angle]\" info:",
+            cancel: cancel);
+
+        double ret = result.OutputStr._GetFirstFilledLineFromLines()._ToDouble();
+
+        if (Math.Abs(ret) > maxDegree)
+        {
+            return 0;
+        }
+
+        return ret;
+    }
+
+    public async Task<EasyExecResult> RunMagickAsync(string arguments, CancellationToken cancel = default)
+    {
+        Con.WriteLine($"[*Run*] {Options.MagickExePath} {arguments}");
+
+        EasyExecResult ret = await EasyExec.ExecAsync(Options.MagickExePath, arguments, PP.GetDirectoryName(Options.MagickExePath),
+            flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdOut | ExecFlags.EasyPrintRealtimeStdErr,
+            timeout: Timeout.Infinite, cancel: cancel, throwOnErrorExitCode: true,
+            easyOutputMaxSize: Options.MaxStdOutBufferSize,
+            inputEncoding: Options.Encoding, outputEncoding: Options.Encoding, errorEncoding: Options.Encoding);
+
+        return ret;
+    }
+
+    public async Task<EasyExecResult> RunMogrifyAsync(string arguments, CancellationToken cancel = default)
+    {
+        Con.WriteLine($"[*Run*] {Options.MogrifyPath} {arguments}");
+
+        EasyExecResult ret = await EasyExec.ExecAsync(Options.MogrifyPath, arguments, PP.GetDirectoryName(Options.MogrifyPath),
+            flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdOut | ExecFlags.EasyPrintRealtimeStdErr,
+            timeout: Timeout.Infinite, cancel: cancel, throwOnErrorExitCode: true,
+            easyOutputMaxSize: Options.MaxStdOutBufferSize,
+            inputEncoding: Options.Encoding, outputEncoding: Options.Encoding, errorEncoding: Options.Encoding);
+
+        return ret;
+    }
+}
 
 public class FfMpegUtilOptions
 {
