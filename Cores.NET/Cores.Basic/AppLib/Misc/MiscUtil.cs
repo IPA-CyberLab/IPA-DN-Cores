@@ -124,7 +124,7 @@ public class ImageMagickBuildPdfOption
     public int Density = 300;
     public string ExtWildcard = "*.png";
     public string Compress = "jpeg";
-    public int Quality = 40;
+    public int Quality = 70;
 }
 
 public class ImageMagickUtil
