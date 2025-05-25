@@ -189,9 +189,22 @@ public class ImageMagickUtil
 
     public async Task ClearPdfTitleMetaData(string pdfPath, CancellationToken cancel = default)
     {
-        var result = await RunExifToolAsync(
-            $"-overwrite_original -all:all=\"\" {pdfPath._EnsureQuotation()}",
-            cancel: cancel);
+        // 日本語を含むファイル名が正しく扱えないので一時ディレクトリにコピーして処理
+        string tmpPdfPath = await Lfs.GenerateUniqueTempFilePathAsync("pdf", ".pdf", cancel: cancel);
+
+        await Lfs.CopyFileAsync(pdfPath, tmpPdfPath, cancel: cancel);
+        try
+        {
+            var result = await RunExifToolAsync(
+                $"-overwrite_original -all:all=\"\" {tmpPdfPath._EnsureQuotation()}",
+                cancel: cancel);
+
+            await Lfs.CopyFileAsync(tmpPdfPath, pdfPath, cancel: cancel);
+        }
+        finally
+        {
+            await Lfs.DeleteFileIfExistsAsync(tmpPdfPath, cancel: cancel);
+        }
     }
 
     public async Task<double> GetDeskewRotateDegreeAsync(string filePath, int sampleSize = 1920, int thresholdPercent = 40, double maxDegree = 1.0, CancellationToken cancel = default)
