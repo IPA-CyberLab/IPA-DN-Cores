@@ -2299,6 +2299,8 @@ public class AiUtilRealEsrganPerformOption
     public int Pad = 16;
     public double OutScale = 1.0;
     public bool Skip = false;
+    public bool FaceMode = false;
+    public bool Fp32 = false;
 }
 
 public class AiUtilRealEsrganEngine : AiUtilBasicEngine
@@ -2412,8 +2414,20 @@ public class AiUtilRealEsrganEngine : AiUtilBasicEngine
 
     async Task PerformInternalAsync(AiUtilRealEsrganPerformOption option, int timeout, CancellationToken cancel)
     {
+        string additionalStr = "";
+
+        if (option.FaceMode)
+        {
+            additionalStr += " --face_enhance ";
+        }
+
+        if (option.Fp32)
+        {
+            additionalStr += " --fp32 ";
+        }
+
         var result = await this.RunVEnvPythonCommandsAsync(
-            $"python Real-ESRGAN/inference_realesrgan.py -n {option.Model} -i dn_batch_in -o dn_batch_out --tile {option.Tile} --tile_pad {option.Pad} --outscale {option.OutScale:F2}", timeout, printTag: this.SimpleAiName, cancel: cancel);
+            $"python Real-ESRGAN/inference_realesrgan.py -n {option.Model} -i dn_batch_in -o dn_batch_out --tile {option.Tile} --tile_pad {option.Pad} --outscale {option.OutScale:F2} {additionalStr}", timeout, printTag: this.SimpleAiName, cancel: cancel);
     }
 
     protected override async Task CleanupImplAsync(Exception? ex)
