@@ -5335,8 +5335,67 @@ HOST: www.google.com
         }
     }
 
+    static void Test_MakeDnMitmDebugCA_250603()
+    {
+        string baseDir = @"H:\Crypto\Debug CA\DN-GreenProxy-MITM-CA-250603\";
+        string password = "microsoft";
+
+        if (true)
+        {
+            PkiUtil.GenerateRsaKeyPair(2048, out PrivKey priv, out _);
+
+            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.RootCertiticate, "DN-GreenProxy-MITM-CA-250603", c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA512));
+
+            CertificateStore store = new CertificateStore(cert, priv);
+
+            Lfs.WriteStringToFile(baseDir + @"00_Memo.txt", $"Created by {Env.AppRealProcessExeFileName} {DateTime.Now._ToDtStr()}", FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
+
+            Lfs.WriteDataToFile(baseDir + @"00_Master.pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+            Lfs.WriteDataToFile(baseDir + @"00_Master_Encrypted.pfx", store.ExportPkcs12(password), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteDataToFile(baseDir + @"00_Master.cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteDataToFile(baseDir + @"00_Master.key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteStringToFile(baseDir + @"00_Master.txt", store.ExportCertInfo(), FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
+        }
+
+        if (true)
+        {
+            CertificateStore master = new CertificateStore(Lfs.ReadDataFromFile(baseDir + @"00_Master.pfx").Span);
+
+            IssueCert("DN-GreenProxy-MITM-CA-250603-test-child-cert", baseDir + @"DN-GreenProxy-MITM-CA-250603-test-child-cert", "DN-GreenProxy-MITM-CA-250603-test-child-cert");
+
+        }
+
+        void IssueCert(string cn, string fileNameBase, string fqdn)
+        {
+            CertificateStore master = new CertificateStore(Lfs.ReadDataFromFile(baseDir + @"00_Master.pfx").Span);
+
+            PkiUtil.GenerateRsaKeyPair(2048, out PrivKey priv, out _);
+
+            var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.ServerCertificate, cn, c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA256));
+
+            var store = new CertificateStore(cert, priv);
+            Lfs.WriteDataToFile(fileNameBase + ".pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+            Lfs.WriteDataToFile(fileNameBase + "_Encrypted.pfx", store.ExportPkcs12(password), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteDataToFile(fileNameBase + ".cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteDataToFile(fileNameBase + ".key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteStringToFile(fileNameBase + ".txt", store.ExportCertInfo(), FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
+        }
+    }
+
     public static void Test_Generic()
     {
+        if (true)
+        {
+            Test_MakeDnMitmDebugCA_250603();
+            return;
+        }
+
         if (true)
         {
             Test_MakeDnMitmDebugCA_250520();
