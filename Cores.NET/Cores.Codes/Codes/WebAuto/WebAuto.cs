@@ -213,12 +213,17 @@ public class WebAutoSettings
 
     public bool KillProcessOnExitIfExec;
 
+    public PageLoadStrategy PageLoadStrategy = PageLoadStrategy.Default;
+
     public int StartupTimeoutMsecs = WebAutoConsts.DefaultStartupTimeoutMsecs;
     public int PortCheckTimeoutMsecs = WebAutoConsts.DefaultPortCheckTimeoutMsecs;
     public int StartupRetryCount = WebAutoConsts.DefaultStartupRrytyCount;
     public int CommandTimeoutMsecs = WebAutoConsts.DefaultCommandTimeoutMsecs;
     public int PageLoadCommandTimeoutMsecs = WebAutoConsts.DefaultPageLoadCommandTimeoutMsecs;
     public int FindElementWaitTimeoutMsecs = WebAutoConsts.DefaultWaitTimeoutMsecs;
+    public int SwitchFrameWaitTimeoutMsecs = WebAutoConsts.DefaultWaitTimeoutMsecs;
+    public int NewWindowPopupWaitTimeoutMsecs = WebAutoConsts.DefaultWaitTimeoutMsecs;
+    public int ThisWindowCloseWaitTimeoutMsecs = WebAutoConsts.DefaultWaitTimeoutMsecs;
 }
 
 public class WebAutoDownloadedFile
@@ -229,6 +234,11 @@ public class WebAutoDownloadedFile
     public string LinkTextStr = null!;
 }
 
+public class WebAutoCurrentWindowListSpanshot
+{
+    public List<string> WindowHandlesList = new();
+}
+
 public class WebAutoWindow : AsyncService
 {
     AsyncLock Lock => this.Auto.WindowLock;
@@ -237,7 +247,7 @@ public class WebAutoWindow : AsyncService
     public ChromeDriver Driver => Auto.Driver;
     public bool AutoCloseOnDispose { get; }
 
-    public string WindowHandle { get; }
+    public string WindowHandle { get; private set; }
 
     string DownloadTmpDirPath { get; }
 
@@ -262,6 +272,11 @@ public class WebAutoWindow : AsyncService
             this._DisposeSafe(ex);
             throw;
         }
+    }
+
+    public WebAutoCurrentWindowListSpanshot GetCurrentWindowListSnapshot()
+    {
+        return new WebAutoCurrentWindowListSpanshot { WindowHandlesList = this.Driver.WindowHandles.ToList() };
     }
 
     public byte[] CaptureScreenShotPng()
@@ -295,6 +310,130 @@ public class WebAutoWindow : AsyncService
     public Actions NewActions()
     {
         return new Actions(this.Driver);
+    }
+
+    public void RestoreToOldWindow(string oldWindowHandle)
+    {
+        this.Driver.SwitchTo().Window(oldWindowHandle);
+
+        this.WindowHandle = oldWindowHandle;
+    }
+
+    public async Task WaitThisWindowToBeClosedAndSwitchToOtherWindowAsync(string nextWindowHandle, int? timeout = null, CancellationToken cancel = default)
+    {
+        timeout ??= this.Auto.Settings.ThisWindowCloseWaitTimeoutMsecs;
+
+        bool ok = await TaskUtil.AwaitWithPollAsync(timeout.Value, 33, async () =>
+        {
+            await Task.CompletedTask;
+
+            try
+            {
+                Driver.SwitchTo().Window(this.WindowHandle);
+                return false;
+            }
+            catch (NoSuchWindowException)
+            {
+                return true;
+            }
+        },
+        cancel,
+        true);
+
+        if (ok == false)
+        {
+            throw new CoresLibException($"WaitThisWindowToBeClosedAndSwitchToOtherWindowAsync: Timed out");
+        }
+
+        this.RestoreToOldWindow(nextWindowHandle);
+    }
+
+    public async Task<string> SwitchToNewWindowAndRetOldHandleAsync(WebAutoCurrentWindowListSpanshot previousWindowSnapshot, int? timeout = null, CancellationToken cancel = default)
+    {
+        string newHandle = await WaitAndGetNewWindowHandleAsync(previousWindowSnapshot, timeout, cancel);
+
+        string oldHandle = this.WindowHandle;
+
+        this.Driver.SwitchTo().Window(newHandle);
+
+        this.WindowHandle = newHandle;
+
+        return oldHandle;
+    }
+
+    public async Task<string> WaitAndGetNewWindowHandleAsync(WebAutoCurrentWindowListSpanshot previousWindowSnapshot, int? timeout = null, CancellationToken cancel = default)
+    {
+        timeout ??= this.Auto.Settings.NewWindowPopupWaitTimeoutMsecs;
+
+        string? retHandle = null;
+
+        bool ok = await TaskUtil.AwaitWithPollAsync(timeout.Value, 33, async () =>
+        {
+            await Task.CompletedTask;
+
+            var current = this.GetCurrentWindowListSnapshot();
+
+            var newWindows = current.WindowHandlesList.Except(previousWindowSnapshot.WindowHandlesList).ToList();
+
+            if (newWindows.Count == 1)
+            {
+                retHandle = newWindows.Single();
+                return true;
+            }
+
+            return false;
+        },
+        cancel,
+        true);
+
+        if (ok == false)
+        {
+            throw new CoresLibException($"WaitAndGetNewWindowAsync: Timed out");
+        }
+
+        return retHandle!;
+    }
+
+    public async Task SwitchToFrameAsync(string frameName, int? timeout = null, CancellationToken cancel = default)
+        => await SwitchToFrameAsync(frameName._SingleArray(), timeout, cancel);
+
+    public async Task SwitchToFrameAsync(IEnumerable<string> frameNameStackList, int? timeout = null, CancellationToken cancel = default)
+    {
+        timeout ??= this.Auto.Settings.SwitchFrameWaitTimeoutMsecs;
+
+        bool ok = await TaskUtil.AwaitWithPollAsync(timeout.Value, 33, async () =>
+        {
+            await Task.CompletedTask;
+
+            if (Driver.Url._IsEmpty())
+            {
+                return false;
+            }
+
+            Driver.SwitchTo().DefaultContent();
+            try
+            {
+                foreach (var name in frameNameStackList)
+                {
+                    Driver.SwitchTo().Frame(name);
+                }
+
+                return true;
+            }
+            catch (NoSuchFrameException)
+            {
+                return false;
+            }
+        },
+        cancel,
+        true);
+
+        if (ok == false)
+        {
+            throw new CoresLibException($"SwitchToFrameAsync(\"{frameNameStackList._Combine(" -> ")}\"): Timed out");
+        }
+
+        return;
     }
 
     public async Task<IWebElement> WaitAndFindElementAsync(Func<IWebDriver, Task<IWebElement?>> condition, int? timeout = null, CancellationToken cancel = default)
@@ -336,6 +475,7 @@ public class WebAutoWindow : AsyncService
                     }
                 }
             }
+            catch (StaleElementReferenceException) { }
             catch (Exception ex)
             {
                 ex._Error();
@@ -357,6 +497,20 @@ public class WebAutoWindow : AsyncService
     public Task<IWebElement> WaitAndFindElementAsync(Func<IWebDriver, IEnumerable<IWebElement>?> condition, int? timeout = null, CancellationToken cancel = default)
         => WaitAndFindElementAsync(driver => condition(driver)._TR(), timeout, cancel);
 
+    public async Task SetElementTextAfterWaitAndFindElementAsync(Func<IWebDriver, IEnumerable<IWebElement>?> condition, string text, int? timeout = null, bool sendTabAfterInput = false, CancellationToken cancel = default)
+    {
+        var control = await WaitAndFindElementAsync(condition, timeout, cancel);
+        control.Clear();
+
+        control = await WaitAndFindElementAsync(condition, timeout, cancel);
+        control.SendKeys(text);
+
+        if (sendTabAfterInput)
+        {
+            control = await WaitAndFindElementAsync(condition, timeout, cancel);
+            control.SendKeys(Keys.Tab);
+        }
+    }
 
     public async Task WaitUntilAsync(Func<IWebDriver, bool> condition, int? timeout = null, CancellationToken cancel = default)
     {
@@ -375,6 +529,7 @@ public class WebAutoWindow : AsyncService
                     return true;
                 }
             }
+            catch (StaleElementReferenceException) { }
             catch (Exception ex)
             {
                 ex._Error();
@@ -557,6 +712,7 @@ public class WebAutoWindow : AsyncService
                     devToolsDomain.Browser.DownloadWillBegin -= downloadStartEvent;
                     devToolsDomain.Browser.DownloadProgress -= downloadProgressEvent;
                 }
+                catch (StaleElementReferenceException) { }
                 catch (Exception ex)
                 {
                     ex._Error();
@@ -602,6 +758,7 @@ public class WebAutoWindow : AsyncService
                         }
                         Driver._DisposeSafe();
                     }
+                    catch (StaleElementReferenceException) { }
                     catch (Exception ex2)
                     {
                         ex2._Error();
@@ -710,6 +867,11 @@ public class WebAuto : AsyncService
                 {
                     DebuggerAddress = $"127.0.0.1:{port}",
                 };
+
+                if (this.Settings.PageLoadStrategy != PageLoadStrategy.Default)
+                {
+                    options.PageLoadStrategy = this.Settings.PageLoadStrategy;
+                }
 
 
                 if (settings.ChromeDriverExePath._IsFilled())
