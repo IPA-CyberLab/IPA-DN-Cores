@@ -2247,6 +2247,64 @@ public class FileHistoryManager
     }
 }
 
+
+public class EasyJsonDb<T>
+{
+    public FilePath FilePath { get; }
+    Func<T> NewProc { get; }
+
+    readonly AsyncLock ALock = new();
+
+    public EasyJsonDb(FilePath filePath, Func<T> newProc)
+    {
+        this.FilePath = filePath;
+        this.NewProc = newProc;
+    }
+
+    public async Task<T> GetAsync(CancellationToken cancel = default)
+    {
+        using (await ALock.LockWithAwait(cancel))
+        {
+            var data = await this.FilePath.FileSystem.ReadJsonFromFileAsync<T>(this.FilePath.PathString, flags: FilePath.Flags, withBackup: true, nullIfError: true);
+            if (data == null)
+            {
+                data = this.NewProc();
+
+                await this.FilePath.FileSystem.WriteJsonToFileAsync(this.FilePath.PathString, data, flags: FilePath.Flags | FileFlags.AutoCreateDirectory, withBackup: true);
+            }
+
+            return data;
+        }
+    }
+    public T Get(CancellationToken cancel = default)
+        => GetAsync()._GetResult();
+
+    public async Task SetAsync(T data, CancellationToken cancel = default)
+    {
+        using (await ALock.LockWithAwait(cancel))
+        {
+            await this.FilePath.FileSystem.WriteJsonToFileAsync(this.FilePath.PathString, data, flags: FilePath.Flags | FileFlags.AutoCreateDirectory, withBackup: true);
+        }
+    }
+    public void Set(T data, CancellationToken cancel = default)
+        => SetAsync(data, cancel)._GetResult();
+
+    public async Task<TResult> EditAsync<TResult>(Func<T, Task<TResult>> editProcAsync, CancellationToken cancel = default)
+    {
+        var data = await GetAsync(cancel);
+
+        TResult ret = await editProcAsync(data);
+
+        await SetAsync(data, cancel);
+
+        return ret;
+    }
+
+    public TResult Edit<TResult>(Func<T, TResult> editProc, CancellationToken cancel = default)
+        => EditAsync(data => editProc(data)._TR(), cancel)._GetResult();
+}
+
+
 // CSV ライター
 public class CsvWriter<T> : AsyncService where T : notnull, new()
 {

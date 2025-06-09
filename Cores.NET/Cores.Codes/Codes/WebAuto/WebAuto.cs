@@ -320,9 +320,21 @@ public class WebAutoWindow : AsyncService
         this.WindowHandle = oldWindowHandle;
     }
 
-    public async Task WaitThisWindowToBeClosedAndSwitchToOtherWindowAsync(string nextWindowHandle, int? timeout = null, CancellationToken cancel = default)
+    public async Task WaitThisWindowToBeClosedAndSwitchToOtherWindowAsync(string nextWindowHandle, int? timeout = null, bool forceCloseThisWindow = false, CancellationToken cancel = default)
     {
         timeout ??= this.Auto.Settings.ThisWindowCloseWaitTimeoutMsecs;
+
+        if (forceCloseThisWindow)
+        {
+            try
+            {
+                Driver.Close();
+            }
+            catch (Exception ex)
+            {
+                ex._Error();
+            }
+        }
 
         bool ok = await TaskUtil.AwaitWithPollAsync(timeout.Value, 33, async () =>
         {
@@ -435,8 +447,6 @@ public class WebAutoWindow : AsyncService
     public async Task SwitchToNonFrameRootAsync(int? timeout = null, CancellationToken cancel = default)
         => await SwitchToFrameAsync(new string[] { }, timeout, cancel);
 
-    public async Task SwitchToFrameAsync(string frameName, int? timeout = null, CancellationToken cancel = default)
-        => await SwitchToFrameAsync(frameName._SingleArray(), timeout, cancel);
 
     public async Task SwitchToFrameAsync(IEnumerable<string> frameNameStackList, int? timeout = null, CancellationToken cancel = default)
     {
@@ -476,6 +486,49 @@ public class WebAutoWindow : AsyncService
 
         return;
     }
+    public async Task SwitchToFrameAsync(string frameName, int? timeout = null, CancellationToken cancel = default)
+        => await SwitchToFrameAsync(frameName._SingleArray(), timeout, cancel);
+
+    public async Task SwitchToFrameAsync(IEnumerable<int> frameIndexStackList, int? timeout = null, CancellationToken cancel = default)
+    {
+        timeout ??= this.Auto.Settings.SwitchFrameWaitTimeoutMsecs;
+
+        bool ok = await TaskUtil.AwaitWithPollAsync(timeout.Value, 33, async () =>
+        {
+            await Task.CompletedTask;
+
+            if (Driver.Url._IsEmpty())
+            {
+                return false;
+            }
+
+            Driver.SwitchTo().DefaultContent();
+            try
+            {
+                foreach (var index in frameIndexStackList)
+                {
+                    Driver.SwitchTo().Frame(index);
+                }
+
+                return true;
+            }
+            catch (NoSuchFrameException)
+            {
+                return false;
+            }
+        },
+        cancel,
+        true);
+
+        if (ok == false)
+        {
+            throw new CoresLibException($"SwitchToFrameAsync(\"{frameIndexStackList.Select(x => x.ToString())._Combine(" -> ")}\"): Timed out");
+        }
+
+        return;
+    }
+    public async Task SwitchToFrameAsync(int frameIndex, int? timeout = null, CancellationToken cancel = default)
+    => await SwitchToFrameAsync(frameIndex._SingleArray(), timeout, cancel);
 
     public async Task<IWebElement> WaitAndFindElementAsync(Func<IWebDriver, Task<IWebElement?>> condition, int? timeout = null, bool includeHidden = false, CancellationToken cancel = default)
     {
@@ -538,6 +591,57 @@ public class WebAutoWindow : AsyncService
     public Task<IWebElement> WaitAndFindElementAsync(Func<IWebDriver, IEnumerable<IWebElement>?> condition, int? timeout = null, bool includeHidden = false, CancellationToken cancel = default)
         => WaitAndFindElementAsync(driver => condition(driver)._TR(), timeout, includeHidden, cancel);
 
+
+
+    public async Task<List<IWebElement>> WaitAndFindElementsAsync(Func<IWebDriver, Task<IEnumerable<IWebElement>?>> condition, int minCount = 1, int? timeout = null, bool includeHidden = false, CancellationToken cancel = default)
+    {
+        IEnumerable<IWebElement>? ret = null;
+
+        timeout ??= this.Auto.Settings.FindElementWaitTimeoutMsecs;
+
+        bool ok = await TaskUtil.AwaitWithPollAsync(timeout.Value, 33, async () =>
+        {
+            if (Driver.Url._IsEmpty())
+            {
+                return false;
+            }
+            try
+            {
+                var candidates = await condition(Driver);
+
+                if (candidates != null)
+                {
+                    ret = candidates.Where(x => includeHidden || x.Displayed);
+
+                    if (ret != null && ret.Count() >= minCount)
+                    {
+                        return true;
+                    }
+                }
+            }
+            catch (StaleElementReferenceException) { }
+            catch (Exception ex)
+            {
+                ex._Error();
+            }
+            return false;
+        },
+        cancel,
+        true);
+
+        if (ok == false)
+        {
+            throw new CoresLibException("WaitForFoundAsync: Timed out");
+        }
+
+        ret._NullCheck();
+
+        return ret.ToList();
+    }
+    public Task<List<IWebElement>> WaitAndFindElementsAsync(Func<IWebDriver, IEnumerable<IWebElement>?> condition, int minCount = 1, int? timeout = null, bool includeHidden = false, CancellationToken cancel = default)
+        => WaitAndFindElementsAsync(driver => condition(driver)._TR(), minCount, timeout, includeHidden, cancel);
+
+
     public async Task SetElementTextAfterWaitAndFindElementAsync(Func<IWebDriver, IEnumerable<IWebElement>?> condition, string text, int? timeout = null, bool sendTabAfterInput = false, CancellationToken cancel = default)
     {
         var control = await WaitAndFindElementAsync(condition, timeout, cancel: cancel);
@@ -566,6 +670,39 @@ public class WebAutoWindow : AsyncService
             try
             {
                 if (condition(Driver))
+                {
+                    return true;
+                }
+            }
+            catch (StaleElementReferenceException) { }
+            catch (Exception ex)
+            {
+                ex._Error();
+            }
+            return false;
+        },
+        cancel,
+        true);
+
+        if (ok == false)
+        {
+            throw new CoresLibException("WaitUntilAsync: Timed out");
+        }
+    }
+
+    public async Task WaitUntilAsync(Func<IWebDriver, Task<bool>> condition, int? timeout = null, CancellationToken cancel = default)
+    {
+        timeout ??= this.Auto.Settings.FindElementWaitTimeoutMsecs;
+
+        bool ok = await TaskUtil.AwaitWithPollAsync(timeout.Value, 33, async () =>
+        {
+            if (Driver.Url._IsEmpty())
+            {
+                return false;
+            }
+            try
+            {
+                if (await condition(Driver))
                 {
                     return true;
                 }
