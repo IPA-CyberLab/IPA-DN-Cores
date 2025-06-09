@@ -873,7 +873,7 @@ public class WebAuto : AsyncService
             {
                 bool alreadyRunning = false;
 
-                bool processExists = Process.GetProcesses().Where(x => x.ProcessName._IsSamei(exeName) && (x.MainModule?.FileName?._IsSamei(settings.ChromeExePath) ?? false)).Any();
+                bool processExists = settings.ChromeExePath._IsEmpty() || Process.GetProcesses().Where(x => x.ProcessName._IsSamei(exeName) && (x.MainModule?.FileName?._IsSamei(settings.ChromeExePath) ?? false)).Any();
 
                 if (processExists)
                 {
@@ -885,6 +885,11 @@ public class WebAuto : AsyncService
 
                 if (alreadyRunning == false)
                 {
+                    if (settings.ChromeExePath._IsEmpty())
+                    {
+                        throw new CoresException($"Chrome debugger port {port} is not open");
+                    }
+
                     this.ChromeProcess = new ExecInstance(new ExecOptions(Settings.ChromeExePath, chromeArgs._Combine(" "),
                         PP.GetDirectoryName(Settings.ChromeExePath),
                         flags: processFlags));
@@ -900,7 +905,7 @@ public class WebAuto : AsyncService
 
                         await Task.CompletedTask;
 
-                        throw new CoresException("Chrome debugger port is not open");
+                        throw new CoresException($"Chrome debugger port {port} is not open");
                     }, 100, Settings.StartupRetryCount, cancel, true)._GetResult();
                 }
 
@@ -946,7 +951,17 @@ public class WebAuto : AsyncService
     {
         try
         {
-            Driver.Quit();
+            if (Driver != null)
+            {
+                try
+                {
+                    Driver.Quit();
+                }
+                catch (Exception ex2)
+                {
+                    ex2._Error();
+                }
+            }
             await this.Driver._DisposeSafeAsync2();
             await this.Service._DisposeSafeAsync2();
 
