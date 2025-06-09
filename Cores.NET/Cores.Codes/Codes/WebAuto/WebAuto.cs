@@ -224,6 +224,7 @@ public class WebAutoSettings
     public int SwitchFrameWaitTimeoutMsecs = WebAutoConsts.DefaultWaitTimeoutMsecs;
     public int NewWindowPopupWaitTimeoutMsecs = WebAutoConsts.DefaultWaitTimeoutMsecs;
     public int ThisWindowCloseWaitTimeoutMsecs = WebAutoConsts.DefaultWaitTimeoutMsecs;
+    public int MessageBoxPoputTimeout = WebAutoConsts.DefaultWaitTimeoutMsecs;
 }
 
 public class WebAutoDownloadedFile
@@ -394,6 +395,46 @@ public class WebAutoWindow : AsyncService
         return retHandle!;
     }
 
+    public async Task AutoPushButtonOnMessageBoxAsync(string msgBoxTextContains, int? timeout = null, CancellationToken cancel = default)
+    {
+        timeout ??= this.Auto.Settings.MessageBoxPoputTimeout;
+
+        bool ok = await TaskUtil.AwaitWithPollAsync(timeout.Value, 33, async () =>
+        {
+            await Task.CompletedTask;
+
+            try
+            {
+                IAlert alert = Driver.SwitchTo().Alert();                // アラートへ切り替え
+                if (alert != null && alert.Text != null)
+                {
+                    if (alert.Text.Contains(msgBoxTextContains))           // メッセージ確認
+                    {
+                        alert.Accept();                                   // 「OK」を押す
+                        return true;                                      // wait 成功
+                    }
+                }
+                return false;
+            }
+            catch (NoAlertPresentException)
+            {
+                return false;     // まだポップアップが出ていない → wait 継続
+            }
+        },
+        cancel,
+        true);
+
+        if (ok == false)
+        {
+            throw new CoresLibException($"AutoPushButtonOnMessageBoxAsync: Timed out");
+        }
+
+        return;
+    }
+
+    public async Task SwitchToNonFrameRootAsync(int? timeout = null, CancellationToken cancel = default)
+        => await SwitchToFrameAsync(new string[] { }, timeout, cancel);
+
     public async Task SwitchToFrameAsync(string frameName, int? timeout = null, CancellationToken cancel = default)
         => await SwitchToFrameAsync(frameName._SingleArray(), timeout, cancel);
 
@@ -436,20 +477,20 @@ public class WebAutoWindow : AsyncService
         return;
     }
 
-    public async Task<IWebElement> WaitAndFindElementAsync(Func<IWebDriver, Task<IWebElement?>> condition, int? timeout = null, CancellationToken cancel = default)
+    public async Task<IWebElement> WaitAndFindElementAsync(Func<IWebDriver, Task<IWebElement?>> condition, int? timeout = null, bool includeHidden = false, CancellationToken cancel = default)
     {
         return await WaitAndFindElementAsync(async driver =>
         {
             var item = await condition(driver);
             if (item == null) return null;
             return item._SingleList();
-        }, timeout, cancel);
+        }, timeout, includeHidden, cancel);
     }
 
-    public Task<IWebElement> WaitAndFindElementAsync(Func<IWebDriver, IWebElement?> condition, int? timeout = null, CancellationToken cancel = default)
-        => WaitAndFindElementAsync(driver => condition(driver)._TR(), timeout, cancel);
+    public Task<IWebElement> WaitAndFindElementAsync(Func<IWebDriver, IWebElement?> condition, int? timeout = null, bool includeHidden = false, CancellationToken cancel = default)
+        => WaitAndFindElementAsync(driver => condition(driver)._TR(), timeout, includeHidden, cancel);
 
-    public async Task<IWebElement> WaitAndFindElementAsync(Func<IWebDriver, Task<IEnumerable<IWebElement>?>> condition, int? timeout = null, CancellationToken cancel = default)
+    public async Task<IWebElement> WaitAndFindElementAsync(Func<IWebDriver, Task<IEnumerable<IWebElement>?>> condition, int? timeout = null, bool includeHidden = false, CancellationToken cancel = default)
     {
         IWebElement? ret = null;
 
@@ -467,7 +508,7 @@ public class WebAutoWindow : AsyncService
 
                 if (candidates != null)
                 {
-                    ret = candidates.Where(x => x.Displayed).SingleOrDefault();
+                    ret = candidates.Where(x => includeHidden || x.Displayed).SingleOrDefault();
 
                     if (ret != null)
                     {
@@ -494,20 +535,20 @@ public class WebAutoWindow : AsyncService
 
         return ret;
     }
-    public Task<IWebElement> WaitAndFindElementAsync(Func<IWebDriver, IEnumerable<IWebElement>?> condition, int? timeout = null, CancellationToken cancel = default)
-        => WaitAndFindElementAsync(driver => condition(driver)._TR(), timeout, cancel);
+    public Task<IWebElement> WaitAndFindElementAsync(Func<IWebDriver, IEnumerable<IWebElement>?> condition, int? timeout = null, bool includeHidden = false, CancellationToken cancel = default)
+        => WaitAndFindElementAsync(driver => condition(driver)._TR(), timeout, includeHidden, cancel);
 
     public async Task SetElementTextAfterWaitAndFindElementAsync(Func<IWebDriver, IEnumerable<IWebElement>?> condition, string text, int? timeout = null, bool sendTabAfterInput = false, CancellationToken cancel = default)
     {
-        var control = await WaitAndFindElementAsync(condition, timeout, cancel);
+        var control = await WaitAndFindElementAsync(condition, timeout, cancel: cancel);
         control.Clear();
 
-        control = await WaitAndFindElementAsync(condition, timeout, cancel);
+        control = await WaitAndFindElementAsync(condition, timeout, cancel: cancel);
         control.SendKeys(text);
 
         if (sendTabAfterInput)
         {
-            control = await WaitAndFindElementAsync(condition, timeout, cancel);
+            control = await WaitAndFindElementAsync(condition, timeout, cancel: cancel);
             control.SendKeys(Keys.Tab);
         }
     }
