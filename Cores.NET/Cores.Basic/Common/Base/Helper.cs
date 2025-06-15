@@ -3986,6 +3986,60 @@ public static class BasicHelper
 
         return ret;
     }
+
+    /// <summary>
+    /// ページ番号（数字文字列）どうしの類似度を 0〜1 で返す。
+    /// 1 = 完全一致、0 = 全く似ていない
+    /// </summary>
+    public static double _GetTwoStringSimilarity(this string s1, string s2)
+    {
+        // どちらも空なら完全一致
+        if (string.IsNullOrEmpty(s1) && string.IsNullOrEmpty(s2))
+            return 1.0;
+
+        // どちらか片方が空なら完全不一致
+        if (string.IsNullOrEmpty(s1) || string.IsNullOrEmpty(s2))
+            return 0.0;
+
+        int distance = LevenshteinDistance(s1, s2);
+        int maxLen = Math.Max(s1.Length, s2.Length);
+
+        // 距離が大きいほどスコアは小さくなる
+        return 1.0 - (double)distance / maxLen;
+    }
+
+    // メモリ O(min(n,m)) で計算する典型的な実装
+    private static int LevenshteinDistance(string s, string t)
+    {
+        int n = s.Length;
+        int m = t.Length;
+
+        if (n == 0) return m;
+        if (m == 0) return n;
+
+        // v0 = 前の行, v1 = 今の行
+        var v0 = Enumerable.Range(0, m + 1).ToArray();
+        var v1 = new int[m + 1];
+
+        for (int i = 0; i < n; i++)
+        {
+            v1[0] = i + 1;                    // 先頭列（挿入コスト）
+
+            for (int j = 0; j < m; j++)
+            {
+                int cost = (s[i] == t[j]) ? 0 : 1;
+
+                v1[j + 1] = Math.Min(
+                    Math.Min(v1[j] + 1,        // 挿入
+                             v0[j + 1] + 1),   // 削除
+                    v0[j] + cost);             // 置換
+            }
+
+            // 次行へ
+            Array.Copy(v1, v0, m + 1);
+        }
+        return v0[m];
+    }
 }
 
 
