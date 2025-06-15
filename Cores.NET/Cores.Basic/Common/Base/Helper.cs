@@ -3970,6 +3970,22 @@ public static class BasicHelper
         bool trimEnd = true,
         char[]? splitCharList = null)
         => Str.AdvancedTrim(srcText, trimStart, trimEnd, splitCharList);
+
+    public static SortedDictionary<int, T> _ToListWithIndex<T>(this IEnumerable<T> src)
+    {
+        SortedDictionary<int, T> ret = new();
+
+        int index = 0;
+
+        foreach (var item in src)
+        {
+            ret.Add(index, item);
+
+            index++;
+        }
+
+        return ret;
+    }
 }
 
 
