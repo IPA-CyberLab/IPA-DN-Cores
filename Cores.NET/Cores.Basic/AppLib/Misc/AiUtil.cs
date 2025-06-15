@@ -2287,6 +2287,7 @@ public class AiUtilBasicSettings
     public string AiTest_VoiceBox_ExeArgs = "";
     public string AiTest_SeedVc_BaseDir = "";
     public string AiTest_RealEsrgan_BaseDir = "";
+    public string AiTest_TesseractOCR_Data_Dir = "";
     public double AdjustAudioTargetMaxVolume = CoresConfig.DefaultAiUtilSettings.AdjustAudioTargetMaxVolume;
     public double AdjustAudioTargetMeanVolume = CoresConfig.DefaultAiUtilSettings.AdjustAudioTargetMeanVolume;
     public int VoiceBoxLocalhostPort = Consts.Ports.VoiceVox;
@@ -2324,7 +2325,7 @@ public class AiUtilRealEsrganEngine : AiUtilBasicEngine
         if (imgExtension.StartsWith(".") == false) imgExtension = "." + imgExtension;
 
         option ??= new();
-        
+
         await Lfs.CreateDirectoryAsync(dstImgDirPath, cancel: cancel);
 
         var existingFiles = (await Lfs.EnumDirectoryAsync(dstImgDirPath, false, cancel: cancel)).Where(x => x.IsFile);

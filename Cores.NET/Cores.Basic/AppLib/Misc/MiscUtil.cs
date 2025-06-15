@@ -93,14 +93,18 @@ public class ImageMagickOptions
     public string MagickExePath = "";
     public string MogrifyPath = "";
     public string ExifToolPath = "";
+    public string QPdfPath = "";
+    public string PdfCpuPath = "";
     public Encoding Encoding = Str.Utf8Encoding;
     public int MaxStdOutBufferSize = CoresConfig.DefaultFfMpegExecSettings.FfMpegDefaultMaxStdOutBufferSize;
 
-    public ImageMagickOptions(string magickExePath, string mogrifyPath, string exifToolPath)
+    public ImageMagickOptions(string magickExePath, string mogrifyPath, string exifToolPath, string qpdfPath, string pdfCpuPath)
     {
         this.MagickExePath = magickExePath;
         this.MogrifyPath = mogrifyPath;
         this.ExifToolPath = exifToolPath;
+        this.QPdfPath = qpdfPath;
+        this.PdfCpuPath = pdfCpuPath;
     }
 }
 
@@ -136,7 +140,7 @@ public class ImageMagickUtil
         this.Options = options;
     }
 
-    public async Task BuildPdfFromImagesAsync(string srcImgDirPath, string dstPdfPath, ImageMagickBuildPdfOption? option = null, CancellationToken cancel = default)
+    public async Task BuildPdfFromImagesAsync(string srcImgDirPath, string dstPdfPath, ImageMagickBuildPdfOption? option = null, int? virtualPageStartPhysicalPage = null, CancellationToken cancel = default)
     {
         option ??= new();
 
@@ -150,7 +154,12 @@ public class ImageMagickUtil
             $"-density {option.Density} -units PixelsPerInch {srcStr} -gravity center -background white -compress {option.Compress} -quality {option.Quality} {dstPdfPath._EnsureQuotation()}",
             cancel: cancel);
 
-        await ClearPdfTitleMetaData(dstPdfPath, cancel);
+        await ClearPdfTitleMetaDataAsync(dstPdfPath, cancel);
+
+        if (virtualPageStartPhysicalPage.HasValue && virtualPageStartPhysicalPage.Value >= 2)
+        {
+            await SetPdfPageLabelAsync(dstPdfPath, virtualPageStartPhysicalPage.Value, cancel);
+        }
     }
 
     public async Task ExtractImagesFromPdfAsync(string pdfPath, string dstDir, ImageMagickExtractImageOption? option = null, CancellationToken cancel = default)
@@ -187,7 +196,7 @@ public class ImageMagickUtil
             cancel: cancel);
     }
 
-    public async Task ClearPdfTitleMetaData(string pdfPath, CancellationToken cancel = default)
+    public async Task ClearPdfTitleMetaDataAsync(string pdfPath, CancellationToken cancel = default)
     {
         // 日本語を含むファイル名が正しく扱えないので一時ディレクトリにコピーして処理
         string tmpPdfPath = await Lfs.GenerateUniqueTempFilePathAsync("pdf", ".pdf", cancel: cancel);
@@ -204,6 +213,57 @@ public class ImageMagickUtil
         finally
         {
             await Lfs.DeleteFileIfExistsAsync(tmpPdfPath, cancel: cancel);
+        }
+    }
+
+    public async Task SetPdfPageLabelAsync(string pdfPath, int page1StartPhysicalPage, CancellationToken cancel = default)
+    {
+        if (page1StartPhysicalPage <= 0)
+        {
+            return;
+        }
+
+        // 念のため一時ディレクトリにコピーして処理
+        string tmpSrcPdfPath = await Lfs.GenerateUniqueTempFilePathAsync("qpdf_src", ".pdf", cancel: cancel);
+        string tmpDstPdfPath = await Lfs.GenerateUniqueTempFilePathAsync("qpdf_dst", ".pdf", cancel: cancel);
+
+        await Lfs.CopyFileAsync(pdfPath, tmpSrcPdfPath, cancel: cancel);
+        try
+        {
+            var result = await RunQPdfAsync(
+                $"{tmpSrcPdfPath._EnsureQuotation()} --set-page-labels 1:D/1 {page1StartPhysicalPage}:D/1 -- {tmpDstPdfPath._EnsureQuotation()}",
+                cancel: cancel);
+
+            await Lfs.CopyFileAsync(tmpDstPdfPath, pdfPath, cancel: cancel);
+        }
+        finally
+        {
+            await Lfs.DeleteFileIfExistsAsync(tmpSrcPdfPath, cancel: cancel);
+            await Lfs.DeleteFileIfExistsAsync(tmpDstPdfPath, cancel: cancel);
+        }
+    }
+
+    public async Task SetPdfRightToLeftAsync(string pdfPath,CancellationToken cancel = default)
+    {
+        // 念のため一時ディレクトリにコピーして処理
+        string tmpPath = await Lfs.GenerateUniqueTempFilePathAsync("pdfcpu_src", ".pdf", cancel: cancel);
+
+        await Lfs.CopyFileAsync(pdfPath, tmpPath, cancel: cancel);
+        try
+        {
+            var result = await RunPdfCpuAsync(
+                $"viewerpref set {tmpPath._RemoveQuotation()} \"{{\\\"Direction\\\":\\\"R2L\\\"}}\"",
+                cancel: cancel);
+
+            result = await RunPdfCpuAsync(
+                $"pagelayout set {tmpPath._RemoveQuotation()} TwoPageRight",
+                cancel: cancel);
+
+            await Lfs.CopyFileAsync(tmpPath, pdfPath, cancel: cancel);
+        }
+        finally
+        {
+            await Lfs.DeleteFileIfExistsAsync(tmpPath, cancel: cancel);
         }
     }
 
@@ -261,6 +321,34 @@ public class ImageMagickUtil
 
         return ret;
     }
+
+    public async Task<EasyExecResult> RunQPdfAsync(string arguments, CancellationToken cancel = default)
+    {
+        Con.WriteLine($"[*Run*] {Options.QPdfPath} {arguments}");
+
+        EasyExecResult ret = await EasyExec.ExecAsync(Options.QPdfPath, arguments, PP.GetDirectoryName(Options.QPdfPath),
+            flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdOut | ExecFlags.EasyPrintRealtimeStdErr,
+            timeout: Timeout.Infinite, cancel: cancel, throwOnErrorExitCode: true,
+            easyOutputMaxSize: Options.MaxStdOutBufferSize,
+            inputEncoding: Options.Encoding, outputEncoding: Options.Encoding, errorEncoding: Options.Encoding);
+
+        return ret;
+    }
+
+    public async Task<EasyExecResult> RunPdfCpuAsync(string arguments, CancellationToken cancel = default)
+    {
+        Con.WriteLine($"[*Run*] {Options.PdfCpuPath} {arguments}");
+
+        EasyExecResult ret = await EasyExec.ExecAsync(Options.PdfCpuPath, arguments, PP.GetDirectoryName(Options.PdfCpuPath),
+            flags: ExecFlags.Default | ExecFlags.EasyPrintRealtimeStdOut | ExecFlags.EasyPrintRealtimeStdErr,
+            timeout: Timeout.Infinite, cancel: cancel, throwOnErrorExitCode: true,
+            easyOutputMaxSize: Options.MaxStdOutBufferSize,
+            inputEncoding: Options.Encoding, outputEncoding: Options.Encoding, errorEncoding: Options.Encoding);
+
+        return ret;
+    }
+
+
 }
 
 public class FfMpegUtilOptions
