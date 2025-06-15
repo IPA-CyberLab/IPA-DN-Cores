@@ -140,7 +140,7 @@ public class ImageMagickUtil
         this.Options = options;
     }
 
-    public async Task BuildPdfFromImagesAsync(string srcImgDirPath, string dstPdfPath, ImageMagickBuildPdfOption? option = null, int? virtualPageStartPhysicalPage = null, CancellationToken cancel = default)
+    public async Task BuildPdfFromImagesAsync(string srcImgDirPath, string dstPdfPath, ImageMagickBuildPdfOption? option = null, int? physicalPageStart = null, int? logicalPageStart = null, bool verticalWriting = false, CancellationToken cancel = default)
     {
         option ??= new();
 
@@ -156,9 +156,14 @@ public class ImageMagickUtil
 
         await ClearPdfTitleMetaDataAsync(dstPdfPath, cancel);
 
-        if (virtualPageStartPhysicalPage.HasValue && virtualPageStartPhysicalPage.Value >= 2)
+        if (physicalPageStart.HasValue && logicalPageStart.HasValue)
         {
-            await SetPdfPageLabelAsync(dstPdfPath, virtualPageStartPhysicalPage.Value, cancel);
+            await SetPdfPageLabelAsync(dstPdfPath, physicalPageStart.Value, logicalPageStart.Value, cancel);
+        }
+
+        if (verticalWriting)
+        {
+            await SetPdfRightToLeftAsync(dstPdfPath, cancel);
         }
     }
 
@@ -216,9 +221,9 @@ public class ImageMagickUtil
         }
     }
 
-    public async Task SetPdfPageLabelAsync(string pdfPath, int page1StartPhysicalPage, CancellationToken cancel = default)
+    public async Task SetPdfPageLabelAsync(string pdfPath, int physicalPage, int logicalPage, CancellationToken cancel = default)
     {
-        if (page1StartPhysicalPage <= 0)
+        if (physicalPage <= 0)
         {
             return;
         }
@@ -230,8 +235,15 @@ public class ImageMagickUtil
         await Lfs.CopyFileAsync(pdfPath, tmpSrcPdfPath, cancel: cancel);
         try
         {
+            string tag1 = "";
+
+            if (physicalPage >= 2)
+            {
+                tag1 = "1:D/1";
+            }
+
             var result = await RunQPdfAsync(
-                $"{tmpSrcPdfPath._EnsureQuotation()} --set-page-labels 1:D/1 {page1StartPhysicalPage}:D/1 -- {tmpDstPdfPath._EnsureQuotation()}",
+                $"{tmpSrcPdfPath._EnsureQuotation()} --set-page-labels {tag1} {physicalPage}:D/{logicalPage} -- {tmpDstPdfPath._EnsureQuotation()}",
                 cancel: cancel);
 
             await Lfs.CopyFileAsync(tmpDstPdfPath, pdfPath, cancel: cancel);
@@ -243,7 +255,7 @@ public class ImageMagickUtil
         }
     }
 
-    public async Task SetPdfRightToLeftAsync(string pdfPath,CancellationToken cancel = default)
+    public async Task SetPdfRightToLeftAsync(string pdfPath, CancellationToken cancel = default)
     {
         // 念のため一時ディレクトリにコピーして処理
         string tmpPath = await Lfs.GenerateUniqueTempFilePathAsync("pdfcpu_src", ".pdf", cancel: cancel);
