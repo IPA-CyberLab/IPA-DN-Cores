@@ -121,6 +121,7 @@ public class ImageMagickExtractImageOption
     public int Height = 3508;
     public int Density = 300;
     public ImageMagickExtractImageFormat Format = ImageMagickExtractImageFormat.Bmp;
+    public int NumPages = int.MaxValue;
 }
 
 public class ImageMagickBuildPdfOption
@@ -196,8 +197,15 @@ public class ImageMagickUtil
             bmpOptions = "";
         }
 
+        string pageRange = "";
+
+        if (option.NumPages >= 1 && option.NumPages != int.MaxValue)
+        {
+            pageRange = $"[0-{option.NumPages - 1}]";
+        }
+
         var result = await RunMagickAsync(
-            $"-density {option.Density} {pdfPath._EnsureQuotation()} -resize {option.Width}x{option.Height} {bmpOptions}{dstStr}",
+            $"-density {option.Density} {(pdfPath + pageRange)._EnsureQuotation()} -resize {option.Width}x{option.Height} {bmpOptions}{dstStr}",
             cancel: cancel);
     }
 

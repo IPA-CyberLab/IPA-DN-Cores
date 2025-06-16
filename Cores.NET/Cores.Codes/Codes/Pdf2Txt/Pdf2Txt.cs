@@ -241,5 +241,67 @@ public static class Pdf2TxtApp
     }
 }
 
+/// <summary>
+/// 各ページのサイズ情報（mm単位）を格納するデータクラス
+/// </summary>
+public class PdfPageInfo
+{
+    /// <summary>1始まりのページ番号</summary>
+    public int PageNumber1Origin { get; set; }
+    /// <summary>幅 (mm)</summary>
+    public double WidthMm { get; set; }
+    /// <summary>高さ (mm)</summary>
+    public double HeightMm { get; set; }
+}
+
+public static class PdfPageInfoLib
+{
+    // ポイント(pt)をミリメートル(mm)に変換する定数
+    private const double PointToMillimeter = 25.4 / 72.0;
+
+    /// <summary>
+    /// PDFファイルのページ数を取得する
+    /// </summary>
+    /// <param name="pdfPath">PDFファイルのパス</param>
+    /// <returns>ページ数</returns>
+    public static int GetPdfNumPaged(string pdfPath)
+    {
+        // PdfDocument.Open は内部で最低限の情報だけを読み込むため高速
+        using (var document = PdfDocument.Open(pdfPath))
+        {
+            return document.NumberOfPages;
+        }
+    }
+
+    /// <summary>
+    /// PDFファイルの各ページサイズをミリメートル単位で取得する
+    /// </summary>
+    /// <param name="pdfPath">PDFファイルのパス</param>
+    /// <returns>各ページの PageSizeMm リスト</returns>
+    public static List<PdfPageInfo> GetPdfPageInfo(string pdfPath)
+    {
+        var sizes = new List<PdfPageInfo>();
+
+        using (var document = PdfDocument.Open(pdfPath))
+        {
+            // GetPages() は内部でページツリーをイテレートするだけ
+            foreach (var page in document.GetPages())
+            {
+                double widthPt = page.Width;
+                double heightPt = page.Height;
+
+                sizes.Add(new PdfPageInfo
+                {
+                    PageNumber1Origin = page.Number,
+                    WidthMm = Math.Round(widthPt * PointToMillimeter, 2),
+                    HeightMm = Math.Round(heightPt * PointToMillimeter, 2),
+                });
+            }
+        }
+
+        return sizes;
+    }
+}
+
 #endif
 
