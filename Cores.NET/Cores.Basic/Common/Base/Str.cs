@@ -1543,6 +1543,125 @@ namespace IPA.Cores.Basic
             return getAlternativeEncodingProc();
         }
 
+
+        /// <summary>
+        /// Processes the input template, replacing patterns of the form {option1|option2|...}
+        /// with a randomly selected option, supporting optional weights and nesting.
+        /// </summary>
+        /// <param name="input">The template string containing patterns.</param>
+        /// <returns>The processed string with all patterns evaluated.</returns>
+        public static string ProcessTemplateStr(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+                return input;
+
+            // Matches the innermost braces: { ... }
+            var pattern = new Regex(@"\{([^{}]*)\}", RegexOptions.Compiled);
+            string result = input;
+
+            // Iteratively replace innermost patterns until none remain
+            while (pattern.IsMatch(result))
+            {
+                result = pattern.Replace(result, match => EvaluateChoice(match.Groups[1].Value));
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Evaluates a single brace-enclosed choice list, selecting one option based on weights.
+        /// </summary>
+        /// <param name="content">The inner text of the braces (no braces).</param>
+        /// <returns>The selected option text.</returns>
+        private static string EvaluateChoice(string content)
+        {
+            // Split options on top-level '|' (no nested braces here)
+            var parts = content.Split('|');
+            int count = parts.Length;
+            var texts = new string[count];
+            var weights = new double[count];
+
+            double sumSpecified = 0;
+            int unspecifiedCount = 0;
+
+            // Parse each part for optional weight suffix
+            for (int i = 0; i < count; i++)
+            {
+                string part = parts[i];
+                string text = part;
+                int weight = -1;
+
+                int colonIndex = part.LastIndexOf(':');
+                if (colonIndex >= 0)
+                {
+                    var weightStr = part.Substring(colonIndex + 1).Trim();
+                    if (weightStr.Length > 0 && weightStr.All(char.IsDigit))
+                    {
+                        weight = int.Parse(weightStr);
+                        text = part.Substring(0, colonIndex);
+                    }
+                    else if (weightStr.Length == 0)
+                    {
+                        // Trailing colon without number -> unspecified weight
+                        text = part.Substring(0, colonIndex);
+                    }
+                }
+
+                text = text.Trim();
+                texts[i] = text;
+
+                if (weight >= 0)
+                {
+                    weights[i] = weight;
+                    sumSpecified += weight;
+                }
+                else
+                {
+                    weights[i] = -1;
+                    unspecifiedCount++;
+                }
+            }
+
+            // Distribute remaining weight among unspecified
+            double defaultWeight = 0;
+            if (unspecifiedCount > 0)
+            {
+                defaultWeight = Math.Max(0, 100 - sumSpecified) / unspecifiedCount;
+            }
+
+            // Finalize weights and compute total
+            double totalWeight = 0;
+            for (int i = 0; i < count; i++)
+            {
+                if (weights[i] < 0)
+                    weights[i] = defaultWeight;
+                totalWeight += weights[i];
+            }
+
+            // If all weights zero, fallback to uniform selection
+            if (totalWeight <= 0)
+            {
+                int index = Util.RandSInt31() % count;
+                return texts[index];
+            }
+
+            // Random selection based on weights
+            double r = Util.RandDouble0To1() * totalWeight;
+            double cumulative = 0;
+            for (int i = 0; i < count; i++)
+            {
+                cumulative += weights[i];
+                if (r < cumulative)
+                {
+                    return texts[i];
+                }
+            }
+
+            // Fallback (shouldn't happen)
+            return texts[count - 1];
+        }
+
+
         static readonly FastCache<string, string> Cache_NormalizePrefixZenkakuNumberFast = new FastCache<string, string>(int.MaxValue, comparer: StrComparer.SensitiveCaseTrimComparer);
 
         public static string? NormalizePrefixZenkakuNumberFast(string number)
