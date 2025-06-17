@@ -4040,6 +4040,56 @@ public static class BasicHelper
         }
         return v0[m];
     }
+
+    /// <param name="source">要素列（必ず 1 個以上の要素が必要）</param>
+    /// <param name="position">
+    /// 位置を 0.0～1.0 で指定  
+    /// 0.0 未満または 1.0 より大きい場合は <see cref="ArgumentOutOfRangeException"/>
+    /// </param>
+    /// <exception cref="ArgumentNullException"><paramref name="source"/> が null</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="position"/> が範囲外</exception>
+    /// <exception cref="InvalidOperationException">シーケンスが空</exception>
+    public static TSource ElementAtPosition<TSource>(this IEnumerable<TSource> source, double position)
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (position < 0.0 || position > 1.0)
+            throw new ArgumentOutOfRangeException(nameof(position), "position must be between 0.0 and 1.0 (inclusive).");
+
+        // 一度リスト化して要素数を把握
+        var list = source.ToList();
+        if (list.Count == 0)
+            throw new InvalidOperationException("Sequence contains no elements.");
+
+        // 位置 → インデックスへ変換（0 → 0、1 → Count-1）
+        int index = (int)Math.Round(position * (list.Count - 1), MidpointRounding.AwayFromZero);
+        return list[index];
+    }
+
+    /// <param name="source">任意のシーケンス</param>
+    /// <param name="position">
+    /// 取り出す割合を 0.0～1.0 で指定  
+    /// 範囲外なら <see cref="ArgumentOutOfRangeException"/>
+    /// </param>
+    /// <remarks>
+    /// * 内部で <c>ToList()</c> し、列挙は 1 回だけ。  
+    /// * 元のシーケンスが空なら空列を返します。  
+    /// * 取り出し個数は <c>Math.Ceiling(position × Count)</c> で計算  
+    ///   （0 &lt; position &lt; 1 でも必ず 1 つ以上返すようにしている）。
+    /// </remarks>
+    public static IEnumerable<TSource> TakeUntilPosition<TSource>(
+        this IEnumerable<TSource> source, double position)
+    {
+        if (source is null) throw new ArgumentNullException(nameof(source));
+        if (position < 0.0 || position > 1.0)
+            throw new ArgumentOutOfRangeException(nameof(position),
+                "position must be between 0.0 and 1.0 (inclusive).");
+
+        var list = source.ToList();               // 1 回列挙
+        if (list.Count == 0) return Enumerable.Empty<TSource>();
+
+        int takeCount = (int)Math.Ceiling(position * list.Count);
+        return list.Take(takeCount);
+    }
 }
 
 
