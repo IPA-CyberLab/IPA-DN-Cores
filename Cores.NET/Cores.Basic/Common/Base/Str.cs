@@ -7056,6 +7056,30 @@ namespace IPA.Cores.Basic
             }
         }
 
+        // 任意のバイト列を Base62 ベースのダイジェストに変換
+        // 8 文字: 約 47 bit (誕生日問題母数: 16777216)
+        // 10 文字: 約 59 bit (誕生日問題母数: 536870912)
+        // 12 文字: 約 71 bit (誕生日問題母数: 68719476736)
+        public static string GetBase62DigestStr(ReadOnlySpan<byte> data, int strLen = 12)
+        {
+            if (strLen <= 4 || strLen > 40) throw new ArgumentOutOfRangeException(nameof(strLen));
+
+            byte[] hash = Secure.HashSHA256(data);
+
+            string b64 = Str.Base64Encode(hash);
+
+            string b62 = b64.Replace("+", "a").Replace("/", "B").Replace("=", "c");
+
+            string tmp = b62.Substring(0, strLen);
+
+            char c = tmp[0];
+            string tmp2 = tmp.Substring(1);
+
+            if (c >= '0' && c <= '9') c = (char)('D' + (c - '0'));
+
+            return c + tmp2;
+        }
+
         // 文字列をハッシュ
         public static byte[] HashStrSHA1(string? str)
             => HashStr(str);
