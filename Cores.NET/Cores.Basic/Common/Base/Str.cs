@@ -2959,7 +2959,7 @@ namespace IPA.Cores.Basic
             bool b = false;
             str = str._NonNull();
 
-            str = ReplaceStr(str, "", "\n"); // Power Point
+            str = UnicodeControlCodesNormalizeUtil.Normalize(str);
 
             StringReader sr = new StringReader(str);
             StringWriter sw = new StringWriter();
@@ -12909,6 +12909,130 @@ public static class UnicodeStdKangxiMapUtil
     }
 }
 
+// Unicode の制御文字置換ユーティティ
+public static class UnicodeControlCodesNormalizeUtil
+{
+    // 普通のスペース ' ' と見た目は同じだが、文字コードが異なる異字の配列
+    public static readonly IEnumerable<char> Strange_Space_CharList = new char[]
+    {
+            (char)0x00A0 /* NO-BREAK SPACE (改行を許さない空白) */,
+            (char)0x1680 /* OGHAM SPACE MARK (オガム文字用の固定幅空白) */,
+            (char)0x180E /* MONGOLIAN VOWEL SEPARATOR (モンゴル語の母音区切り、幅ゼロ空白) */,
+            (char)0x2000 /* EN QUAD (活字の 1/2 em 幅空白) */,
+            (char)0x2001 /* EM QUAD (活字の 1 em 幅空白) */,
+            (char)0x2002 /* EN SPACE (en 幅空白) */,
+            (char)0x2003 /* EM SPACE (em 幅空白) */,
+            (char)0x2004 /* THREE-PER-EM SPACE (全角の 1/3 幅空白) */,
+            (char)0x2005 /* FOUR-PER-EM SPACE (全角の 1/4 幅空白) */,
+            (char)0x2006 /* SIX-PER-EM SPACE (全角の 1/6 幅空白) */,
+            (char)0x2007 /* FIGURE SPACE (等幅数字用空白) */,
+            (char)0x2008 /* PUNCTUATION SPACE (句読点幅空白) */,
+            (char)0x2009 /* THIN SPACE (細い空白) */,
+            (char)0x200A /* HAIR SPACE (極細の空白) */,
+            (char)0x202F /* NARROW NO-BREAK SPACE (狭い改行禁止空白) */,
+            (char)0x205F /* MEDIUM MATHEMATICAL SPACE (数式用中幅空白) */,
+            (char)0x3164 /* HANGUL FILLER (ハングル用空白記号) */
+    };
+
+    // 普通の改行 '\n' と見た目は同じだが、文字コードが異なる異字の配列
+    public static readonly IEnumerable<char> Strange_NewLine_CharList = new char[]
+    {
+            (char)0x000B /* LINE TABULATION (VT) (垂直タブ — 縦方向改行) */,
+            (char)0x000C /* FORM FEED (FF) (改ページ制御コード) */,
+            (char)0x0085 /* NEXT LINE (NEL) (Unicode の次行制御) */,
+            (char)0x2028 /* LINE SEPARATOR (行区切り用改行) */,
+            (char)0x2029 /* PARAGRAPH SEPARATOR (段落区切り用改行) */
+    };
+
+    // 見た目は全く何も表示されないが、文字コードとして 1 文字を消費する制御コード
+    public static readonly IEnumerable<char> Strange_HiddenControl_CharList = new char[]
+    {
+            (char)0x00AD /* SOFT HYPHEN (SHY) (改行時のみ表示されるソフトハイフン) */,
+            (char)0x200B /* ZERO WIDTH SPACE (幅ゼロの空白) */,
+            (char)0x200C /* ZERO WIDTH NON-JOINER (ZWNJ) (合字を阻止する幅ゼロ制御) */,
+            (char)0x200D /* ZERO WIDTH JOINER (ZWJ) (合字を強制する幅ゼロ制御) */,
+            (char)0x200E /* LEFT-TO-RIGHT MARK (LRM) (左→右方向指定の幅ゼロ) */,
+            (char)0x200F /* RIGHT-TO-LEFT MARK (RLM) (右→左方向指定の幅ゼロ) */,
+            (char)0x202A /* LEFT-TO-RIGHT EMBEDDING (LRE) (左→右埋め込み開始制御) */,
+            (char)0x202B /* RIGHT-TO-LEFT EMBEDDING (RLE) (右→左埋め込み開始制御) */,
+            (char)0x202C /* POP DIRECTIONAL FORMATTING (PDF) (埋め込み／上書き終了制御) */,
+            (char)0x202D /* LEFT-TO-RIGHT OVERRIDE (LRO) (左→右上書き開始制御) */,
+            (char)0x202E /* RIGHT-TO-LEFT OVERRIDE (RLO) (右→左上書き開始制御) */,
+            (char)0x2060 /* WORD JOINER (単語分割禁止の幅ゼロ制御) */,
+            (char)0x2061 /* FUNCTION APPLICATION (数学関数適用 — 不可視) */,
+            (char)0x2062 /* INVISIBLE TIMES (不可視の掛け算記号) */,
+            (char)0x2063 /* INVISIBLE SEPARATOR (不可視の区切り記号) */,
+            (char)0x2064 /* INVISIBLE PLUS (不可視の足し算記号) */,
+            (char)0x2066 /* LEFT-TO-RIGHT ISOLATE (LRI) (左→右アイソレート開始) */,
+            (char)0x2067 /* RIGHT-TO-LEFT ISOLATE (RLI) (右→左アイソレート開始) */,
+            (char)0x2068 /* FIRST STRONG ISOLATE (FSI) (最初に強い方向のアイソレート開始) */,
+            (char)0x2069 /* POP DIRECTIONAL ISOLATE (PDI) (アイソレート終了制御) */,
+            (char)0xFEFF /* ZERO WIDTH NO-BREAK SPACE (BOM) (BOM としても用いられる幅ゼロ改行禁止空白) */,
+            (char)0xFFF9 /* INTERLINEAR ANNOTATION ANCHOR (行間注記用アンカー) */,
+            (char)0xFFFA /* INTERLINEAR ANNOTATION SEPARATOR (行間注記用セパレータ) */,
+            (char)0xFFFB /* INTERLINEAR ANNOTATION TERMINATOR (行間注記用終端) */
+    };
+
+    public static readonly string Strange_Space_CharsStr;
+    public static readonly string Strange_NewLine_CharsStr;
+    public static readonly string Strange_HiddenControl_CharsStr;
+
+    static UnicodeControlCodesNormalizeUtil()
+    {
+        Strange_Space_CharsStr = new string(Strange_Space_CharList.ToArray());
+        Strange_NewLine_CharsStr = new string(Strange_NewLine_CharList.ToArray());
+        Strange_HiddenControl_CharsStr = new string(Strange_HiddenControl_CharList.ToArray());
+    }
+
+    public static string Normalize(string str)
+    {
+        StringBuilder sb = new StringBuilder(str.Length);
+
+        foreach (char src in str)
+        {
+            char dst;
+            if (src == '\t' || src == ' ' || src == '　' || src == '\r' || src == '\n')
+            {
+                dst = src;
+            }
+            else if (src == '\b' || src == (char)0x007f)
+            {
+                dst = ' ';
+            }
+            else if (Strange_Space_CharsStr.Contains(src))
+            {
+                dst = ' ';
+            }
+            else if (Strange_NewLine_CharsStr.Contains(src))
+            {
+                dst = '\n';
+            }
+            else if (Strange_HiddenControl_CharList.Contains(src))
+            {
+                dst = (char)0;
+            }
+            else if (char.IsControl(src))
+            {
+                dst = (char)0;
+            }
+            else if (char.IsWhiteSpace(src))
+            {
+                dst = ' ';
+            }
+            else
+            {
+                dst = src;
+            }
+
+            if (dst != (char)0)
+            {
+                sb.Append(dst);
+            }
+        }
+
+        return sb.ToString();
+    }
+}
 
 
 
