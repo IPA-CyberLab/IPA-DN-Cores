@@ -62,6 +62,8 @@ public static class WildcardCertServerUtil
     public static async Task<List<CertificateStore>> DownloadAllLatestCertsAsync(string baseUrl, string username, string password, CancellationToken cancel = default)
     {
         await using var http = new EasyHttpClient(new EasyHttpClientOptions(basicUsername: username, basicPassword: password,
+            retryIntervalMsecs: 10 * 1000,
+            retCount: 10,
             options: new WebApiOptions(
                 new WebApiSettings
                 {
@@ -94,22 +96,15 @@ public static class WildcardCertServerUtil
 
         foreach (string domain in domainNameList.OrderBy(x => x))
         {
-            try
+            string pfxUrl = baseUrl._CombineUrl(domain + "/")._CombineUrl("latest/")._CombineUrl("cert.pfx").ToString();
+
+            var pfxRet = await http.GetAsync(pfxUrl, cancel);
+
+            CertificateStore cert = new CertificateStore(pfxRet.Data);
+
+            if (cert.PrimaryCertificate.NotBefore <= DtOffsetNow && DtOffsetNow <= cert.PrimaryCertificate.NotAfter)
             {
-                string pfxUrl = baseUrl._CombineUrl(domain + "/")._CombineUrl("latest/")._CombineUrl("cert.pfx").ToString();
-
-                var pfxRet = await http.GetAsync(pfxUrl, cancel);
-
-                CertificateStore cert = new CertificateStore(pfxRet.Data);
-
-                if (cert.PrimaryCertificate.NotBefore <= DtOffsetNow && DtOffsetNow <= cert.PrimaryCertificate.NotAfter)
-                {
-                    ret.Add(cert);
-                }
-            }
-            catch (Exception ex)
-            {
-                ex._Debug();
+                ret.Add(cert);
             }
         }
 
