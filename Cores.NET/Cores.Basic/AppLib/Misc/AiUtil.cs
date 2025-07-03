@@ -2302,6 +2302,7 @@ public class AiUtilRealEsrganPerformOption
     public bool Skip = false;
     public bool FaceMode = false;
     public bool Fp32 = false;
+    public int BatchChunkCount = 100;
 }
 
 public class AiUtilRealEsrganEngine : AiUtilBasicEngine
@@ -2352,65 +2353,79 @@ public class AiUtilRealEsrganEngine : AiUtilBasicEngine
             return;
         }
 
+        var srcImgFiles = (await Lfs.EnumDirectoryAsync(srcImgDirPath, false, cancel: cancel)).Where(x => x.IsFile && x.Name._IsExtensionMatch(imgExtension)).OrderBy(x => x.Name, StrCmpi);
+
+        // チャンクごとに分割 (同時に大量に実行すると子プロセスがメモリリークしてエラーになるため)
+        int chunkCount = option.BatchChunkCount;
+        if (chunkCount <= 0) chunkCount = int.MaxValue;
+        var srcImgFilesByChunk = srcImgFiles.Chunk(chunkCount).Select(x => x.ToList()).ToList();
+
         string pythonBatchInDir = PP.Combine(this.BaseDirPath, "dn_batch_in");
         string pythonBatchOutDir = PP.Combine(this.BaseDirPath, "dn_batch_out");
 
         await Lfs.CreateDirectoryAsync(pythonBatchInDir, cancel: cancel);
         await Lfs.CreateDirectoryAsync(pythonBatchOutDir, cancel: cancel);
 
-        existingFiles = (await Lfs.EnumDirectoryAsync(pythonBatchInDir, false, cancel: cancel)).Where(x => x.IsFile);
-        foreach (var exf in existingFiles)
-        {
-            await Lfs.DeleteFileIfExistsAsync(exf.FullPath, raiseException: true, cancel: cancel);
-        }
-
-        existingFiles = (await Lfs.EnumDirectoryAsync(pythonBatchOutDir, false, cancel: cancel)).Where(x => x.IsFile);
-        foreach (var exf in existingFiles)
-        {
-            await Lfs.DeleteFileIfExistsAsync(exf.FullPath, raiseException: true, cancel: cancel);
-        }
-
-        Con.WriteLine($"Real-ESRGAN: Pre: Copying from '{srcImgDirPath}' to '{pythonBatchInDir}' ...");
-        var srcImgFiles = (await Lfs.EnumDirectoryAsync(srcImgDirPath, false, cancel: cancel)).Where(x => x.IsFile && x.Name._IsExtensionMatch(imgExtension)).OrderBy(x => x.Name, StrCmpi);
         int n = 0;
-        foreach (var src in srcImgFiles)
+
+        for (int i = 0; i < srcImgFilesByChunk.Count; i++)
         {
-            n++;
+            var srcImgFilesOfThisChunk = srcImgFilesByChunk[i];
 
-            string fn = $"{n:D5}" + imgExtension;
-            string dstFilePath = PP.Combine(pythonBatchInDir, fn);
+            // 古いファイルを全部消す
+            existingFiles = (await Lfs.EnumDirectoryAsync(pythonBatchInDir, false, cancel: cancel)).Where(x => x.IsFile);
+            foreach (var exf in existingFiles)
+            {
+                await Lfs.DeleteFileIfExistsAsync(exf.FullPath, raiseException: true, cancel: cancel);
+            }
 
-            await Lfs.CopyFileAsync(src.FullPath, dstFilePath);
+            existingFiles = (await Lfs.EnumDirectoryAsync(pythonBatchOutDir, false, cancel: cancel)).Where(x => x.IsFile);
+            foreach (var exf in existingFiles)
+            {
+                await Lfs.DeleteFileIfExistsAsync(exf.FullPath, raiseException: true, cancel: cancel);
+            }
+
+            Con.WriteLine($"Real-ESRGAN: Chunk {i + 1} / {srcImgFilesByChunk.Count}: Pre: Copying from '{srcImgDirPath}' to '{pythonBatchInDir}' ...");
+            foreach (var src in srcImgFilesOfThisChunk)
+            {
+                n++;
+
+                string fn = $"{n:D5}" + imgExtension;
+                string dstFilePath = PP.Combine(pythonBatchInDir, fn);
+
+                Con.WriteLine($"Real-ESRGAN: Copy '{src.FullPath}' --> '{dstFilePath}'");
+                await Lfs.CopyFileAsync(src.FullPath, dstFilePath);
+            }
+            Con.WriteLine("Real-ESRGAN: Pre: Done.");
+
+            int timeout = (srcImgFilesOfThisChunk.Count() + 10) * 30 * 1000;
+
+            IEnumerable<FileSystemEntity> generatedImgFiles = null!;
+
+            await TaskUtil.RetryAsync(async c =>
+            {
+                await PerformInternalAsync(option, timeout, cancel);
+
+                generatedImgFiles = (await Lfs.EnumDirectoryAsync(pythonBatchOutDir, false, cancel: cancel)).Where(x => x.IsFile && x.Name._IsExtensionMatch(imgExtension)).OrderBy(x => x.Name, StrCmpi);
+
+                if (generatedImgFiles.Count() != srcImgFilesOfThisChunk.Count())
+                {
+                    throw new CoresException($"Real-ESRGAN: Post: generatedImgFiles.Count({generatedImgFiles.Count()}) != srcImgFilesOfThisChunk.Count({srcImgFilesOfThisChunk.Count()})");
+                }
+                return true;
+            },
+            5, 200, cancel, true);
+
+            Con.WriteLine($"Real-ESRGAN: Chunk {i + 1} / {srcImgFilesByChunk.Count}: Post: Copying from '{pythonBatchOutDir}' to '{dstImgDirPath}' ...");
+
+            foreach (var src in generatedImgFiles)
+            {
+                string dstFilePath = PP.Combine(dstImgDirPath, src.Name);
+
+                await Lfs.CopyFileAsync(src.FullPath, dstFilePath);
+            }
+            Con.WriteLine($"Real-ESRGAN: Chunk {i + 1} / {srcImgFilesByChunk.Count}: Post: Done.");
         }
-        Con.WriteLine("Real-ESRGAN: Pre: Done.");
-
-        int timeout = (srcImgFiles.Count() + 10) * 30 * 1000;
-
-        IEnumerable<FileSystemEntity> generatedImgFiles = null!;
-
-        await TaskUtil.RetryAsync(async c =>
-        {
-            await PerformInternalAsync(option, timeout, cancel);
-
-            generatedImgFiles = (await Lfs.EnumDirectoryAsync(pythonBatchOutDir, false, cancel: cancel)).Where(x => x.IsFile && x.Name._IsExtensionMatch(imgExtension)).OrderBy(x => x.Name, StrCmpi);
-            return true;
-        },
-        5, 200, cancel, true);
-
-        Con.WriteLine($"Real-ESRGAN: Post: Copying from '{pythonBatchOutDir}' to '{dstImgDirPath}' ...");
-
-        if (generatedImgFiles.Count() != srcImgFiles.Count())
-        {
-            throw new CoresException($"Real-ESRGAN: Post: generatedImgFiles.Count({generatedImgFiles.Count()}) != srcImgFiles.Count({srcImgFiles.Count()})");
-        }
-
-        foreach (var src in generatedImgFiles)
-        {
-            string dstFilePath = PP.Combine(dstImgDirPath, src.Name);
-
-            await Lfs.CopyFileAsync(src.FullPath, dstFilePath);
-        }
-        Con.WriteLine("Real-ESRGAN: Post: Done.");
     }
 
     async Task PerformInternalAsync(AiUtilRealEsrganPerformOption option, int timeout, CancellationToken cancel)
