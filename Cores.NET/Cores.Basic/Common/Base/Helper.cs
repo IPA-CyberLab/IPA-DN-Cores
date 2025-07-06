@@ -4090,6 +4090,30 @@ public static class BasicHelper
         int takeCount = (int)Math.Ceiling(position * list.Count);
         return list.Take(takeCount);
     }
+
+    [MethodImpl(Inline)]
+    public static bool _IsNearlyZero(this double value)
+    {
+        return Math.Abs(value) <= Consts.Numbers.NearlyZero_Double;
+    }
+
+    [MethodImpl(Inline)]
+    public static bool _IsNearlyZero(this float value)
+    {
+        return Math.Abs(value) <= Consts.Numbers.NearlyZero_Float;
+    }
+
+    [MethodImpl(Inline)]
+    public static bool _IsNearlyEqual(this double a, double b)
+    {
+        return Math.Abs(a - b)._IsNearlyZero();
+    }
+
+    [MethodImpl(Inline)]
+    public static bool _IsNearlyEqual(this float a, float b)
+    {
+        return Math.Abs(a - b)._IsNearlyZero();
+    }
 }
 
 

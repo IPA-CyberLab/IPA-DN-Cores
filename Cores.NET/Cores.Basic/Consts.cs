@@ -136,6 +136,9 @@ public static partial class Consts
 
         public const int HadbHistoryMaxCount = 1000;
 
+        public const double NearlyZero_Double = 0.0000000001;
+        public const float NearlyZero_Float = 0.0000001f;
+
         // SQL Server その他の一般的なデータベースでインデックス可能な最大安全文字列長
         public const int MaxKeyOrLabelStrLength = 130;
 

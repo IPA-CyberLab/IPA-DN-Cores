@@ -289,8 +289,15 @@ public class ImageMagickUtil
 
     public async Task<double> GetDeskewRotateDegreeAsync(string filePath, int sampleSize = 1920, int thresholdPercent = 40, double maxDegree = 1.0, CancellationToken cancel = default)
     {
+        string resizeStr = "";
+
+        if (sampleSize >= 1)
+        {
+            resizeStr = $"-resize \"{sampleSize}x{sampleSize}>\"";
+        }
+
         var result = await RunMagickAsync(
-            $"{filePath._EnsureQuotation()} -resize \"{sampleSize}x{sampleSize}>\" -deskew {thresholdPercent}% -format \"%[deskew:angle]\" info:",
+            $"{filePath._EnsureQuotation()} {resizeStr} -deskew {thresholdPercent}% -format \"%[deskew:angle]\" info:",
             cancel: cancel);
 
         double ret = result.OutputStr._GetFirstFilledLineFromLines()._ToDouble();
