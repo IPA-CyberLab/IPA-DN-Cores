@@ -797,7 +797,9 @@ public class AiTask
             var currentDstDirFiles = await Lfs.EnumDirectoryAsync(dstMusicDirPath, cancel: cancel);
             var currentDstMp3Files = currentDstDirFiles.Where(x => x.IsFile && x.Name._IsExtensionMatch(".mp3"));
 
-            string artistName = PP.GetFileName(PP.GetDirectoryName(srcMusicFile.FullPath))._NormalizeSoftEther(true);
+            string srcMusicFileRelativePath = PP.GetRelativeFileName(srcMusicFile.FullPath, srcDirPath);
+            string artistName = PP.SplitRelativePathToElements(srcMusicFileRelativePath)[0];
+
             string safeArtistName = PPWin.MakeSafeFileName(artistName, true, true, true, true);
 
             try
@@ -819,7 +821,11 @@ public class AiTask
 
                 await Lfs.CreateDirectoryAsync(dstMusicDirPath, cancel: cancel);
 
-                string existsCheckStr = $" - {safeArtistName} - {formalSongTitle._TruncStr(maxSongTitle)}.mp3";
+                string formalSongTitleForFileName = $"{formalSongTitle._TruncStr(maxSongTitle)}.mp3";
+
+                string existsCheckStr = $" - {safeArtistName} - {formalSongTitleForFileName}";
+
+                string artistTag = $" - {safeArtistName} - ";
 
                 var existsSameMP3 = currentDstMp3Files.Where(x => x.Name.StartsWith(albumName2ForExistsCheck, StrCmpi) && x.Name.EndsWith(existsCheckStr, StrCmpi)).FirstOrDefault();
 
