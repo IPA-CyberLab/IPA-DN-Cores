@@ -815,7 +815,7 @@ public class AiTask
                     formalSongTitle = songTitle;
                 }
 
-                formalSongTitle = PPWin.MakeSafeFileName(formalSongTitle, false, true, true);
+                formalSongTitle = PPWin.MakeSafeFileName(formalSongTitle, false, true, true, true);
 
                 await Lfs.CreateDirectoryAsync(dstMusicDirPath, cancel: cancel);
 
