@@ -703,7 +703,7 @@ public class FfMpegUtil
 
         if (useOkFile)
         {
-            var okResult = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstFilePath, digest, AiUtilVersion.CurrentVersion, cancel);
+            var okResult = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstFilePath, digest, AiUtilVersion.CurrentVersion, cancel: cancel);
             if (okResult.IsOk && okResult.Value != null) return okResult.Value;
         }
 
@@ -865,7 +865,7 @@ public class FfMpegUtil
 
         if (useOkFile)
         {
-            var okResult = await Lfs.ReadOkFileAsync<Tuple<FfMpegParsedList, FfMpegParsedList>>(dstWavFilePath, digest, AiUtilVersion.CurrentVersion, cancel);
+            var okResult = await Lfs.ReadOkFileAsync<Tuple<FfMpegParsedList, FfMpegParsedList>>(dstWavFilePath, digest, AiUtilVersion.CurrentVersion, cancel: cancel);
             if (okResult.IsOk && okResult.Value != null) return okResult.Value;
         }
 

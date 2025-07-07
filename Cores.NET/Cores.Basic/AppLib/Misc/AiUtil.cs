@@ -827,11 +827,18 @@ public class AiTask
 
                 string artistTag = $" - {safeArtistName} - ";
 
-                var existsSameMP3 = currentDstMp3Files.Where(x => x.Name.StartsWith(albumName2ForExistsCheck, StrCmpi) && x.Name.EndsWith(existsCheckStr, StrCmpi)).FirstOrDefault();
+                var existsSameMP3 = currentDstMp3Files.Where(x => (x.Name.StartsWith(albumName2ForExistsCheck, StrCmpi) || x.Name.StartsWith("_" + albumName2ForExistsCheck, StrCmpi)) && x.Name.EndsWith(existsCheckStr, StrCmpi)).FirstOrDefault();
 
                 if (existsSameMP3 != null)
                 {
-                    if (await Lfs.IsOkFileExistsAsync(existsSameMP3.FullPath))
+                    string fp2 = existsSameMP3.FullPath;
+
+                    if (existsSameMP3.Name.StartsWith("_"))
+                    {
+                        fp2 = PP.Combine(PP.GetDirectoryName(fp2), existsSameMP3.Name.Substring(1));
+                    }
+
+                    if (await Lfs.IsOkFileExistsAsync(fp2, skipTargetFilePathCheck: true, cancel: cancel))
                     {
                         // すでに存在
                         continue;
@@ -981,7 +988,7 @@ public class AiTask
 
         if (useOkFile)
         {
-            var okFileCached = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstWavPath, "", AiUtilVersion.CurrentVersion, cancel);
+            var okFileCached = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstWavPath, "", AiUtilVersion.CurrentVersion, cancel: cancel);
             if (okFileCached.IsOk && okFileCached.Value != null)
             {
                 return okFileCached.Value;
@@ -1765,7 +1772,7 @@ public class AiTask
 
         if (useOkFile)
         {
-            var okParsed = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstFilePath, digest, AiUtilVersion.CurrentVersion, cancel);
+            var okParsed = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstFilePath, digest, AiUtilVersion.CurrentVersion, cancel: cancel);
             if (okParsed.IsOk && okParsed.Value != null)
             {
                 return (okParsed.Value, dstFilePath);
@@ -2848,7 +2855,7 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
 
         if (useOkFile)
         {
-            var okResult = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstWavPath, digest, AiUtilVersion.CurrentVersion, cancel);
+            var okResult = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstWavPath, digest, AiUtilVersion.CurrentVersion, cancel: cancel);
             if (okResult.IsOk && okResult.Value != null) return okResult.Value;
         }
 
@@ -3339,7 +3346,7 @@ public class AiUtilUvrEngine : AiUtilBasicEngine
             FfMpegParsedList? savedResult = null;
             if (dstMusicWavPath._IsFilled())
             {
-                var okFileForDstMusicWavPath = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstMusicWavPath, "", AiUtilVersion.CurrentVersion, cancel);
+                var okFileForDstMusicWavPath = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstMusicWavPath, "", AiUtilVersion.CurrentVersion, cancel: cancel);
                 if (okFileForDstMusicWavPath.IsOk)
                 {
                     dstMusicWavPath = null;
@@ -3349,7 +3356,7 @@ public class AiUtilUvrEngine : AiUtilBasicEngine
 
             if (dstVocalWavPath._IsFilled())
             {
-                var okFileForDstVocalWavPath = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstVocalWavPath, "", AiUtilVersion.CurrentVersion, cancel);
+                var okFileForDstVocalWavPath = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstVocalWavPath, "", AiUtilVersion.CurrentVersion, cancel: cancel);
                 if (okFileForDstVocalWavPath.IsOk)
                 {
                     dstVocalWavPath = null;
