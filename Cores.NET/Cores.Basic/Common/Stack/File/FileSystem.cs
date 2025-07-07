@@ -1418,6 +1418,23 @@ public class PathParser
         return ret;
     }
 
+    public string ReplaceExtension(string src, string newExtension)
+    {
+        if (newExtension.StartsWith("."))
+        {
+            newExtension = newExtension.Substring(1);
+        }
+
+        newExtension._NotEmptyCheck(nameof(newExtension));
+
+        string dir = PP.GetDirectoryName(src);
+        string fn = PP.GetFileName(src);
+        string fnWithoutExt = PP.GetFileNameWithoutExtension(fn, false);
+        string fn2 = fnWithoutExt + "." + newExtension;
+
+        return PP.Combine(dir, fn2);
+    }
+
     public string Combine(string path1, string path2)
         => Combine(path1, path2, false);
     public string Combine(string path1, string path2, bool path2NeverAbsolutePath = false)
