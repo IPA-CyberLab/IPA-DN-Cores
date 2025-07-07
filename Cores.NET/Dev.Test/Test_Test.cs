@@ -5392,6 +5392,15 @@ HOST: www.google.com
     {
         if (true)
         {
+            string src = "テスト♡①☆★※◎文字列";
+
+            PP.MakeSafeFileName(src, true, true, true, true)._WriteTextFile(@"c:\tmp\test1.txt", writeBom: true);
+
+            return;
+        }
+
+        if (true)
+        {
             Test_MakeDnMitmDebugCA_250603();
             return;
         }

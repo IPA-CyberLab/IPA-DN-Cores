@@ -1740,7 +1740,7 @@ public class PathParser
         return PP.MakeSafeFileName(parentDirName + "__" + fileName, false, true, true);
     }
 
-    public string MakeSafeFileName(string? name, bool prohititSpace = false, bool additionalCheck = false, bool simpleReplaceToUnderscore = false)
+    public string MakeSafeFileName(string? name, bool prohititSpace = false, bool additionalCheck = false, bool simpleReplaceToUnderscore = false, bool additionCheck2_SJisAndEuc = false)
     {
         name = name._NonNull();
 
@@ -1770,7 +1770,7 @@ public class PathParser
                 }
             }
 
-            if (additionalCheck)
+            if (additionalCheck || additionCheck2_SJisAndEuc)
             {
                 if (Str.IsSafeAndPrintable(a[i]) == false)
                 {
@@ -1778,6 +1778,14 @@ public class PathParser
                 }
 
                 if (a[i] == '\'' || a[i] == '\"' || a[i] == '/' || a[i] == '\\')
+                {
+                    ok = false;
+                }
+            }
+
+            if (additionCheck2_SJisAndEuc)
+            {
+                if (Str.IsSuitableCharForEncodings(a[i], Str.EucJpEncoding, Str.ShiftJisEncoding, Str.ISO2022JPEncoding) == false)
                 {
                     ok = false;
                 }
