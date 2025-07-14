@@ -239,7 +239,7 @@ namespace IPA.Cores.Basic
                     return new ResultOrError<T>(EnsureError.Error);
                 }
 
-                var okData = await this.ReadJsonFromFileAsync<OkFileData<T>>(okPath, cancel: cancel);
+                var okData = await this.ReadJsonFromFileAsync<OkFileData<T>>(okPath, maxDepth: int.MaxValue, cancel: cancel);
 
                 if (okData.Version < minVersion)
                 {
@@ -256,8 +256,10 @@ namespace IPA.Cores.Basic
 
                 return okData.MetaData;
             }
-            catch
+            catch (Exception ex)
             {
+                $"ReadOkFileAsync: TargetFilePath: '{targetFilePath}': Error = {ex.ToString()}"._Error();
+
                 return new ResultOrError<T>(EnsureError.Error);
             }
         }
