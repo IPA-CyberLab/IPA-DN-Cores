@@ -3196,6 +3196,26 @@ namespace IPA.Cores.Basic
             return ret.ToArray();
         }
 
+        // 指定した文字が指定した複数のエンコードで表現できるかどうか検査
+        public static bool IsSuitableCharForEncodings(char c, params Encoding[] encList)
+        {
+            foreach (var enc in encList)
+            {
+                if (IsSuitableCharForEncoding(c, enc) == false)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        // 指定した文字が指定したエンコードで表現できるかどうか検査
+        public static bool IsSuitableCharForEncoding(char c, Encoding enc)
+        {
+            return IsSuitableEncodingForString("" + c, enc);
+        }
+
         // 指定した文字列が指定したエンコードで表現できるかどうか検査
         public static bool IsSuitableEncodingForString(string str, Encoding enc)
         {

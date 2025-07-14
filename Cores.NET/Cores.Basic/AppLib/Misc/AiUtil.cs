@@ -292,7 +292,7 @@ public class AiTask
                     string outputFileNameTmp = $"{dstBaseFileName}_{j.ToString("D3")}.wav";
                     string outputFilePathTmp = PP.Combine(dstDirName, outputFileNameTmp);
 
-                    if (await Lfs.IsFileExistsAsync(outputFilePathTmp, cancel) == false || await Lfs.IsOkFileExists(outputFilePathTmp, cancel: cancel) == false)
+                    if (await Lfs.IsFileExistsAsync(outputFilePathTmp, cancel) == false || await Lfs.IsOkFileExistsAsync(outputFilePathTmp, cancel: cancel) == false)
                     {
                         outputPath = outputFilePathTmp;
                         break;
@@ -615,7 +615,7 @@ public class AiTask
 
         string digest = $"voiceSamplePath={srcSampleVoicePath},diffusionSteps={diffusionSteps},targetMaxVolume={Settings.AdjustAudioTargetMaxVolume},targetMeanVolume={Settings.AdjustAudioTargetMeanVolume},headOnlySecs={headOnlySecs}";
 
-        if (useOkFile == false || await Lfs.IsOkFileExists(tmpVoiceWavPath, digest, AiUtilVersion.CurrentVersion, cancel: cancel) == false)
+        if (useOkFile == false || await Lfs.IsOkFileExistsAsync(tmpVoiceWavPath, digest, AiUtilVersion.CurrentVersion, cancel: cancel) == false)
         {
             await FfMpeg.EncodeAudioAsync(srcPath, srcTmpWavPath, FfMpegAudioCodec.Wav, tagTitle: tagTitle, headOnlySecs: headOnlySecs, cancel: cancel);
 
@@ -766,6 +766,141 @@ public class AiTask
         return result.Item2;
     }
 
+    public async Task EncodeAndNormalizeAllMusicWithSeqNoInputsAsync(string srcDirPath, string dstMusicDirPath, string tmpBaseDir, string albumName, CancellationToken cancel = default)
+    {
+        const int maxSongTitle = 32;
+
+        albumName = albumName._RemoveQuotation('[', ']');
+
+        albumName = PPWin.MakeSafeFileName(albumName.ToLowerInvariant(), true, true, true, true);
+
+        albumName._NotEmptyCheck(nameof(albumName));
+
+        string albumName2 = $"[{albumName}]";
+
+        string albumName2ForExistsCheck = $"[{albumName}_";
+
+        dstMusicDirPath._NotEmptyCheck(nameof(dstMusicDirPath));
+
+        await Lfs.CreateDirectoryAsync(dstMusicDirPath, cancel: cancel);
+
+        string tmpMusicDirPath = PP.Combine(tmpBaseDir, "0_MusicRelease_TMP2");
+
+        var artistsDirList = await Lfs.EnumDirectoryAsync(srcDirPath, cancel: cancel);
+
+        var srcAllMusicFilesList = (await Lfs.EnumDirectoryAsync(srcDirPath, recursive: true, cancel: cancel)).Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Filter_MusicFiles)).OrderBy(x => x.FullPath, StrCmpi)
+            ._Shuffle()
+            .ToList();
+
+        foreach (var srcMusicFile in srcAllMusicFilesList)
+        {
+            var currentDstDirFiles = await Lfs.EnumDirectoryAsync(dstMusicDirPath, cancel: cancel);
+            var currentDstMp3Files = currentDstDirFiles.Where(x => x.IsFile && x.Name._IsExtensionMatch(".mp3"));
+
+            string srcMusicFileRelativePath = PP.GetRelativeFileName(srcMusicFile.FullPath, srcDirPath);
+            string artistName = PP.SplitRelativePathToElements(srcMusicFileRelativePath)[0];
+
+            string safeArtistName = PPWin.MakeSafeFileName(artistName, true, true, true, true);
+
+            try
+            {
+                string songTitle = PPWin.GetFileNameWithoutExtension(srcMusicFile.Name)._NormalizeSoftEther(true);
+                string safeSongTitle = PPWin.MakeSafeFileName(songTitle, true, true, true, true);
+
+                string tmpOriginalSongWavPath = PP.Combine(tmpMusicDirPath, $"MusicRelease - {safeArtistName} - {safeSongTitle}.wav");
+
+                var result = await EncodeAndNormalizeMusicAsync(srcMusicFile.FullPath, tmpOriginalSongWavPath, safeSongTitle, cancel: cancel);
+
+                string formalSongTitle = (result?.Meta?.Title)._NonNullTrimSe();
+                if (formalSongTitle._IsEmpty())
+                {
+                    formalSongTitle = songTitle;
+                }
+
+                formalSongTitle = PPWin.MakeSafeFileName(formalSongTitle, false, true, true, true);
+
+                await Lfs.CreateDirectoryAsync(dstMusicDirPath, cancel: cancel);
+
+                string formalSongTitleForFileName = $"{formalSongTitle._TruncStr(maxSongTitle)}.mp3";
+
+                string existsCheckStr = $" - {safeArtistName} - {formalSongTitleForFileName}";
+
+                string artistTag = $" - {safeArtistName} - ";
+
+                var existsSameMP3 = currentDstMp3Files.Where(x => (x.Name.StartsWith(albumName2ForExistsCheck, StrCmpi) || x.Name.StartsWith("_" + albumName2ForExistsCheck, StrCmpi)) && x.Name.EndsWith(existsCheckStr, StrCmpi)).FirstOrDefault();
+
+                if (existsSameMP3 != null)
+                {
+                    string fp2 = existsSameMP3.FullPath;
+
+                    if (existsSameMP3.Name.StartsWith("_"))
+                    {
+                        fp2 = PP.Combine(PP.GetDirectoryName(fp2), existsSameMP3.Name.Substring(1));
+                    }
+
+                    if (await Lfs.IsOkFileExistsAsync(fp2, skipTargetFilePathCheck: true, cancel: cancel))
+                    {
+                        // すでに存在
+                        continue;
+                    }
+                }
+
+                int currentMaxNumber = 0;
+
+                foreach (var currentMp3 in currentDstMp3Files.OrderByDescending(x => x.Name, StrCmpi))
+                {
+                    var tokens = currentMp3.Name._Split(StringSplitOptions.None, " - ");
+                    if (tokens.Length >= 1)
+                    {
+                        string tmp1 = tokens[0];
+                        if (tmp1.StartsWith("[") && tmp1.EndsWith("]"))
+                        {
+                            tmp1 = tmp1._RemoveQuotation('[', ']');
+
+                            string startWithStr = albumName + "_";
+
+                            if (tmp1.StartsWith(startWithStr, StrCmpi))
+                            {
+                                string numberParts = tmp1.Substring(startWithStr.Length);
+                                int number = numberParts._ToInt();
+                                if (number >= 1)
+                                {
+                                    if (currentMaxNumber < number)
+                                    {
+                                        if (await Lfs.IsOkFileExistsAsync(currentMp3.FullPath))
+                                        {
+                                            currentMaxNumber = number;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                currentMaxNumber++;
+
+                string albumName2WithNumber = $"[{albumName}_{currentMaxNumber:D4}]";
+
+                MediaMetaData meta = new MediaMetaData
+                {
+                    Album = albumName2,
+                    Title = albumName2WithNumber + " - " + formalSongTitle,
+                    Artist = albumName2 + " - " + artistName,
+                };
+
+                string dstMusicMp3Path = PP.Combine(dstMusicDirPath, $"{albumName2WithNumber} - {safeArtistName} - {formalSongTitle._TruncStr(maxSongTitle)}.mp3");
+
+                await FfMpeg.EncodeAudioAsync(tmpOriginalSongWavPath, dstMusicMp3Path, FfMpegAudioCodec.Mp3, 320, 100, meta, safeSongTitle, cancel: cancel);
+            }
+            catch (Exception ex)
+            {
+                srcMusicFile.FullPath._Error();
+                ex._Error();
+            }
+        }
+    }
+
     public async Task EncodeAndNormalizeAllMusicAsync(string srcDirPath, string dstMusicDirPath, string tmpBaseDir, string albumName, CancellationToken cancel = default)
     {
         string tmpMusicDirPath = PP.Combine(tmpBaseDir, "0_MusicRelease_TMP");
@@ -853,7 +988,7 @@ public class AiTask
 
         if (useOkFile)
         {
-            var okFileCached = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstWavPath, "", AiUtilVersion.CurrentVersion, cancel);
+            var okFileCached = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstWavPath, "", AiUtilVersion.CurrentVersion, cancel: cancel);
             if (okFileCached.IsOk && okFileCached.Value != null)
             {
                 return okFileCached.Value;
@@ -1637,7 +1772,7 @@ public class AiTask
 
         if (useOkFile)
         {
-            var okParsed = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstFilePath, digest, AiUtilVersion.CurrentVersion, cancel);
+            var okParsed = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstFilePath, digest, AiUtilVersion.CurrentVersion, cancel: cancel);
             if (okParsed.IsOk && okParsed.Value != null)
             {
                 return (okParsed.Value, dstFilePath);
@@ -2083,7 +2218,7 @@ public class AiTask
 
         foreach (var srcWav in srcWavList.Where(x => x.IsFile && x.Name._IsExtensionMatch(".wav")).OrderBy(x => x.FullPath, StrCmpi))
         {
-            if (await Lfs.IsOkFileExists(srcWav.FullPath, ifOkDirNotExistsRetOk: true, cancel: cancel))
+            if (await Lfs.IsOkFileExistsAsync(srcWav.FullPath, ifOkDirNotExistsRetOk: true, cancel: cancel))
             {
                 fileNamesList.Add(srcWav.FullPath);
             }
@@ -2720,7 +2855,7 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
 
         if (useOkFile)
         {
-            var okResult = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstWavPath, digest, AiUtilVersion.CurrentVersion, cancel);
+            var okResult = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstWavPath, digest, AiUtilVersion.CurrentVersion, cancel: cancel);
             if (okResult.IsOk && okResult.Value != null) return okResult.Value;
         }
 
@@ -3211,7 +3346,7 @@ public class AiUtilUvrEngine : AiUtilBasicEngine
             FfMpegParsedList? savedResult = null;
             if (dstMusicWavPath._IsFilled())
             {
-                var okFileForDstMusicWavPath = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstMusicWavPath, "", AiUtilVersion.CurrentVersion, cancel);
+                var okFileForDstMusicWavPath = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstMusicWavPath, "", AiUtilVersion.CurrentVersion, cancel: cancel);
                 if (okFileForDstMusicWavPath.IsOk)
                 {
                     dstMusicWavPath = null;
@@ -3221,7 +3356,7 @@ public class AiUtilUvrEngine : AiUtilBasicEngine
 
             if (dstVocalWavPath._IsFilled())
             {
-                var okFileForDstVocalWavPath = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstVocalWavPath, "", AiUtilVersion.CurrentVersion, cancel);
+                var okFileForDstVocalWavPath = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstVocalWavPath, "", AiUtilVersion.CurrentVersion, cancel: cancel);
                 if (okFileForDstVocalWavPath.IsOk)
                 {
                     dstVocalWavPath = null;

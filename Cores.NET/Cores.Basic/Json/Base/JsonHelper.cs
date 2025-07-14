@@ -193,7 +193,7 @@ namespace IPA.Cores.Basic
 
     public abstract partial class FileSystem
     {
-        public async Task<bool> IsOkDirExists(string targetFilePath, CancellationToken cancel = default)
+        public async Task<bool> IsOkDirExistsAsync(string targetFilePath, CancellationToken cancel = default)
         {
             try
             {
@@ -208,28 +208,31 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public async Task<bool> IsOkFileExists(string targetFilePath, string digest = "", int minVersion = 0, bool ifOkDirNotExistsRetOk = false, CancellationToken cancel = default)
+        public async Task<bool> IsOkFileExistsAsync(string targetFilePath, string digest = "", int minVersion = 0, bool ifOkDirNotExistsRetOk = false, bool skipTargetFilePathCheck = false, CancellationToken cancel = default)
         {
             if (ifOkDirNotExistsRetOk)
             {
-                if (await IsOkDirExists(targetFilePath, cancel: cancel) == false)
+                if (await IsOkDirExistsAsync(targetFilePath, cancel: cancel) == false)
                 {
                     return true;
                 }
             }
 
-            var result = await this.ReadOkFileAsync<OkFileEmptyMetaData>(targetFilePath, digest, minVersion, cancel);
+            var result = await this.ReadOkFileAsync<OkFileEmptyMetaData>(targetFilePath, digest, minVersion, skipTargetFilePathCheck, cancel);
 
             return result.IsOk;
         }
 
-        public async Task<ResultOrError<T>> ReadOkFileAsync<T>(string targetFilePath, string digest = "", int minVersion = 0, CancellationToken cancel = default)
+        public async Task<ResultOrError<T>> ReadOkFileAsync<T>(string targetFilePath, string digest = "", int minVersion = 0, bool skipTargetFilePathCheck = false, CancellationToken cancel = default)
         {
             try
             {
-                if (await this.IsFileExistsAsync(targetFilePath, cancel) == false)
+                if (skipTargetFilePathCheck == false)
                 {
-                    return new ResultOrError<T>(EnsureError.Error);
+                    if (await this.IsFileExistsAsync(targetFilePath, cancel) == false)
+                    {
+                        return new ResultOrError<T>(EnsureError.Error);
+                    }
                 }
 
                 string okPath = GenerateOkFilePath(targetFilePath);
