@@ -7080,6 +7080,10 @@ namespace IPA.Cores.Basic
         // 8 文字: 約 47 bit (誕生日問題母数: 16777216)
         // 10 文字: 約 59 bit (誕生日問題母数: 536870912)
         // 12 文字: 約 71 bit (誕生日問題母数: 68719476736)
+        // (小文字の場合)
+        // 8 文字: 約 41 bit (誕生日問題母数: 1048576)
+        // 10 文字: 約 57 bit (誕生日問題母数: 268435456)
+        // 12 文字: 約 62 bit (誕生日問題母数: 2147483648)
         public static string GetBase62DigestStr(ReadOnlySpan<byte> data, int strLen = 12)
         {
             if (strLen <= 4 || strLen > 40) throw new ArgumentOutOfRangeException(nameof(strLen));
