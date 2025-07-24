@@ -12993,15 +12993,98 @@ public static class UnicodeControlCodesNormalizeUtil
             (char)0xFFFB /* INTERLINEAR ANNOTATION TERMINATOR (行間注記用終端) */
     };
 
+    // 見た目はハイフンに見えるが、ASCII コード '-' (U+002D) とは異なる異字の配列
+    public static readonly IEnumerable<char> Strange_Hyphen_CharList = new char[]
+    {
+        (char)0x2010 /* HYPHEN (改行可能なハイフン) */,
+        (char)0x2011 /* NON‑BREAKING HYPHEN (改行を許さないハイフン) */,
+        (char)0x058A /* ARMENIAN HYPHEN (アルメニア語用ハイフン) */,
+        (char)0x1400 /* CANADIAN SYLLABICS HYPHEN (カナダ先住民音節文字用ハイフン) */,
+        (char)0x1806 /* MONGOLIAN TODO SOFT HYPHEN (モンゴル語トド文字のソフトハイフン) */,
+        (char)0x00AD /* SOFT HYPHEN (表示されない可能性のあるソフトハイフン) */,
+        (char)0x2012 /* FIGURE DASH (数字列用ダッシュ) */,
+        (char)0x2013 /* EN DASH (範囲を示すエンダッシュ) */,
+        (char)0x2014 /* EM DASH (文章挿入用エムダッシュ) */,
+        (char)0x2015 /* HORIZONTAL BAR (水平バー、日本語組版で使用) */,
+        (char)0x2E3A /* TWO‑EM DASH (二倍エムダッシュ、省略線) */,
+        (char)0x2E3B /* THREE‑EM DASH (三倍エムダッシュ、省略線) */,
+        (char)0x2212 /* MINUS SIGN (数式用マイナス記号) */,
+        (char)0x2796 /* HEAVY MINUS SIGN (太字マイナス、装飾用) */,
+        (char)0xFF0D /* FULLWIDTH HYPHEN‑MINUS (全角ハイフンマイナス) */,
+        (char)0xFE63 /* SMALL HYPHEN‑MINUS (小型ハイフンマイナス) */,
+        (char)0xFE58 /* SMALL EM DASH (小型エムダッシュ) */,
+        (char)0xFE31 /* PRESENTATION FORM FOR VERTICAL EM DASH (縦書き用エムダッシュ) */,
+        (char)0xFE32 /* PRESENTATION FORM FOR VERTICAL EN DASH (縦書き用エンダッシュ) */,
+        (char)0x2043 /* HYPHEN BULLET (箇条書き用ハイフン) */,
+        (char)0x2053 /* SWUNG DASH (波状ダッシュ、文章の省略に使用) */,
+        (char)0x30A0 /* KATAKANA‑HIRAGANA DOUBLE HYPHEN (カタカナ・ひらがなダブルハイフン) */
+    };
+
+    // 見た目はパイプ '|' に見えるが、ASCII コード '|' (U+007C) とは異なる異字の配列
+    public static readonly IEnumerable<char> Strange_Pipe_CharList = new char[]
+    {
+        (char)0x01C0 /* LATIN LETTER DENTAL CLICK (縦線に似たクリック音文字) */,
+        (char)0x05C0 /* HEBREW PUNCTUATION PASEQ (ヘブライ語の区切り記号) */,
+        (char)0x2223 /* DIVIDES (数学の整除記号) */,
+        (char)0x23D0 /* VERTICAL LINE EXTENSION (縦線延長記号) */,
+        (char)0x2758 /* LIGHT VERTICAL BAR (細い縦線) */,
+        (char)0x2759 /* MEDIUM VERTICAL BAR (中太縦線) */,
+        (char)0x275A /* HEAVY VERTICAL BAR (太い縦線) */,
+        (char)0xFF5C /* FULLWIDTH VERTICAL LINE (全角縦線) */,
+        (char)0xFE31 /* PRESENTATION FORM FOR VERTICAL EM DASH (縦書き用エムダッシュ) */,
+        (char)0xFE32 /* PRESENTATION FORM FOR VERTICAL EN DASH (縦書き用エンダッシュ) */
+    };
+
+    // 見た目はプラス '+' に見えるが、ASCII コード '+' (U+002B) とは異なる異字の配列
+    public static readonly IEnumerable<char> Strange_Plus_CharList = new char[]
+    {
+        (char)0xFE62 /* SMALL PLUS SIGN (小型プラス) */,
+        (char)0xFF0B /* FULLWIDTH PLUS SIGN (全角プラス) */,
+        (char)0x2795 /* HEAVY PLUS SIGN (太線プラス) */,
+        (char)0x2295 /* CIRCLED PLUS (丸囲みプラス) */,
+        (char)0x229E /* SQUARED PLUS (四角囲みプラス) */
+    };
+
+    // 見た目はスラッシュ '/' に見えるが、ASCII コード '/' (U+002F) とは異なる異字の配列
+    public static readonly IEnumerable<char> Strange_Slash_CharList = new char[]
+    {
+        (char)0x2044 /* FRACTION SLASH (分数用スラッシュ) */,
+        (char)0x2215 /* DIVISION SLASH (除算用スラッシュ) */,
+        (char)0x2571 /* BOX DRAWINGS LIGHT DIAGONAL UPPER RIGHT TO LOWER LEFT (罫線用細斜線) */,
+        (char)0x29F8 /* BIG SOLIDUS (大型スラッシュ) */,
+        (char)0xFE68 /* SMALL SOLIDUS (小型スラッシュ) */,
+        (char)0xFF0F /* FULLWIDTH SOLIDUS (全角スラッシュ) */
+    };
+
+    // 見た目はアスタリスク '*' に見えるが、ASCII コード '*' (U+002A) とは異なる異字の配列
+    public static readonly IEnumerable<char> Strange_Asterisk_CharList = new char[]
+    {
+        (char)0x204E /* LOW ASTERISK (低位置アスタリスク) */,
+        (char)0x2217 /* ASTERISK OPERATOR (数学用アスタリスク演算子) */,
+        (char)0x2731 /* HEAVY ASTERISK (太線アスタリスク) */,
+        (char)0xFE61 /* SMALL ASTERISK (小型アスタリスク) */,
+        (char)0xFF0A /* FULLWIDTH ASTERISK (全角アスタリスク) */
+    };
+
     public static readonly string Strange_Space_CharsStr;
     public static readonly string Strange_NewLine_CharsStr;
     public static readonly string Strange_HiddenControl_CharsStr;
+    public static readonly string Strange_Hyphon_CharsStr;
+    public static readonly string Strange_Pipe_CharsStr;
+    public static readonly string Strange_Plus_CharsStr;
+    public static readonly string Strange_Slash_CharsStr;
+    public static readonly string Strange_Asterisk_CharsStr;
 
     static UnicodeControlCodesNormalizeUtil()
     {
         Strange_Space_CharsStr = new string(Strange_Space_CharList.ToArray());
         Strange_NewLine_CharsStr = new string(Strange_NewLine_CharList.ToArray());
         Strange_HiddenControl_CharsStr = new string(Strange_HiddenControl_CharList.ToArray());
+        Strange_Hyphon_CharsStr = new string(Strange_Hyphen_CharList.ToArray());
+        Strange_Pipe_CharsStr = new string(Strange_Pipe_CharList.ToArray());
+        Strange_Plus_CharsStr = new string(Strange_Plus_CharList.ToArray());
+        Strange_Slash_CharsStr = new string(Strange_Slash_CharList.ToArray());
+        Strange_Asterisk_CharsStr = new string(Strange_Slash_CharList.ToArray());
     }
 
     public static string Normalize(string str)
@@ -13030,6 +13113,26 @@ public static class UnicodeControlCodesNormalizeUtil
             else if (Strange_HiddenControl_CharList.Contains(src))
             {
                 dst = (char)0;
+            }
+            else if (Strange_Hyphon_CharsStr.Contains(src))
+            {
+                dst = '-';
+            }
+            else if (Strange_Pipe_CharsStr.Contains(src))
+            {
+                dst = '|';
+            }
+            else if (Strange_Plus_CharsStr.Contains(src))
+            {
+                dst = '+';
+            }
+            else if (Strange_Slash_CharsStr.Contains(src))
+            {
+                dst = '/';
+            }
+            else if (Strange_Asterisk_CharsStr.Contains(src))
+            {
+                dst = '*';
             }
             else if (char.IsControl(src))
             {
