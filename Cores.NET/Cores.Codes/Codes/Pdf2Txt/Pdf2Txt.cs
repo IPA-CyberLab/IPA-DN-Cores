@@ -301,7 +301,45 @@ public static class PdfPageInfoLib
 
         return sizes;
     }
+
+    /// <summary>
+    /// 余白トリム後の「でこぼこ PDF」（種類 2）と推定される場合 true。
+    /// 紙をただスキャンしただけ（種類 1）または判定不能の場合は false。
+    /// </summary>
+    public static bool DetermineIsDekobokoPdf(string pdfPath)
+        => DetermineIsDekobokoPdf(GetPdfPageInfo(pdfPath));
+
+    /// <summary>
+    /// 余白トリムによりページサイズが「でこぼこ」かどうか推定する。
+    /// true なら <種類 2>（トリム済み）、false なら <種類 1>（スキャンそのまま）または判定不能。
+    /// </summary>
+    public static bool DetermineIsDekobokoPdf(List<PdfPageInfo> pageInfoList)
+    {
+        if (pageInfoList == null || pageInfoList.Count < 2)
+            return false;                     // ページが 0～1 枚なら判断できないので安全側
+
+        const double TOLERANCE_RATIO = 0.04;  // 4% までを「許容ゆらぎ」とみなす
+        int totalPages = pageInfoList.Count;
+        int dekobokoCount = 0;
+
+        // 先頭ページの面積を基準に走査
+        double prevArea = pageInfoList[0].WidthMm * pageInfoList[0].HeightMm;
+
+        for (int i = 1; i < totalPages; i++)
+        {
+            var page = pageInfoList[i];
+            double area = page.WidthMm * page.HeightMm;
+            double ratio = Math.Abs(area - prevArea) / prevArea;
+
+            if (ratio > TOLERANCE_RATIO)
+                dekobokoCount++;
+
+            prevArea = area;  // 次比較用に更新
+        }
+
+        // 「でこぼこ発生」がページ数の一定割合以上なら <種類 2> と推定
+        return dekobokoCount >= totalPages * 0.03;
+    }
 }
 
 #endif
-
