@@ -69,6 +69,7 @@ using HtmlAgilityPack;
 using System.Text.Json.Serialization;
 using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Linq;
+using System.Globalization;
 
 namespace IPA.Cores.Basic;
 
@@ -227,6 +228,62 @@ public class ImageMagickUtil
         {
             await Lfs.DeleteFileIfExistsAsync(tmpPdfPath, cancel: cancel);
         }
+    }
+
+    public async Task SetPdfDateTimeAsync(string pdfPath, DateTimeOffset createDt, DateTimeOffset modifyDt, CancellationToken cancel = default)
+    {
+        // 日本語を含むファイル名が正しく扱えないので一時ディレクトリにコピーして処理
+        string tmpPdfPath = await Lfs.GenerateUniqueTempFilePathAsync("pdf", ".pdf", cancel: cancel);
+
+        List<string> paramList = new();
+
+        if (createDt._IsZeroDateTimeForFileSystem() == false)
+        {
+            paramList.Add("-CreateDate=\"" + DateTimeOffsetToExitToolDateTimeStr(createDt) + "\"");
+        }
+
+        if (modifyDt._IsZeroDateTimeForFileSystem() == false)
+        {
+            paramList.Add("-ModifyDate=\"" + DateTimeOffsetToExitToolDateTimeStr(modifyDt) + "\"");
+        }
+
+        if (paramList.Count == 0) return;
+
+        await Lfs.CopyFileAsync(pdfPath, tmpPdfPath, cancel: cancel);
+        try
+        {
+            var result = await RunExifToolAsync(
+                $" -overwrite_original {paramList._Combine(" ")} {tmpPdfPath._EnsureQuotation()}",
+                cancel: cancel);
+
+            await Lfs.CopyFileAsync(tmpPdfPath, pdfPath, cancel: cancel);
+        }
+        finally
+        {
+            await Lfs.DeleteFileIfExistsAsync(tmpPdfPath, cancel: cancel);
+        }
+    }
+
+    static string DateTimeOffsetToExitToolDateTimeStr(DateTimeOffset value)
+    {
+        // 日付・時刻部分
+        var dateTimePart = value.ToString("yyyy:MM:dd HH:mm:ss", CultureInfo.InvariantCulture);
+
+        // オフセット（符号は保持したいので先に取り出しておく）
+        var sign = value.Offset >= TimeSpan.Zero ? "+" : "-";
+        var offset = value.Offset.Duration();           // 絶対値を取得
+
+        return string.Create(
+            24,                        // トータル文字数（"yyyy:MM:dd HH:mm:ss" = 19文字  + ±hhmm = 5文字）
+            (dateTimePart, sign, offset),
+            static (span, state) =>
+            {
+                var (dt, s, off) = state;
+                dt.AsSpan().CopyTo(span);                // yyyy:MM:dd HH:mm:ss
+                span[19] = (char)s[0];                   // + または -
+                off.Hours.TryFormat(span.Slice(20, 2), out _, "00");
+                off.Minutes.TryFormat(span.Slice(22, 2), out _, "00");
+            });
     }
 
     public async Task SetPdfPageLabelAsync(string pdfPath, int physicalPage, int logicalPage, CancellationToken cancel = default)

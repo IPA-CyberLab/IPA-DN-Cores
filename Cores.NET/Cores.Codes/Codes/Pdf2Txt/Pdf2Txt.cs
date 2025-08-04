@@ -64,6 +64,8 @@ using static IPA.Cores.Globals.Basic;
 using IPA.Cores.Codes;
 using IPA.Cores.Helper.Codes;
 using static IPA.Cores.Globals.Codes;
+using System.Text.RegularExpressions;
+using System.Globalization;
 
 namespace IPA.Cores.Codes;
 
@@ -204,6 +206,86 @@ public static class Pdf2Txt
 
         return false;
     }
+
+    /// <summary>
+    /// PDF の Date 文字列（例: "D:19981223195200-08'00'"）
+    /// を DateTimeOffset に変換する
+    /// </summary>
+    /// <exception cref="ArgumentNullException"/>
+    /// <exception cref="FormatException"/>
+    public static DateTimeOffset PdfDateTimeStringToDtOffset(string pdfDateString)
+    {
+        try
+        {
+            return PdfDateTimeStringToDtOffsetCore(pdfDateString);
+        }
+        catch (Exception ex)
+        {
+            return ZeroDateTimeOffsetValue;
+        }
+    }
+    // ──主要パターンを 1 本の Regex で吸収──
+    private static readonly Regex _rx = new(
+        @"^D?:?(?<year>\d{4})" +
+        @"(?<month>\d{2})?" +
+        @"(?<day>\d{2})?" +
+        @"(?<hour>\d{2})?" +
+        @"(?<minute>\d{2})?" +
+        @"(?<second>\d{2})?" +
+        @"(?<offset>Z|[+\-]\d{2}('?[:]?\d{2})?'?)?$",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    /// <summary>
+    /// PDF 日時文字列 → <see cref="DateTimeOffset"/> へ変換します。
+    /// 解析できない場合は <see cref="FormatException"/> を送出します。
+    /// </summary>
+    static DateTimeOffset PdfDateTimeStringToDtOffsetCore(string pdfDateString)
+    {
+        if (pdfDateString is null) throw new ArgumentNullException(nameof(pdfDateString));
+
+        // () や D: を除去
+        pdfDateString = pdfDateString.Trim();
+        if (pdfDateString.StartsWith("(") && pdfDateString.EndsWith(")"))
+            pdfDateString = pdfDateString[1..^1];
+        if (pdfDateString.StartsWith("D:")) pdfDateString = pdfDateString[2..];
+
+        var m = _rx.Match(pdfDateString);
+        if (!m.Success)
+            throw new FormatException($"'{pdfDateString}' is not a valid PDF date string.");
+
+        // 欠損フィールドは既定値
+        int year = int.Parse(m.Groups["year"].Value, CultureInfo.InvariantCulture);
+        int month = m.Groups["month"].Success ? int.Parse(m.Groups["month"].Value) : 1;
+        int day = m.Groups["day"].Success ? int.Parse(m.Groups["day"].Value) : 1;
+        int hour = m.Groups["hour"].Success ? int.Parse(m.Groups["hour"].Value) : 0;
+        int minute = m.Groups["minute"].Success ? int.Parse(m.Groups["minute"].Value) : 0;
+        int second = m.Groups["second"].Success ? int.Parse(m.Groups["second"].Value) : 0;
+
+        var localDateTime = new DateTime(year, month, day, hour, minute, second, DateTimeKind.Unspecified);
+        var offset = ParseOffset(m.Groups["offset"].Value, localDateTime);
+
+        return new DateTimeOffset(localDateTime, offset);
+    }
+
+    /// <summary>タイムゾーン部を TimeSpan に変換</summary>
+    private static TimeSpan ParseOffset(string raw, DateTime baseDate)
+    {
+        if (string.IsNullOrEmpty(raw))
+            return TimeZoneInfo.Local.GetUtcOffset(baseDate);      // 明示なし＝ローカル
+
+        if (raw.Equals("Z", StringComparison.OrdinalIgnoreCase))
+            return TimeSpan.Zero;
+
+        // "+09'00'", "+0900", "+09:00" 等を統一
+        string cleaned = raw.Replace("'", "").Replace(":", "");
+        int sign = cleaned[0] == '-' ? -1 : 1;
+        int hours = int.Parse(cleaned[1..3]);
+        int minutes = cleaned.Length > 3 ? int.Parse(cleaned[3..5]) : 0;
+
+        return TimeSpan.FromMinutes(sign * (hours * 60 + minutes));
+    }
+
+
 }
 
 public static class Pdf2TxtApp
