@@ -219,7 +219,7 @@ public static class Pdf2Txt
         {
             return PdfDateTimeStringToDtOffsetCore(pdfDateString);
         }
-        catch (Exception ex)
+        catch
         {
             return ZeroDateTimeOffsetValue;
         }
