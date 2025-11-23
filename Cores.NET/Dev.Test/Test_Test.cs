@@ -5399,7 +5399,7 @@ HOST: www.google.com
         {
             try
             {
-                string url = "http://nttc2.cyber.ipa.go.jp/thincontrol/thincontrol.txt";
+                string url = "http://aaa/" + Str.GenRandStr() + ".txt";
 
                 var ret = await api.SimpleQueryAsync(WebMethods.GET, url);
                 Test_Stress_251121_Measure.Add(1);
@@ -5415,7 +5415,7 @@ HOST: www.google.com
     {
         await TaskCompleted;
 
-        int num = 16;
+        int num = 512;
 
         Test_Stress_251121_Measure = new ThroughputMeasuse(1000, 1000);
 
@@ -5491,7 +5491,7 @@ HOST: www.google.com
 
     public static void Test_Generic()
     {
-        if (true)
+        if (false)
         {
             Test_Fs_251123Async()._GetResult();
             return;
