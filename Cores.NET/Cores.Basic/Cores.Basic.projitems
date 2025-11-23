@@ -69,7 +69,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\DnsLib\TSig.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\File\RawDiskFs.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\File\ChunkedFileSystem.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)common\Stack\File\ReadOnlyCacheFs.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\File\ReadOnlyCacheFs.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Network\DnsResolver.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\Network\WideTunnel.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Common\Stack\ProtoApp\ThinTelework.cs" />
