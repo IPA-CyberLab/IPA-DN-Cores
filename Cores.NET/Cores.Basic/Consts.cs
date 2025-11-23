@@ -147,8 +147,8 @@ public static partial class Consts
 
         public const int ReadOnlyCacheFileSystem_DefaultMaxDirs = 4096;
         public const int ReadOnlyCacheFileSystem_DefaultMaxFiles = 4096;
-        public const long ReadOnlyCacheFileSystem_DefaultMaxSingleFileSize = 65536;
-        public const int ReadOnlyCacheFileSystem_DefaultPollIntervalMsecs = 5 * 1000;
+        public const long ReadOnlyCacheFileSystem_DefaultMaxSingleFileSize = 128 * 1024 * 1024;
+        public const int ReadOnlyCacheFileSystem_DefaultPollIntervalMsecs = 60 * 1000;
     }
 
     public static partial class MaxLens

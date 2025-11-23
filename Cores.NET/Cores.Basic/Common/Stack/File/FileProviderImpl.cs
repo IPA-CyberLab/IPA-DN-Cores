@@ -55,12 +55,12 @@ public class FsBasedFileProviderFileInfoImpl : IFileInfo
 {
     public FileSystemBasedProvider Provider { get; }
     public string FullPath { get; }
-    public ChrootFileSystem FileSystem => Provider.FileSystem;
+    public FileSystem FileSystem => Provider.FileSystem;
 
     public bool Exists { get; }
     public bool IsDirectory { get; }
     public long Length { get; }
-    public string PhysicalPath { get; } = null!;
+    public string? PhysicalPath { get; } = null!;
     public string Name { get; } = null!;
     public DateTimeOffset LastModified { get; }
 
@@ -80,7 +80,7 @@ public class FsBasedFileProviderFileInfoImpl : IFileInfo
                 this.Length = length;
             }
 
-            this.PhysicalPath = physicalPath._NullCheck();
+            this.PhysicalPath = physicalPath;
             this.Name = name._NullCheck();
             this.LastModified = lastModified;
         }
@@ -137,7 +137,7 @@ public class FsBasedFileProviderDirectoryContentsImpl : IDirectoryContents
 
 public class FileSystemBasedProvider : AsyncService, IFileProvider
 {
-    public ChrootFileSystem FileSystem { get; }
+    public FileSystem FileSystem { get; }
     public PathParser Parser => FileSystem.PathParser;
     public bool IgnoreCase { get; }
 
@@ -148,7 +148,10 @@ public class FileSystemBasedProvider : AsyncService, IFileProvider
         try
         {
             this.IgnoreCase = ignoreCase;
-            this.FileSystem = new ChrootFileSystem(new ChrootFileSystemParam(underlayFileSystem, rootDirectory, FileSystemMode.ReadOnly));
+            this.FileSystem = new ReadOnlyCacheFileSystem(new ReadOnlyCacheFileSystemParam(
+                new ChrootFileSystem(new ChrootFileSystemParam(underlayFileSystem, rootDirectory, FileSystemMode.ReadOnly)),
+                disposeUnderlay: true
+                ));
             ProviderForWatch = this.FileSystem._CreateFileProviderForWatchInternal(EnsureInternal.Yes, "/");
         }
         catch
@@ -198,7 +201,13 @@ public class FileSystemBasedProvider : AsyncService, IFileProvider
         }
         else
         {
-            string physicalDirPath = FileSystem.MapPathVirtualToPhysical(subpath);
+            string? physicalDirPath = null;
+
+            var fsIf = FileSystem as IRewriteVirtualPhysicalPath;
+            if (fsIf != null)
+            {
+                physicalDirPath = fsIf.MapPathVirtualToPhysical(subpath);
+            }
 
             FileSystemEntity[] enums = FileSystem.EnumDirectory(subpath, flags: EnumDirectoryFlags.NoGetPhysicalSize);
 
@@ -209,7 +218,7 @@ public class FileSystemBasedProvider : AsyncService, IFileProvider
                 if (e.IsCurrentOrParentDirectory == false)
                 {
                     FsBasedFileProviderFileInfoImpl d = new FsBasedFileProviderFileInfoImpl(EnsureInternal.Yes, this, e.FullPath, true, e.IsDirectory, e.Size,
-                        FileSystem.UnderlayFileSystem.PathParser.Combine(physicalDirPath, e.Name), e.Name, e.LastWriteTime);
+                        (physicalDirPath != null && FileSystem is IOverlayFileSystem) ? ((IOverlayFileSystem)FileSystem).UnderlayFileSystem.PathParser.Combine(physicalDirPath, e.Name) : null, e.Name, e.LastWriteTime);
 
                     o.Add(d);
                 }
@@ -262,7 +271,11 @@ public class FileSystemBasedProvider : AsyncService, IFileProvider
 
         if (exists)
         {
-            physicalPath = FileSystem.MapPathVirtualToPhysical(subpath);
+            var fsIf = FileSystem as IRewriteVirtualPhysicalPath;
+            if (fsIf != null)
+            {
+                physicalPath = fsIf.MapPathVirtualToPhysical(subpath);
+            }
             name = Parser.GetFileName(subpath);
         }
 

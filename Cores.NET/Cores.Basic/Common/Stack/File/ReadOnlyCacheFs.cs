@@ -168,6 +168,7 @@ public class ReadOnlyCacheFileSystem : ViewFileSystem
 
     protected override Task<bool> IsFileExistsImplAsync(string path, CancellationToken cancel = default)
     {
+        // Where(path);
         var cache = this.CacheData;
 
         cancel.ThrowIfCancellationRequested();
@@ -177,6 +178,7 @@ public class ReadOnlyCacheFileSystem : ViewFileSystem
 
     protected override Task<bool> IsDirectoryExistsImplAsync(string path, CancellationToken cancel = default)
     {
+        // Where(path);
         var cache = this.CacheData;
 
         cancel.ThrowIfCancellationRequested();
@@ -186,6 +188,7 @@ public class ReadOnlyCacheFileSystem : ViewFileSystem
 
     protected override async Task<FileMetadata> GetFileMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
     {
+        // Where(path);
         var cache = this.CacheData;
 
         cancel.ThrowIfCancellationRequested();
@@ -224,6 +227,8 @@ public class ReadOnlyCacheFileSystem : ViewFileSystem
 
     protected override async Task<FileMetadata> GetDirectoryMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
     {
+        // Where(path);
+
         var cache = this.CacheData;
 
         cancel.ThrowIfCancellationRequested();
@@ -263,6 +268,8 @@ public class ReadOnlyCacheFileSystem : ViewFileSystem
     protected override async Task<FileObject> CreateFileImplAsync(FileParameters option, CancellationToken cancel = default)
     {
         var cache = this.CacheData;
+
+        // Where(option.Path);
 
         cancel.ThrowIfCancellationRequested();
 
@@ -308,6 +315,8 @@ public class ReadOnlyCacheFileSystem : ViewFileSystem
 
     protected override Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, EnumDirectoryFlags flags, string wildcard, CancellationToken cancel = default)
     {
+        // Where(directoryPath);
+
         if (flags.Bit(EnumDirectoryFlags.IncludeParentDirectory))
             throw new CoresLibException($"ReadOnlyCacheFileSystem: EnumDirectoryFlags.IncludeParentDirectory is not supported.");
         if (flags.Bit(EnumDirectoryFlags.AllowRelativePath))
@@ -498,6 +507,26 @@ public class ReadOnlyCacheFileSystem : ViewFileSystem
 
         return ret;
     }
+
+    //public string MapPathVirtualToPhysical(string virtualPath)
+    //{
+    //    return virtualPath;
+    //    //IRewriteVirtualPhysicalPath? underlayIf = this.UnderlayFileSystem as IRewriteVirtualPhysicalPath;
+    //    //if (underlayIf == null)
+    //    //    throw new NotImplementedException();
+
+    //    //return underlayIf.MapPathVirtualToPhysical(virtualPath);
+    //}
+
+    //public string MapPathPhysicalToVirtual(string physicalPath)
+    //{
+    //    return physicalPath;
+    //    //IRewriteVirtualPhysicalPath? underlayIf = this.UnderlayFileSystem as IRewriteVirtualPhysicalPath;
+    //    //if (underlayIf == null)
+    //    //    throw new NotImplementedException();
+
+    //    //return underlayIf.MapPathPhysicalToVirtual(physicalPath);
+    //}
 }
 
 

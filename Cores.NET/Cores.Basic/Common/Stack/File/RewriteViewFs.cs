@@ -71,6 +71,11 @@ public class RewriteFileSystemParam : ViewFileSystemParams
     }
 }
 
+public interface IOverlayFileSystem
+{
+    FileSystem UnderlayFileSystem { get; }
+}
+
 public interface IRewriteVirtualPhysicalPath
 {
     string MapPathVirtualToPhysical(string virtualPath);

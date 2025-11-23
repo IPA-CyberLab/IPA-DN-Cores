@@ -156,7 +156,7 @@ public class ViewFileSystemParams : FileSystemParams
     }
 }
 
-public class ViewFileSystem : FileSystem
+public class ViewFileSystem : FileSystem, IOverlayFileSystem
 {
     public FileSystem UnderlayFileSystem => this.Params.UnderlayFileSystem;
     protected PathParser UnderlayPathParser => this.UnderlayFileSystem.PathParser;

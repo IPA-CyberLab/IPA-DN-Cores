@@ -121,7 +121,9 @@ public partial class LocalFileSystem : FileSystem
     }
 
     protected override Task<FileObject> CreateFileImplAsync(FileParameters fileParams, CancellationToken cancel = default)
-        => LocalFileObject.CreateFileAsync(this, fileParams, cancel);
+    {
+        return LocalFileObject.CreateFileAsync(this, fileParams, cancel);
+    }
 
     IReadOnlyList<FileSystemEntity> Win32EnumUncPathSpecialDirectory(string normalizedUncPath, EnumDirectoryFlags flags, CancellationToken cancel = default)
     {
@@ -166,6 +168,7 @@ public partial class LocalFileSystem : FileSystem
 
     protected override async Task<FileSystemEntity[]> EnumDirectoryImplAsync(string directoryPath, EnumDirectoryFlags flags, string wildcard, CancellationToken cancel = default)
     {
+        // Where(directoryPath);
         if (Env.IsWindows && Win32ApiUtil.IsUncServerRootPath(directoryPath, out string? normalizedUncPath))
             return Win32EnumUncPathSpecialDirectory(normalizedUncPath, flags, cancel).ToArray();
 
@@ -246,10 +249,14 @@ public partial class LocalFileSystem : FileSystem
     }
 
     protected override Task<bool> IsFileExistsImplAsync(string path, CancellationToken cancel = default)
-        => Task.FromResult(File.Exists(path));
+    {
+        // Where(path);
+        return Task.FromResult(File.Exists(path));
+    }
 
     protected override Task<bool> IsDirectoryExistsImplAsync(string path, CancellationToken cancel = default)
     {
+        // Where(path);
         if (Env.IsWindows && Win32ApiUtil.IsUncServerRootPath(path, out string? normalizedUncPath))
         {
             // UNC server root path
@@ -643,6 +650,7 @@ public partial class LocalFileSystem : FileSystem
 
     protected override async Task<FileMetadata> GetFileMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
     {
+        // Where(path);
         FileInfo fileInfo = new FileInfo(path);
 
         if (fileInfo.Exists == false)
@@ -878,7 +886,10 @@ public partial class LocalFileSystem : FileSystem
         return new ValueHolder<IDisposable>(x => x._DisposeSafe(), token);
     }
 
-    protected override IFileProvider CreateFileProviderForWatchImpl(string root) => new PhysicalFileProvider(root);
+    protected override IFileProvider CreateFileProviderForWatchImpl(string root)
+    {
+        return new PhysicalFileProvider(root);
+    }
 
     public Task<FileObject> CreateDynamicTempFileAsync(string extension = ".dat", string prefix = "", CancellationToken cancel = default)
     {
@@ -919,7 +930,13 @@ public class LocalFileObject : FileObject
 
     public static async Task<FileObject> CreateFileAsync(LocalFileSystem fileSystem, FileParameters fileParams, CancellationToken cancel = default)
     {
+        // Where(fileParams.Path);
         cancel.ThrowIfCancellationRequested();
+
+        /*if (fileParams.Path._InStri("hello.txt"))
+        {
+            BreakPoint();
+        }*/
 
         LocalFileObject f = new LocalFileObject(fileSystem, fileParams);
         try
