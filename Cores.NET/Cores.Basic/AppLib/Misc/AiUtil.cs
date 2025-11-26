@@ -2278,7 +2278,7 @@ public class AiTask
         return (parsed, dstFilePath);
     }
 
-    public async Task<List<string>> CreateManyMusicMixAsync(DateTimeOffset timeStamp, IEnumerable<string> srcWavFilesPathList, string destDirPath, string albumName, string artist, AiRandomBgmSettings settings, FfMpegAudioCodec codec = FfMpegAudioCodec.Aac, int kbps = 0, int numRotate = 1, int minTracks = 1, int durationOfSingleFileMsecs = 3 * 60 * 60 * 1000, CancellationToken cancel = default)
+    public async Task<List<string>> CreateManyMusicMixAsync(DateTimeOffset timeStamp, IEnumerable<string> srcWavFilesPathList, string destDirPath, string albumName, string artist, AiRandomBgmSettings settings, FfMpegAudioCodec codec = FfMpegAudioCodec.Aac, int kbps = 0, int numRotate = 1, int minTracks = 1, int durationOfSingleFileMsecs = 3 * 60 * 60 * 1000, bool simpleFileName = false, CancellationToken cancel = default)
     {
         List<string> ret = new List<string>();
 
@@ -2303,7 +2303,17 @@ public class AiTask
             int rotateForDisplay = q.NumRotate + 1;
             if (rotateForDisplay <= 0) rotateForDisplay = 1;
 
-            string dstFilePath = PP.Combine(destDirPath, $"{albumName} - {artist} - {timestampStr} - Track_{(i + 1).ToString("D3")} - r{rotateForDisplay} - {secstr}{FfMpegUtil.GetExtensionFromCodec(codec)}");
+            string dstFilePath;
+
+            if (simpleFileName == false)
+            {
+                dstFilePath = PP.Combine(destDirPath, $"{albumName} - {artist} - {timestampStr} - Track_{(i + 1).ToString("D3")} - r{rotateForDisplay} - {secstr}{FfMpegUtil.GetExtensionFromCodec(codec)}");
+            }
+            else
+            {
+                dstFilePath = PP.Combine(destDirPath, $"{albumName} - Track_{(i + 1).ToString("D3")} - r{rotateForDisplay} - {secstr}{FfMpegUtil.GetExtensionFromCodec(codec)}");
+            }
+
             if (await Lfs.IsFileExistsAsync(dstFilePath, cancel))
             {
                 Con.WriteLine($"File '{dstFilePath}' already exists. Skip this artist at all.");
@@ -2324,6 +2334,11 @@ public class AiTask
                 Artist = $"{albumName} - {artist} - {timestampStr} - {secstr}",
                 Title = $"{albumName} - {artist} - Track_{(i + 1).ToString("D3")} - {secstr} - r{rotateForDisplay}",
             };
+
+            if (simpleFileName)
+            {
+                meta.Title = $"{albumName} - Track_{(i + 1).ToString("D3")} - {secstr} - r{rotateForDisplay}";
+            }
 
             Con.WriteLine($"--- Concat {albumName} - {artist} Track #{(i + 1).ToString("D3")} (NumRotate = {q.NumRotate})");
 
@@ -3084,13 +3099,20 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
 
                 segmentsList.Add(segmentForBlank);
             }
-            else if (textBlockList[i].Key.StartsWith("<SLEEP:", StrCmp))
+            else if (textBlockList[i].Key.StartsWith("<SLEEP:", StrCmp) || textBlockList[i].Key.StartsWith("<SLEEP_", StrCmp))
             {
-                // 特別タグ: <SLEEP:xxx>
+                // 特別タグ: <SLEEP:xxx> または <SLEEP_xxx>
                 string innerText = textBlockList[i].Key._RemoveQuotation('<', '>');
                 if (innerText._IsFilled())
                 {
-                    if (innerText._GetKeyAndValue(out var sleepTagStr, out var durationStr, ":"))
+                    string sepstr = ":";
+
+                    if (innerText.StartsWith("SLEEP_", StrCmp))
+                    {
+                        sepstr = "_";
+                    }
+
+                    if (innerText._GetKeyAndValue(out var sleepTagStr, out var durationStr, sepstr))
                     {
                         double durationOriginal = Math.Min(durationStr._ToDouble(), 3600);
                         double duration = Math.Max(durationOriginal - 0.1, 0.11);
