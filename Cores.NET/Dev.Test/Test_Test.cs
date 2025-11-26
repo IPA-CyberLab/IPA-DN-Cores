@@ -5388,8 +5388,121 @@ HOST: www.google.com
         }
     }
 
+    static ThroughputMeasuse Test_Stress_251121_Measure = null!;
+
+
+    static async Task Test_Stress_251121_OneTask_Async()
+    {
+        await using WebApi api = new WebApi(new WebApiOptions(new WebApiSettings { DoNotThrowHttpResultError = true, MaxConnectionPerServer = int.MaxValue, SslAcceptAnyCerts = true }, doNotUseTcpStack: true));
+
+        while (true)
+        {
+            try
+            {
+                string url = "http://aaa/" + Str.GenRandStr() + ".txt";
+
+                var ret = await api.SimpleQueryAsync(WebMethods.GET, url);
+                Test_Stress_251121_Measure.Add(1);
+            }
+            catch (Exception ex)
+            {
+                ex._Error();
+            }
+        }
+    }
+
+    static async Task Test_Stress_251121_Async()
+    {
+        await TaskCompleted;
+
+        int num = 512;
+
+        Test_Stress_251121_Measure = new ThroughputMeasuse(1000, 1000);
+
+        await using var printer = Test_Stress_251121_Measure.StartPrinter("HTTP: ");
+
+        for (int i = 0; i < num; i++)
+        {
+            _ = TaskUtil.StartAsyncTaskAsync(Test_Stress_251121_OneTask_Async(), true);
+        }
+
+        await SleepInfiniteAsync();
+    }
+
+    static async Task Test_Fs_251123Async()
+    {
+        //var t1 = Directory.GetDirectories(@"C:\tmp");
+        //var fsInfo = (new DirectoryInfo(@"C:\tmp")).GetFileSystemInfos();
+        //foreach (var t2 in fsInfo)
+        //{
+        //    if (t2.FullName._InStri("abc"))
+        //    {
+        //        Console.WriteLine($"'{t2.Name}'");
+        //    }
+        //}
+
+        //int x = PP.PathStringComparer.Compare("abc 123", "abc 123　");
+
+        //x._Print();
+
+        //return;
+
+        await using var cfs = new ReadOnlyCacheFileSystem(new ReadOnlyCacheFileSystemParam(new ChrootFileSystem(new ChrootFileSystemParam(Lfs, @"C:\tmp\151129\", disposeUnderlay: false)), disposeUnderlay: true,
+            maxFiles: 4096, maxDirs: 4096, maxSingleFileSize: 1000));
+
+        while (true)
+        {
+            string s = Con.ReadLine("a>")._NonNullTrim();
+            if (s == "q")
+            {
+                break;
+            }
+
+            try
+            {
+                if (true)
+                {
+                    var str = await cfs.ReadStringFromFileAsync("/iso/boot/bootsect.exe");
+                    str._Print();
+                }
+
+                if (false)
+                {
+                    var dir = await cfs.EnumDirectoryAsync("/iso", flags: EnumDirectoryFlags.IncludeCurrentDirectory | EnumDirectoryFlags.IncludeParentDirectory);
+                    dir._PrintAsJson();
+                }
+
+                if (true)
+                {
+                    var meta = await cfs.GetFileMetadataAsync("/iso/boot/bootsect.exe/");
+                    meta._PrintAsJson();
+                }
+            }
+            catch (Exception ex)
+            {
+                ex._Error();
+            }
+        }
+
+        //var cache = await cfs.CreateCacheCoreAsync();
+
+        //cache._PrintAsJson();
+    }
+
     public static void Test_Generic()
     {
+        if (false)
+        {
+            Test_Fs_251123Async()._GetResult();
+            return;
+        }
+
+        if (true)
+        {
+            Test_Stress_251121_Async()._GetResult();
+            return;
+        }
+
         if (true)
         {
             string src = "テスト♡①☆★※◎文字列";

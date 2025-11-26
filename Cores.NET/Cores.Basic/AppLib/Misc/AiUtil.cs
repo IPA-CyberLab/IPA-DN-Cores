@@ -55,6 +55,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
 
 using NAudio.Wave;
+using NAudio.Utils; // WaveFileWriter で MemoryStream を使うため (IgnoreDisposeStream)
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -3750,6 +3751,864 @@ public class AiRandomBgmSettings
     [JsonIgnore]
     public Func<CancellationToken, AiAudioEffectFilter?>? CreateAudioEffectFilterForOverwriteMusicPartProc = null!;
 }
+
+
+
+// ChatGPT 5 で生成
+/// <summary>
+/// ルート名前空間上のユーティリティクラス。
+/// </summary>
+public static class AiGenerateExactLengthMusicLib
+{
+    /// <summary>
+    /// 指定された WAV バイナリ (PCM 16bit / 44.1kHz / stereo 固定) を読み込み、
+    /// 指定ミリ秒の長さになるように、頭・中間・末尾を切り貼り＋クロスフェードして新しい WAV を生成する。
+    /// </summary>
+    /// <param name="sourceWav">入力元 WAV ファイルのバイナリデータ (ヘッダ込み)。</param>
+    /// <param name="targetLengthMsecs">出力したい WAV の長さ [msec]。</param>
+    /// <param name="mixFadeMsecs">セグメント切り替え時のクロスフェード長 [msec]。</param>
+    /// <returns>新たに確保された target WAV のバイト配列。</returns>
+    public static byte[] GenerateExactLengthMusic(
+        ReadOnlyMemory<byte> sourceWav,
+        int targetLengthMsecs,
+        int mixFadeMsecs)
+    {
+        // 引数チェック
+        if (targetLengthMsecs <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(targetLengthMsecs),
+                "targetLengthMsecs は 1 以上でなければなりません。");
+        }
+
+        if (sourceWav.IsEmpty)
+        {
+            throw new ArgumentException("sourceWav が空です。", nameof(sourceWav));
+        }
+
+        if (mixFadeMsecs < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(mixFadeMsecs),
+                "mixFadeMsecs は 0 以上でなければなりません。");
+        }
+
+        // ReadOnlyMemory はこの関数の外側で管理されるので、内部処理用に必ずコピーしておく。
+        // (仕様上「targetWav のメモリは本関数内で確保せよ」とあるため、戻り値は別配列で返す。)
+        byte[] sourceBytes = sourceWav.ToArray();
+
+        // NAudio を用いて WAV をパース
+        using var ms = new MemoryStream(sourceBytes, writable: false);
+        using var reader = new WaveFileReader(ms);
+
+        var fmt = reader.WaveFormat;
+
+        // フォーマットチェック (PCM, 44.1kHz, Stereo, 16bit)
+        // ★注意★: 想定以外のフォーマットは全て例外とする。
+        if (fmt.Encoding != WaveFormatEncoding.Pcm ||
+            fmt.SampleRate != 44100 ||
+            fmt.BitsPerSample != 16 ||
+            fmt.Channels != 2)
+        {
+            throw new InvalidDataException(
+                $"サポートされない WAV フォーマットです。" +
+                $"Encoding={fmt.Encoding}, SampleRate={fmt.SampleRate}, BitsPerSample={fmt.BitsPerSample}, Channels={fmt.Channels}");
+        }
+
+        long dataLengthBytesLong = reader.Length; // PCM データ部のみの長さ (ヘッダ除く)
+        if (dataLengthBytesLong <= 0)
+        {
+            throw new InvalidDataException("PCM データが空です。");
+        }
+
+        if (dataLengthBytesLong > int.MaxValue)
+        {
+            // ★注意★: 配列インデックスは int なので、2GB 超の WAV はここでは対象外とする。
+            throw new NotSupportedException("入力 WAV が大きすぎてメモリ内で扱えません。");
+        }
+
+        int dataLengthBytes = (int)dataLengthBytesLong;
+        int blockAlign = fmt.BlockAlign; // 1 フレームあたりのバイト数 (stereo 16bit なら 4)
+        if (blockAlign <= 0 || dataLengthBytes % blockAlign != 0)
+        {
+            throw new InvalidDataException("WAV の blockAlign またはデータ長が不正です。");
+        }
+
+        int totalFrames = dataLengthBytes / blockAlign;
+        if (totalFrames <= 0)
+        {
+            throw new InvalidDataException("PCM データが短すぎます。");
+        }
+
+        // PCM 16bit を float [-1,1] に変換
+        byte[] pcmBytes = new byte[dataLengthBytes];
+        int bytesRead = reader.Read(pcmBytes, 0, pcmBytes.Length);
+        if (bytesRead != dataLengthBytes)
+        {
+            throw new InvalidDataException("PCM データを最後まで読み込めませんでした。");
+        }
+
+        int channels = fmt.Channels; // 2
+        float[] sourceSamples = new float[totalFrames * channels];
+
+        // ★注意★: 16bit little-endian を正しく decode すること。
+        for (int frame = 0; frame < totalFrames; frame++)
+        {
+            int frameByteIndex = frame * blockAlign;
+            for (int ch = 0; ch < channels; ch++)
+            {
+                int byteIndex = frameByteIndex + ch * 2;
+                short sample16 = BinaryPrimitives.ReadInt16LittleEndian(pcmBytes.AsSpan(byteIndex, 2));
+                sourceSamples[frame * channels + ch] = sample16 / 32768f; // -32768 ≒ -1.0f
+            }
+        }
+
+        int targetFrames = MillisToFrames(targetLengthMsecs, fmt.SampleRate);
+        if (targetFrames <= 0)
+        {
+            throw new InvalidOperationException("targetLengthMsecs が短すぎて、1 フレームも生成できません。");
+        }
+
+        // 長さがほぼ同じ (1 フレーム以内) の場合は、元の WAV をそのまま返す。
+        // (ここでも必ず新しい配列を返すため、sourceBytes をそのまま返しても要件を満たす。)
+        if (Math.Abs(targetFrames - totalFrames) <= 1)
+        {
+            return sourceBytes;
+        }
+
+        // 乱数シードは毎回異なるようにする (切れ目位置を毎回変えるため)
+        Random rng = CreateRandom();
+
+        List<SegmentPlan> segments;
+        int fadeFrames;
+
+        if (targetFrames > totalFrames)
+        {
+            // 伸長 (短い曲を長くする)
+            if (!PlanSegmentsForLengthen(
+                    totalFrames,
+                    targetFrames,
+                    mixFadeMsecs,
+                    fmt.SampleRate,
+                    rng,
+                    out segments,
+                    out fadeFrames))
+            {
+                throw new InvalidOperationException("音源の伸長プラン作成に失敗しました。");
+            }
+        }
+        else
+        {
+            // 短縮 (長い曲を短くする)
+            if (!PlanSegmentsForShorten(
+                    totalFrames,
+                    targetFrames,
+                    mixFadeMsecs,
+                    fmt.SampleRate,
+                    rng,
+                    out segments,
+                    out fadeFrames))
+            {
+                throw new InvalidOperationException("音源の短縮プラン作成に失敗しました。");
+            }
+        }
+
+        // セグメントプランに従ってミックス (クロスフェード) を実行
+        // ★注意★: ここで最終的なフレーム数が targetFrames になるように配置する。
+        float[] mixedSamples = RenderSegments(
+            segments,
+            sourceSamples,
+            channels,
+            fadeFrames,
+            targetFrames);
+
+        // float[-1,1] → 16bit PCM へ戻す
+        byte[] pcmOutBytes = ConvertFloatToPcm16(mixedSamples);
+
+        // WAV ヘッダを付与して完成させる
+        byte[] resultWav = BuildPcm16Wave(pcmOutBytes, fmt.SampleRate, channels);
+
+        return resultWav;
+    }
+
+    #region 内部ヘルパー
+
+    /// <summary>
+    /// セグメント情報 (元 WAV のどこから何フレーム切り出すか)。
+    /// </summary>
+    private sealed class SegmentPlan
+    {
+        public int SourceStartFrame; // 元音源上の開始フレーム位置
+        public int LengthFrames;     // このセグメントのフレーム数
+    }
+
+    /// <summary>
+    /// ミリ秒 → フレーム数への変換。
+    /// </summary>
+    private static int MillisToFrames(int milliseconds, int sampleRate)
+    {
+        if (milliseconds <= 0) return 0;
+        double frames = (double)milliseconds * sampleRate / 1000.0;
+        int result = (int)Math.Round(frames, MidpointRounding.AwayFromZero);
+        return result > 0 ? result : 0;
+    }
+
+    /// <summary>
+    /// 毎回違う乱数シードを生成する。
+    /// </summary>
+    private static Random CreateRandom()
+    {
+        // Guid と Tick を使って、比較的衝突しにくいシードを生成
+        int seed = unchecked(Environment.TickCount ^ Guid.NewGuid().GetHashCode());
+        return new Random(seed);
+    }
+
+    /// <summary>
+    /// [minInclusive, maxInclusive] の long を一様乱数で生成する。
+    /// </summary>
+    private static long RandomBetweenLong(Random rng, long minInclusive, long maxInclusive)
+    {
+        if (minInclusive >= maxInclusive) return minInclusive;
+        // Random.NextInt64(min, max) は max を含まないので +1 しておく
+        return rng.NextInt64(minInclusive, maxInclusive + 1);
+    }
+
+    /// <summary>
+    /// 長い音源を targetFrames に短縮するためのセグメントプラン (エ, オ) を構築する。
+    /// </summary>
+    private static bool PlanSegmentsForShorten(
+        int totalFrames,
+        int targetFrames,
+        int mixFadeMsecs,
+        int sampleRate,
+        Random rng,
+        out List<SegmentPlan> segments,
+        out int fadeFrames)
+    {
+        segments = new List<SegmentPlan>();
+        fadeFrames = 0;
+
+        if (targetFrames <= 0 || totalFrames <= 0)
+        {
+            return false;
+        }
+
+        int fade = MillisToFrames(mixFadeMsecs, sampleRate);
+        if (fade < 0) fade = 0;
+        // クロスフェードが極端に大きいと不自然になるので、短縮後長さの半分を上限とする
+        if (fade > targetFrames / 2)
+        {
+            fade = targetFrames / 2;
+        }
+
+        const double ratioMin = 0.7;
+        double r = ratioMin / (1.0 + ratioMin); // ≒ 0.4118 (min / (min + max) の最小比)
+
+        for (int iter = 0; iter < 8; iter++)
+        {
+            long fadeL = fade;
+            long targetL = targetFrames;
+            long sumLen = targetL + fadeL; // エ + オ = target + fade
+
+            if (sumLen <= 2)
+            {
+                // 極端に短い場合は単純に先頭から targetFrames を切り出す
+                segments = new List<SegmentPlan>
+                {
+                    new SegmentPlan { SourceStartFrame = 0, LengthFrames = targetFrames }
+                };
+                fadeFrames = 0;
+                return true;
+            }
+
+            // 2 セグメント (エ, オ) の場合、min >= 0.7 * max を満たすための長さ範囲を計算
+            long minPossibleLen = (long)Math.Ceiling(sumLen * r);
+            long maxPossibleLen = (long)Math.Floor(sumLen * (1.0 - r));
+
+            if (minPossibleLen < 1) minPossibleLen = 1;
+            if (maxPossibleLen < minPossibleLen) maxPossibleLen = minPossibleLen;
+
+            // 最短セグメントは少なくとも minPossibleLen 以上になるので、ここからフェードの上限を導く
+            long theoreticalMinSegment = minPossibleLen;
+            long maxFadeAllowed = theoreticalMinSegment / 10;
+
+            // mixFadeMsecs の補正 (仕様: mixFadeMsecs は最小セグメント長の 1/10 以下に補正)
+            if (fadeL > maxFadeAllowed)
+            {
+                fade = (int)maxFadeAllowed;
+                if (fade < 0) fade = 0;
+                // フェード時間を変更したので、同じロジックをやり直す
+                continue;
+            }
+
+            // 実際に prefix (エ) の長さを決める。
+            // ・sumLen から決まる min/max 範囲
+            // ・各セグメント長は totalFrames を超えない
+            long lower = Math.Max(minPossibleLen, sumLen - totalFrames); // オ が totalFrames を超えないための下限
+            long upper = Math.Min(maxPossibleLen, totalFrames);          // エ が totalFrames を超えないための上限
+
+            if (lower < 1) lower = 1;
+            if (upper < lower)
+            {
+                // フェードが長すぎて条件を満たせないので、さらにフェードを短くして試す
+                if (fade == 0)
+                {
+                    break;
+                }
+                fade /= 2;
+                continue;
+            }
+
+            long prefixLen = RandomBetweenLong(rng, lower, upper);
+            long suffixLen = sumLen - prefixLen;
+
+            if (suffixLen < 1 || suffixLen > totalFrames)
+            {
+                // 理論上起きにくいが、安全のため再試行
+                continue;
+            }
+
+            segments = new List<SegmentPlan>
+            {
+                // エ: sourceWav の先頭部分
+                new SegmentPlan
+                {
+                    SourceStartFrame = 0,
+                    LengthFrames = (int)prefixLen
+                },
+                // オ: sourceWav の末尾部分 (必ず末尾で終わる)
+                new SegmentPlan
+                {
+                    SourceStartFrame = totalFrames - (int)suffixLen,
+                    LengthFrames = (int)suffixLen
+                }
+            };
+
+            fadeFrames = fade;
+            return true;
+        }
+
+        // ここまでで満足なプランが作れなかった場合は、最後の手段として
+        // 「先頭から targetFrames 分を切り出すだけ」の単純な短縮を行う (フェードなし)。
+        segments = new List<SegmentPlan>
+        {
+            new SegmentPlan
+            {
+                SourceStartFrame = 0,
+                LengthFrames = targetFrames
+            }
+        };
+        fadeFrames = 0;
+        return true;
+    }
+
+    /// <summary>
+    /// 短い音源を targetFrames に伸長するためのセグメントプラン (ア, イ*, ウ) を構築する。
+    /// </summary>
+    private static bool PlanSegmentsForLengthen(
+        int totalFrames,
+        int targetFrames,
+        int mixFadeMsecs,
+        int sampleRate,
+        Random rng,
+        out List<SegmentPlan> segments,
+        out int fadeFrames)
+    {
+        segments = null;
+        fadeFrames = 0;
+
+        if (targetFrames <= totalFrames)
+        {
+            return false;
+        }
+
+        // 20% / 80% の位置 (仕様より)
+        int pos20 = (int)(totalFrames * 20L / 100L);
+        int pos80 = (int)(totalFrames * 80L / 100L);
+
+        int middleMax = pos80 - pos20;
+        if (middleMax <= 0)
+        {
+            // 真ん中部分を定義できないほど短い音源
+            return false;
+        }
+
+        const int MaxMiddleSegments = 64; // 過剰なセグメント数にならないよう上限をおく
+
+        for (int middleCount = 0; middleCount <= MaxMiddleSegments; middleCount++)
+        {
+            if (TryPlanSegmentsForLengthenCount(
+                    middleCount,
+                    totalFrames,
+                    targetFrames,
+                    mixFadeMsecs,
+                    sampleRate,
+                    pos20,
+                    pos80,
+                    rng,
+                    out segments,
+                    out fadeFrames))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// middleCount (イの個数) を指定して、ア + イ*middleCount + ウ の長さ配分と位置を決める。
+    /// </summary>
+    private static bool TryPlanSegmentsForLengthenCount(
+        int middleCount,
+        int totalFrames,
+        int targetFrames,
+        int mixFadeMsecs,
+        int sampleRate,
+        int pos20,
+        int pos80,
+        Random rng,
+        out List<SegmentPlan> segments,
+        out int fadeFrames)
+    {
+        segments = null;
+        fadeFrames = 0;
+
+        int segmentCount = 2 + middleCount; // ア + イ*middleCount + ウ
+        if (segmentCount <= 1)
+        {
+            return false;
+        }
+
+        int startMax = pos80;                 // sourceStart: 0%〜80%
+        int middleMax = pos80 - pos20;        // sourceMiddle: 20%〜80%
+        int endMax = totalFrames - pos20;     // sourceEnd: 20%〜100%
+
+        if (startMax <= 0 || endMax <= 0)
+        {
+            return false;
+        }
+
+        if (middleCount > 0 && middleMax <= 0)
+        {
+            return false;
+        }
+
+        int[] maxLens = new int[segmentCount];
+        maxLens[0] = startMax; // ア
+        for (int i = 1; i < segmentCount - 1; i++)
+        {
+            maxLens[i] = middleCount > 0 ? middleMax : startMax;
+        }
+        maxLens[segmentCount - 1] = endMax;
+
+        int globalMax = maxLens.Min();
+        if (globalMax <= 0)
+        {
+            return false;
+        }
+
+        int fade = MillisToFrames(mixFadeMsecs, sampleRate);
+        if (fade < 0) fade = 0;
+        if (fade > targetFrames / 2)
+        {
+            // 極端なフェード長は避ける
+            fade = targetFrames / 2;
+        }
+
+        // 数回フェード長を調整しつつ、長さ配分の乱数サンプリングを行う
+        for (int iter = 0; iter < 8; iter++)
+        {
+            long fadeL = fade;
+            long sumLen = targetFrames + fadeL * (segmentCount - 1);
+            if (sumLen <= segmentCount)
+            {
+                return false;
+            }
+
+            double avgLen = sumLen / (double)segmentCount;
+            if (avgLen > globalMax)
+            {
+                // どのように分配しても maxLens を超えてしまう
+                return false;
+            }
+
+            long maxTotalByLimit = 0;
+            for (int i = 0; i < segmentCount; i++) maxTotalByLimit += maxLens[i];
+            if (sumLen > maxTotalByLimit)
+            {
+                // 各セグメントの最大値を全て使っても足りない場合は不可能
+                return false;
+            }
+
+            bool fadeAdjustedAndRestart = false;
+
+            for (int attempt = 0; attempt < 32; attempt++)
+            {
+                double[] weights = new double[segmentCount];
+                double sumW = 0;
+                for (int i = 0; i < segmentCount; i++)
+                {
+                    // ★注意★: 最短/最長の比が 0.7 以上になるよう、0.7〜1.0 の範囲で重みをとる。
+                    weights[i] = 0.7 + 0.3 * rng.NextDouble();
+                    sumW += weights[i];
+                }
+
+                double scale = sumLen / sumW;
+                double[] lenD = new double[segmentCount];
+
+                bool ok = true;
+                for (int i = 0; i < segmentCount; i++)
+                {
+                    double v = weights[i] * scale;
+                    if (v > maxLens[i])
+                    {
+                        // このウェイトでは指定されたセグメント最大長を超えてしまうのでやり直し
+                        ok = false;
+                        break;
+                    }
+                    lenD[i] = v;
+                }
+
+                if (!ok)
+                {
+                    continue;
+                }
+
+                int[] lengths = new int[segmentCount];
+                double[] frac = new double[segmentCount];
+                long sumInt = 0;
+                for (int i = 0; i < segmentCount; i++)
+                {
+                    double d = lenD[i];
+                    int li = (int)Math.Floor(d);
+                    if (li < 1) li = 1;
+                    if (li > maxLens[i]) li = maxLens[i];
+                    lengths[i] = li;
+                    sumInt += li;
+                    frac[i] = d - li;
+                }
+
+                long delta = sumLen - sumInt;
+                if (delta > 0)
+                {
+                    // 小数部の大きい順に 1 フレームずつ足していき、合計を合わせる
+                    int[] order = Enumerable.Range(0, segmentCount)
+                                            .OrderByDescending(i => frac[i])
+                                            .ToArray();
+                    int idx = 0;
+                    while (delta > 0 && idx < order.Length)
+                    {
+                        int iSeg = order[idx];
+                        if (lengths[iSeg] < maxLens[iSeg])
+                        {
+                            lengths[iSeg]++;
+                            delta--;
+                        }
+                        else
+                        {
+                            idx++;
+                        }
+                    }
+                }
+                else if (delta < 0)
+                {
+                    // 逆に長さを削る必要がある場合は、小数部の小さい順から削る
+                    int[] order = Enumerable.Range(0, segmentCount)
+                                            .OrderBy(i => frac[i])
+                                            .ToArray();
+                    int idx = 0;
+                    while (delta < 0 && idx < order.Length)
+                    {
+                        int iSeg = order[idx];
+                        if (lengths[iSeg] > 1)
+                        {
+                            lengths[iSeg]--;
+                            delta++;
+                        }
+                        else
+                        {
+                            idx++;
+                        }
+                    }
+                }
+
+                long finalSum = 0;
+                for (int i = 0; i < segmentCount; i++) finalSum += lengths[i];
+                if (finalSum != sumLen)
+                {
+                    // 合計が合わなければこの試行は失敗
+                    continue;
+                }
+
+                int minLen = lengths.Min();
+                int maxLen = lengths.Max();
+                if (minLen <= 0 || (double)minLen / maxLen < 0.7)
+                {
+                    // 最短/最長比が 0.7 を下回る場合もやり直し
+                    continue;
+                }
+
+                if (fade > 0)
+                {
+                    int maxFadeAllowed = minLen / 10;
+                    if (maxFadeAllowed <= 0)
+                    {
+                        // フェードを全く取れないような極端な短さなら、フェード自体を 0 にする
+                        fade = 0;
+                        fadeAdjustedAndRestart = true;
+                        break;
+                    }
+
+                    if (fade > maxFadeAllowed)
+                    {
+                        // フェードが長すぎるので、最小セグメント長/10 に合わせて短くする
+                        fade = maxFadeAllowed;
+                        fadeAdjustedAndRestart = true;
+                        break;
+                    }
+                }
+
+                // ここまで来れば lengths と fade は条件を満たしているので、
+                // 実際のセグメント位置 (ア, イ*, ウ) を元音源上に割り当てる。
+                segments = new List<SegmentPlan>(segmentCount);
+
+                // ア: sourceStart の先頭部分 (0% からの prefix)
+                segments.Add(new SegmentPlan
+                {
+                    SourceStartFrame = 0,
+                    LengthFrames = lengths[0]
+                });
+
+                // イ: sourceMiddle の任意位置から一部を取り出す (middleCount 個)
+                for (int m = 0; m < middleCount; m++)
+                {
+                    int length = lengths[1 + m];
+                    int available = middleMax - length;
+                    int offset = 0;
+                    if (available > 0)
+                    {
+                        // 20%〜80% の範囲内で length 分確保できるような開始オフセットをランダムに決める
+                        offset = (int)rng.NextInt64(0, available + 1);
+                    }
+
+                    segments.Add(new SegmentPlan
+                    {
+                        SourceStartFrame = pos20 + offset,
+                        LengthFrames = length
+                    });
+                }
+
+                // ウ: sourceEnd の末尾部分 (必ず原曲の末尾で終わる suffix)
+                int lastLen = lengths[segmentCount - 1];
+                segments.Add(new SegmentPlan
+                {
+                    SourceStartFrame = totalFrames - lastLen,
+                    LengthFrames = lastLen
+                });
+
+                fadeFrames = fade;
+                return true;
+            }
+
+            if (fadeAdjustedAndRestart)
+            {
+                // フェード長を変更したので、同じ middleCount で再度 sumLen から計算し直す
+                continue;
+            }
+
+            // 乱数を変えても length 分配がうまくいかない場合は、フェードをさらに短くして再試行
+            if (fade == 0)
+            {
+                return false;
+            }
+
+            fade /= 2;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// セグメントプランに基づき、クロスフェード付きで最終的な波形を構築する。
+    /// </summary>
+    private static float[] RenderSegments(
+        IReadOnlyList<SegmentPlan> segments,
+        float[] sourceSamples,
+        int channels,
+        int fadeFrames,
+        int targetFrames)
+    {
+        if (segments == null) throw new ArgumentNullException(nameof(segments));
+        if (segments.Count == 0) throw new ArgumentException("segments が空です。", nameof(segments));
+        if (channels <= 0) throw new ArgumentOutOfRangeException(nameof(channels));
+
+        int segmentCount = segments.Count;
+        int[] startFrames = new int[segmentCount];
+
+        // クロスフェードを考慮した開始位置の計算
+        // start[0] = 0
+        // start[i] = start[i-1] + len[i-1] - fadeFrames
+        // こうすることで、fadeFrames 分だけ前後が重なって再生される。
+        startFrames[0] = 0;
+        for (int i = 1; i < segmentCount; i++)
+        {
+            startFrames[i] = startFrames[i - 1] + segments[i - 1].LengthFrames - fadeFrames;
+        }
+
+        // 仕様上、出力長は必ず targetFrames にする
+        int finalFrames = targetFrames;
+        float[] output = new float[finalFrames * channels];
+
+        int fadeFramesUsed = Math.Max(0, fadeFrames);
+
+        // フェードなし or セグメント1個のときは単純な連結
+        if (fadeFramesUsed == 0 || segmentCount == 1)
+        {
+            for (int si = 0; si < segmentCount; si++)
+            {
+                var seg = segments[si];
+                int segStart = startFrames[si];
+                for (int f = 0; f < seg.LengthFrames; f++)
+                {
+                    int destFrame = segStart + f;
+                    if (destFrame < 0 || destFrame >= finalFrames)
+                        continue;
+
+                    int srcFrame = seg.SourceStartFrame + f;
+                    for (int ch = 0; ch < channels; ch++)
+                    {
+                        int srcIndex = srcFrame * channels + ch;
+                        int dstIndex = destFrame * channels + ch;
+                        float sample = (srcIndex >= 0 && srcIndex < sourceSamples.Length)
+                            ? sourceSamples[srcIndex]
+                            : 0f;
+                        output[dstIndex] += sample;
+                    }
+                }
+            }
+
+            return output;
+        }
+
+        int fadeDen = fadeFramesUsed > 1 ? fadeFramesUsed - 1 : 1;
+
+        // ★注意★: クロスフェード部分では「前セグメントのフェードアウト」と
+        // 「後セグメントのフェードイン」が同一サンプル位置で重なるよう、
+        // startFrames と gain 計算をきちんと同期させる必要がある。
+        for (int si = 0; si < segmentCount; si++)
+        {
+            var seg = segments[si];
+            int segStart = startFrames[si];
+            int segLen = seg.LengthFrames;
+
+            for (int f = 0; f < segLen; f++)
+            {
+                int destFrame = segStart + f;
+                if (destFrame < 0 || destFrame >= finalFrames)
+                    continue;
+
+                double gain = 1.0;
+
+                // 先頭側フェードイン (最初のセグメント以外)
+                if (si > 0 && f < fadeFramesUsed)
+                {
+                    double t = f / (double)fadeDen; // 0 → 1
+                    gain *= t;
+                }
+
+                // 末尾側フェードアウト (最後のセグメント以外)
+                if (si < segmentCount - 1 && f >= segLen - fadeFramesUsed)
+                {
+                    int posInFade = f - (segLen - fadeFramesUsed);
+                    double t = (fadeDen - posInFade) / (double)fadeDen; // 1 → 0
+                    if (t < 0) t = 0;
+                    gain *= t;
+                }
+
+                int srcFrame = seg.SourceStartFrame + f;
+                for (int ch = 0; ch < channels; ch++)
+                {
+                    int srcIndex = srcFrame * channels + ch;
+                    int dstIndex = destFrame * channels + ch;
+                    float sample = (srcIndex >= 0 && srcIndex < sourceSamples.Length)
+                        ? sourceSamples[srcIndex]
+                        : 0f;
+                    output[dstIndex] += (float)(sample * gain);
+                }
+            }
+        }
+
+        return output;
+    }
+
+    /// <summary>
+    /// float[-1,1] 配列を 16bit PCM little-endian のバイト配列に変換する。
+    /// </summary>
+    private static byte[] ConvertFloatToPcm16(float[] samples)
+    {
+        if (samples == null) throw new ArgumentNullException(nameof(samples));
+
+        byte[] bytes = new byte[samples.Length * 2];
+        Span<byte> span = bytes.AsSpan();
+
+        for (int i = 0; i < samples.Length; i++)
+        {
+            float v = samples[i];
+            if (v > 1.0f) v = 1.0f;
+            if (v < -1.0f) v = -1.0f;
+
+            short s = (short)Math.Round(v * short.MaxValue, MidpointRounding.AwayFromZero);
+            BinaryPrimitives.WriteInt16LittleEndian(span.Slice(i * 2, 2), s);
+        }
+
+        return bytes;
+    }
+
+    /// <summary>
+    /// 16bit PCM データから最小限の RIFF/WAVE ヘッダを生成し、完全な WAV バイト列を構築する。
+    /// </summary>
+    private static byte[] BuildPcm16Wave(byte[] pcmData, int sampleRate, int channels)
+    {
+        if (pcmData == null) throw new ArgumentNullException(nameof(pcmData));
+
+        const short audioFormatPcm = 1;
+        const short bitsPerSample = 16;
+        short blockAlign = (short)(channels * (bitsPerSample / 8));
+        int byteRate = sampleRate * blockAlign;
+        int subchunk2Size = pcmData.Length;
+        int chunkSize = 36 + subchunk2Size; // 4("WAVE") + (8+fmt) + (8+data)
+
+        byte[] result = new byte[44 + pcmData.Length];
+        Span<byte> span = result.AsSpan();
+
+        // RIFF ヘッダ
+        Encoding.ASCII.GetBytes("RIFF").CopyTo(span.Slice(0, 4));
+        BinaryPrimitives.WriteInt32LittleEndian(span.Slice(4, 4), chunkSize);
+        Encoding.ASCII.GetBytes("WAVE").CopyTo(span.Slice(8, 4));
+
+        // fmt チャンク
+        Encoding.ASCII.GetBytes("fmt ").CopyTo(span.Slice(12, 4));
+        BinaryPrimitives.WriteInt32LittleEndian(span.Slice(16, 4), 16);                  // サブチャンク1サイズ (PCM 固定)
+        BinaryPrimitives.WriteInt16LittleEndian(span.Slice(20, 2), audioFormatPcm);      // フォーマット ID (PCM)
+        BinaryPrimitives.WriteInt16LittleEndian(span.Slice(22, 2), (short)channels);     // チャンネル数
+        BinaryPrimitives.WriteInt32LittleEndian(span.Slice(24, 4), sampleRate);          // サンプリングレート
+        BinaryPrimitives.WriteInt32LittleEndian(span.Slice(28, 4), byteRate);            // バイトレート
+        BinaryPrimitives.WriteInt16LittleEndian(span.Slice(32, 2), blockAlign);          // ブロックアライン
+        BinaryPrimitives.WriteInt16LittleEndian(span.Slice(34, 2), bitsPerSample);       // 量子化ビット数
+
+        // data チャンク
+        Encoding.ASCII.GetBytes("data").CopyTo(span.Slice(36, 4));
+        BinaryPrimitives.WriteInt32LittleEndian(span.Slice(40, 4), subchunk2Size);
+
+        // PCM データ本体
+        Buffer.BlockCopy(pcmData, 0, result, 44, pcmData.Length);
+
+        return result;
+    }
+
+    #endregion
+}
+
+
 
 // 以下のコード By ChatGPT
 public static class AiWaveMixUtil

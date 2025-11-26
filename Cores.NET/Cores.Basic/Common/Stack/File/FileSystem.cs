@@ -1353,8 +1353,8 @@ public class PathParser
 
     public string GetRelativeDirectoryName(string dirPath, string baseDirPath)
     {
-        dirPath = dirPath._TrimNonNull();
-        baseDirPath = baseDirPath._TrimNonNull();
+        dirPath = dirPath._NonNull();
+        baseDirPath = baseDirPath._NonNull();
 
         dirPath = this.NormalizeDirectorySeparator(dirPath);
         dirPath = this.RemoveLastSeparatorChar(dirPath);
@@ -1387,8 +1387,8 @@ public class PathParser
 
     public string GetRelativeFileName(string filePath, string baseDirPath)
     {
-        filePath = filePath._TrimNonNull();
-        baseDirPath = baseDirPath._TrimNonNull();
+        filePath = filePath._NonNull();
+        baseDirPath = baseDirPath._NonNull();
 
         baseDirPath = this.NormalizeDirectorySeparator(baseDirPath);
         baseDirPath = this.RemoveLastSeparatorChar(baseDirPath);
@@ -1960,6 +1960,7 @@ public enum EnumDirectoryFlags
     SkipTooLongFileName = 8,
     AllowRelativePath = 16,
     AllowDirectFilePath = 32,
+    IgnoreErrorDuringRecursiveEnum = 64,
 }
 
 [Flags]
@@ -1978,6 +1979,14 @@ public enum FileSystemMode
     Writeable = 1,
 
     Default = Writeable,
+}
+
+public class FileSystemEnumDirectoryRecursiveOptions
+{
+    public bool DoNotThrowExceptionWhenMaxExceeds { get; set; } = false;
+    public int MaxEntities { get; set; } = int.MaxValue;
+    public int MaxFiles { get; set; } = int.MaxValue;
+    public int MaxDirs { get; set; } = int.MaxValue;
 }
 
 public class FileSystemParams
@@ -2357,9 +2366,11 @@ public abstract partial class FileSystem : AsyncService
 
             FileSystemEntity[] list = await EnumDirectoryImplAsync(directoryPath, (flags | EnumDirectoryFlags.IncludeCurrentDirectory).BitRemove(EnumDirectoryFlags.IncludeParentDirectory), wildcard, opCancel);
 
-            if (list.Select(x => x.Name).Distinct(this.PathParser.PathStringComparer).Count() != list.Count())
+            int distinctCount = list.Select(x => x.Name).Distinct(this.PathParser.PathStringComparer).Count();
+
+            if (distinctCount != list.Count())
             {
-                throw new ApplicationException("There are duplicated entities returned by EnumDirectoryImplAsync().");
+                throw new ApplicationException($"There are duplicated entities returned by EnumDirectoryImplAsync(). ({distinctCount} != {list.Count()})");
             }
 
             if (list.Where(x => x.IsParentDirectory).Any())
@@ -2398,11 +2409,27 @@ public abstract partial class FileSystem : AsyncService
         }
     }
 
-    async Task<bool> EnumDirectoryRecursiveInternalAsync(int depth, List<FileSystemEntity> currentList, string directoryPath, string wildcard, bool recursive, EnumDirectoryFlags flags, CancellationToken opCancel)
+    public class EnumDirCtx
+    {
+        public int CurrentNumDirs = 0;
+        public int CurrentNumFiles = 0;
+    }
+
+    async Task<bool> EnumDirectoryRecursiveInternalAsync(EnumDirCtx ctx, int depth, List<FileSystemEntity> currentList, string directoryPath, string wildcard, bool recursive, EnumDirectoryFlags flags, FileSystemEnumDirectoryRecursiveOptions options, CancellationToken opCancel)
     {
         opCancel.ThrowIfCancellationRequested();
 
-        FileSystemEntity[] entityList = await EnumDirectoryInternalAsync(directoryPath, flags, recursive ? "" : wildcard, opCancel); // ファイルシステムネイティブのワイルドカード指定パラメータは、再帰モードでは使用しない
+        FileSystemEntity[] entityList;
+
+        try
+        {
+            entityList = await EnumDirectoryInternalAsync(directoryPath, flags, recursive ? "" : wildcard, opCancel); // ファイルシステムネイティブのワイルドカード指定パラメータは、再帰モードでは使用しない
+        }
+        catch (Exception ex) when (flags.Bit(EnumDirectoryFlags.IgnoreErrorDuringRecursiveEnum))
+        {
+            ex._Error();
+            return true;
+        }
 
         foreach (FileSystemEntity entity in entityList)
         {
@@ -2410,6 +2437,47 @@ public abstract partial class FileSystem : AsyncService
             {
                 if (this.PathParser.WildcardMatch(entity.Name, wildcard))
                 {
+                    if (entity.IsFile)
+                    {
+                        if (ctx.CurrentNumFiles >= options.MaxFiles)
+                        {
+                            if (options.DoNotThrowExceptionWhenMaxExceeds)
+                            {
+                                continue;
+                            }
+                            throw new CoresLibException($"ctx.CurrentNumFiles ({ctx.CurrentNumFiles}) >= options.MaxFiles ({options.MaxFiles})");
+                        }
+                        if ((ctx.CurrentNumDirs + ctx.CurrentNumFiles) >= options.MaxEntities)
+                        {
+                            if (options.DoNotThrowExceptionWhenMaxExceeds)
+                            {
+                                continue;
+                            }
+                            throw new CoresLibException($"(ctx.CurrentNumDirs ({ctx.CurrentNumDirs}) + ctx.CurrentNumFiles ({ctx.CurrentNumFiles})) >= options.MaxEntities ({options.MaxEntities})");
+                        }
+                        ctx.CurrentNumFiles++;
+                    }
+                    else
+                    {
+                        if (ctx.CurrentNumDirs >= options.MaxDirs)
+                        {
+                            if (options.DoNotThrowExceptionWhenMaxExceeds)
+                            {
+                                continue;
+                            }
+                            throw new CoresLibException($"ctx.CurrentNumDirs ({ctx.CurrentNumDirs}) >= options.MaxDirs ({options.MaxDirs})");
+                        }
+                        if ((ctx.CurrentNumDirs + ctx.CurrentNumFiles) >= options.MaxEntities)
+                        {
+                            if (options.DoNotThrowExceptionWhenMaxExceeds)
+                            {
+                                continue;
+                            }
+                            throw new CoresLibException($"(ctx.CurrentNumDirs ({ctx.CurrentNumDirs}) + ctx.CurrentNumFiles ({ctx.CurrentNumFiles})) >= options.MaxEntities ({options.MaxEntities})");
+                        }
+                        ctx.CurrentNumDirs++;
+                    }
+
                     currentList.Add(entity);
                 }
             }
@@ -2418,7 +2486,7 @@ public abstract partial class FileSystem : AsyncService
             {
                 if (entity.IsDirectory && entity.IsCurrentOrParentDirectory == false)
                 {
-                    if (await EnumDirectoryRecursiveInternalAsync(depth + 1, currentList, entity.FullPath, wildcard, true, flags, opCancel) == false)
+                    if (await EnumDirectoryRecursiveInternalAsync(ctx, depth + 1, currentList, entity.FullPath, wildcard, true, flags, options, opCancel) == false)
                     {
                         return false;
                     }
@@ -2429,9 +2497,13 @@ public abstract partial class FileSystem : AsyncService
         return true;
     }
 
-    public async Task<FileSystemEntity[]> EnumDirectoryAsync(string directoryPath, bool recursive = false, EnumDirectoryFlags flags = EnumDirectoryFlags.None, string? wildcard = null, CancellationToken cancel = default)
+    public Task<FileSystemEntity[]> EnumDirectoryAsync(string directoryPath, bool recursive = false, EnumDirectoryFlags flags = EnumDirectoryFlags.None, string? wildcard = null, CancellationToken cancel = default)
+        => EnumDirectoryAsync(directoryPath, null, recursive, flags, wildcard, cancel);
+    public async Task<FileSystemEntity[]> EnumDirectoryAsync(string directoryPath, FileSystemEnumDirectoryRecursiveOptions? options, bool recursive = false, EnumDirectoryFlags flags = EnumDirectoryFlags.None, string? wildcard = null, CancellationToken cancel = default)
     {
         CheckNotCanceled();
+
+        options ??= new();
 
         wildcard = wildcard._NonNullTrim();
 
@@ -2453,7 +2525,7 @@ public abstract partial class FileSystem : AsyncService
                 string dir = Lfs.PathParser.GetDirectoryName(directoryPath);
                 string fn = Lfs.PathParser.GetFileName(directoryPath);
 
-                var ret =  await EnumDirectoryAsync(dir, false, flags.BitRemove(EnumDirectoryFlags.AllowDirectFilePath), fn, cancel);
+                var ret = await EnumDirectoryAsync(dir, options, false, flags.BitRemove(EnumDirectoryFlags.AllowDirectFilePath), fn, cancel);
 
                 if (ret.Where(x => x.IsFile).Count() != 1)
                 {
@@ -2472,7 +2544,9 @@ public abstract partial class FileSystem : AsyncService
 
             List<FileSystemEntity> currentList = new List<FileSystemEntity>();
 
-            if (await EnumDirectoryRecursiveInternalAsync(0, currentList, directoryPath, wildcard, recursive, flags, opCancel) == false)
+            EnumDirCtx ctx = new();
+
+            if (await EnumDirectoryRecursiveInternalAsync(ctx, 0, currentList, directoryPath, wildcard, recursive, flags, options, opCancel) == false)
             {
                 throw new OperationCanceledException();
             }
@@ -2482,7 +2556,10 @@ public abstract partial class FileSystem : AsyncService
     }
 
     public FileSystemEntity[] EnumDirectory(string directoryPath, bool recursive = false, EnumDirectoryFlags flags = EnumDirectoryFlags.None, string? wildcard = null, CancellationToken cancel = default)
-        => EnumDirectoryAsync(directoryPath, recursive, flags, wildcard, cancel)._GetResult();
+        => EnumDirectory(directoryPath, null, recursive, flags, wildcard, cancel);
+
+    public FileSystemEntity[] EnumDirectory(string directoryPath, FileSystemEnumDirectoryRecursiveOptions? options, bool recursive = false, EnumDirectoryFlags flags = EnumDirectoryFlags.None, string? wildcard = null, CancellationToken cancel = default)
+        => EnumDirectoryAsync(directoryPath, options, recursive, flags, wildcard, cancel)._GetResult();
 
     public async Task<FileMetadata> GetFileMetadataAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)
     {
@@ -2807,6 +2884,8 @@ public class FileSystemEventWatcher : AsyncService
 
     public FastEventListenerList<FileSystemEventWatcher, NonsenseEventType> EventListeners { get; } = new FastEventListenerList<FileSystemEventWatcher, NonsenseEventType>();
 
+    public AsyncPulse AsyncPulse { get; } = new();
+
     public FileSystemEventWatcher(DisposableFileProvider provider, string filter = "**/*", object? state = null, bool enforcePolling = false, int? pollingInterval = null)
     {
         this.Provider = provider;
@@ -2856,6 +2935,12 @@ public class FileSystemEventWatcher : AsyncService
                     try
                     {
                         this.EventListeners.FireSoftly(this, NonsenseEventType.Nonsense);
+                    }
+                    catch { }
+
+                    try
+                    {
+                        this.AsyncPulse.FirePulse(true);
                     }
                     catch { }
 
