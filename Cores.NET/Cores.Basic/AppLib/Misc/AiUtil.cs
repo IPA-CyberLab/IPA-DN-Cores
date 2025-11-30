@@ -2279,6 +2279,156 @@ public class AiTask
         return (parsed, dstFilePath);
     }
 
+    public async Task MakeMultipleMixMusics(IEnumerable<string> srcWavFilesPathList, string destDirPath, string albumName, FfMpegAudioCodec codec = FfMpegAudioCodec.Aac, int kbps = 0, int numRotate = 1, int numPartsMeyasu = 6, int targetLengthMsecs = 6 * 60 * 1000, int mixFadeMsecs = 12 * 1000, CancellationToken cancel = default)
+    {
+        List<string> ret = new List<string>();
+
+        if (numRotate <= 0) numRotate = 1;
+
+        ShuffledEndlessQueue<string> additionalWavPathQueue = new(srcWavFilesPathList, avoidLastSame: true);
+
+        Queue<(int RotateIndex, string WavPath1, string ArtistName, string MusicTitle, string WavPath2, string WavPath3)> queue = new();
+
+        for (int i = 0; i < numRotate; i++)
+        {
+            var tmp = srcWavFilesPathList.ToArray()._Shuffle().ToArray();
+
+            foreach (var srcFullPath in tmp)
+            {
+                string[] tokens = PP.GetFileNameWithoutExtension(srcFullPath)._Split(StringSplitOptions.TrimEntries, " - ");
+
+                if (tokens.Length == 3)
+                {
+                    queue.Enqueue((i + 1, srcFullPath, tokens[1], tokens[2], additionalWavPathQueue.Dequeue(), additionalWavPathQueue.Dequeue()));
+                }
+            }
+        }
+
+        await Lfs.CreateDirectoryAsync(destDirPath, cancel: cancel);
+
+        int trackNumber = 0;
+
+        while (queue.TryDequeue(out var music))
+        {
+            trackNumber++;
+
+            try
+            {
+                string dstFilePath = PP.Combine(destDirPath, $"[{albumName}_{(trackNumber).ToString("D4")}] - {music.ArtistName} - {music.MusicTitle} - r{music.RotateIndex}{FfMpegUtil.GetExtensionFromCodec(codec)}");
+
+                Con.WriteLine(dstFilePath);
+
+                var srcData1 = (await Lfs.ReadDataFromFileAsync(music.WavPath1, 100 * 1024 * 1024, cancel: cancel))._AsReadOnlyMemory();
+                var srcData2 = (await Lfs.ReadDataFromFileAsync(music.WavPath2, 100 * 1024 * 1024, cancel: cancel))._AsReadOnlyMemory();
+                var srcData3 = (await Lfs.ReadDataFromFileAsync(music.WavPath3, 100 * 1024 * 1024, cancel: cancel))._AsReadOnlyMemory();
+
+                //var dstData = AiGenerateExactLengthMusicLib.GenerateExactLengthMusic(srcData1, targetLengthMsecs, mixFadeMsecs);
+                var dstData = AiMixTwoMusicsLib2.MixTwoMusicsMultiple(new[] { srcData1, srcData2, srcData3 }, numPartsMeyasu, targetLengthMsecs, 30 * 1000);
+
+                string dstTmpFileName = await Lfs.GenerateUniqueTempFilePathAsync("aarmp1", ".wav", cancel: cancel);
+
+                await Lfs.WriteDataToFileAsync(dstTmpFileName, dstData, cancel: cancel);
+
+                MediaMetaData meta = new MediaMetaData
+                {
+                    Track = trackNumber,
+                    TrackTotal = 9999,
+                    Album = $"{albumName}",
+                    Artist = $"[{albumName}] - {music.ArtistName}",
+                    Title = $"[{albumName}_{trackNumber.ToString("D4")}] - {music.MusicTitle}",
+                };
+
+                string encodeDstTmpFilePath = await Lfs.GenerateUniqueTempFilePathAsync("ttamp1", FfMpegUtil.GetExtensionFromCodec(codec), cancel: cancel);
+
+                var res = await FfMpeg.EncodeAudioAsync(dstTmpFileName, encodeDstTmpFilePath, codec, kbps, 100, meta, $"t{(trackNumber).ToString("D4")} - r{music.RotateIndex} - {music.ArtistName} - {music.MusicTitle}", useOkFile: false, cancel: cancel);
+
+                await Lfs.CopyFileAsync(encodeDstTmpFilePath, dstFilePath, cancel: cancel);
+
+                ret.Add(dstFilePath);
+
+                await Lfs.DeleteFileIfExistsAsync(dstTmpFileName, cancel: cancel);
+                await Lfs.DeleteFileIfExistsAsync(encodeDstTmpFilePath, cancel: cancel);
+            }
+            catch (Exception ex)
+            {
+                ex._Error();
+            }
+        }
+    }
+
+
+    public async Task ConvertAllMusicToExactMinsAsync(IEnumerable<string> srcWavFilesPathList, string destDirPath, string albumName, FfMpegAudioCodec codec = FfMpegAudioCodec.Aac, int kbps = 0, int numRotate = 1, int targetLengthMsecs = 6 * 60 * 1000, int mixFadeMsecs = 10 * 1000, CancellationToken cancel = default)
+    {
+        List<string> ret = new List<string>();
+
+        if (numRotate <= 0) numRotate = 1;
+
+        Queue<(int RotateIndex, string WavPath, string ArtistName, string MusicTitle)> queue = new();
+
+        for (int i = 0; i < numRotate; i++)
+        {
+            var tmp = srcWavFilesPathList.ToArray()._Shuffle().ToArray();
+
+            foreach (var srcFullPath in tmp)
+            {
+                string[] tokens = PP.GetFileNameWithoutExtension(srcFullPath)._Split(StringSplitOptions.TrimEntries, " - ");
+
+                if (tokens.Length == 3)
+                {
+                    queue.Enqueue((i + 1, srcFullPath, tokens[1], tokens[2]));
+                }
+            }
+        }
+
+        await Lfs.CreateDirectoryAsync(destDirPath, cancel: cancel);
+
+        int trackNumber = 0;
+
+        while (queue.TryDequeue(out var music))
+        {
+            trackNumber++;
+
+            try
+            {
+                string dstFilePath = PP.Combine(destDirPath, $"[{albumName}_{(trackNumber).ToString("D4")}] - {music.ArtistName} - {music.MusicTitle} - r{music.RotateIndex}{FfMpegUtil.GetExtensionFromCodec(codec)}");
+
+                Con.WriteLine(dstFilePath);
+
+                var srcData = await Lfs.ReadDataFromFileAsync(music.WavPath, 100 * 1024 * 1024, cancel: cancel);
+
+                var dstData = AiGenerateExactLengthMusicLib.GenerateExactLengthMusic(srcData, targetLengthMsecs, mixFadeMsecs);
+
+                string dstTmpFileName = await Lfs.GenerateUniqueTempFilePathAsync("aarmp1", ".wav", cancel: cancel);
+
+                await Lfs.WriteDataToFileAsync(dstTmpFileName, dstData, cancel: cancel);
+
+                MediaMetaData meta = new MediaMetaData
+                {
+                    Track = trackNumber,
+                    TrackTotal = 9999,
+                    Album = $"{albumName}",
+                    Artist = $"[{albumName}] - {music.ArtistName}",
+                    Title = $"[{albumName}_{trackNumber.ToString("D4")}] - {music.MusicTitle}",
+                };
+
+                string encodeDstTmpFilePath = await Lfs.GenerateUniqueTempFilePathAsync("ttamp1", FfMpegUtil.GetExtensionFromCodec(codec), cancel: cancel);
+
+                var res = await FfMpeg.EncodeAudioAsync(dstTmpFileName, encodeDstTmpFilePath, codec, kbps, 100, meta, $"t{(trackNumber).ToString("D4")} - r{music.RotateIndex} - {music.ArtistName} - {music.MusicTitle}", useOkFile: false, cancel: cancel);
+
+                await Lfs.CopyFileAsync(encodeDstTmpFilePath, dstFilePath, cancel: cancel);
+
+                ret.Add(dstFilePath);
+
+                await Lfs.DeleteFileIfExistsAsync(dstTmpFileName, cancel: cancel);
+                await Lfs.DeleteFileIfExistsAsync(encodeDstTmpFilePath, cancel: cancel);
+            }
+            catch (Exception ex)
+            {
+                ex._Error();
+            }
+        }
+    }
+
     public async Task<List<string>> CreateManyMusicMixAsync(DateTimeOffset timeStamp, IEnumerable<string> srcWavFilesPathList, string destDirPath, string albumName, string artist, AiRandomBgmSettings settings, FfMpegAudioCodec codec = FfMpegAudioCodec.Aac, int kbps = 0, int numRotate = 1, int minTracks = 1, int durationOfSingleFileMsecs = 3 * 60 * 60 * 1000, bool simpleFileName = false, CancellationToken cancel = default)
     {
         List<string> ret = new List<string>();
@@ -3754,6 +3904,1428 @@ public class AiRandomBgmSettings
 
 
 
+
+
+
+
+
+
+
+
+
+
+// ChatGPT 5 Pro で生成
+
+
+// ルート名前空間直下に定義するクラス
+public static class AiMixTwoMusicsLib2
+{
+    // WAV フォーマット (問題仕様に依存)
+    const int SampleRate = 44100;
+    const int Channels = 2;
+    const int BitsPerSample = 16;
+    const int BlockAlign = Channels * BitsPerSample / 8; // 1 フレームあたりのバイト数
+    const double SamplesPerMs = SampleRate / 1000.0;
+
+    // 乱数生成 (パート長や開始位置のランダム化に使用)
+    static readonly Random s_rand = new Random();
+
+    // 1 つの元楽曲 (sourceWav) を表現するための内部クラス
+    sealed class SourceSong
+    {
+        public short[] Samples = Array.Empty<short>(); // 16bit PCM (LRLR...) の配列
+        public int FrameCount;                         // フレーム数 (ステレオ 1 フレーム = 2 サンプル)
+        public double DurationMs;                      // 長さ (ミリ秒)
+    }
+
+    // 出力用に切り出した 1 パート (ア / イ / ウ) を表現
+    sealed class PartSegment
+    {
+        public SourceSong Song = default!;
+        public int StartFrame;     // 元楽曲内のフレーム開始位置
+        public int FrameLength;    // 使用するフレーム数
+        public bool IsFirst;       // 先頭パート (ア) かどうか
+        public bool IsLast;        // 末尾パート (ウ) かどうか
+    }
+
+    /// <summary>
+    /// 問題文で指定されたメイン関数。
+    /// 複数の WAV を指定の長さでメドレー風にミックスし、新しい WAV バイト列を返す。
+    /// </summary>
+    public static byte[] MixTwoMusicsMultiple(
+        IEnumerable<ReadOnlyMemory<byte>> sourceWavList,
+        int numPartsMeyasu, int targetLengthMsecs, int mixFadeMsecs)
+    {
+        // ********** 引数チェック **********
+
+        if (sourceWavList == null) throw new ArgumentNullException(nameof(sourceWavList));
+
+        var wavArray = sourceWavList.ToArray();
+        if (wavArray.Length == 0)
+            throw new ArgumentException("sourceWavList は 1 個以上の要素を含む必要があります。", nameof(sourceWavList));
+
+        if (targetLengthMsecs <= 0)
+            throw new ArgumentOutOfRangeException(nameof(targetLengthMsecs), "targetLengthMsecs は正の値である必要があります。");
+
+        if (mixFadeMsecs < 0)
+            throw new ArgumentOutOfRangeException(nameof(mixFadeMsecs), "mixFadeMsecs は負の値にはできません。");
+
+        // numPartsMeyasu が 2 未満の場合は 2 とみなす
+        if (numPartsMeyasu < 2) numPartsMeyasu = 2;
+
+        // ********** 入力 WAV をパースして内部表現に変換 **********
+
+        var sources = new List<SourceSong>();
+
+        foreach (var mem in wavArray)
+        {
+            // ReadOnlyMemory<byte> から MemoryStream を作成
+            // ※ ToArray() により 1 回コピーが発生するが、分かりやすさ優先
+            using var ms = new MemoryStream(mem.ToArray(), writable: false);
+            using var reader = new WaveFileReader(ms);
+
+            var wf = reader.WaveFormat;
+
+            // フォーマットチェック (PCM / 44.1kHz / 16bit / stereo)
+            if (wf.Encoding != WaveFormatEncoding.Pcm ||
+                wf.SampleRate != SampleRate ||
+                wf.BitsPerSample != BitsPerSample ||
+                wf.Channels != Channels)
+            {
+                throw new InvalidOperationException(
+                    $"WAV フォーマットが不正です。PCM / 44100Hz / 16bit / ステレオ のみ対応しています。 " +
+                    $"Encoding={wf.Encoding}, SampleRate={wf.SampleRate}, Bits={wf.BitsPerSample}, Channels={wf.Channels}");
+            }
+
+            if (reader.Length <= 0)
+                throw new InvalidOperationException("WAV データにサンプルが含まれていません。");
+
+            int dataBytes = (int)reader.Length; // WaveFileReader.Length はデータ部の長さ
+            var pcmBytes = new byte[dataBytes];
+            int read = reader.Read(pcmBytes, 0, dataBytes);
+            if (read != dataBytes)
+                throw new InvalidOperationException("WAV データの読み込みに失敗しました。");
+
+            // 16bit PCM (little endian) を short 配列に変換
+            var samples = new short[dataBytes / 2];
+            Buffer.BlockCopy(pcmBytes, 0, samples, 0, dataBytes);
+
+            int frameCount = dataBytes / BlockAlign; // 1 フレーム = 4 バイト (16bit stereo)
+            double durationMs = frameCount * 1000.0 / SampleRate;
+
+            sources.Add(new SourceSong
+            {
+                Samples = samples,
+                FrameCount = frameCount,
+                DurationMs = durationMs,
+            });
+        }
+
+        double avgLenMs = sources.Average(s => s.DurationMs);
+        double minLenMs = sources.Min(s => s.DurationMs);
+
+        // ********** 基準パート長 (ミリ秒) の算出 **********
+        // (a) targetLengthMsecs / numPartsMeyasu
+        // (b) 全曲の平均長さの 1/2
+        // (c) 最短曲の 70% (ただし (b)/2 以上)
+        double candA = (double)targetLengthMsecs / numPartsMeyasu;
+        double candB = avgLenMs / 2.0;
+        double candCtmp = minLenMs * 0.7;
+        double candBhalf = candB / 2.0;
+        double candC = Math.Max(candCtmp, candBhalf);
+        double basePartLenMs = Math.Min(candA, Math.Min(candB, candC));
+
+        // 何らかの理由で 0 に近くなった場合の保険
+        if (basePartLenMs <= 10.0)
+        {
+            // 最低 10ms か、target の 1/numParts 程度を確保
+            basePartLenMs = Math.Min(targetLengthMsecs, Math.Max(10.0, minLenMs * 0.3));
+        }
+
+        // ミリ秒 → フレーム数への変換
+        int basePartLenSamples = (int)Math.Round(basePartLenMs * SamplesPerMs);
+        int minPartLenSamples = (int)Math.Round(basePartLenSamples * 0.7); // 70%
+        int maxPartLenSamples = basePartLenSamples;                       // 100% 相当
+
+        if (minPartLenSamples < 1) minPartLenSamples = 1;
+
+        // ********** フェード長 (ミリ秒→サンプル) の補正 **********
+        int fadeSamples = 0;
+        if (mixFadeMsecs > 0 && minPartLenSamples > 0)
+        {
+            int requestedFadeSamples = (int)Math.Round(mixFadeMsecs * SamplesPerMs);
+            // 「ア、イ、ウの長さのうち最小値」の 1/3 以下となるよう補正
+            int maxFadeSamples = Math.Max(1, minPartLenSamples / 3);
+            fadeSamples = Math.Min(requestedFadeSamples, maxFadeSamples);
+        }
+
+        // 出力のターゲット長 (フレーム数)
+        int targetFrames = (int)Math.Round(targetLengthMsecs * SamplesPerMs);
+        if (targetFrames <= 0)
+            throw new ArgumentException("targetLengthMsecs が小さすぎます。", nameof(targetLengthMsecs));
+
+        // ********** パート列 (ア + 0 個以上のイ + ウ) の構築 **********
+
+        // 乱数ヘルパー (maxInclusive を含む)
+        int NextRandom(int minInclusive, int maxInclusive)
+        {
+            lock (s_rand)
+            {
+                return s_rand.Next(minInclusive, maxInclusive + 1);
+            }
+        }
+
+        // sourceWavList の順序を無限にシャッフルしながら取り出すキュー
+        var queue = new ShuffledEndlessQueue<SourceSong>(sources, avoidLastSame: true);
+
+        var segments = new List<PartSegment>();
+
+        // --- 先頭パート (ア) の生成 ---
+        {
+            SourceSong song = null!;
+            for (int i = 0; i < sourceWavList.Count() * 2; i++)
+            {
+                // 0 個目が出るまで
+                song = queue.Dequeue();
+                if (song == sources[0])
+                {
+                    break;
+                }
+            }
+            int maxEndFrame = (int)(song.FrameCount * 0.8); // 80% 位置までで終わる必要あり
+            if (maxEndFrame <= 0) maxEndFrame = song.FrameCount;
+
+            // いったん最大パート長をベースにする
+            int lenFramesCandidate = Math.Min(maxPartLenSamples, maxEndFrame);
+            if (lenFramesCandidate < minPartLenSamples)
+            {
+                // 80% までで長さが足りなければ、取りうる最大長で妥協する
+                lenFramesCandidate = maxEndFrame;
+            }
+
+            if (lenFramesCandidate < 1)
+                lenFramesCandidate = Math.Min(song.FrameCount, targetFrames);
+
+            // 基準パート長の 70% ～ 100% の乱数
+            int lenFrames = NextRandom(
+                Math.Max(1, Math.Min(minPartLenSamples, lenFramesCandidate)),
+                Math.Max(1, lenFramesCandidate)
+            );
+
+            // targetFrames を超えないようにさらに制限
+            if (lenFrames > targetFrames)
+                lenFrames = targetFrames;
+
+            segments.Add(new PartSegment
+            {
+                Song = song,
+                StartFrame = 0,        // 「先頭部分」で始まる
+                FrameLength = lenFrames,
+                IsFirst = true,
+                IsLast = false,
+            });
+        }
+
+        // 現在までの出力長 (フレーム数) を、crossfade の実効長を考慮して管理する
+        // 先頭パートはのりしろ無しなのでそのまま加算
+        int totalFramesSoFar = segments[0].FrameLength;
+
+        // --- 中間パート (イ) の生成 ---
+        while (true)
+        {
+            int remainingFrames = targetFrames - totalFramesSoFar;
+            if (remainingFrames <= 0)
+            {
+                // 既に必要長を達成 or 超過しているので、これ以上イは追加しない
+                break;
+            }
+
+            // 末尾パート (ウ) 用に最低限確保しておきたい長さ (かなり保守的に設定)
+            int minFinalFrames = Math.Max(minPartLenSamples, fadeSamples * 2);
+            int minFinalContribution = Math.Max(1, minFinalFrames - fadeSamples);
+
+            // もし残りが最小の末尾パート分より小さければ、イを追加せずにウを作る
+            int remainingContribution = remainingFrames;
+            if (remainingContribution <= minFinalContribution)
+            {
+                break;
+            }
+
+            // ウに割り当てるべき時間を確保しながらイを追加できるかを簡易的に判定
+            int maxFinalContribution = Math.Max(minFinalFrames, maxPartLenSamples) - fadeSamples;
+            if (remainingContribution - minFinalContribution <= maxFinalContribution)
+            {
+                // これ以上イを足すとウが短くなりすぎる可能性が高いのでここで停止
+                break;
+            }
+
+            var song = queue.Dequeue();
+
+            int totalFrames = song.FrameCount;
+            int minStartFrame = (int)(totalFrames * 0.2); // 開始位置は 20% より後
+            int maxEndFrame2 = (int)(totalFrames * 0.8);  // 終了位置は 80% より前
+            if (maxEndFrame2 <= minStartFrame + 10)
+            {
+                // 極端に短くて条件を満たせない場合は、今回は中間パートとしては使わずスキップ
+                continue;
+            }
+
+            int maxLenBySong = maxEndFrame2 - minStartFrame;
+            int maxLenForThis = Math.Min(maxPartLenSamples, maxLenBySong);
+
+            // 残りとウのための最低長を考慮して、今回のイの最大長を制限
+            int maxNetContributionForThis = remainingContribution - minFinalContribution;
+            int maxLenByRemaining = maxNetContributionForThis + fadeSamples;
+            if (maxLenByRemaining < maxLenForThis)
+                maxLenForThis = maxLenByRemaining;
+
+            if (maxLenForThis <= fadeSamples + 1)
+            {
+                // もはやイを追加する余裕がない
+                break;
+            }
+
+            int minLenForThis = Math.Min(minPartLenSamples, maxLenForThis);
+            if (minLenForThis < fadeSamples + 1)
+                minLenForThis = fadeSamples + 1;
+
+            int desiredLen = NextRandom(minLenForThis, maxLenForThis);
+
+            // 開始位置をランダムに決定 (20% ～ (80% - desiredLen) の範囲)
+            int startMax = maxEndFrame2 - desiredLen;
+            if (startMax <= minStartFrame)
+            {
+                // ほとんど余裕がない場合は開始位置を 20% に固定
+                minStartFrame = Math.Min(minStartFrame, startMax);
+                if (minStartFrame < 0) minStartFrame = 0;
+                startMax = maxEndFrame2 - desiredLen;
+            }
+
+            if (startMax < minStartFrame)
+            {
+                // 長さを短くして調整
+                desiredLen = maxEndFrame2 - minStartFrame;
+                startMax = minStartFrame;
+            }
+
+            if (desiredLen <= 0)
+                break;
+
+            int startFrame = (startMax > minStartFrame) ? NextRandom(minStartFrame, startMax) : minStartFrame;
+
+            segments.Add(new PartSegment
+            {
+                Song = song,
+                StartFrame = startFrame,
+                FrameLength = desiredLen,
+                IsFirst = false,
+                IsLast = false,
+            });
+
+            // イの追加は fadeSamples 分だけ実効長が減る
+            totalFramesSoFar += (desiredLen - fadeSamples);
+        }
+
+        // --- 末尾パート (ウ) の生成 ---
+        {
+            int remainingFrames = targetFrames - totalFramesSoFar;
+            if (remainingFrames < 0)
+            {
+                // すでにオーバーしている場合は直近のパートを少し短くして調整
+                int overshoot = -remainingFrames;
+                var last = segments[segments.Count - 1];
+                if (last.FrameLength > overshoot)
+                {
+                    last.FrameLength -= overshoot;
+                    segments[segments.Count - 1] = last;
+                    totalFramesSoFar -= overshoot;
+                }
+                remainingFrames = 0;
+            }
+
+            // 理論上必要な末尾パート長:
+            // totalFramesSoFar + (finalLen - fade) = targetFrames
+            int desiredFinalFrames = remainingFrames + fadeSamples;
+
+            // 末尾パートが短くなり過ぎる場合、直前の中間パートを縮めてウを長くする (仕様 ②)
+            if (desiredFinalFrames < minPartLenSamples && segments.Count >= 2)
+            {
+                int newFinalFrames = minPartLenSamples;
+                int delta = newFinalFrames - desiredFinalFrames;
+
+                var lastMid = segments[segments.Count - 1];
+                // あまり極端に短くならないよう最低限の長さを残す
+                if (!lastMid.IsFirst && lastMid.FrameLength - delta > fadeSamples * 2)
+                {
+                    lastMid.FrameLength -= delta;
+                    segments[segments.Count - 1] = lastMid;
+                    totalFramesSoFar -= delta;
+                    desiredFinalFrames = newFinalFrames;
+                }
+            }
+
+            if (desiredFinalFrames < fadeSamples + 1)
+                desiredFinalFrames = fadeSamples + 1;
+
+            bool finalCreated = false;
+
+            // 「最後にキュー取得された元楽曲」を末尾に使う必要があるので、
+            // Dequeue を繰り返しながら末尾パート候補を探す。
+            for (int tryCount = 0; tryCount < sources.Count * 2 && !finalCreated; tryCount++)
+            {
+                var song = queue.Dequeue();
+                int totalFrames = song.FrameCount;
+
+                int maxEndFrame = (int)(totalFrames * 0.8); // 終了位置は 80% 以前
+                if (maxEndFrame <= 0) maxEndFrame = totalFrames;
+
+                int maxLenAllowed = Math.Min(maxEndFrame, maxPartLenSamples);
+                int minLenAllowed = Math.Min(minPartLenSamples, maxLenAllowed);
+
+                if (maxLenAllowed <= 0)
+                {
+                    // この曲は末尾パートとして使えない (極端に短いなど)
+                    continue;
+                }
+
+                if (desiredFinalFrames > maxLenAllowed)
+                {
+                    // この楽曲では希望する長さの末尾パートを構成できない。
+                    // 仕様どおり、これは「末尾」とせず、もう 1 つの中間パートとして挟み込む。
+
+                    int lenForMid = maxLenAllowed;
+                    if (lenForMid <= fadeSamples + 1)
+                        continue;
+
+                    int baseRandLen = NextRandom(
+                        Math.Max(1, minLenAllowed),
+                        Math.Max(1, lenForMid));
+
+                    int minStartFrame = (int)(totalFrames * 0.2);
+                    int startFrameMax = maxEndFrame - baseRandLen;
+                    if (startFrameMax < minStartFrame) startFrameMax = minStartFrame;
+
+                    int startFrame = (startFrameMax > minStartFrame) ? NextRandom(minStartFrame, startFrameMax) : minStartFrame;
+
+                    segments.Add(new PartSegment
+                    {
+                        Song = song,
+                        StartFrame = startFrame,
+                        FrameLength = baseRandLen,
+                        IsFirst = false,
+                        IsLast = false,
+                    });
+
+                    totalFramesSoFar += (baseRandLen - fadeSamples);
+                    remainingFrames = targetFrames - totalFramesSoFar;
+                    desiredFinalFrames = remainingFrames + fadeSamples;
+                    continue;
+                }
+
+                // 末尾パート用の理想基準長 (基準パート長 * 70%～100% の乱数)
+                int baseRand = NextRandom(
+                    Math.Max(desiredFinalFrames, minLenAllowed),
+                    Math.Max(desiredFinalFrames, maxLenAllowed));
+
+                // 「その楽曲の長さ - 基準パート長*乱数」以降かつ 20% 以降で開始する
+                int startLimitFromTail = totalFrames - baseRand;
+                int startLimit20 = (int)(totalFrames * 0.2);
+                int minStart = Math.Max(startLimitFromTail, startLimit20);
+
+                // target 長をぴったりにするための開始位置
+                int startFrameForDesired = totalFrames - desiredFinalFrames;
+
+                // 開始位置が制約を満たさない場合は、この楽曲では末尾パートを構成できない
+                if (startFrameForDesired < minStart)
+                    continue;
+
+                finalCreated = true;
+
+                segments.Add(new PartSegment
+                {
+                    Song = song,
+                    StartFrame = startFrameForDesired,
+                    FrameLength = desiredFinalFrames,
+                    IsFirst = false,
+                    IsLast = true,
+                });
+
+                totalFramesSoFar += (desiredFinalFrames - fadeSamples);
+            }
+
+            if (!finalCreated)
+            {
+                // どうしても仕様どおりの末尾パートを作れなかった場合:
+                // 直近のパートを末尾パート扱いにして処理を完遂 (仕様違反だが例外で落とさないようにする)
+                var last = segments[segments.Count - 1];
+                last.IsLast = true;
+                segments[segments.Count - 1] = last;
+            }
+        }
+
+        // ********** 最終的なフレーム数を再計算・調整 **********
+
+        int sumFrames = segments.Sum(s => s.FrameLength);
+        int numParts = segments.Count;
+        int effectiveFrames = sumFrames - Math.Max(0, numParts - 1) * fadeSamples; // crossfade の重なり分を差し引く
+
+        if (effectiveFrames <= 0)
+            throw new InvalidOperationException("パート構成の計算に失敗しました。");
+
+        // targetFrames と実際の長さが微妙にズレている場合、末尾パートを微調整
+        if (effectiveFrames > targetFrames)
+        {
+            int diff = effectiveFrames - targetFrames;
+            var last = segments[segments.Count - 1];
+            if (last.FrameLength > diff)
+            {
+                last.FrameLength -= diff;
+                segments[segments.Count - 1] = last;
+                effectiveFrames -= diff;
+            }
+        }
+        else if (effectiveFrames < targetFrames)
+        {
+            int diff = targetFrames - effectiveFrames;
+            var last = segments[segments.Count - 1];
+
+            // 80% 制約を超えない範囲で末尾パートを少しだけ伸ばす
+            int maxExtra = last.Song.FrameCount - last.StartFrame - last.FrameLength; // 完全な末尾までの余裕
+            int maxEndLimit = (int)(last.Song.FrameCount * 0.8) - (last.StartFrame + last.FrameLength);
+            if (maxEndLimit < 0) maxEndLimit = 0;
+            maxExtra = Math.Min(maxExtra, maxEndLimit);
+
+            int extra = Math.Min(diff, maxExtra);
+            if (extra > 0)
+            {
+                last.FrameLength += extra;
+                segments[segments.Count - 1] = last;
+                effectiveFrames += extra;
+            }
+        }
+
+        // 最終的に出力するフレーム数 (targetFrames を優先)
+        int outputFrames = Math.Min(targetFrames, effectiveFrames);
+        int outputSamples = outputFrames * Channels;
+        var outSamples = new short[outputSamples];
+
+        // ********** 実際のサンプルミックス処理 (crossfade を含む) **********
+
+        int outFramePos = 0;
+
+        for (int i = 0; i < segments.Count; i++)
+        {
+            var seg = segments[i];
+            int startFrame = seg.StartFrame;
+            int lenFrames = seg.FrameLength;
+            var songSamples = seg.Song.Samples;
+
+            if (i == 0)
+            {
+                // 先頭パート: 普通にコピー (後続パートの crossfade で末尾の一部は上書きされる)
+                int framesToCopy = Math.Min(lenFrames, outputFrames - outFramePos);
+                for (int f = 0; f < framesToCopy; f++)
+                {
+                    int srcIndex = (startFrame + f) * Channels;
+                    int dstIndex = (outFramePos + f) * Channels;
+                    if (dstIndex + 1 >= outSamples.Length) break;
+
+                    outSamples[dstIndex] = songSamples[srcIndex];
+                    outSamples[dstIndex + 1] = songSamples[srcIndex + 1];
+                }
+
+                outFramePos += framesToCopy;
+            }
+            else
+            {
+                // 2 パート目以降: 前のパートの末尾と mixFadeMsecs 分だけ重ね合わせる
+                int overlapStart = outFramePos - fadeSamples; // クロスフェード部分の開始位置 (フレーム)
+
+                // フェード区間のミックス
+                for (int f = 0; f < fadeSamples && f < lenFrames; f++)
+                {
+                    int frameIndex = overlapStart + f;
+                    if (frameIndex < 0 || frameIndex >= outputFrames) continue;
+
+                    int dstIndex = frameIndex * Channels;
+                    if (dstIndex + 1 >= outSamples.Length) break;
+
+                    int srcIndexNew = (startFrame + f) * Channels;
+
+                    short oldL = outSamples[dstIndex];
+                    short oldR = outSamples[dstIndex + 1];
+
+                    short newL = songSamples[srcIndexNew];
+                    short newR = songSamples[srcIndexNew + 1];
+
+                    // 線形フェード: 前が 1→0, 後ろが 0→1
+                    double t = (fadeSamples <= 1) ? 1.0 : (double)f / (fadeSamples - 1);
+                    double fadeIn = t;
+                    double fadeOut = 1.0 - t;
+
+                    int mixedL = (int)(oldL * fadeOut + newL * fadeIn);
+                    int mixedR = (int)(oldR * fadeOut + newR * fadeIn);
+
+                    outSamples[dstIndex] = ClampToInt16(mixedL);
+                    outSamples[dstIndex + 1] = ClampToInt16(mixedR);
+                }
+
+                // フェード部分より後ろの区間は、新しいパートをそのまま貼り付ける
+                int nonOverlapFrames = lenFrames - fadeSamples;
+                if (nonOverlapFrames > 0)
+                {
+                    for (int f = fadeSamples; f < lenFrames; f++)
+                    {
+                        int frameIndex = outFramePos + (f - fadeSamples);
+                        if (frameIndex >= outputFrames) break;
+
+                        int dstIndex = frameIndex * Channels;
+                        if (dstIndex + 1 >= outSamples.Length) break;
+
+                        int srcIndex = (startFrame + f) * Channels;
+                        outSamples[dstIndex] = songSamples[srcIndex];
+                        outSamples[dstIndex + 1] = songSamples[srcIndex + 1];
+                    }
+
+                    outFramePos += Math.Max(0, nonOverlapFrames);
+                    if (outFramePos > outputFrames)
+                        outFramePos = outputFrames;
+                }
+            }
+        }
+
+        // ********** 出力 WAV (ヘッダつきバイト列) の生成 **********
+
+        using var outMs = new MemoryStream();
+        var outWaveFormat = new WaveFormat(SampleRate, BitsPerSample, Channels);
+
+        // WaveFileWriter にヘッダと PCM データを書かせる
+        using (var writer = new WaveFileWriter(outMs, outWaveFormat))
+        {
+            var buffer = new byte[outSamples.Length * 2];
+            Buffer.BlockCopy(outSamples, 0, buffer, 0, buffer.Length);
+            writer.Write(buffer, 0, buffer.Length);
+        }
+
+        // メモリ上に作成された WAV バイト列を返す
+        return outMs.ToArray();
+    }
+
+    // short の範囲にクリップするヘルパー
+    static short ClampToInt16(int v)
+    {
+        if (v > short.MaxValue) return short.MaxValue;
+        if (v < short.MinValue) return short.MinValue;
+        return (short)v;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ChatGPT 5 Pro で生成
+/// <summary>
+/// ルート名前空間上に置くユーティリティクラス。
+/// WAV(PCM 16bit / 44.1kHz / Stereo) をメモリ上だけでミックスして別の WAV を生成する。
+/// </summary>
+public static class AiMixTwoMusicsLib
+{
+    /// <summary>
+    /// 2つの WAV をメモリ上でミックスし、targetLengthMsecs ミリ秒の長さを持つ新しい WAV を生成する。
+    /// </summary>
+    /// <param name="sourceWav1">1つ目の WAV バイナリデータ</param>
+    /// <param name="sourceWav2">2つ目の WAV バイナリデータ</param>
+    /// <param name="targetLengthMsecs">出力 WAV の長さ (ミリ秒)</param>
+    /// <param name="mixFadeMsecs">各セグメントをクロスフェードする時間 (ミリ秒)</param>
+    /// <returns>生成された WAV バイト配列</returns>
+    public static byte[] MixTwoMusicsSimple(
+        ReadOnlyMemory<byte> sourceWav1,
+        ReadOnlyMemory<byte> sourceWav2,
+        int targetLengthMsecs, int mixFadeMsecs)
+    {
+        // 入力値の妥当性チェック
+        if (targetLengthMsecs <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(targetLengthMsecs), "targetLengthMsecs は正の値である必要があります。");
+        }
+        if (mixFadeMsecs < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(mixFadeMsecs), "mixFadeMsecs は 0 以上である必要があります。");
+        }
+        if (sourceWav1.IsEmpty || sourceWav2.IsEmpty)
+        {
+            throw new ArgumentException("sourceWav1 / sourceWav2 は空であってはなりません。");
+        }
+
+        // 乱数生成器 (毎回異なるシードを利用する)
+        var rng = CreateRandom();
+
+        // WAV をパースして PCM 16bit / 44.1kHz / Stereo かどうかチェックしつつ、短整数配列として取得
+        var wav1 = ParsePcm16Wave(sourceWav1);
+        var wav2 = ParsePcm16Wave(sourceWav2);
+
+        // 2つの WAV のフォーマットが完全に一致しているかチェック
+        if (wav1.SampleRate != wav2.SampleRate ||
+            wav1.Channels != wav2.Channels ||
+            wav1.BitsPerSample != wav2.BitsPerSample)
+        {
+            throw new InvalidDataException("2つの WAV のフォーマットが一致していません。");
+        }
+
+        var sampleRate = wav1.SampleRate;   // 44100 固定の想定
+        var channels = wav1.Channels;     // 2 固定の想定
+
+        // targetLengthMsecs をフレーム数(ステレオフレーム単位)に変換
+        // 1フレーム = 1サンプル(全チャンネル分) = 1 / sampleRate 秒
+        int targetFrames = checked((int)Math.Round((double)targetLengthMsecs * (double)sampleRate / 1000.0));
+        if (targetFrames <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(targetLengthMsecs), "targetLengthMsecs が短すぎて 1 フレームも生成できません。");
+        }
+
+        // ここから、sourceStart / sourceMiddle / sourceEnd を定義する
+        // 各位置はすべてフレーム単位で扱う (サンプルではなく、ステレオフレーム)
+
+        int totalFrames1 = wav1.TotalFrames;
+        int totalFrames2 = wav2.TotalFrames;
+
+        if (totalFrames1 <= 0 || totalFrames2 <= 0)
+        {
+            throw new InvalidDataException("入力 WAV のオーディオデータが空です。");
+        }
+
+        // sourceStart: wav1 の 0% ～ 80%
+        int startEndFrame1 = (int)(totalFrames1 * 0.8);
+        // sourceMiddle: wav1 の 20% ～ 80%
+        int middleStartFrame1 = (int)(totalFrames1 * 0.2);
+        int middleEndFrame1 = startEndFrame1;
+        int middleLenFrames1 = Math.Max(0, middleEndFrame1 - middleStartFrame1);
+
+        // sourceEnd: wav2 の 20% ～ 100%
+        int endStartFrame2 = (int)(totalFrames2 * 0.2);
+        int endLenFrames2 = totalFrames2 - endStartFrame2;
+
+        // あまりに短いとア/イ/ウ が定義できないのでエラーとする
+        if (startEndFrame1 <= 0 || middleLenFrames1 <= 0 || endLenFrames2 <= 0)
+        {
+            throw new InvalidDataException("入力 WAV が短すぎるため、start/middle/end を定義できません。");
+        }
+
+        int startMaxFrames = startEndFrame1;   // アの最大長
+        int middleMaxFrames = middleLenFrames1; // イ1つあたりの最大長
+        int endMaxFrames = endLenFrames2;    // ウの最大長
+
+        // ア(1個) + イ(N個) + ウ(1個) の総数
+        // N はできるだけ少なくしたいので、まず必要最低限の N を計算する。
+        // ここでは「各セグメントの最大長をフルに使ったとき」の上限から決める。
+        // targetFrames <= startMax + N * middleMax + endMax を満たす最小の N を求める。
+        int minimalN = 0;
+        long maxWithoutMiddle = (long)startMaxFrames + endMaxFrames;
+
+        if (targetFrames > maxWithoutMiddle)
+        {
+            if (middleMaxFrames <= 0)
+            {
+                throw new InvalidOperationException("中間部分が存在しないため、ターゲットの長さを満たせません。");
+            }
+
+            // ceil((target - start - end) / middleMax)
+            minimalN = (int)Math.Ceiling(
+                (targetFrames - maxWithoutMiddle) / (double)middleMaxFrames
+            );
+            if (minimalN < 0) minimalN = 0;
+        }
+
+        // セグメント数
+        int N = minimalN;
+        int segmentCount = N + 2; // ア + N個のイ + ウ
+
+        // あまりに短い targetLength の場合、セグメント数よりもフレーム数が少ないと構成不可能。
+        // (実際にはそんな短い音楽はあり得ないと想定)
+        if (targetFrames < segmentCount)
+        {
+            throw new ArgumentOutOfRangeException(nameof(targetLengthMsecs),
+                "targetLengthMsecs が短すぎて、ア・イ・ウ を最低 1 フレームずつ配置できません。");
+        }
+
+        // 各セグメントの最大長 (フレーム単位) 配列を作る
+        var maxFramesPerSegment = new int[segmentCount];
+        maxFramesPerSegment[0] = startMaxFrames; // ア
+        for (int i = 1; i <= N; i++)
+        {
+            maxFramesPerSegment[i] = middleMaxFrames; // 各イ
+        }
+        maxFramesPerSegment[segmentCount - 1] = endMaxFrames; // ウ
+
+        // セグメントを最大長まで使った場合の合計
+        long sumMaxFrames = maxFramesPerSegment.Aggregate<int, long>(0, (acc, v) => acc + v);
+
+        // クロスフェード無しの状態でも target を満たせない場合はそもそも不可能
+        if (targetFrames > sumMaxFrames)
+        {
+            throw new InvalidOperationException("与えられた入力長では targetLengthMsecs を満たせません。");
+        }
+
+        // ここから「クロスフェード込み」で targetLengthMsecs にぴったり合う長さを決める。
+        // 合計フレーム数(セグメント長の総和)を S、フェードフレーム数を F とすると:
+        // 出力合計フレーム = S - F * (segmentCount - 1) = targetFrames
+        // よって S = targetFrames + F * (segmentCount - 1)
+        //
+        // ただし、F (フレーム) は以下を満たす必要がある:
+        // 1) ユーザー指定の mixFadeMsecs 相当以下
+        // 2) セグメントの最小長の 1/10 以下
+        // 3) セグメント最大長の合計を超えない (容量制限)
+        //
+        // ここでは、F を「容量」と「ユーザー指定」を満たす上限から出発し、
+        // セグメント最小長の制約を満たすまで繰り返し調整する。
+
+        // 1) ユーザー指定 (ミリ秒→フレーム変換)
+        int requestedFadeFrames = (int)Math.Round(mixFadeMsecs * sampleRate / 1000.0);
+        if (requestedFadeFrames < 0) requestedFadeFrames = 0;
+
+        // 2) 容量による上限:
+        //   S <= sumMaxFrames なので target + F*(segmentCount-1) <= sumMaxFrames
+        //   -> F <= (sumMaxFrames - target) / (segmentCount - 1)
+        int maxFadeByCapacity = 0;
+        if (segmentCount > 1 && sumMaxFrames > targetFrames)
+        {
+            maxFadeByCapacity = (int)((sumMaxFrames - targetFrames) / (segmentCount - 1));
+            if (maxFadeByCapacity < 0) maxFadeByCapacity = 0;
+        }
+
+        int fadeFramesCandidate = Math.Min(requestedFadeFrames, maxFadeByCapacity);
+        if (fadeFramesCandidate < 0) fadeFramesCandidate = 0;
+
+        // セグメント長と F を確定させるためのループ (多くても 2～3 回程度で収束する想定)
+        int[] segmentFrames = null!;
+        int fadeFramesFinal = 0;
+        const int MaxFadeIteration = 4;
+
+        for (int iter = 0; iter < MaxFadeIteration; iter++)
+        {
+            // この時点での F 候補を使ったセグメント総和 S を計算対象とする
+            int targetSumFrames = targetFrames + fadeFramesCandidate * (segmentCount - 1);
+
+            if (targetSumFrames < segmentCount)
+            {
+                // ここまで来るケースはほぼ無いが、念のため保険
+                throw new InvalidOperationException("フェード長の制約により、セグメント構成ができません。");
+            }
+
+            if (targetSumFrames > sumMaxFrames)
+            {
+                // 容量チェック (理論上ここには来ないはずだが保険)
+                // 容量を超えてしまう場合は F を減らして再トライ
+                if (fadeFramesCandidate == 0)
+                {
+                    throw new InvalidOperationException("フェード長を 0 にしても targetLength に到達できません。");
+                }
+                fadeFramesCandidate = Math.Max(0, fadeFramesCandidate / 2);
+                continue;
+            }
+
+            // 現在の F 候補に対して、各セグメントの長さ (フレーム数) を割り当てる。
+            if (!TryAllocateSegmentFrames(maxFramesPerSegment, targetSumFrames, rng, out segmentFrames))
+            {
+                // 正常ならここに来ないが、万一失敗したら F を少し縮めてリトライする。
+                if (fadeFramesCandidate == 0)
+                {
+                    throw new InvalidOperationException("セグメント長の割り当てに失敗しました。");
+                }
+                fadeFramesCandidate = Math.Max(0, fadeFramesCandidate / 2);
+                continue;
+            }
+
+            // フェアネス条件 (最短 >= 最長の 80%) を満たすように、
+            // 可能な範囲で長さを少しならし処理する。
+            SmoothDurationsForFairness(segmentFrames, maxFramesPerSegment);
+
+            // この割り当てでの最小セグメント長を取得
+            int minSegmentFrames = segmentFrames.Min();
+
+            // mixFadeMsecs の制約その2:
+            // F <= (最短セグメント長) / 10
+            int maxFadeByMinSegment = minSegmentFrames / 10;
+            int fadeFramesByMin = Math.Max(0, maxFadeByMinSegment);
+
+            int newFade = Math.Min(fadeFramesCandidate, fadeFramesByMin);
+
+            if (newFade == fadeFramesCandidate)
+            {
+                // 現在の fadeFramesCandidate はすべての制約を満たしているので確定
+                fadeFramesFinal = fadeFramesCandidate;
+                break;
+            }
+
+            // まだ最短セグメント長に対して長すぎるので、F を小さくして再トライ
+            fadeFramesCandidate = newFade;
+        }
+
+        // フェードがループ中に決まらなかった場合は、最後の候補値を採用し直す
+        if (segmentFrames == null)
+        {
+            // ありえないはずだが保険としてもう一度、フェード 0 で割り当てを試みる
+            fadeFramesFinal = 0;
+            int targetSumFrames = targetFrames; // F=0 なので S=target
+            if (!TryAllocateSegmentFrames(maxFramesPerSegment, targetSumFrames, rng, out segmentFrames))
+            {
+                throw new InvalidOperationException("セグメント長の割り当てに失敗しました。");
+            }
+            SmoothDurationsForFairness(segmentFrames, maxFramesPerSegment);
+        }
+
+        // ここで、
+        //   segmentFrames の合計 = targetFrames + fadeFramesFinal * (segmentCount - 1)
+        // となっているはずなので、
+        // 出力合計フレーム = 上記合計 - fadeFramesFinal * (segmentCount -1) = targetFrames
+        // となる。
+
+        // セグメントが WAV 内のどの位置を使うかを決定する
+        // ア: wav1 の先頭から指定フレーム数ぶん
+        // イ: wav1 の middle (20%～80%) の中からランダムな開始位置
+        // ウ: wav2 の末尾側から指定フレーム数ぶん (常に曲の最後で終わる)
+        var segments = new SegmentSpec[segmentCount];
+
+        // ア
+        segments[0] = new SegmentSpec
+        {
+            Source = wav1,
+            StartFrame = 0,
+            LengthFrames = segmentFrames[0]
+        };
+
+        // イ (N 個)
+        for (int i = 0; i < N; i++)
+        {
+            int segIndex = 1 + i;
+            int len = segmentFrames[segIndex];
+
+            // 中間部分 (middleStartFrame1 ～ middleEndFrame1) の範囲内で、
+            // 長さ len の区間をランダムに切り出す。
+            int availableLen = middleLenFrames1;
+            if (len > availableLen)
+            {
+                // 理論上ここには来ないはずだが保険
+                len = availableLen;
+            }
+
+            int maxOffset = availableLen - len;
+            int offset = 0;
+            if (maxOffset > 0)
+            {
+                offset = rng.Next(0, maxOffset + 1);
+            }
+
+            int startFrame = middleStartFrame1 + offset;
+
+            segments[segIndex] = new SegmentSpec
+            {
+                Source = wav1,
+                StartFrame = startFrame,
+                LengthFrames = len
+            };
+        }
+
+        // ウ (最後のセグメント)
+        {
+            int lastIndex = segmentCount - 1;
+            int len = segmentFrames[lastIndex];
+            if (len > endLenFrames2)
+            {
+                // 保険
+                len = endLenFrames2;
+            }
+
+            // 「末尾部分」が必ず末尾となるように、曲の最後に合わせて切り出す
+            int startFrame = totalFrames2 - len;
+            if (startFrame < endStartFrame2)
+            {
+                // 中間の定義より手前に出てしまわないようにクリップ
+                startFrame = endStartFrame2;
+                if (startFrame + len > totalFrames2)
+                {
+                    startFrame = totalFrames2 - len;
+                }
+            }
+
+            segments[lastIndex] = new SegmentSpec
+            {
+                Source = wav2,
+                StartFrame = startFrame,
+                LengthFrames = len
+            };
+        }
+
+        // ここまでで、ア・イ・ウ各セグメントの切り出し位置と長さが決まった。
+        // 次に、これらを実際にクロスフェードして 1 本の PCM データにミックスする。
+
+        int outputFrames = targetFrames; // 出力フレーム数
+        short[] mixedSamples = RenderSegmentsToSamples(
+            segments,
+            fadeFramesFinal,
+            channels,
+            outputFrames);
+
+        // short[] → byte[] へ変換 (Little Endian)
+        byte[] mixedPcmBytes = new byte[mixedSamples.Length * sizeof(short)];
+        MemoryMarshal.Cast<short, byte>(mixedSamples.AsSpan()).CopyTo(mixedPcmBytes.AsSpan());
+
+        // 最後に、NAudio の WaveFileWriter を用いてヘッダ付きの WAV として書き出す。
+        using var outStream = new MemoryStream();
+        using (var writer = new WaveFileWriter(outStream, wav1.WaveFormat))
+        {
+            // WAV のヘッダは WaveFileWriter が自動生成する
+            writer.Write(mixedPcmBytes, 0, mixedPcmBytes.Length);
+            writer.Flush();
+        }
+
+        // MemoryStream から最終的な WAV バイト配列を取得して返す
+        return outStream.ToArray();
+    }
+
+    #region 内部ヘルパー
+
+    /// <summary>
+    /// WAV ファイル(バイト列)をパースして、PCM 16bit / 44.1kHz / Stereo のみを受け付ける。
+    /// </summary>
+    private static WavPcm16Data ParsePcm16Wave(ReadOnlyMemory<byte> wavBytes)
+    {
+        // ReadOnlyMemory から配列を取得 (必ずしも ArraySegment とは限らないので ToArray でコピー)
+        byte[] data = wavBytes.ToArray();
+
+        try
+        {
+            using var ms = new MemoryStream(data, writable: false);
+            using var reader = new WaveFileReader(ms);
+
+            var format = reader.WaveFormat;
+
+            // フォーマットチェック
+            if (format.Encoding != WaveFormatEncoding.Pcm)
+            {
+                throw new InvalidDataException("WAV フォーマットは PCM である必要があります。");
+            }
+            if (format.SampleRate != 44100)
+            {
+                throw new InvalidDataException("サンプリングレートは 44100 Hz 固定です。");
+            }
+            if (format.BitsPerSample != 16)
+            {
+                throw new InvalidDataException("サンプルあたりビット長は 16bit 固定です。");
+            }
+            if (format.Channels != 2)
+            {
+                throw new InvalidDataException("チャンネル数はステレオ(2ch)固定です。");
+            }
+
+            long byteLength = reader.Length; // WaveStream.Length はデータ部の長さ(バイト数)になる
+            if (byteLength <= 0)
+            {
+                throw new InvalidDataException("WAV データ部の長さが 0 です。");
+            }
+            if (byteLength > int.MaxValue)
+            {
+                throw new InvalidDataException("データサイズが大きすぎます。");
+            }
+
+            int dataLen = (int)byteLength;
+
+            // blockAlign (1フレームあたりのバイト数) で割り切れることを確認
+            if (dataLen % format.BlockAlign != 0)
+            {
+                throw new InvalidDataException("データ長が BlockAlign で割り切れません。WAV が壊れている可能性があります。");
+            }
+
+            byte[] buffer = new byte[dataLen];
+
+            int offset = 0;
+            while (offset < dataLen)
+            {
+                int read = reader.Read(buffer, offset, dataLen - offset);
+                if (read <= 0)
+                {
+                    break;
+                }
+                offset += read;
+            }
+
+            if (offset != dataLen)
+            {
+                throw new InvalidDataException("WAV データを最後まで読み取れませんでした。");
+            }
+
+            // 16bit PCM なので 2 バイトで 1 サンプル
+            if (dataLen % 2 != 0)
+            {
+                throw new InvalidDataException("16bit PCM なのにデータ長が 2 の倍数ではありません。");
+            }
+
+            int sampleCount = dataLen / 2;
+            short[] samples = new short[sampleCount];
+            MemoryMarshal.Cast<byte, short>(buffer.AsSpan()).CopyTo(samples.AsSpan());
+
+            return new WavPcm16Data(format, samples);
+        }
+        catch (EndOfStreamException ex)
+        {
+            // WAV が途中で切れているなどのパースエラー
+            throw new InvalidDataException("WAV のパース中にエラーが発生しました。", ex);
+        }
+    }
+
+    /// <summary>
+    /// セグメント毎の最大長 maxFramesPerSegment[] を満たしつつ、
+    /// 全体の合計フレーム長 targetSumFrames を満たすような各セグメント長を割り当てる。
+    /// * ここではフェアネス条件は気にせず、単に 1 &lt;= length &lt;= maxLength を満たすような組合せを作る。
+    /// </summary>
+    private static bool TryAllocateSegmentFrames(
+        int[] maxFramesPerSegment,
+        int targetSumFrames,
+        Random rng,
+        out int[] segmentFrames)
+    {
+        int count = maxFramesPerSegment.Length;
+        segmentFrames = new int[count];
+
+        // セグメントそれぞれの最大長合計
+        long sumMax = maxFramesPerSegment.Aggregate<int, long>(0, (acc, v) => acc + v);
+
+        // 最小長は 1 フレームとする (0 長セグメントは扱いが難しいため禁止)
+        int minPerSegment = 1;
+        long minSum = (long)minPerSegment * count;
+
+        if (targetSumFrames < minSum || targetSumFrames > sumMax)
+        {
+            // 理論的に解が存在しない
+            return false;
+        }
+
+        // suffixMax[i] = i 以降の最大長合計
+        var suffixMax = new long[count + 1];
+        suffixMax[count] = 0;
+        for (int i = count - 1; i >= 0; i--)
+        {
+            suffixMax[i] = suffixMax[i + 1] + maxFramesPerSegment[i];
+        }
+
+        int remaining = targetSumFrames;
+
+        for (int i = 0; i < count; i++)
+        {
+            int segmentsLeft = count - i;
+
+            // 残りのセグメント (自分以外) が最低 1 フレームずつ持つとして必要な最小値
+            int minRemainingForOthers = (segmentsLeft - 1) * minPerSegment;
+
+            // このセグメントが取り得る基本の範囲 [minForThis, maxForThis]
+            int minForThis = minPerSegment;
+            int maxForThis = maxFramesPerSegment[i];
+
+            // 「残りのセグメントに最大限割り当てても targetSumFrames を超えない」ための下限
+            // remaining - x <= suffixMax[i+1] → x >= remaining - suffixMax[i+1]
+            int minFromMaxConstraint = (int)Math.Max(minPerSegment, remaining - (int)suffixMax[i + 1]);
+            if (minFromMaxConstraint > minForThis)
+            {
+                minForThis = minFromMaxConstraint;
+            }
+
+            // 「残りのセグメントに最低 1 フレームずつ割り当てる」ための上限
+            // remaining - x >= minRemainingForOthers → x <= remaining - minRemainingForOthers
+            int maxFromMinConstraint = remaining - minRemainingForOthers;
+            if (maxFromMinConstraint < maxForThis)
+            {
+                maxForThis = maxFromMinConstraint;
+            }
+
+            if (minForThis > maxForThis)
+            {
+                // 範囲が破綻した場合は失敗
+                return false;
+            }
+
+            // ここから実際の値を決める。
+            // なるべく「平均値 ±少しの乱数」に寄せることで、あまり極端な長さにならないようにする。
+            double ideal = (double)remaining / segmentsLeft;
+            double factor = 0.9 + rng.NextDouble() * 0.2; // 0.9～1.1 のランダム係数
+
+            int candidate = (int)Math.Round(ideal * factor);
+            if (candidate < minForThis) candidate = minForThis;
+            if (candidate > maxForThis) candidate = maxForThis;
+
+            segmentFrames[i] = candidate;
+            remaining -= candidate;
+        }
+
+        // ここまでで remaining は 0 のはず
+        return remaining == 0;
+    }
+
+    /// <summary>
+    /// セグメント長が極端にばらつかないように、最短セグメントと最長セグメント間で
+    /// 1フレームずつ長さを融通し合う簡易な平滑化処理。
+    /// 「最短 &gt;= 最長の 80%」を目指すが、絶対保証ではない (無理なケースもある)。
+    /// </summary>
+    private static void SmoothDurationsForFairness(int[] segmentFrames, int[] maxFramesPerSegment)
+    {
+        const int MaxIterations = 64;
+        int count = segmentFrames.Length;
+
+        for (int iter = 0; iter < MaxIterations; iter++)
+        {
+            int min = segmentFrames.Min();
+            int max = segmentFrames.Max();
+
+            // フェアネス条件: min >= 0.8 * max
+            if (min * 5 >= max * 4) // 5*min >= 4*max  <=> min >= 0.8*max
+            {
+                break; // 既に十分均衡している
+            }
+
+            // 最小値/最大値となっているインデックスを探す
+            List<int> minIndices = new();
+            List<int> maxIndices = new();
+
+            for (int i = 0; i < count; i++)
+            {
+                if (segmentFrames[i] == min) minIndices.Add(i);
+                if (segmentFrames[i] == max) maxIndices.Add(i);
+            }
+
+            if (minIndices.Count == 0 || maxIndices.Count == 0)
+            {
+                break;
+            }
+
+            bool changed = false;
+
+            // 最小セグメントを +1、最大セグメントを -1 し、合計長を変えずに差を詰める
+            foreach (int minIdx in minIndices)
+            {
+                if (segmentFrames[minIdx] >= maxFramesPerSegment[minIdx])
+                {
+                    // これ以上伸ばせない
+                    continue;
+                }
+
+                foreach (int maxIdx in maxIndices)
+                {
+                    if (segmentFrames[maxIdx] <= 1)
+                    {
+                        // これ以上縮めると 1 フレームを割ってしまう
+                        continue;
+                    }
+
+                    segmentFrames[minIdx]++;
+                    segmentFrames[maxIdx]--;
+                    changed = true;
+                    break;
+                }
+
+                if (changed) break;
+            }
+
+            if (!changed)
+            {
+                // これ以上調整できない
+                break;
+            }
+        }
+    }
+
+    /// <summary>
+    /// セグメント情報。
+    /// </summary>
+    private class SegmentSpec
+    {
+        public WavPcm16Data Source { get; init; } = null!;
+        public int StartFrame { get; init; }
+        public int LengthFrames { get; init; }
+    }
+
+    /// <summary>
+    /// セグメント列をクロスフェードして 1 本の PCM(short配列) にミックスする。
+    /// </summary>
+    private static short[] RenderSegmentsToSamples(
+        SegmentSpec[] segments,
+        int fadeFrames,
+        int channels,
+        int totalOutputFrames)
+    {
+        if (channels != 2)
+        {
+            // ここではステレオ固定の実装としておく
+            throw new NotSupportedException("RenderSegmentsToSamples は 2ch ステレオのみ対応です。");
+        }
+
+        int totalSamples = checked(totalOutputFrames * channels);
+        short[] output = new short[totalSamples];
+
+        int outPosFrames = 0; // 非オーバーラップ部分の末尾フレーム位置
+        bool isFirstSegment = true;
+
+        foreach (var seg in segments)
+        {
+            if (seg.LengthFrames <= 0)
+            {
+                continue;
+            }
+
+            var src = seg.Source;
+            if (src.Channels != channels)
+            {
+                throw new InvalidDataException("セグメントのチャンネル数が不一致です。");
+            }
+
+            int srcTotalFrames = src.TotalFrames;
+            int startFrame = seg.StartFrame;
+            int lenFrames = seg.LengthFrames;
+
+            // セグメントが元データの範囲外を参照していないかチェック
+            if (startFrame < 0 || startFrame + lenFrames > srcTotalFrames)
+            {
+                throw new InvalidDataException("セグメントがソース WAV の範囲外を参照しています。");
+            }
+
+            int outputStartFrame;
+            if (isFirstSegment || fadeFrames <= 0)
+            {
+                // 最初のセグメントまたはフェード無しの場合は普通に連結
+                outputStartFrame = outPosFrames;
+            }
+            else
+            {
+                // 2 個目以降のセグメントでは、fadeFrames ぶん手前から書き込み開始してクロスフェードする
+                outputStartFrame = outPosFrames - fadeFrames;
+                if (outputStartFrame < 0) outputStartFrame = 0;
+            }
+
+            var srcSamples = src.Samples;
+
+            for (int k = 0; k < lenFrames; k++)
+            {
+                int destFrame = outputStartFrame + k;
+                if (destFrame < 0 || destFrame >= totalOutputFrames)
+                {
+                    // 安全のため範囲外書き込みは無視
+                    break;
+                }
+
+                int srcFrame = startFrame + k;
+                int srcIndex = srcFrame * channels;
+
+                short srcL = srcSamples[srcIndex];
+                short srcR = srcSamples[srcIndex + 1];
+
+                int destIndex = destFrame * channels;
+
+                if (!isFirstSegment && fadeFrames > 0 && k < fadeFrames)
+                {
+                    // フェード部分: 既に書かれている値(output)と線形にブレンドする。
+                    // t=0 → 旧セグメント100%、t=1 → 新セグメント100% に近い形でミックスする。
+                    double t = (double)k / fadeFrames; // 0 ～ 1未満
+                    double wNew = t;
+                    double wOld = 1.0 - t;
+
+                    short oldL = output[destIndex];
+                    short oldR = output[destIndex + 1];
+
+                    int mixedL = (int)(oldL * wOld + srcL * wNew);
+                    int mixedR = (int)(oldR * wOld + srcR * wNew);
+
+                    // クリップ処理 (16bit の範囲に収める)
+                    if (mixedL > short.MaxValue) mixedL = short.MaxValue;
+                    else if (mixedL < short.MinValue) mixedL = short.MinValue;
+                    if (mixedR > short.MaxValue) mixedR = short.MaxValue;
+                    else if (mixedR < short.MinValue) mixedR = short.MinValue;
+
+                    output[destIndex] = (short)mixedL;
+                    output[destIndex + 1] = (short)mixedR;
+                }
+                else
+                {
+                    // フェードなし部分はそのまま上書き
+                    output[destIndex] = srcL;
+                    output[destIndex + 1] = srcR;
+                }
+            }
+
+            if (isFirstSegment || fadeFrames <= 0)
+            {
+                outPosFrames += lenFrames;
+            }
+            else
+            {
+                outPosFrames = outputStartFrame + lenFrames;
+            }
+
+            isFirstSegment = false;
+        }
+
+        // outPosFrames は理論上 totalOutputFrames と一致しているはずだが、
+        // 万が一不足している場合は、末尾を 0 で埋めておく (現状実装ではほぼ発生しない想定)。
+        // ※足りない場合でも output 配列は既に確保済みなので、そのまま返して問題ない。
+
+        return output;
+    }
+
+    /// <summary>
+    /// 乱数生成器 (毎回異なるシードを利用するための小さなヘルパー)
+    /// </summary>
+    private static Random CreateRandom()
+    {
+        // Environment.TickCount と Guid ハッシュを XOR してシードを作る
+        // ※ 簡易だが毎回そこそこ違うシードになる
+        int seed = unchecked(Environment.TickCount ^ Guid.NewGuid().GetHashCode());
+        return new Random(seed);
+    }
+
+    /// <summary>
+    /// 16bit PCM WAV データをまとめて保持する内部クラス。
+    /// </summary>
+    private sealed class WavPcm16Data
+    {
+        public WaveFormat WaveFormat { get; }
+        public short[] Samples { get; }
+
+        public int Channels => WaveFormat.Channels;
+        public int SampleRate => WaveFormat.SampleRate;
+        public int BitsPerSample => WaveFormat.BitsPerSample;
+
+        /// <summary>
+        /// ステレオフレーム数 (1フレーム = 全チャンネル1サンプルぶん)
+        /// </summary>
+        public int TotalFrames => Samples.Length / Channels;
+
+        public WavPcm16Data(WaveFormat format, short[] samples)
+        {
+            WaveFormat = format ?? throw new ArgumentNullException(nameof(format));
+            Samples = samples ?? throw new ArgumentNullException(nameof(samples));
+
+            if (samples.Length % format.Channels != 0)
+            {
+                throw new InvalidDataException("サンプル数がチャンネル数で割り切れません。");
+            }
+        }
+    }
+
+    #endregion
+}
+
+
+
 // ChatGPT 5 で生成
 /// <summary>
 /// ルート名前空間上のユーティリティクラス。
@@ -4112,7 +5684,7 @@ public static class AiGenerateExactLengthMusicLib
         out List<SegmentPlan> segments,
         out int fadeFrames)
     {
-        segments = null;
+        segments = null!;
         fadeFrames = 0;
 
         if (targetFrames <= totalFrames)
@@ -4169,7 +5741,7 @@ public static class AiGenerateExactLengthMusicLib
         out List<SegmentPlan> segments,
         out int fadeFrames)
     {
-        segments = null;
+        segments = null!;
         fadeFrames = 0;
 
         int segmentCount = 2 + middleCount; // ア + イ*middleCount + ウ

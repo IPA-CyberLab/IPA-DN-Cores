@@ -9228,14 +9228,20 @@ public class ShuffledEndlessQueue<T> : IEndlessQueue<T>
 
     public int NumRotate { get; private set; } = -1;
 
+    public bool AvoidLastSame { get; }
+
     public int Count => (this.AllItemsList.Count == 0 ? 0 : int.MaxValue);
 
     public int RealCount => this.AllItemsList.Count;
 
-    public ShuffledEndlessQueue(IEnumerable<T> elements, int randContinueCount = 0)
+    T? LastOne = default;
+
+    public ShuffledEndlessQueue(IEnumerable<T> elements, int randContinueCount = 0, bool avoidLastSame = false)
     {
         this.RandContinueCount = randContinueCount;
         this.AllItemsList = new List<T>(elements.ToArray());
+        this.AvoidLastSame = avoidLastSame;
+
         if (this.AllItemsList.Any() == false)
         {
             throw new CoresLibException("elements is empty.");
@@ -9246,7 +9252,30 @@ public class ShuffledEndlessQueue<T> : IEndlessQueue<T>
     {
         if (this.CurrentQueue.Count == 0)
         {
-            var shuffled = this.AllItemsList.ToArray()._Shuffle().ToArray();
+            T[] shuffled = null!;
+
+            if (AvoidLastSame == false)
+            {
+                shuffled = this.AllItemsList.ToArray()._Shuffle().ToArray();
+            }
+            else
+            {
+                for (int i = 0; i < 16; i++)
+                {
+                    // できるだけ直前のリピートを避ける
+                    shuffled = this.AllItemsList.ToArray()._Shuffle().ToArray();
+
+                    if (LastOne == null || shuffled.Length <= 0 || shuffled[0] == null || shuffled[0]!.Equals(LastOne) == false)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            if (shuffled.Length >= 1)
+            {
+                this.LastOne = shuffled.LastOrDefault();
+            }
 
             if (RandContinueCount <= 1)
             {
@@ -9274,14 +9303,39 @@ public class ShuffledEndlessQueue<T> : IEndlessQueue<T>
             }
         }
 
-        return this.CurrentQueue.Dequeue();
+        var ret = this.CurrentQueue.Dequeue();
+
+        return ret;
     }
 
     public T Peek()
     {
         if (this.CurrentQueue.Count == 0)
         {
-            var shuffled = this.AllItemsList.ToArray()._Shuffle().ToArray();
+            T[] shuffled = null!;
+
+            if (AvoidLastSame == false)
+            {
+                shuffled = this.AllItemsList.ToArray()._Shuffle().ToArray();
+            }
+            else
+            {
+                for (int i = 0; i < 16; i++)
+                {
+                    // できるだけ直前のリピートを避ける
+                    shuffled = this.AllItemsList.ToArray()._Shuffle().ToArray();
+
+                    if (LastOne == null || shuffled.Length <= 0 || shuffled[0] == null || shuffled[0]!.Equals(LastOne) == false)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            if (shuffled.Length >= 1)
+            {
+                this.LastOne = shuffled.LastOrDefault();
+            }
 
             if (RandContinueCount <= 1)
             {
