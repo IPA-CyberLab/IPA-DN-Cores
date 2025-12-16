@@ -1722,7 +1722,7 @@ public class AiTask
         }
     }
 
-    public async Task AddRandomBgmToAllVoiceFilesAsync(string srcVoiceDirRoot, string dstDirRoot, FfMpegAudioCodec codec, AiRandomBgmSettingsFactory settingsFactory, int kbps = 0, string? oldTagStr = null, string? newTagStr = null, object? userParam = null, CancellationToken cancel = default)
+    public async Task AddRandomBgmToAllVoiceFilesAsync(string srcVoiceDirRoot, string dstDirRoot, FfMpegAudioCodec codec, AiRandomBgmSettingsFactory settingsFactory, int kbps = 0, string? oldTagStr = null, string? newTagStr = null, object? userParam = null, bool boostWithLength = false, CancellationToken cancel = default)
     {
         var srcFiles = await Lfs.EnumDirectoryAsync(srcVoiceDirRoot, true, cancel: cancel);
 
@@ -1744,12 +1744,12 @@ public class AiTask
 
                 var bgmSettings = settingsList.Where(x => x.Key._IsSamei(key)).First();
 
-                var result = await AddRandomBgmToVoiceFileAsync(srcFile.FullPath, dstDirPath, codec, bgmSettings, kbps, true, oldTagStr, newTagStr, cancel);
+                var result = await AddRandomBgmToVoiceFileAsync(srcFile.FullPath, dstDirPath, codec, bgmSettings, kbps, true, oldTagStr, newTagStr, boostWithLength, cancel: cancel);
             }
         }
     }
 
-    public async Task<(FfMpegParsedList Parsed, string DestFileName)> AddRandomBgmToVoiceFileAsync(string srcVoiceFilePath, string dstDir, FfMpegAudioCodec codec, KeyValuePair<string, AiRandomBgmSettings> settings, int kbps = 0, bool useOkFile = true, string? oldTagStr = null, string? newTagStr = null, CancellationToken cancel = default)
+    public async Task<(FfMpegParsedList Parsed, string DestFileName)> AddRandomBgmToVoiceFileAsync(string srcVoiceFilePath, string dstDir, FfMpegAudioCodec codec, KeyValuePair<string, AiRandomBgmSettings> settings, int kbps = 0, bool useOkFile = true, string? oldTagStr = null, string? newTagStr = null, bool boostWithLength = false, CancellationToken cancel = default)
     {
         List<AiRandomBgpReplaceRanges> replaceRanges = new();
 
@@ -1935,7 +1935,7 @@ public class AiTask
 
         string bgmWavTmpPath = await Lfs.GenerateUniqueTempFilePathAsync("bgmfile", ".wav", cancel: cancel);
 
-        var retSrcList = await CreateRandomBgmFileAsync(settings.Value.SrcBgmDirOrFilePath, bgmWavTmpPath, srcDurationMsecs, settings.Value, settings.Value.TailFadeoutSecs, adjustDelta, cancel);
+        var retSrcList = await CreateRandomBgmFileAsync(settings.Value.SrcBgmDirOrFilePath, bgmWavTmpPath, srcDurationMsecs, settings.Value, settings.Value.TailFadeoutSecs, adjustDelta, boostWithLength, cancel: cancel);
 
         List<AiWaveConcatenatedSrcWavList> overwriteSrcList = new();
 
@@ -2073,43 +2073,46 @@ public class AiTask
                 voiceWavData = await voiceWavStream._ReadToEndAsync();
             }
 
-            foreach (var seg in okFileMeta.Value?.Options_VoiceSegmentsList!)
+            if (okFileMeta.Value?.Options_VoiceSegmentsList != null)
             {
-                if (seg.DataLength != 0 && seg.IsBlank == false && seg.IsTag == false)
+                foreach (var seg in okFileMeta.Value?.Options_VoiceSegmentsList)
                 {
-                    if (seg.Level >= 1)
+                    if (seg.DataLength != 0 && seg.IsBlank == false && seg.IsTag == false)
                     {
-                        AiAudioEffectSpeedType speedType = AiAudioEffectSpeedType.Light;
-
-                        if (seg.Level == 2)
+                        if (seg.Level >= 1)
                         {
-                            speedType = AiAudioEffectSpeedType.Normal;
-                        }
-                        else if (seg.Level >= 3)
-                        {
-                            speedType = AiAudioEffectSpeedType.Heavy;
-                        }
+                            AiAudioEffectSpeedType speedType = AiAudioEffectSpeedType.Light;
 
-                        var effect = AiAudioEffectCollection.AllCollectionRandomQueue.Dequeue();
+                            if (seg.Level == 2)
+                            {
+                                speedType = AiAudioEffectSpeedType.Normal;
+                            }
+                            else if (seg.Level >= 3)
+                            {
+                                speedType = AiAudioEffectSpeedType.Heavy;
+                            }
 
-                        AiAudioEffectFilter filter = new AiAudioEffectFilter(effect, speedType, 1.5 + (double)seg.Level, cancel: cancel);
+                            var effect = AiAudioEffectCollection.AllCollectionRandomQueue.Dequeue();
 
-                        int dataStartPositionInBytes = (int)AiWaveUtil.GetWavDataPositionInByteFromTime(seg.TimePosition, voiceWavFormat);
-                        int dataEndPositionInBytes = (int)AiWaveUtil.GetWavDataPositionInByteFromTime(seg.TimePosition + seg.TimeLength, voiceWavFormat);
-                        int dataLengthInBytes = dataEndPositionInBytes - dataStartPositionInBytes;
+                            AiAudioEffectFilter filter = new AiAudioEffectFilter(effect, speedType, 1.5 + (double)seg.Level, cancel: cancel);
 
-                        if (voiceWavData.Length < (dataStartPositionInBytes + dataLengthInBytes))
-                        {
-                        }
-                        else
-                        {
-                            var voiceProcessTarget = voiceWavData.Slice(dataStartPositionInBytes, dataLengthInBytes);
+                            int dataStartPositionInBytes = (int)AiWaveUtil.GetWavDataPositionInByteFromTime(seg.TimePosition, voiceWavFormat);
+                            int dataEndPositionInBytes = (int)AiWaveUtil.GetWavDataPositionInByteFromTime(seg.TimePosition + seg.TimeLength, voiceWavFormat);
+                            int dataLengthInBytes = dataEndPositionInBytes - dataStartPositionInBytes;
 
-                            filter.PerformFilterFunc(voiceProcessTarget, cancel);
+                            if (voiceWavData.Length < (dataStartPositionInBytes + dataLengthInBytes))
+                            {
+                            }
+                            else
+                            {
+                                var voiceProcessTarget = voiceWavData.Slice(dataStartPositionInBytes, dataLengthInBytes);
 
-                            seg.FilterName = filter.FilterName;
-                            seg.FilterSettings = filter.EffectSettings._ToJObject();
-                            seg.FilterSpeedType = filter.FilterSpeedType;
+                                filter.PerformFilterFunc(voiceProcessTarget, cancel);
+
+                                seg.FilterName = filter.FilterName;
+                                seg.FilterSettings = filter.EffectSettings._ToJObject();
+                                seg.FilterSpeedType = filter.FilterSpeedType;
+                            }
                         }
                     }
                 }
@@ -2140,6 +2143,7 @@ public class AiTask
         }
 
         await Lfs.DeleteFileIfExistsAsync(voiceWavTmpPath, cancel: cancel);
+        await Lfs.DeleteFileIfExistsAsync(voiceWavTmpPath2, cancel: cancel);
         await Lfs.DeleteFileIfExistsAsync(bgmWavTmpPath, cancel: cancel);
         await Lfs.DeleteFileIfExistsAsync(outWavTmpPath, cancel: cancel);
 
@@ -2278,6 +2282,94 @@ public class AiTask
 
         return (parsed, dstFilePath);
     }
+
+
+
+    public async Task MakeMultipleMixMusicsFromMultipleMusics(IEnumerable<string> srcWavFilesPathList, string destDirPath, string albumName, FfMpegAudioCodec codec = FfMpegAudioCodec.Aac, int kbps = 0, int numRotate = 1, int numPartsMeyasu = 6, int targetLengthMsecs = 6 * 60 * 1000, int mixFadeMsecs = 12 * 1000, CancellationToken cancel = default)
+    {
+        List<string> ret = new List<string>();
+
+        if (numRotate <= 0) numRotate = 1;
+
+        ShuffledEndlessQueue<string> additionalWavPathQueue = new(srcWavFilesPathList, avoidLastSame: true);
+
+        Queue<(int RotateIndex, string WavPath1, string ArtistName, string MusicTitle)> queue = new();
+
+        for (int i = 0; i < numRotate; i++)
+        {
+            var tmp = srcWavFilesPathList.ToArray()._Shuffle().ToArray();
+
+            foreach (var srcFullPath in tmp)
+            {
+                string[] tokens = PP.GetFileNameWithoutExtension(srcFullPath)._Split(StringSplitOptions.TrimEntries, " - ");
+
+                if (tokens.Length == 3)
+                {
+                    queue.Enqueue((i + 1, srcFullPath, tokens[1], tokens[2]));
+                }
+            }
+        }
+
+        await Lfs.CreateDirectoryAsync(destDirPath, cancel: cancel);
+
+        int trackNumber = 0;
+
+        while (queue.TryDequeue(out var music))
+        {
+            trackNumber++;
+
+            try
+            {
+                string dstFilePath = PP.Combine(destDirPath, $"[{albumName}_{(trackNumber).ToString("D4")}] - {music.ArtistName} - {music.MusicTitle} - r{music.RotateIndex}{FfMpegUtil.GetExtensionFromCodec(codec)}");
+
+                Con.WriteLine(dstFilePath);
+
+                List<ReadOnlyMemory<byte>> srcDataList = new();
+
+                var srcData1 = (await Lfs.ReadDataFromFileAsync(music.WavPath1, 100 * 1024 * 1024, cancel: cancel))._AsReadOnlyMemory();
+                srcDataList.Add(srcData1);
+
+                for (int i = 0; i < numPartsMeyasu; i++)
+                {
+                    var additionalSrcData = (await Lfs.ReadDataFromFileAsync(additionalWavPathQueue.Dequeue(), 100 * 1024 * 1024, cancel: cancel))._AsReadOnlyMemory();
+
+                    srcDataList.Add(additionalSrcData);
+                }
+
+                //var dstData = AiGenerateExactLengthMusicLib.GenerateExactLengthMusic(srcData1, targetLengthMsecs, mixFadeMsecs);
+                var dstData = AiMixTwoMusicsLib2.MixTwoMusicsMultiple(srcDataList, numPartsMeyasu, targetLengthMsecs, 30 * 1000);
+
+                string dstTmpFileName = await Lfs.GenerateUniqueTempFilePathAsync("aarmp1", ".wav", cancel: cancel);
+
+                await Lfs.WriteDataToFileAsync(dstTmpFileName, dstData, cancel: cancel);
+
+                MediaMetaData meta = new MediaMetaData
+                {
+                    Track = trackNumber,
+                    TrackTotal = 9999,
+                    Album = $"{albumName}",
+                    Artist = $"[{albumName}] - {music.ArtistName}",
+                    Title = $"[{albumName}_{trackNumber.ToString("D4")}] - {music.MusicTitle}",
+                };
+
+                string encodeDstTmpFilePath = await Lfs.GenerateUniqueTempFilePathAsync("ttamp1", FfMpegUtil.GetExtensionFromCodec(codec), cancel: cancel);
+
+                var res = await FfMpeg.EncodeAudioAsync(dstTmpFileName, encodeDstTmpFilePath, codec, kbps, 100, meta, $"t{(trackNumber).ToString("D4")} - r{music.RotateIndex} - {music.ArtistName} - {music.MusicTitle}", useOkFile: false, cancel: cancel);
+
+                await Lfs.CopyFileAsync(encodeDstTmpFilePath, dstFilePath, cancel: cancel);
+
+                ret.Add(dstFilePath);
+
+                await Lfs.DeleteFileIfExistsAsync(dstTmpFileName, cancel: cancel);
+                await Lfs.DeleteFileIfExistsAsync(encodeDstTmpFilePath, cancel: cancel);
+            }
+            catch (Exception ex)
+            {
+                ex._Error();
+            }
+        }
+    }
+
 
     public async Task MakeMultipleMixMusics(IEnumerable<string> srcWavFilesPathList, string destDirPath, string albumName, FfMpegAudioCodec codec = FfMpegAudioCodec.Aac, int kbps = 0, int numRotate = 1, int numPartsMeyasu = 6, int targetLengthMsecs = 6 * 60 * 1000, int mixFadeMsecs = 12 * 1000, CancellationToken cancel = default)
     {
@@ -2429,12 +2521,46 @@ public class AiTask
         }
     }
 
-    public async Task<List<string>> CreateManyMusicMixAsync(DateTimeOffset timeStamp, IEnumerable<string> srcWavFilesPathList, string destDirPath, string albumName, string artist, AiRandomBgmSettings settings, FfMpegAudioCodec codec = FfMpegAudioCodec.Aac, int kbps = 0, int numRotate = 1, int minTracks = 1, int durationOfSingleFileMsecs = 3 * 60 * 60 * 1000, bool simpleFileName = false, CancellationToken cancel = default)
+    public async Task<List<string>> CreateManyMusicMixAsync(DateTimeOffset timeStamp,
+        IEnumerable<string> srcWavFilesPathList, string destDirPath, string albumName, string artist, AiRandomBgmSettings settings,
+        FfMpegAudioCodec codec = FfMpegAudioCodec.Aac, int kbps = 0, int numRotate = 1, int minTracks = 1,
+        int durationOfSingleFileMsecs = 3 * 60 * 60 * 1000, bool simpleFileName = false,
+        bool boostWithLength = false,
+        CancellationToken cancel = default)
     {
         List<string> ret = new List<string>();
 
         if (numRotate <= 0) numRotate = 1;
         if (minTracks <= 0) minTracks = 1;
+
+        if (boostWithLength)
+        {
+            List<string> tmp1 = new();
+
+            // 曲の長さ 1 分あたり 1 個をリストに追加
+            foreach (var path in srcWavFilesPathList)
+            {
+                try
+                {
+                    long size = (await Lfs.GetFileMetadataAsync(path, cancel: cancel)).Size;
+                    double minutes = (double)size / 10584000.0;
+                    int minutes_int = Math.Max((int)minutes, 1);
+
+                    for (int i = 0; i < minutes_int; i++)
+                    {
+                        tmp1.Add(path);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ex._Error();
+                }
+            }
+
+            Con.WriteLine($"Boost. Original: {srcWavFilesPathList.Count()._ToString3()} files, Boosted: {tmp1.Count._ToString3()} files.");
+
+            srcWavFilesPathList = tmp1.ToArray();
+        }
 
         ShuffledEndlessQueue<string> q = new ShuffledEndlessQueue<string>(srcWavFilesPathList);
 
@@ -2511,18 +2637,20 @@ public class AiTask
     }
 
 
-    public async Task<List<AiWaveConcatenatedSrcWavList>> CreateRandomBgmFileAsync(string srcMusicWavsDirOrFilePath, string dstWavFilePath, int totalDurationMsecs, AiRandomBgmSettings settings, int fadeOutSecs, double adjustDelta, CancellationToken cancel = default)
+    public async Task<List<AiWaveConcatenatedSrcWavList>> CreateRandomBgmFileAsync(string srcMusicWavsDirOrFilePath, string dstWavFilePath, int totalDurationMsecs, AiRandomBgmSettings settings, int fadeOutSecs, double adjustDelta, bool boostWithLength, CancellationToken cancel = default)
     {
         string dstTmpFileName = await Lfs.GenerateUniqueTempFilePathAsync("concat2", ".wav", cancel: cancel);
 
-        List<AiWaveConcatenatedSrcWavList> retSrcList = await ConcatWavFileFromRandomDirAsync(srcMusicWavsDirOrFilePath, dstTmpFileName, totalDurationMsecs, settings, fadeOutSecs, cancel);
+        List<AiWaveConcatenatedSrcWavList> retSrcList = await ConcatWavFileFromRandomDirAsync(srcMusicWavsDirOrFilePath, dstTmpFileName, totalDurationMsecs, settings, fadeOutSecs, boostWithLength, cancel: cancel);
 
         await FfMpeg.AdjustAudioVolumeAsync(dstTmpFileName, dstWavFilePath, adjustDelta, cancel);
+
+        await Lfs.DeleteFileIfExistsAsync(dstTmpFileName, cancel: cancel);
 
         return retSrcList;
     }
 
-    public async Task<List<AiWaveConcatenatedSrcWavList>> ConcatWavFileFromRandomDirAsync(string srcMusicWavsDirOrFilePath, string dstWavFilePath, int totalDurationMsecs, AiRandomBgmSettings settings, int fadeOutSecs, CancellationToken cancel = default)
+    public async Task<List<AiWaveConcatenatedSrcWavList>> ConcatWavFileFromRandomDirAsync(string srcMusicWavsDirOrFilePath, string dstWavFilePath, int totalDurationMsecs, AiRandomBgmSettings settings, int fadeOutSecs, bool boostWithLength, CancellationToken cancel = default)
     {
         FileSystemEntity[] srcWavList = await Lfs.EnumDirectoryAsync(srcMusicWavsDirOrFilePath, true, flags: EnumDirectoryFlags.AllowDirectFilePath, cancel: cancel);
 
@@ -2535,6 +2663,36 @@ public class AiTask
                 fileNamesList.Add(srcWav.FullPath);
             }
         }
+
+        if (boostWithLength)
+        {
+            List<string> tmp1 = new();
+
+            // 曲の長さ 1 分あたり 1 個をリストに追加
+            foreach (var path in fileNamesList)
+            {
+                try
+                {
+                    long size = (await Lfs.GetFileMetadataAsync(path, cancel: cancel)).Size;
+                    double minutes = (double)size / 10584000.0;
+                    int minutes_int = Math.Max((int)minutes, 1);
+
+                    for (int i = 0; i < minutes_int; i++)
+                    {
+                        tmp1.Add(path);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ex._Error();
+                }
+            }
+
+            Con.WriteLine($"Boost. Original: {fileNamesList.Count()._ToString3()} files, Boosted: {tmp1.Count._ToString3()} files.");
+
+            fileNamesList = tmp1.ToList();
+        }
+
 
         ShuffledEndlessQueue<string> srcQueue = new ShuffledEndlessQueue<string>(fileNamesList);
 
