@@ -3139,6 +3139,36 @@ namespace IPA.Cores.Basic
             return ms.ToArray();
         }
 
+        public static async Task<HugeMemoryBuffer<byte>> ReadStreamToEndHugeAsync(Stream s, long maxSize = 0, CancellationToken cancel = default(CancellationToken))
+        {
+            if (maxSize <= 0) maxSize = long.MaxValue;
+            HugeMemoryBuffer<byte> ret = new();
+
+            byte[] tmp = MemoryHelper.FastAllocMoreThan<byte>(Consts.Numbers.DefaultLargeBufferSize);
+            try
+            {
+                while (true)
+                {
+                    cancel.ThrowIfCancellationRequested();
+                    int r = await s.ReadAsync(tmp, 0, tmp.Length, cancel);
+                    if (r == 0)
+                    {
+                        break;
+                    }
+                    ret.Write(tmp, 0, r);
+                    if (ret.Length > maxSize) throw new OverflowException("ReadStreamToEndHugeAsync: too large data");
+                }
+            }
+            finally
+            {
+                MemoryHelper.FastFree(tmp);
+            }
+
+            ret.SeekToBegin();
+
+            return ret;
+        }
+
         public static async Task<byte[]> ReadStreamToEndAsync(Stream s, int maxSize = 0, CancellationToken cancel = default(CancellationToken))
         {
             if (maxSize <= 0) maxSize = int.MaxValue;
@@ -3165,6 +3195,34 @@ namespace IPA.Cores.Basic
             }
 
             return ms.ToArray();
+        }
+
+        public static async Task<long> CopyHugeMemoryBufferToStreamAsync(Stream stream, HugeMemoryBuffer<byte> hugeMemoryBuffer, CancellationToken cancel = default)
+        {
+            long size = hugeMemoryBuffer.LongLength;
+            byte[] tmp = MemoryHelper.FastAllocMoreThan<byte>(Consts.Numbers.DefaultLargeBufferSize);
+            long writtenSize = 0;
+            try
+            {
+                while (true)
+                {
+                    int sz = hugeMemoryBuffer.Read(tmp, allowPartial: true);
+
+                    if (sz <= 0)
+                    {
+                        break;
+                    }
+
+                    await stream.WriteAsync(tmp, 0, sz, cancellationToken: cancel);
+                    writtenSize += sz;
+                }
+
+                return writtenSize;
+            }
+            finally
+            {
+                MemoryHelper.FastFree(tmp);
+            }
         }
 
         // Stream 間のデータ中継 (双方向)
@@ -4796,7 +4854,8 @@ namespace IPA.Cores.Basic
                     Data = data,
                     Expires = (this.LifeTime == long.MaxValue) ? long.MaxValue : now + this.LifeTime,
                 };
-            };
+            }
+            ;
 
             return data;
         }
@@ -4952,7 +5011,8 @@ namespace IPA.Cores.Basic
                     Data = data,
                     Expires = (this.LifeTime == long.MaxValue) ? long.MaxValue : now + this.LifeTime,
                 };
-            };
+            }
+            ;
 
             return data;
         }
@@ -7229,7 +7289,7 @@ namespace IPA.Cores.Basic
 
     public class KeyValueList<TKey, TValue> : List<KeyValuePair<TKey, TValue>>
     {
-        public KeyValueList(){ } // for JSON serializer
+        public KeyValueList() { } // for JSON serializer
 
         public KeyValueList(IEnumerable<KeyValuePair<TKey, TValue>> srcData)
         {
