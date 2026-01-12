@@ -478,6 +478,13 @@ public static class Json
 
         return SerializeDynamic(d);
     }
+
+    public static string NormalizeArray(string str, int? maxDepth = 8)
+    {
+        JArray a = JArray.Parse(str);
+
+        return a._ObjectToJson(maxDepth: maxDepth);
+    }
 }
 
 public interface IToJsonString
