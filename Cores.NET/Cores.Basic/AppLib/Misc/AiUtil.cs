@@ -3028,7 +3028,7 @@ public class AiUtilRealEsrganPerformOption
     public bool Skip = false;
     public bool FaceMode = false;
     public bool Fp32 = false;
-    public int BatchChunkCount = 100;
+    public int BatchChunkCount = 16;
 }
 
 public class AiUtilRealEsrganEngine : AiUtilBasicEngine
@@ -3124,7 +3124,7 @@ public class AiUtilRealEsrganEngine : AiUtilBasicEngine
             }
             Con.WriteLine("Real-ESRGAN: Pre: Done.");
 
-            int timeout = (srcImgFilesOfThisChunk.Count() + 10) * 30 * 1000;
+            int timeout = (srcImgFilesOfThisChunk.Count() + 10) * 120 * 1000;
 
             IEnumerable<FileSystemEntity> generatedImgFiles = null!;
 
