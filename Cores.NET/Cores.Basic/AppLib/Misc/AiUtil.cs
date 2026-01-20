@@ -65,6 +65,8 @@ using System.Buffers.Binary;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Linq;
+using IPA.Cores.Basic.HttpClientCore;
+using System.Net;
 
 namespace IPA.Cores.Basic;
 
@@ -180,6 +182,14 @@ public class AiTaskOperationDesc
     public double Calced_VolumeDelta_Right;
 
     public AiAudioEffectFilter? Filter = null;
+}
+
+[Flags]
+public enum AiTaskTtsEngine
+{
+    VoiceVox = 0,
+    FishAudioPlain,
+    FishAudioWithSeedVc,
 }
 
 public class AiTask
@@ -433,7 +443,7 @@ public class AiTask
 
                 string storyTitle = testName + "_" + i.ToString("D5");
 
-                await ConvertTextToVoiceAsync(thisText, sampleVoicePath, dstVoiceDirPath, tmpVoiceBoxDir, tmpVoiceWavDir, randIntListTokutei, diffusionSteps, seriesName, storyTitle, false, new int[] { 100 }, cancel);
+                await ConvertTextToVoiceAsync(AiTaskTtsEngine.VoiceVox, thisText, sampleVoicePath, dstVoiceDirPath, tmpVoiceBoxDir, tmpVoiceWavDir, randIntListTokutei, diffusionSteps, seriesName, storyTitle, false, new int[] { 100 }, cancel);
             }
             catch (Exception ex)
             {
@@ -558,7 +568,7 @@ public class AiTask
                         }
                     }
 
-                    await ConvertTextToVoiceAsync(srcText, srcSampleVoiceFile, dstVoiceDirPath, tmpVoiceBoxDir, tmpVoiceWavDir, speakerIdListForThisFile, settings.DiffusionSteps, seriesName, storyTitle, settings.OverwriteSilent, speedPercentList, cancel);
+                    await ConvertTextToVoiceAsync(settings.TtsEngine, srcText, srcSampleVoiceFile, dstVoiceDirPath, tmpVoiceBoxDir, tmpVoiceWavDir, speakerIdListForThisFile, settings.DiffusionSteps, seriesName, storyTitle, settings.OverwriteSilent, speedPercentList, cancel);
 
                     // テキストファイルの先頭に _ を付ける
                     string newFilePath = PP.Combine(PP.GetDirectoryName(srcTextFile.FullPath), "_" + PP.GetFileName(srcTextFile.FullPath));
@@ -652,7 +662,7 @@ public class AiTask
         }
     }
 
-    public async Task ConvertTextToVoiceAsync(string srcText, string srcSampleVoicePath, string dstVoiceDirPath, string tmpVoiceBoxDir, string tmpVoiceWavDir, IEnumerable<int> speakerIdList, int diffusionSteps, string seriesName, string storyTitle, bool overwriteSilent, int[]? speedPercentList = null, CancellationToken cancel = default)
+    public async Task ConvertTextToVoiceAsync(AiTaskTtsEngine engine, string srcText, string srcSampleVoicePath, string dstVoiceDirPath, string tmpVoiceBoxDir, string tmpVoiceWavDir, IEnumerable<int> speakerIdList, int diffusionSteps, string seriesName, string storyTitle, bool overwriteSilent, int[]? speedPercentList = null, CancellationToken cancel = default)
     {
         if (speedPercentList == null || speedPercentList.Any() == false)
             speedPercentList = new int[] { 100 };
@@ -679,11 +689,27 @@ public class AiTask
 
         FfMpegParsedList parsed;
 
-        await using (var vv = new AiUtilVoiceVoxEngine(this.Settings, this.FfMpeg))
+        if (engine == AiTaskTtsEngine.VoiceVox)
         {
-            if (tagTitle._IsEmpty()) tagTitle = storyTitle._TruncStrEx(16);
+            await using (var vv = new AiUtilVoiceVoxEngine(this.Settings, this.FfMpeg))
+            {
+                if (tagTitle._IsEmpty()) tagTitle = storyTitle._TruncStrEx(16);
 
-            parsed = await vv.TextToWavAsync(srcText, speakerIdList, tmpVoiceBoxWavPath, tagTitle, true, cancel);
+                parsed = await vv.TextToWavAsync(srcText, speakerIdList, tmpVoiceBoxWavPath, tagTitle, true, cancel);
+            }
+        }
+        else if (engine == AiTaskTtsEngine.FishAudioPlain || engine == AiTaskTtsEngine.FishAudioWithSeedVc)
+        {
+            await using (var vv = new AiUtilFishAudioEngine(this.Settings, this.FfMpeg))
+            {
+                if (tagTitle._IsEmpty()) tagTitle = storyTitle._TruncStrEx(16);
+
+                parsed = await vv.TextToWavAsync(srcText, speakerIdList, tmpVoiceBoxWavPath, tagTitle, true, cancel);
+            }
+        }
+        else
+        {
+            throw new CoresLibException($"Unknown engine: {engine.ToString()}");
         }
 
         string tmpVoiceWavPath = PP.Combine(tmpVoiceWavDir, $"{safeSeriesName} - {safeStoryTitle} - {safeVoiceTitle} - {speakerIdStr}.wav");
@@ -692,9 +718,22 @@ public class AiTask
 
         AvUtilSeedVcMetaData vcMetaData;
 
-        await using (var seedvc = new AiUtilSeedVcEngine(this.Settings, this.FfMpeg))
+        List<MediaVoiceSegment>? voiceSegments;
+
+        if (engine != AiTaskTtsEngine.FishAudioPlain)
         {
-            vcMetaData = await seedvc.ConvertAsync(tmpVoiceBoxWavPath, tmpVoiceWavPath, srcSampleVoicePath, diffusionSteps, overwriteSilent, tagTitle, true, parsed.Options_VoiceSegmentsList, cancel: cancel);
+            await using (var seedvc = new AiUtilSeedVcEngine(this.Settings, this.FfMpeg))
+            {
+                vcMetaData = await seedvc.ConvertAsync(tmpVoiceBoxWavPath, tmpVoiceWavPath, srcSampleVoicePath, diffusionSteps, overwriteSilent, tagTitle, true, parsed.Options_VoiceSegmentsList, cancel: cancel);
+
+                voiceSegments = vcMetaData.VoiceSegments;
+            }
+        }
+        else
+        {
+            voiceSegments = parsed.Options_VoiceSegmentsList;
+
+            await Lfs.CopyFileAsync(tmpVoiceBoxWavPath, tmpVoiceWavPath);
         }
 
         foreach (int speed in speedPercentList)
@@ -716,7 +755,7 @@ public class AiTask
 
             string dstVoiceFlacPath = PP.Combine(dstVoiceDirPath, safeSeriesName, $"{speedStr} - {safeStoryTitle} - {safeVoiceTitle}{tailStr}.flac");
 
-            await FfMpeg.EncodeAudioAsync(tmpVoiceWavPath, dstVoiceFlacPath, FfMpegAudioCodec.Flac, 0, speed, meta, tagTitle, true, voiceSegments: vcMetaData.VoiceSegments, cancel: cancel);
+            await FfMpeg.EncodeAudioAsync(tmpVoiceWavPath, dstVoiceFlacPath, FfMpegAudioCodec.Flac, 0, speed, meta, tagTitle, true, voiceSegments: voiceSegments, cancel: cancel);
         }
     }
 
@@ -3011,12 +3050,14 @@ public class AiUtilBasicSettings
     public string AiTest_UvrCli_BaseDir = "";
     public string AiTest_VoiceBox_ExePath = "";
     public string AiTest_VoiceBox_ExeArgs = "";
+    public string AiTest_FishAudio_BaseDir = "";
     public string AiTest_SeedVc_BaseDir = "";
     public string AiTest_RealEsrgan_BaseDir = "";
     public string AiTest_TesseractOCR_Data_Dir = "";
     public double AdjustAudioTargetMaxVolume = CoresConfig.DefaultAiUtilSettings.AdjustAudioTargetMaxVolume;
     public double AdjustAudioTargetMeanVolume = CoresConfig.DefaultAiUtilSettings.AdjustAudioTargetMeanVolume;
     public int VoiceBoxLocalhostPort = Consts.Ports.VoiceVox;
+    public int FishAudioLocalhostPort = Consts.Ports.FishAudio;
 }
 
 public class AiUtilRealEsrganPerformOption
@@ -3415,12 +3456,175 @@ public class AiUtilSeedVcEngine : AiUtilBasicEngine
     }
 }
 
+public class AiUtilFishAudioEngine : AiUtilVoiceVoxEngine
+{
+    public override int BaseWavBitRateKHz => 44100;
+    public override int BaseWavBitDepth => 16;
+    public override int BaseWavChannels => 1;
+
+    public AiUtilFishAudioEngine(AiUtilBasicSettings settings, FfMpegUtil ffMpeg) : base(settings, ffMpeg, "FishAudio", settings.AiTest_UvrCli_BaseDir)
+    {
+    }
+
+    protected override async Task<byte[]> TextBlockToWavAsync(string text, int speakerId, CancellationToken cancel = default)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            throw new ArgumentException("text が null または空です。", nameof(text));
+        }
+
+        // Python例[1]と同等の payload を JObject で構築（Newtonsoft.Json）
+        // 重要：感情マーカーを入れる場合、正規化が邪魔をすることがあるため normalize=false 推奨（Python例と同様）
+        var payload = new JObject
+        {
+            ["text"] = text,
+            ["format"] = "wav",
+            ["normalize"] = false,
+            ["reference_id"] = speakerId.ToString(),
+
+            // 生成の揺らぎ（Python例と同じ）
+            ["temperature"] = 0.8,
+            ["top_p"] = 0.8,
+            ["repetition_penalty"] = 1.1,
+
+            // 長文向け内部チャンク（100-300程度が目安。Python例と同じ 200）
+            ["chunk_length"] = 200
+        };
+
+        // JSON文字列化（不要な整形はしない）
+        string json = payload.ToString(Formatting.None);
+
+        using var requestContent = new StringContent(json, Encoding.UTF8, "application/json");
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"http://127.0.0.1:{this.Settings.FishAudioLocalhostPort}/v1/tts")
+        {
+            Content = requestContent
+        };
+
+        using var http = CreateHttpClient();
+
+        // 応答は WAV バイナリ。ヘッダ受領後にストリーム読み込みでも良いが、要件どおり byte[] で返す。
+        using HttpResponseMessage response = await http.SendAsync(
+            request,
+            HttpCompletionOption.ResponseHeadersRead,
+            cancel
+        ).ConfigureAwait(false);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            // 失敗時：本文(JSONエラー等)を読んで原因特定しやすくする
+            string errorBody = await SafeReadAsStringAsync(response, cancel).ConfigureAwait(false);
+            throw new CoresLibException(
+                $"TTS API 失敗: {(int)response.StatusCode} {response.ReasonPhrase}. Body={errorBody}"
+            );
+        }
+
+        byte[] wavBytes = await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+
+        if (wavBytes.Length == 0)
+        {
+            throw new CoresLibException(
+                message: "TTS API の応答ボディが空でした (0 bytes)。"
+            );
+        }
+
+        // 軽い妥当性チェック：WAVなら先頭が "RIFF" のことが多い（厳密ではないが事故検知に有効）
+        if (wavBytes.Length >= 4 &&
+            wavBytes[0] == (byte)'R' &&
+            wavBytes[1] == (byte)'I' &&
+            wavBytes[2] == (byte)'F' &&
+            wavBytes[3] == (byte)'F')
+        {
+            return wavBytes;
+        }
+
+        // サーバーが別形式やエラーバイナリを返した可能性もあるので、ここで例外にする
+        // ※運用で「とにかく返してほしい」なら、このチェックは外してもよい
+        throw new CoresLibException(
+            message: "応答がWAV(RIFF)形式に見えません。APIサーバー設定やエンドポイントを確認してください。"
+        );
+    }
+
+    private static async Task<string> SafeReadAsStringAsync(HttpResponseMessage response, CancellationToken cancel)
+    {
+        try
+        {
+            return await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+        }
+        catch
+        {
+            return "<error body を読み取れませんでした>";
+        }
+    }
+
+    private static HttpClient CreateHttpClient()
+    {
+        var handler = new SocketsHttpHandler(LocalNet)
+        {
+            AutomaticDecompression = DecompressionMethods.None
+        };
+
+        var client = new HttpClient(handler)
+        {
+            Timeout = TimeSpan.FromSeconds(600),
+        };
+
+        // 応答は WAV バイナリ想定。サーバー側が Content-Type を返さない場合もあるため Accept は補助的。
+        client.DefaultRequestHeaders.Accept.Clear();
+        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("audio/wav"));
+        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/octet-stream"));
+
+        return client;
+    }
+
+    protected override async Task<ExecInstance> StartExeAsync(CancellationToken cancel = default)
+    {
+        var ret = await TaskUtil.RetryAsync(async c =>
+        {
+            ExecInstance exec = new ExecInstance(new ExecOptions(Settings.AiTest_VoiceBox_ExePath, Settings.AiTest_VoiceBox_ExeArgs, PP.GetDirectoryName(Settings.AiTest_VoiceBox_ExePath)));
+            try
+            {
+                await TaskUtil.RetryAsync(async c2 =>
+                {
+                    await using var http = new WebApi(new WebApiOptions(new WebApiSettings { DoNotThrowHttpResultError = true }, doNotUseTcpStack: true));
+
+                    string url1 = $"http://127.0.0.1:{this.Settings.FishAudioLocalhostPort}/";
+
+                    await http.SimpleQueryAsync(WebMethods.GET, url1, c);
+
+                    return true;
+                },
+                200, 5, c, true);
+
+                return exec;
+            }
+            catch
+            {
+                await exec._DisposeSafeAsync();
+                throw;
+            }
+
+        },
+        1000, 5, cancel, true);
+
+        return ret;
+    }
+}
+
 public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
 {
+    public virtual int BaseWavBitRateKHz => 24000;
+    public virtual int BaseWavBitDepth => 16;
+    public virtual int BaseWavChannels => 1;
+
     // アルゴリズムの参考元: https://qiita.com/BB-KING777/items/34c3cbb3b4ecc5043a2a BB-KING777
     public FfMpegUtil FfMpeg { get; }
 
     public AiUtilVoiceVoxEngine(AiUtilBasicSettings settings, FfMpegUtil ffMpeg) : base(settings, "VoiceBox", settings.AiTest_UvrCli_BaseDir)
+    {
+        this.FfMpeg = ffMpeg;
+    }
+
+    public AiUtilVoiceVoxEngine(AiUtilBasicSettings settings, FfMpegUtil ffMpeg, string simpleAiName, string baseDirPath) : base(settings, simpleAiName, baseDirPath)
     {
         this.FfMpeg = ffMpeg;
     }
@@ -3434,25 +3638,9 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
         200, 5, cancel, true);
     }
 
-    async Task<FfMpegParsedList> TextToWavMainAsync(string text, IEnumerable<int> speakerIdList /* 0 ～ 98 */, string dstWavPath, string tagTitle = "", bool useOkFile = true, CancellationToken cancel = default)
+    virtual protected async Task<ExecInstance> StartExeAsync(CancellationToken cancel = default)
     {
-        if (tagTitle._IsEmpty()) tagTitle = "voicetext";
-
-        text = PreProcessText(text);
-
-        var textBlockList = SplitText(text);
-
-        string digest = $"text={textBlockList._ObjectToJson()._Digest()},speakerId={speakerIdList.Select(x => x.ToString())._Combine("+")},targetMaxVolume={Settings.AdjustAudioTargetMaxVolume},targetMeanVolume={Settings.AdjustAudioTargetMeanVolume}";
-
-        if (useOkFile)
-        {
-            var okResult = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstWavPath, digest, AiUtilVersion.CurrentVersion, cancel: cancel);
-            if (okResult.IsOk && okResult.Value != null) return okResult.Value;
-        }
-
-        ShuffledEndlessQueue<int> speakerIdShuffleQueue = new ShuffledEndlessQueue<int>(speakerIdList, 3);
-
-        await using var exec = await TaskUtil.RetryAsync(async c =>
+        var ret = await TaskUtil.RetryAsync(async c =>
         {
             ExecInstance exec = new ExecInstance(new ExecOptions(Settings.AiTest_VoiceBox_ExePath, Settings.AiTest_VoiceBox_ExeArgs, PP.GetDirectoryName(Settings.AiTest_VoiceBox_ExePath)));
             try
@@ -3479,6 +3667,29 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
 
         },
         1000, 5, cancel, true);
+
+        return ret;
+    }
+
+    async Task<FfMpegParsedList> TextToWavMainAsync(string text, IEnumerable<int> speakerIdList /* 0 ～ 98 */, string dstWavPath, string tagTitle = "", bool useOkFile = true, CancellationToken cancel = default)
+    {
+        if (tagTitle._IsEmpty()) tagTitle = "voicetext";
+
+        text = PreProcessText(text);
+
+        var textBlockList = SplitText(text);
+
+        string digest = $"text={textBlockList._ObjectToJson()._Digest()},speakerId={speakerIdList.Select(x => x.ToString())._Combine("+")},targetMaxVolume={Settings.AdjustAudioTargetMaxVolume},targetMeanVolume={Settings.AdjustAudioTargetMeanVolume}";
+
+        if (useOkFile)
+        {
+            var okResult = await Lfs.ReadOkFileAsync<FfMpegParsedList>(dstWavPath, digest, AiUtilVersion.CurrentVersion, cancel: cancel);
+            if (okResult.IsOk && okResult.Value != null) return okResult.Value;
+        }
+
+        ShuffledEndlessQueue<int> speakerIdShuffleQueue = new ShuffledEndlessQueue<int>(speakerIdList, 3);
+
+        await using var exec = await StartExeAsync(cancel: cancel);
 
         List<string> blockWavFileNameList = new List<string>();
 
@@ -3546,7 +3757,7 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
                     {
                         double durationOriginal = Math.Min(durationStr._ToDouble(), 3600);
                         double duration = Math.Max(durationOriginal - 0.1, 0.11);
-                        WaveFormat waveFormat = new WaveFormat(24000, 16, 1);
+                        WaveFormat waveFormat = new WaveFormat(this.BaseWavBitRateKHz, this.BaseWavBitDepth, this.BaseWavChannels);
 
                         int speakerId = 0;
                         int silenceBytes = AiWaveUtil.GetWavDataSizeInByteFromTime(duration, waveFormat);
@@ -3615,7 +3826,7 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
 
         if (blockWavFileNameList.Any() == false)
         {
-            WaveFormat waveFormat = new WaveFormat(24000, 16, 1);
+            WaveFormat waveFormat = new WaveFormat(this.BaseWavBitRateKHz, this.BaseWavBitDepth, this.BaseWavChannels);
 
             await using var writer = new WaveFileWriter(concatFile, waveFormat);
 
@@ -3716,7 +3927,7 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
     }
 
     // 音声合成
-    async Task<byte[]> TextBlockToWavAsync(string text, int speakerId, CancellationToken cancel = default)
+    protected virtual async Task<byte[]> TextBlockToWavAsync(string text, int speakerId, CancellationToken cancel = default)
     {
         await using var http = new WebApi(new WebApiOptions(doNotUseTcpStack: true));
 
@@ -4144,6 +4355,7 @@ public class AiVoiceSettings
     public bool MixedMode = false;
     public int DiffusionSteps = 50;
     public bool OverwriteSilent = false;
+    public AiTaskTtsEngine TtsEngine = AiTaskTtsEngine.VoiceVox;
     public KeyValueList<string, string>? ReplaceStrList = new KeyValueList<string, string>();
 }
 

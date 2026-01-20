@@ -194,6 +194,7 @@ public static partial class Consts
         public const int MsSqlServer = 1433;
 
         public const int VoiceVox = 50021;
+        public const int FishAudio = 50022;
 
         public const int DynamicPortMin = 10000;
         public const int DynamicPortMax = 19999;
