@@ -3460,7 +3460,8 @@ public class AiUtilFishAudioEngine : AiUtilVoiceVoxEngine
 {
     public override int BaseWavBitRateKHz => 44100;
     public override int BaseWavBitDepth => 16;
-    public override int BaseWavChannels => 1;
+    public override int BaseWavChannels => 2;
+    public override int TextSplitMaxLen => 60;
 
     public AiUtilFishAudioEngine(AiUtilBasicSettings settings, FfMpegUtil ffMpeg) : base(settings, ffMpeg, "FishAudio", settings.AiTest_UvrCli_BaseDir)
     {
@@ -3473,6 +3474,8 @@ public class AiUtilFishAudioEngine : AiUtilVoiceVoxEngine
             throw new ArgumentException("text が null または空です。", nameof(text));
         }
 
+        text = text.Replace("(", " ").Replace(")", " ");
+
         // Python例[1]と同等の payload を JObject で構築（Newtonsoft.Json）
         // 重要：感情マーカーを入れる場合、正規化が邪魔をすることがあるため normalize=false 推奨（Python例と同様）
         var payload = new JObject
@@ -3484,11 +3487,13 @@ public class AiUtilFishAudioEngine : AiUtilVoiceVoxEngine
 
             // 生成の揺らぎ（Python例と同じ）
             ["temperature"] = 0.8,
-            ["top_p"] = 0.8,
+            ["top_p"] = 0.9,
             ["repetition_penalty"] = 1.1,
 
             // 長文向け内部チャンク（100-300程度が目安。Python例と同じ 200）
-            ["chunk_length"] = 200
+            ["chunk_length"] = 200,
+            ["max_new_tokens"] = 4096,
+            ["latency"] = "normal",
         };
 
         // JSON文字列化（不要な整形はしない）
@@ -3544,6 +3549,68 @@ public class AiUtilFishAudioEngine : AiUtilVoiceVoxEngine
         );
     }
 
+
+    // テキスト分割 (タグも分離)
+    public override KeyValueList<string, bool> SplitText(string text, int maxLen = 100)
+    {
+        KeyValueList<string, bool> ret = new KeyValueList<string, bool>();
+
+        var textAndTags = SplitTextToNormalAndTag(text);
+
+        foreach (var part in textAndTags)
+        {
+            if (part.Value == false)
+            {
+                var lines = part.Key._GetLines(true, singleLineAtLeast: true, trim: true);
+
+                foreach (var line in lines)
+                {
+                    var a = SplitTextCore(line, maxLen);
+                    foreach (var s in a)
+                    {
+                        ret.Add(s, false);
+                    }
+                }
+            }
+            else
+            {
+                ret.Add(part.Key, true);
+            }
+        }
+
+        return ret;
+    }
+
+    protected override List<string> SplitTextCore(string text, int maxLen = 100)
+    {
+        var sentences = Regex.Split(text, @"(?<=[。！？、.!?,])");
+        var chunks = new List<string>();
+        var current = "";
+
+        foreach (var sentence in sentences)
+        {
+            if (current.Length + sentence.Length > maxLen)
+            {
+                if (current._IsFilled())
+                {
+                    chunks.Add(current);
+                }
+                current = sentence;
+            }
+            else
+            {
+                current += sentence;
+            }
+        }
+
+        if (current._IsFilled())
+        {
+            chunks.Add(current);
+        }
+
+        return chunks;
+    }
+
     private static async Task<string> SafeReadAsStringAsync(HttpResponseMessage response, CancellationToken cancel)
     {
         try
@@ -3580,7 +3647,12 @@ public class AiUtilFishAudioEngine : AiUtilVoiceVoxEngine
     {
         var ret = await TaskUtil.RetryAsync(async c =>
         {
-            ExecInstance exec = new ExecInstance(new ExecOptions(Settings.AiTest_VoiceBox_ExePath, Settings.AiTest_VoiceBox_ExeArgs, PP.GetDirectoryName(Settings.AiTest_VoiceBox_ExePath)));
+            ExecInstance exec = new ExecInstance(new ExecOptions(Settings.AiTest_FishAudio_BaseDir._CombinePath("venv", "Scripts", "python.exe"),
+                $"-m tools.api_server --listen 127.0.0.1:{this.Settings.FishAudioLocalhostPort} --llama-checkpoint-path \"checkpoints\\openaudio-s1-mini\" --decoder-checkpoint-path \"checkpoints\\openaudio-s1-mini\\codec.pth\" --decoder-config-name modded_dac_vq",
+                Settings.AiTest_FishAudio_BaseDir));
+
+            Con.WriteLine($"proc id = {exec.ProcessId}");
+
             try
             {
                 await TaskUtil.RetryAsync(async c2 =>
@@ -3593,7 +3665,7 @@ public class AiUtilFishAudioEngine : AiUtilVoiceVoxEngine
 
                     return true;
                 },
-                200, 5, c, true);
+                200, 30, c, true);
 
                 return exec;
             }
@@ -3615,6 +3687,7 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
     public virtual int BaseWavBitRateKHz => 24000;
     public virtual int BaseWavBitDepth => 16;
     public virtual int BaseWavChannels => 1;
+    public virtual int TextSplitMaxLen => 100;
 
     // アルゴリズムの参考元: https://qiita.com/BB-KING777/items/34c3cbb3b4ecc5043a2a BB-KING777
     public FfMpegUtil FfMpeg { get; }
@@ -3677,7 +3750,7 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
 
         text = PreProcessText(text);
 
-        var textBlockList = SplitText(text);
+        var textBlockList = SplitText(text, this.TextSplitMaxLen);
 
         string digest = $"text={textBlockList._ObjectToJson()._Digest()},speakerId={speakerIdList.Select(x => x.ToString())._Combine("+")},targetMaxVolume={Settings.AdjustAudioTargetMaxVolume},targetMeanVolume={Settings.AdjustAudioTargetMeanVolume}";
 
@@ -3714,7 +3787,19 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
 
                 await Lfs.WriteDataToFileAsync(tmpPath, blockWavData, FileFlags.AutoCreateDirectory, cancel: cancel);
 
-                blockWavFileNameList.Add(tmpPath);
+                if (this is AiUtilFishAudioEngine)
+                {
+                    var tmpPath2 = await Lfs.GenerateUniqueTempFilePathAsync($"{tagTitle}_adj_{i:D8}_speaker{speakerId:D3}", ".wav", cancel: cancel);
+                    await this.FfMpeg.AdjustAudioVolumeAsync(tmpPath, tmpPath2, Settings.AdjustAudioTargetMaxVolume, Settings.AdjustAudioTargetMeanVolume, FfmpegAdjustVolumeOptiono.MeanOnly, tagTitle, false, cancel);
+                    blockWavFileNameList.Add(tmpPath2);
+                }
+                else
+                {
+                    blockWavFileNameList.Add(tmpPath);
+                }
+
+                Con.WriteLine($" - {PP.GetFileNameWithoutExtension(tmpPath)} ({blockWavData.Length._ToString3()} bytes)\n  「{block}」");
+
                 int wavFileNameIndex = blockWavFileNameList.Count - 1;
 
                 totalFileSize += blockWavData.LongLength;
@@ -4070,7 +4155,7 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
     }
 
     // テキスト分割 (タグも分離)
-    public static KeyValueList<string, bool> SplitText(string text, int maxLen = 100)
+    public virtual KeyValueList<string, bool> SplitText(string text, int maxLen = 100)
     {
         KeyValueList<string, bool> ret = new KeyValueList<string, bool>();
 
@@ -4096,7 +4181,7 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
     }
 
     // テキスト分割
-    static List<string> SplitTextCore(string text, int maxLen = 100)
+    protected virtual List<string> SplitTextCore(string text, int maxLen = 100)
     {
         var sentences = Regex.Split(text, @"(?<=[。！？])");
         var chunks = new List<string>();
