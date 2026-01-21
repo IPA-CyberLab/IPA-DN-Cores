@@ -1523,6 +1523,14 @@ public class PathParser
         return path.Substring(0, i);
     }
 
+    public string GetPathWithoutExtension(string path, bool longExtension = false)
+    {
+        string dirName = this.GetDirectoryName(path);
+        string fileName = this.GetFileName(path);
+
+        return PP.Combine(dirName, GetFileNameWithoutExtension(fileName, longExtension));
+    }
+
     // 拡張子を取得する (. を含む)
     public string GetExtension(string path, bool longExtension = false, bool emptyWhenNoExtension = false)
     {
