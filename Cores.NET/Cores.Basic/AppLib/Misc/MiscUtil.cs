@@ -89,6 +89,15 @@ public static partial class CoresConfig
     }
 }
 
+public class PdfDocInfo
+{
+    public DateTimeOffset CreateDt = DtOffsetZero;
+    public DateTimeOffset ModifyDt = DtOffsetZero;
+    public bool IsVertical = false;
+    public int? PhysicalPageStart = null;
+    public int? LogicalPageStart = null;
+}
+
 public class ImageMagickOptions
 {
     public string MagickExePath = "";
@@ -210,6 +219,20 @@ public class ImageMagickUtil
             cancel: cancel);
     }
 
+    public async Task ApplyDocInfoToPdfFileAsync(string pdfPath, PdfDocInfo info, CancellationToken cancel = default)
+    {
+        await ClearPdfTitleMetaDataAsync(pdfPath, cancel: cancel);
+
+        if (info.LogicalPageStart.HasValue && info.PhysicalPageStart.HasValue)
+        {
+            await SetPdfPageLabelAsync(pdfPath, info.PhysicalPageStart.Value, info.LogicalPageStart.Value, cancel: cancel);
+        }
+
+        await SetPdfPageDirectionAsync(pdfPath, info.IsVertical, cancel: cancel);
+
+        await SetPdfDateTimeAsync(pdfPath, info.CreateDt, info.ModifyDt, cancel: cancel);
+    }
+
     public async Task ClearPdfTitleMetaDataAsync(string pdfPath, CancellationToken cancel = default)
     {
         // 日本語を含むファイル名が正しく扱えないので一時ディレクトリにコピーして処理
@@ -317,6 +340,34 @@ public class ImageMagickUtil
         {
             await Lfs.DeleteFileIfExistsAsync(tmpSrcPdfPath, cancel: cancel);
             await Lfs.DeleteFileIfExistsAsync(tmpDstPdfPath, cancel: cancel);
+        }
+    }
+
+    public async Task SetPdfPageDirectionAsync(string pdfPath, bool isVertical, CancellationToken cancel = default)
+    {
+        // 念のため一時ディレクトリにコピーして処理
+        string tmpPath = await Lfs.GenerateUniqueTempFilePathAsync("pdfcpu_src", ".pdf", cancel: cancel);
+
+        string str1 = isVertical ? "R2L" : "L2R";
+
+        string str2 = isVertical ? "TwoPageLeft" : "TwoPageRight";
+
+        await Lfs.CopyFileAsync(pdfPath, tmpPath, cancel: cancel);
+        try
+        {
+            var result = await RunPdfCpuAsync(
+                $"viewerpref set {tmpPath._RemoveQuotation()} \"{{\\\"Direction\\\":\\\"{str1}\\\"}}\"",
+                cancel: cancel);
+
+            result = await RunPdfCpuAsync(
+                $"pagelayout set {tmpPath._RemoveQuotation()} {str2}",
+                cancel: cancel);
+
+            await Lfs.CopyFileAsync(tmpPath, pdfPath, cancel: cancel);
+        }
+        finally
+        {
+            await Lfs.DeleteFileIfExistsAsync(tmpPath, cancel: cancel);
         }
     }
 
