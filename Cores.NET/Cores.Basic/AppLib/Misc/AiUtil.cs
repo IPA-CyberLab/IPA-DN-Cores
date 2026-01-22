@@ -3496,7 +3496,7 @@ public class AiUtilFishAudioEngine : AiUtilVoiceVoxEngine
             throw new ArgumentException("text が null または空です。", nameof(text));
         }
 
-        text = text.Replace("(", " ").Replace(")", " ");
+        text = text.Replace("(", " ").Replace(")", " ").Replace("（", " ").Replace("）", " ");
 
         // Python例[1]と同等の payload を JObject で構築（Newtonsoft.Json）
         // 重要：感情マーカーを入れる場合、正規化が邪魔をすることがあるため normalize=false 推奨（Python例と同様）
