@@ -2224,7 +2224,7 @@ public class AiTask
 
             if (okFileMeta.Value?.Options_VoiceSegmentsList != null)
             {
-                foreach (var seg in okFileMeta.Value?.Options_VoiceSegmentsList)
+                foreach (var seg in okFileMeta.Value?.Options_VoiceSegmentsList!)
                 {
                     if (seg.DataLength != 0 && seg.IsBlank == false && seg.IsTag == false)
                     {
@@ -3467,7 +3467,29 @@ public class AiUtilFishAudioEngine : AiUtilVoiceVoxEngine
     {
     }
 
+    // 音声合成
     protected override async Task<byte[]> TextBlockToWavAsync(string text, int speakerId, CancellationToken cancel = default)
+    {
+        int numTry = 2;
+
+        List<byte[]> resultList = new();
+
+        // この AI は、不安定なので、2 回呼び出して、結果サイズの大きいものを採用する (大変適当)
+        for (int i = 0; i < numTry; i++)
+        {
+            byte[] buf = await TaskUtil.RetryAsync(async () =>
+            {
+                return await TextBlockToWavSingleAsync(text, speakerId, cancel);
+            },
+            500, 3, cancel: cancel, randomInterval: true);
+
+            resultList.Add(buf);
+        }
+
+        return resultList.OrderByDescending(x => x.Length).First();
+    }
+
+    async Task<byte[]> TextBlockToWavSingleAsync(string text, int speakerId, CancellationToken cancel = default)
     {
         if (string.IsNullOrWhiteSpace(text))
         {
