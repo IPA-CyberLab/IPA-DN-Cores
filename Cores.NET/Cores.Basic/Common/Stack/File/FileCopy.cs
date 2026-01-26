@@ -323,6 +323,186 @@ public enum ArchiveFileType
 
 public static partial class FileUtil
 {
+    public static async Task ApplyDirFileTimeStampIfOlderAsync(string srcDirPath, string targetDirPath, bool checkFileSame = false, FileSystem? fs = null, CancellationToken cancel = default)
+    {
+        static bool ShouldApplySrcTimeToDst(DateTimeOffset? dst, DateTimeOffset? src)
+        {
+            if (src == null) return false;
+            if (dst == null) return true;
+
+            if (dst.Value > src.Value)
+            {
+                // src のほうが古い
+                return true;
+            }
+
+            if ((src.Value - dst.Value).TotalSeconds < 2.0)
+            {
+                if ((dst.Value.Ticks % TimeSpan.TicksPerSecond) == 0 && (src.Value.Ticks % TimeSpan.TicksPerSecond) != 0)
+                {
+                    // src のほうが新しいが、その差は 2 秒未満であり、かつ、dst がいい加減な精度 (秒単位) で、かつ、src がいい加減な精度ではない
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        fs ??= Lfs;
+
+        RefInt numOkDir = 0;
+        RefInt numTotalDir = 0;
+        RefInt numErrorDir = 0;
+        RefInt numNotFoundDir = 0;
+
+        RefInt numOkFile = 0;
+        RefInt numTotalFile = 0;
+        RefInt numDiffFile = 0;
+        RefInt numNotFoundFile = 0;
+        RefInt numErrorFile = 0;
+
+        var srcDirList = (await fs.EnumDirectoryAsync(srcDirPath, true, flags: EnumDirectoryFlags.IgnoreErrorDuringRecursiveEnum, cancel: cancel))
+            .Where(x => x.IsDirectory)
+            .OrderByDescending(x => x.FullPath.Length)
+            .ThenBy(x => x.FullPath)
+            .Select(x => x.FullPath)
+            .ToList();
+
+        srcDirList.Add(srcDirPath);
+
+        srcDirList = srcDirList.Distinct().ToList();
+
+        foreach (var srcDirItemFullPath in srcDirList)
+        {
+            try
+            {
+                var srcFileList = (await fs.EnumDirectoryAsync(srcDirItemFullPath, false, cancel: cancel)).Where(x => x.IsFile).OrderBy(x => x.FullPath);
+
+                foreach (var srcFileItem in srcFileList)
+                {
+                    numTotalFile.Increment();
+
+                    try
+                    {
+                        var srcMetaData = await fs.GetFileMetadataAsync(srcFileItem.FullPath, cancel: cancel);
+
+                        string srcFileItemRelativePath = fs.PathParser.GetRelativeFileName(srcFileItem.FullPath, srcDirPath);
+
+                        string dstFileItemFullPath = fs.PathParser.Combine(targetDirPath, srcFileItemRelativePath, true);
+
+                        if (await fs.IsFileExistsAsync(dstFileItemFullPath, cancel: cancel) == false)
+                        {
+                            Con.WriteLine($"*** Warning *** File \"{dstFileItemFullPath}\" not found.");
+                            numNotFoundFile.Increment();
+                        }
+                        else
+                        {
+                            var dstCurrentMetaData = await fs.GetFileMetadataAsync(dstFileItemFullPath, cancel: cancel);
+
+                            if (checkFileSame == false ||
+                                (dstCurrentMetaData.Size == srcMetaData.Size && (await fs.CalcFileHashAsync(srcFileItem.FullPath, cancel: cancel))._GetHexString() == (await fs.CalcFileHashAsync(dstFileItemFullPath, cancel: cancel))._GetHexString()))
+                            {
+                                FileMetadataCopyMode mode = FileMetadataCopyMode.None;
+
+                                if (ShouldApplySrcTimeToDst(dstCurrentMetaData.LastWriteTime, srcMetaData.LastWriteTime))
+                                {
+                                    Con.WriteLine($"Setting \"{dstFileItemFullPath}\" (LastWriteTime: {srcMetaData.LastWriteTime?._ToLocalDtStr()})");
+
+                                    mode = mode.BitAdd(FileMetadataCopyMode.LastWriteTime);
+                                }
+
+                                if (ShouldApplySrcTimeToDst(dstCurrentMetaData.CreationTime, srcMetaData.CreationTime))
+                                {
+                                    Con.WriteLine($"Setting \"{dstFileItemFullPath}\" (CreationTime: {srcMetaData.CreationTime?._ToLocalDtStr()})");
+
+                                    mode = mode.BitAdd(FileMetadataCopyMode.CreationTime);
+                                }
+
+                                if (mode != FileMetadataCopyMode.None)
+                                {
+                                    await fs.SetFileMetadataAsync(dstFileItemFullPath, srcMetaData.Clone(mode), cancel: cancel);
+                                }
+
+                                numOkFile.Increment();
+                            }
+                            else
+                            {
+                                Con.WriteLine($"*** Warning *** File diff between \"{srcFileItem.FullPath}\" and \"{dstFileItemFullPath}\".");
+                                numDiffFile.Increment();
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        numErrorFile.Increment();
+                        Con.WriteLine($"*** Error *** src file path: \"{srcFileItem.FullPath}\"");
+                        ex._Error();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ex._Error();
+            }
+
+            numTotalDir.Increment();
+            try
+            {
+                var srcMetaData = await fs.GetDirectoryMetadataAsync(srcDirItemFullPath, cancel: cancel);
+
+                string srcDirItemRelativePath = fs.PathParser.GetRelativeDirectoryName(srcDirItemFullPath, srcDirPath);
+
+                string dstDirItemFullPath = fs.PathParser.Combine(targetDirPath, srcDirItemRelativePath, true);
+
+                if (await fs.IsDirectoryExistsAsync(dstDirItemFullPath, cancel: cancel) == false)
+                {
+                    Con.WriteLine($"*** Warning *** Directory \"{dstDirItemFullPath}{fs.PathParser.DirectorySeparator}\" not found.");
+
+                    numNotFoundDir.Increment();
+                }
+                else
+                {
+                    FileMetadataCopyMode mode = FileMetadataCopyMode.None;
+
+                    var dstCurrentMetaData = await fs.GetDirectoryMetadataAsync(dstDirItemFullPath, cancel: cancel);
+
+                    if (ShouldApplySrcTimeToDst(dstCurrentMetaData.LastWriteTime, srcMetaData.LastWriteTime))
+                    {
+                        Con.WriteLine($"Setting \"{dstDirItemFullPath}\" (LastWriteTime: {srcMetaData.LastWriteTime?._ToLocalDtStr()})");
+
+                        mode = mode.BitAdd(FileMetadataCopyMode.LastWriteTime);
+                    }
+
+                    if (ShouldApplySrcTimeToDst(dstCurrentMetaData.CreationTime, srcMetaData.CreationTime))
+                    {
+                        Con.WriteLine($"Setting \"{dstDirItemFullPath}\" (CreationTime: {srcMetaData.CreationTime?._ToLocalDtStr()})");
+
+                        mode = mode.BitAdd(FileMetadataCopyMode.CreationTime);
+                    }
+
+                    if (mode != FileMetadataCopyMode.None)
+                    {
+                        await fs.SetDirectoryMetadataAsync(dstDirItemFullPath, srcMetaData.Clone(mode), cancel: cancel);
+                    }
+
+                    numOkDir.Increment();
+                }
+            }
+            catch (Exception ex)
+            {
+                numErrorDir.Increment();
+                Con.WriteLine($"*** Error *** src dir path: \"{srcDirItemFullPath}{fs.PathParser.DirectorySeparator}\"");
+                ex._Error();
+            }
+        }
+
+
+        Con.WriteLine();
+        Con.WriteLine($"[Result - Files]: numOkFile = {numOkFile.Value._ToString3()}, numTotalFile = {numTotalFile.Value._ToString3()}, numDiffFile = {numDiffFile.Value._ToString3()}, numNotFoundFile = {numNotFoundFile.Value._ToString3()}, numErrorFile = {numErrorFile.Value._ToString3()}");
+        Con.WriteLine();
+        Con.WriteLine($"[Result - Dirs]: numOkDir = {numOkDir.Value._ToString3()}, numTotalDir = {numTotalDir.Value._ToString3()}, numNotFoundDir = {numNotFoundDir.Value._ToString3()}, numErrorDir = {numErrorDir.Value._ToString3()}");
+    }
+
     public static List<Memory<byte>> CompressTextToZipFilesSplittedWithMinSize(string textBody, int minSize, string innerFileNameWithoutExt, string zipPassword, string ext = ".txt")
     {
         List<Memory<byte>> ret = new List<Memory<byte>>();
