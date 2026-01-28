@@ -560,11 +560,19 @@ public class AiTask
                         speakerIdListForThisFile = speakerIdListInOneFile.ToList();
                     }
 
-                    if (settings.ReplaceStrList != null)
+                    if (settings.ReplaceStrListTxtFileName._IsFilled())
                     {
-                        foreach (var kv in settings.ReplaceStrList)
+                        string yomiTxtFilePath = PP.Combine(seriesDir.FullPath, settings.ReplaceStrListTxtFileName, true);
+
+                        try
                         {
-                            srcText = srcText._ReplaceStr(kv.Key, kv.Value);
+                            string rulesBody = await Lfs.ReadStringFromFileAsync(yomiTxtFilePath, flags: FileFlags.ReadDataTryUpperDirs, cancel: cancel);
+
+                            srcText = srcText._IntelliReplaceStr(rulesBody, false);
+                        }
+                        catch (Exception ex)
+                        {
+                            ex._Error();
                         }
                     }
 
@@ -3605,7 +3613,7 @@ public class AiUtilFishAudioEngine : AiUtilVoiceVoxEngine
 
     protected override List<string> SplitTextCore(string text, int maxLen = 100)
     {
-        var sentences = Regex.Split(text, @"(?<=[。！？、.!?,])");
+        var sentences = Regex.Split(text, @"(?<=[。！？.!?])");
         var chunks = new List<string>();
         var current = "";
 
@@ -4463,7 +4471,7 @@ public class AiVoiceSettings
     public int DiffusionSteps = 50;
     public bool OverwriteSilent = false;
     public AiTaskTtsEngine TtsEngine = AiTaskTtsEngine.VoiceVox;
-    public KeyValueList<string, string>? ReplaceStrList = new KeyValueList<string, string>();
+    public string ReplaceStrListTxtFileName = "";
 }
 
 public class AiRandomBgmSettingsFactory
