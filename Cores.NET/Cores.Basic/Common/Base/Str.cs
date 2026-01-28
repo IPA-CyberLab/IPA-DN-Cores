@@ -1662,6 +1662,84 @@ namespace IPA.Cores.Basic
         }
 
 
+        class IntelliReplaceRules
+        {
+            public string Src = "";
+            public string Dst = "";
+            public string TempRandTag = "";
+        }
+
+        public static string IntelliReplaceStr(string srcStr, string replaceRulesBody, bool caseSensitive = false)
+        {
+            // ルールパースと前処理
+            var lines = replaceRulesBody._GetLines(true, true, trim: true);
+
+            List<IntelliReplaceRules> replaceList = new();
+            List<IntelliReplaceRules> negativeList = new();
+
+            foreach (var line in lines)
+            {
+                if (line.StartsWith("!") || line.StartsWith("-"))
+                {
+                    IntelliReplaceRules r = new IntelliReplaceRules
+                    {
+                        Src = line.Substring(1),
+                        Dst = "",
+                        TempRandTag = Str.GenRandStr(),
+                    };
+
+                    if (r.Src._IsFilled())
+                    {
+                        negativeList.Add(r);
+                    }
+                }
+
+                if (line._GetKeyAndValue(out string key, out string value))
+                {
+                    if (key._IsFilled())
+                    {
+                        IntelliReplaceRules r = new IntelliReplaceRules
+                        {
+                            Src = key,
+                            Dst = value,
+                            TempRandTag = Str.GenRandStr(),
+                        };
+
+                        replaceList.Add(r);
+                    }
+                }
+            }
+
+            negativeList = negativeList.OrderByDescending(x => x.Src.Length).ThenBy(x => x.Src).ToList();
+            replaceList = replaceList.OrderByDescending(x => x.Src.Length).ThenBy(x => x.Src).ToList();
+
+            string current = srcStr;
+
+            // まず、除外リストを避難させる
+            foreach (var item in negativeList)
+            {
+                current = current._ReplaceStr(item.Src, item.TempRandTag, caseSensitive);
+            }
+
+            // 次に、置換を実施する
+            foreach (var item in replaceList)
+            {
+                current = current._ReplaceStr(item.Src, item.TempRandTag, caseSensitive);
+            }
+            foreach (var item in replaceList)
+            {
+                current = current._ReplaceStr(item.TempRandTag, item.Dst, true);
+            }
+
+            // 最後に、避難した除外分を元に戻す
+            foreach (var item in negativeList)
+            {
+                current = current._ReplaceStr(item.TempRandTag, item.Src, true);
+            }
+
+            return current;
+        }
+
         static readonly FastCache<string, string> Cache_NormalizePrefixZenkakuNumberFast = new FastCache<string, string>(int.MaxValue, comparer: StrComparer.SensitiveCaseTrimComparer);
 
         public static string? NormalizePrefixZenkakuNumberFast(string number)

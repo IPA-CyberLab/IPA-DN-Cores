@@ -5708,6 +5708,17 @@ HOST: www.google.com
     {
         if (true)
         {
+            while (true)
+            {
+                string line = Con.ReadLine("?>")!;
+
+                line._IntelliReplaceStr(Lfs.ReadStringFromFile(@"C:\Users\yagi\Desktop\yomi.txt"), false)._Print();
+            }
+            return;
+        }
+
+        if (true)
+        {
             Test_NotesNook_Export_And_Import_260111();
             return;
         }
