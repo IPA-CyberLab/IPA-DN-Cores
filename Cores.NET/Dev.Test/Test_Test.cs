@@ -5712,7 +5712,16 @@ HOST: www.google.com
             {
                 string line = Con.ReadLine("?>")!;
 
-                line._IntelliReplaceStr(Lfs.ReadStringFromFile(@"C:\Users\yagi\Desktop\yomi.txt"), false)._Print();
+                try
+                {
+                    string s = Lfs.ReadStringFromFile(line, flags: FileFlags.ReadDataTryUpperDirs);
+
+                    s._Print();
+                }
+                catch (Exception ex)
+                {
+                    ex._Error();
+                }
             }
             return;
         }
