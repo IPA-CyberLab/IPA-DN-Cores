@@ -79,7 +79,7 @@
     <!-- Cores.Basic.Misc -->
     <PackageReference Include="SixLabors.ImageSharp" Version="3.0.1" Condition="$(DefineConstants.Contains('CORES_BASIC_MISC;'))" />
     <PackageReference Include="HtmlAgilityPack " Version="1.11.23" Condition="$(DefineConstants.Contains('CORES_BASIC_MISC;'))" />
-    <PackageReference Include="SSH.NET" Version="2020.0.0-beta1" Condition="$(DefineConstants.Contains('CORES_BASIC_MISC;'))" />
+    <PackageReference Include="SSH.NET" Version="2020.0.2" Condition="$(DefineConstants.Contains('CORES_BASIC_MISC;'))" />
     <PackageReference Include="System.IO.Ports" Version="6.0.0" Condition="$(DefineConstants.Contains('CORES_BASIC_MISC;'))" />
     <PackageReference Include="DnsClient" Version="1.3.2" Condition="$(DefineConstants.Contains('CORES_BASIC_MISC;'))" />
     <PackageReference Include="NAudio" Version="2.2.1" Condition="$(DefineConstants.Contains('CORES_BASIC_MISC;'))" />
