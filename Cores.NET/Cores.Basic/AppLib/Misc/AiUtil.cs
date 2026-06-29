@@ -525,7 +525,7 @@ public class AiTask
             var srcTextList = await Lfs.EnumDirectoryAsync(seriesDir.FullPath, false, cancel: cancel);
 
             foreach (var srcTextFile in srcTextList.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Text) && x.Name.StartsWith("_") == false && x.Name.EndsWith(".ok.txt", StrCmpi) == false).OrderBy(x => x.Name, StrCmpi)
-                ._Shuffle()
+                //._Shuffle()
                 .ToList())
             {
                 try
