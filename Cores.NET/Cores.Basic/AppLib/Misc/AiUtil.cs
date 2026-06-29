@@ -190,6 +190,7 @@ public enum AiTaskTtsEngine
     VoiceVox = 0,
     FishAudioPlain,
     FishAudioWithSeedVc,
+    FishAudioS2ProPlain,
 }
 
 public class AiTask
@@ -715,6 +716,15 @@ public class AiTask
                 parsed = await vv.TextToWavAsync(srcText, speakerIdList, tmpVoiceBoxWavPath, tagTitle, true, cancel);
             }
         }
+        else if (engine == AiTaskTtsEngine.FishAudioS2ProPlain)
+        {
+            await using (var vv = new AiUtilFishAudioS2ProEngine(this.Settings, this.FfMpeg))
+            {
+                if (tagTitle._IsEmpty()) tagTitle = storyTitle._TruncStrEx(16);
+
+                parsed = await vv.TextToWavAsync(srcText, speakerIdList, tmpVoiceBoxWavPath, tagTitle, true, cancel);
+            }
+        }
         else
         {
             throw new CoresLibException($"Unknown engine: {engine.ToString()}");
@@ -728,7 +738,7 @@ public class AiTask
 
         List<MediaVoiceSegment>? voiceSegments;
 
-        if (engine != AiTaskTtsEngine.FishAudioPlain)
+        if (engine != AiTaskTtsEngine.FishAudioPlain && engine != AiTaskTtsEngine.FishAudioS2ProPlain)
         {
             await using (var seedvc = new AiUtilSeedVcEngine(this.Settings, this.FfMpeg))
             {
@@ -3059,6 +3069,7 @@ public class AiUtilBasicSettings
     public string AiTest_VoiceBox_ExePath = "";
     public string AiTest_VoiceBox_ExeArgs = "";
     public string AiTest_FishAudio_BaseDir = "";
+    public string AiTest_FishAudioS2Pro_BaseDir = "";
     public string AiTest_SeedVc_BaseDir = "";
     public string AiTest_RealEsrgan_BaseDir = "";
     public string AiTest_TesseractOCR_Data_Dir = "";
@@ -3464,12 +3475,170 @@ public class AiUtilSeedVcEngine : AiUtilBasicEngine
     }
 }
 
+public class AiUtilFishAudioS2ProEngine : AiUtilFishAudioEngine
+{
+    public override int NumTryCount => 1;
+
+    public AiUtilFishAudioS2ProEngine(AiUtilBasicSettings settings, FfMpegUtil ffMpeg) : base(settings, ffMpeg)
+    {
+    }
+
+    protected override async Task<byte[]> TextBlockToWavSingleAsync(string text, int speakerId, CancellationToken cancel = default)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            throw new ArgumentException("text が null または空です。", nameof(text));
+        }
+
+        text = text.Replace("(", " ").Replace(")", " ").Replace("[", " ").Replace("]", " ").Replace("（", " ").Replace("）", " ");
+
+        // 追加: 参照音声・参照テキストを C# 側で読み込む
+        string refWavPath = Path.Combine(
+            Settings.AiTest_FishAudioS2Pro_BaseDir._CombinePath("ref"),
+            speakerId.ToString() + ".wav"
+        );
+
+        string refTxtPath = Path.Combine(
+            Settings.AiTest_FishAudioS2Pro_BaseDir._CombinePath("ref"),
+            speakerId.ToString() + ".txt"
+        );
+
+        byte[] refAudioBytes = (await Lfs.ReadDataFromFileAsync(refWavPath, cancel: cancel)).ToArray();
+        string refText = await Lfs.ReadStringFromFileAsync(refTxtPath, cancel: cancel);
+
+        // Python例[1]と同等の payload を JObject で構築（Newtonsoft.Json）
+        // 重要：感情マーカーを入れる場合、正規化が邪魔をすることがあるため normalize=false 推奨（Python例と同様）
+        var payload = new JObject
+        {
+            ["text"] = text,
+            ["references"] = new JArray
+            {
+                new JObject
+                {
+                    ["audio"] = Convert.ToBase64String(refAudioBytes),
+                    ["text"] = refText,
+                }
+            },
+            ["reference_id"] = null,
+            ["format"] = "wav",
+            ["normalize"] = false,
+            ["use_memory_cache"] = "on",
+
+            // 生成の揺らぎ（Python例と同じ）
+            ["temperature"] = 0.8,
+            ["top_p"] = 0.9,
+            ["repetition_penalty"] = 1.1,
+
+            // 長文向け内部チャンク（100-300程度が目安。Python例と同じ 200）
+            ["chunk_length"] = 200,
+            ["max_new_tokens"] = 4096,
+            ["latency"] = "normal",
+        };
+
+        // JSON文字列化（不要な整形はしない）
+        string json = payload.ToString(Formatting.None);
+
+        using var requestContent = new StringContent(json, Encoding.UTF8, "application/json");
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"http://127.0.0.1:{this.Settings.FishAudioLocalhostPort}/v1/tts")
+        {
+            Content = requestContent
+        };
+
+        using var http = CreateHttpClient();
+
+        // 応答は WAV バイナリ。ヘッダ受領後にストリーム読み込みでも良いが、要件どおり byte[] で返す。
+        using HttpResponseMessage response = await http.SendAsync(
+            request,
+            HttpCompletionOption.ResponseHeadersRead,
+            cancel
+        ).ConfigureAwait(false);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            // 失敗時：本文(JSONエラー等)を読んで原因特定しやすくする
+            string errorBody = await SafeReadAsStringAsync(response, cancel).ConfigureAwait(false);
+            throw new CoresLibException(
+                $"TTS API 失敗: {(int)response.StatusCode} {response.ReasonPhrase}. Body={errorBody}"
+            );
+        }
+
+        byte[] wavBytes = await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+
+        if (wavBytes.Length == 0)
+        {
+            throw new CoresLibException(
+                message: "TTS API の応答ボディが空でした (0 bytes)。"
+            );
+        }
+
+        // 軽い妥当性チェック：WAVなら先頭が "RIFF" のことが多い（厳密ではないが事故検知に有効）
+        if (wavBytes.Length >= 4 &&
+            wavBytes[0] == (byte)'R' &&
+            wavBytes[1] == (byte)'I' &&
+            wavBytes[2] == (byte)'F' &&
+            wavBytes[3] == (byte)'F')
+        {
+            return wavBytes;
+        }
+
+        // サーバーが別形式やエラーバイナリを返した可能性もあるので、ここで例外にする
+        // ※運用で「とにかく返してほしい」なら、このチェックは外してもよい
+        throw new CoresLibException(
+            message: "応答がWAV(RIFF)形式に見えません。APIサーバー設定やエンドポイントを確認してください。"
+        );
+    }
+
+    protected override async Task<ExecInstance> StartExeAsync(CancellationToken cancel = default)
+    {
+        var ret = await TaskUtil.RetryAsync(async c =>
+        {
+            var envVars = new StrDictionary<string>();
+            envVars.Add("PYTHONUTF8", "1");
+            envVars.Add("PYTHONIOENCODING", "utf-8");
+
+            ExecInstance exec = new ExecInstance(new ExecOptions(Settings.AiTest_FishAudioS2Pro_BaseDir._CombinePath("venv", "Scripts", "python.exe"),
+                $"-m tools.api_server --listen 127.0.0.1:{this.Settings.FishAudioLocalhostPort} --llama-checkpoint-path \"checkpoints\\s2-pro\" --decoder-checkpoint-path \"checkpoints\\s2-pro\\codec.pth\" --decoder-config-name modded_dac_vq",
+                Settings.AiTest_FishAudioS2Pro_BaseDir,
+                additionalEnvVars: envVars));
+
+            Con.WriteLine($"proc id = {exec.ProcessId}");
+
+            try
+            {
+                await TaskUtil.RetryAsync(async c2 =>
+                {
+                    await using var http = new WebApi(new WebApiOptions(new WebApiSettings { DoNotThrowHttpResultError = true }, doNotUseTcpStack: true));
+
+                    string url1 = $"http://127.0.0.1:{this.Settings.FishAudioLocalhostPort}/";
+
+                    await http.SimpleQueryAsync(WebMethods.GET, url1, c);
+
+                    return true;
+                },
+                200, 30, c, true);
+
+                return exec;
+            }
+            catch
+            {
+                await exec._DisposeSafeAsync();
+                throw;
+            }
+
+        },
+        1000, 5, cancel, true);
+
+        return ret;
+    }
+}
+
 public class AiUtilFishAudioEngine : AiUtilVoiceVoxEngine
 {
     public override int BaseWavBitRateKHz => 44100;
     public override int BaseWavBitDepth => 16;
     public override int BaseWavChannels => 2;
     public override int TextSplitMaxLen => 60;
+    public virtual int NumTryCount => 2;
 
     public AiUtilFishAudioEngine(AiUtilBasicSettings settings, FfMpegUtil ffMpeg) : base(settings, ffMpeg, "FishAudio", settings.AiTest_UvrCli_BaseDir)
     {
@@ -3478,7 +3647,7 @@ public class AiUtilFishAudioEngine : AiUtilVoiceVoxEngine
     // 音声合成
     protected override async Task<byte[]> TextBlockToWavAsync(string text, int speakerId, CancellationToken cancel = default)
     {
-        int numTry = 2;
+        int numTry = NumTryCount;
 
         List<byte[]> resultList = new();
 
@@ -3497,7 +3666,7 @@ public class AiUtilFishAudioEngine : AiUtilVoiceVoxEngine
         return resultList.OrderByDescending(x => x.Length).First();
     }
 
-    async Task<byte[]> TextBlockToWavSingleAsync(string text, int speakerId, CancellationToken cancel = default)
+    protected virtual async Task<byte[]> TextBlockToWavSingleAsync(string text, int speakerId, CancellationToken cancel = default)
     {
         if (string.IsNullOrWhiteSpace(text))
         {
@@ -3641,7 +3810,7 @@ public class AiUtilFishAudioEngine : AiUtilVoiceVoxEngine
         return chunks;
     }
 
-    private static async Task<string> SafeReadAsStringAsync(HttpResponseMessage response, CancellationToken cancel)
+    protected static async Task<string> SafeReadAsStringAsync(HttpResponseMessage response, CancellationToken cancel)
     {
         try
         {
@@ -3653,7 +3822,7 @@ public class AiUtilFishAudioEngine : AiUtilVoiceVoxEngine
         }
     }
 
-    private static HttpClient CreateHttpClient()
+    protected static HttpClient CreateHttpClient()
     {
         var handler = new SocketsHttpHandler(LocalNet)
         {
