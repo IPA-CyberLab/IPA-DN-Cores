@@ -637,7 +637,7 @@ public abstract partial class FileSystem
         {
             var flags2 = flags.BitRemove(FileFlags.ReadDataFileCache);
 
-            string cacheKey = $"{path}: {maxSize}: {(ulong)flags2}";
+            string cacheKey = $"{path}: {maxSize}: {(ulong)flags2} {Env.CurrentDir}";
 
             byte[]? cachedData = FullBodyReadDataFromFileCache.Get(cacheKey);
             if (cachedData != null)
@@ -652,16 +652,74 @@ public abstract partial class FileSystem
             return tmp;
         }
 
-        await using (var file = await OpenAsync(path, false, false, false, flags, cancel))
+        if (flags.Bit(FileFlags.ReadDataTryUpperDirs) == false)
         {
-            try
+            // 通常モード
+            await using (var file = await OpenAsync(path, false, false, false, flags, cancel))
             {
-                return await file.GetStream()._ReadToEndAsync(maxSize, cancel);
+                try
+                {
+                    return await file.GetStream()._ReadToEndAsync(maxSize, cancel);
+                }
+                finally
+                {
+                    await file.CloseAsync();
+                }
             }
-            finally
+        }
+        else
+        {
+            string originalPath = path;
+
+            // 指定されたファイルが存在しない場合、1 つずつ上位ディレクトリに上っていって最初に発見したファイルを開くモード
+            if (this.PathParser.IsAbsolutePath(originalPath) == false)
             {
-                await file.CloseAsync();
+                throw new CoresLibException($"Path \"{originalPath}\" is not an absolute path.");
             }
+
+            for (int numTry = 0; numTry <= 32; numTry++)
+            {
+                if (await this.IsFileExistsAsync(path, cancel: cancel))
+                {
+                    try
+                    {
+                        await using (var file = await OpenAsync(path, false, false, false, flags, cancel))
+                        {
+                            try
+                            {
+                                return await file.GetStream()._ReadToEndAsync(maxSize, cancel);
+                            }
+                            finally
+                            {
+                                await file.CloseAsync();
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        ex._Error();
+                    }
+                }
+
+                string dirPath = PathParser.GetDirectoryName(path);
+                string fileName = PathParser.GetFileName(path);
+                if (fileName._IsEmpty())
+                {
+                    throw new CoresLibException($"\"{originalPath}\": fileName._IsEmpty()");
+                }
+
+                string upperDirPath = PathParser.GetDirectoryName(dirPath);
+                if (upperDirPath._IsSamei(dirPath) || upperDirPath._IsEmpty())
+                {
+                    // これ以上上位ディレクトリがない
+                    throw new CoresException($"The filepath \"{originalPath}\" was not found on this absolute path or upper directories.");
+                }
+
+                path = PathParser.Combine(upperDirPath, fileName);
+            }
+
+            // 探索回数超過
+            throw new CoresException($"The filepath \"{originalPath}\" was not found on this absolute path or upper directories (special case 1: Tag: NR9RHHMD).");
         }
     }
     public Memory<byte> ReadDataFromFile(string path, int maxSize = int.MaxValue, FileFlags flags = FileFlags.None, CancellationToken cancel = default)

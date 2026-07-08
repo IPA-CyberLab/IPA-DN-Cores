@@ -56,6 +56,7 @@ using UglyToad.PdfPig;
 using UglyToad.PdfPig.Content;
 using UglyToad.PdfPig.Writer;
 using UglyToad.PdfPig.DocumentLayoutAnalysis.TextExtractor;
+using UglyToad.PdfPig.Tokens;
 
 using IPA.Cores.Basic;
 using IPA.Cores.Helper.Basic;
@@ -112,6 +113,258 @@ public static class Pdf2Txt
     }
     public static Task<string> ExtraceTextFromPdfAsync(string filePath, int maxSize = DefaultMaxPdfFileSize, CancellationToken cancel = default)
         => ExtraceTextFromPdfAsync(new FilePath(filePath), maxSize, cancel);
+
+    public static async Task<PdfDocInfo> GetDocInfoFromPdfFileAsync(string pdfPath, CancellationToken cancel = default)
+    {
+        using var pdf = await LoadPdfFromFileAsync(pdfPath, cancel: cancel);
+
+        return GetDocInfoFromPdf(pdf);
+    }
+
+    public static PdfDocInfo GetDocInfoFromPdf(this PdfDocument doc)
+    {
+        PdfDocInfo ret = new();
+
+        // 物理 / 論理ページ対応データ
+        try
+        {
+            // 1) 物理ページ枚数
+            int n = doc.NumberOfPages;
+
+            // 2) /PageLabels をカタログから取得（無ければ物理=論理(1..N)）
+            var catalogDict = doc.Structure.Catalog.CatalogDictionary;
+
+            if (TryGetCatalogEntry(catalogDict, "PageLabels", out var pageLabelsRefOrDict))
+            {
+                var entries = new SortedDictionary<int, DictionaryToken>();
+
+                var pageLabelsDict = DerefToDictionary(doc.Structure, pageLabelsRefOrDict);
+
+                if (pageLabelsDict != null)
+                {
+
+                    ReadNumberTree(doc.Structure, pageLabelsDict, entries);
+
+                    // PDF仕様上、0ページ目の定義が無い場合もあるのでフォールバックを入れる
+                    if (!entries.ContainsKey(0))
+                    {
+                        entries[0] = new DictionaryToken(new Dictionary<NameToken, IToken>());
+                    }
+
+                    // 4) 範囲にして各ページのラベルを生成
+                    var starts = entries.Keys.OrderBy(x => x).ToArray();
+                    var result = new (int PhysicalPage1Based, string LogicalLabel)[n];
+
+                    for (int si = 0; si < starts.Length; si++)
+                    {
+                        int start = starts[si];
+                        int endExclusive = (si + 1 < starts.Length) ? Math.Min(starts[si + 1], n) : n;
+
+                        var spec = entries[start];
+                        var prefix = GetOptionalString(spec, "P") ?? "";
+                        var style = GetOptionalName(spec, "S");         // D / R / r / A / a など
+                        var st = GetOptionalInt(spec, "St") ?? 1;
+
+                        for (int pageIndex0 = start; pageIndex0 < endExclusive; pageIndex0++)
+                        {
+                            int offset = pageIndex0 - start;
+                            int value = st + offset;
+                            string core = FormatNumber(value, style);
+                            result[pageIndex0] = (pageIndex0 + 1, prefix + core);
+                        }
+                    }
+
+                    var mappingTable = result.OrderBy(x => x.PhysicalPage1Based).ToList();
+
+                    foreach (var thisPageInfo in mappingTable)
+                    {
+                        int logicalPageNumber = thisPageInfo.LogicalLabel._ToInt();
+
+                        if (logicalPageNumber >= 1 && thisPageInfo.PhysicalPage1Based != logicalPageNumber)
+                        {
+                            ret.PhysicalPageStart = thisPageInfo.PhysicalPage1Based;
+                            ret.LogicalPageStart = logicalPageNumber;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            ex._Error();
+        }
+
+        // 日時データ
+        try
+        {
+            ret.CreateDt = Pdf2Txt.PdfDateTimeStringToDtOffset(doc.Information.CreationDate ?? "");
+        }
+        catch (Exception ex)
+        {
+            ex._Error();
+        }
+
+        try
+        {
+            ret.ModifyDt = Pdf2Txt.PdfDateTimeStringToDtOffset(doc.Information.ModifiedDate ?? "");
+        }
+        catch (Exception ex)
+        {
+            ex._Error();
+        }
+
+        // 縦書きフラグ
+        try
+        {
+            // 2) /PageLabels をカタログから取得（無ければ物理=論理(1..N)）
+            var catalog = doc.Structure.Catalog.CatalogDictionary;
+
+            if (catalog.Data.TryGetValue(NameToken.Create("ViewerPreferences"), out var vpTok))
+            {
+                var vpDict = DerefToDictionary(doc, vpTok);
+                if (vpDict != null)
+                {
+                    if (vpDict.Data.TryGetValue(NameToken.Create("Direction"), out var dirTok))
+                    {
+                        if (dirTok is NameToken name)
+                        {
+                            if (name.Data._IsSamei("R2L"))
+                            {
+                                ret.IsVertical = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            ex._Error();
+        }
+
+        return ret;
+    }
+
+    static DictionaryToken? DerefToDictionary(PdfDocument doc, IToken tok)
+    {
+        if (tok is IndirectReferenceToken ir)
+        {
+            var obj = doc.Structure.GetObject(ir.Data);
+            return obj?.Data as DictionaryToken;
+        }
+        return tok as DictionaryToken;
+    }
+
+    private static string ToRoman(int n)
+    {
+        if (n <= 0) return n.ToString();
+        var map = new (int v, string s)[] {
+            (1000,"M"),(900,"CM"),(500,"D"),(400,"CD"),
+            (100,"C"),(90,"XC"),(50,"L"),(40,"XL"),
+            (10,"X"),(9,"IX"),(5,"V"),(4,"IV"),(1,"I")
+        };
+        var r = "";
+        foreach (var (v, s) in map)
+            while (n >= v) { r += s; n -= v; }
+        return r;
+    }
+
+    private static string ToAlpha(int n)
+    {
+        // 1->A, 26->Z, 27->AA ...
+        if (n <= 0) return n.ToString();
+        var s = "";
+        while (n > 0)
+        {
+            n--;
+            s = (char)('A' + (n % 26)) + s;
+            n /= 26;
+        }
+        return s;
+    }
+
+    private static string FormatNumber(int value, NameToken? style)
+    {
+        // style が無い or /D は通常の10進
+        if (style == null) return value.ToString();
+
+        switch (style.Data) // "D","R","r","A","a"
+        {
+            case "D": return value.ToString();
+            case "R": return ToRoman(value).ToUpperInvariant();
+            case "r": return ToRoman(value).ToLowerInvariant();
+            case "A": return ToAlpha(value).ToUpperInvariant();
+            case "a": return ToAlpha(value).ToLowerInvariant();
+            default: return value.ToString();
+        }
+    }
+    private static NameToken? GetOptionalName(DictionaryToken dict, string key)
+    {
+        if (!dict.Data.TryGetValue(NameToken.Create(key), out var tok)) return null;
+        return tok as NameToken;
+    }
+
+    private static int? GetOptionalInt(DictionaryToken dict, string key)
+    {
+        if (!dict.Data.TryGetValue(NameToken.Create(key), out var tok)) return null;
+        return (tok as NumericToken)?.Int;
+    }
+
+    private static string? GetOptionalString(DictionaryToken dict, string key)
+    {
+        if (!dict.Data.TryGetValue(NameToken.Create(key), out var tok)) return null;
+        return tok switch
+        {
+            StringToken s => s.Data,
+            HexToken h => h.Data, // 実際は必要に応じてデコード
+            _ => null
+        };
+    }
+
+    private static void ReadNumberTree(Structure structure, DictionaryToken numberTree,
+        SortedDictionary<int, DictionaryToken> output)
+    {
+        // /Nums があれば [key value key value ...]
+        if (numberTree.Data.TryGetValue(NameToken.Create("Nums"), out var numsTok) && numsTok is ArrayToken numsArr)
+        {
+            var items = numsArr.Data;
+            for (int i = 0; i + 1 < items.Count; i += 2)
+            {
+                int key = (items[i] as NumericToken)?.Int ?? 0;
+                var valDict = DerefToDictionary(structure, items[i + 1]) ?? (items[i + 1] as DictionaryToken);
+                if (valDict != null) output[key] = valDict;
+            }
+            return;
+        }
+
+        // /Kids があれば再帰
+        if (numberTree.Data.TryGetValue(NameToken.Create("Kids"), out var kidsTok) && kidsTok is ArrayToken kidsArr)
+        {
+            foreach (var kid in kidsArr.Data)
+            {
+                var kidDict = DerefToDictionary(structure, kid);
+                if (kidDict != null) ReadNumberTree(structure, kidDict, output);
+            }
+        }
+    }
+
+    private static DictionaryToken? DerefToDictionary(Structure structure, IToken token)
+    {
+        if (token is IndirectReferenceToken ir)
+        {
+            var obj = structure.GetObject(ir.Data);
+            return obj?.Data as DictionaryToken;
+        }
+        return token as DictionaryToken;
+    }
+
+    private static bool TryGetCatalogEntry(DictionaryToken dict, string key, out IToken token)
+    {
+        // NameToken.Create が無い場合は実装に合わせて生成
+        var name = NameToken.Create(key);
+        return dict.Data.TryGetValue(name, out token);
+    }
 
     public static string ExtractTextFromPdf(this PdfDocument pdf)
     {

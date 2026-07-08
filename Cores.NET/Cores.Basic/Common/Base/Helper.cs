@@ -595,6 +595,8 @@ public static class BasicHelper
     public static string _ReplaceStr(this string str, string oldKeyword, string newKeyword, bool caseSensitive = false) => Str.ReplaceStr(str, oldKeyword, newKeyword, caseSensitive);
     public static bool _CheckStrLen(this string? str, int maxLen) => Str.CheckStrLen(str, maxLen);
 
+    public static string _IntelliReplaceStr(this string srcStr, string replaceRulesBody, bool caseSensitive = false) => Str.IntelliReplaceStr(srcStr, replaceRulesBody, caseSensitive);
+
     public static void _CheckStrFilled(this string? str, string exceptionStr)
         => _CheckStrFilled(str, new CoresException(exceptionStr));
 
@@ -851,6 +853,8 @@ public static class BasicHelper
 
     public static byte[] _ReadToEnd(this Stream s, int maxSize = 0) => Util.ReadStreamToEnd(s, maxSize);
     public static async Task<byte[]> _ReadToEndAsync(this Stream s, int maxSize = 0, CancellationToken cancel = default(CancellationToken)) => await Util.ReadStreamToEndAsync(s, maxSize, cancel);
+
+    public static async Task<HugeMemoryBuffer<byte>> _ReadToEndHugeAsync(this Stream s, long maxSize = 0, CancellationToken cancel = default(CancellationToken)) => await Util.ReadStreamToEndHugeAsync(s, maxSize, cancel);
 
     public static long _SeekToBegin(this Stream s) => s.Seek(0, SeekOrigin.Begin);
     public static long _SeekToEnd(this Stream s) => s.Seek(0, SeekOrigin.End);

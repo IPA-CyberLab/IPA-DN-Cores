@@ -474,6 +474,7 @@ public enum FileFlags : ulong
     LargeFs_ProhibitWriteWithCrossBorder = 65536,
     ReadStr_ExpandIncludes = 131072,
     ReadDataFileCache = 262144,
+    ReadDataTryUpperDirs = 524288,
 }
 
 

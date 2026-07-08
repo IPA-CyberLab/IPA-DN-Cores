@@ -63,6 +63,7 @@ using System.Runtime.InteropServices;
 using IPA.Cores.ClientApi.Acme;
 using Newtonsoft.Json.Converters;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -91,6 +92,7 @@ using Newtonsoft.Json.Linq;
 using System.Diagnostics.CodeAnalysis;
 using System.Collections.Immutable;
 using System.Globalization;
+using System.Text.RegularExpressions;
 
 
 #pragma warning disable CS0219
@@ -742,6 +744,28 @@ static class TestClass
         }
     }
 
+    static void Test_MakeDnRdpSignCerts_260608()
+    {
+        string baseDir = @"c:\tmp\260608_dn_rdp_sign_certs\";
+
+        if (true)
+        {
+            PkiUtil.GenerateRsaKeyPair(4096, out PrivKey priv, out _);
+
+            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.RootCertiticate, "260608_dn_rdp_sign_certs", c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA512));
+
+            CertificateStore store = new CertificateStore(cert, priv);
+
+            Lfs.WriteDataToFile(baseDir + @"260608_dn_rdp_sign_certs_00.pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteDataToFile(baseDir + @"260608_dn_rdp_sign_certs_00.cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteDataToFile(baseDir + @"260608_dn_rdp_sign_certs_00.key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteStringToFile(baseDir + @"260608_dn_rdp_sign_certs_00.txt", store.ExportCertInfo(), FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
+        }
+    }
+
     static void Test_MakeDummyCerts_211115()
     {
         string baseDir = @"c:\tmp\211115_dummy_certs2\";
@@ -1211,6 +1235,54 @@ static class TestClass
 
             Lfs.WriteStringToFile(fileNameBase + ".txt", store.ExportCertInfo(), FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
         }
+    }
+
+    static void Test_Make_abc_260317()
+    {
+        string name = "abc";
+        string baseDir = @"C:\tmp\" + name + @"\";
+        string password = "aaaaaaaa";
+
+        if (true)
+        {
+            PkiUtil.GenerateRsaKeyPair(4096, out PrivKey priv, out _);
+
+            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.RootCertiticate, name, c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA512));
+
+            CertificateStore store = new CertificateStore(cert, priv);
+
+            Lfs.WriteStringToFile(baseDir + @"00_Memo.txt", $"Created by {Env.AppRealProcessExeFileName} {DateTime.Now._ToDtStr()}", FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
+
+            Lfs.WriteDataToFile(baseDir + @"00_Master.pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+            Lfs.WriteDataToFile(baseDir + @"00_Master_Encrypted.pfx", store.ExportPkcs12(password), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteDataToFile(baseDir + @"00_Master.cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteDataToFile(baseDir + @"00_Master.key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteStringToFile(baseDir + @"00_Master.txt", store.ExportCertInfo(), FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
+        }
+
+#pragma warning disable CS8321 // ローカル関数は宣言されていますが、一度も使用されていません
+        void IssueCert(string cn, string fileNameBase, string fqdn)
+        {
+            CertificateStore master = new CertificateStore(Lfs.ReadDataFromFile(baseDir + @"00_Master.pfx").Span);
+
+            PkiUtil.GenerateRsaKeyPair(2048, out PrivKey priv, out _);
+
+            var cert = new Certificate(priv, master, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.ServerCertificate, cn, c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA256));
+
+            var store = new CertificateStore(cert, priv);
+            Lfs.WriteDataToFile(fileNameBase + ".pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+            Lfs.WriteDataToFile(fileNameBase + "_Encrypted.pfx", store.ExportPkcs12(password), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteDataToFile(fileNameBase + ".cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteDataToFile(fileNameBase + ".key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteStringToFile(fileNameBase + ".txt", store.ExportCertInfo(), FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
+        }
+#pragma warning restore CS8321 // ローカル関数は宣言されていますが、一度も使用されていません
     }
 
 
@@ -5489,8 +5561,259 @@ HOST: www.google.com
         //cache._PrintAsJson();
     }
 
+    public class NotesNookBackupData
+    {
+        public double version;
+        public string? type;
+        public long date;
+        public string? data;
+        public string? hash;
+        public string? hash_type;
+        public bool compressed;
+        public bool encrypted;
+    }
+
+    // &#x306e; のような「16進の数値文字参照」だけを対象にする
+    private static readonly Regex Test_HexEntityRegex =
+        new Regex(@"&#[xX]([0-9A-Fa-f]+);", RegexOptions.Compiled);
+
+    public static string Test_DecodeHexNumericCharacterReferences(string input)
+    {
+        if (string.IsNullOrEmpty(input)) return input;
+
+        string ret = Test_HexEntityRegex.Replace(input, m =>
+        {
+            string hex = m.Groups[1].Value;
+
+            if (!int.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out int codePoint))
+                return m.Value; // 変換失敗はそのまま
+
+            // Unicode の範囲チェック + サロゲート領域除外
+            if (codePoint == 0xA0 || codePoint == 0x20)
+            {
+                return "&nbsp;";
+            }
+            else if (codePoint == 0x3C)
+            {
+                return "&lt;";
+            }
+            else if (codePoint == 0x3E)
+            {
+                return "&gt;";
+            }
+            else if (codePoint >= 0x21 && codePoint <= 0x7E)
+            {
+                // ok
+            }
+            else
+            {
+                if (codePoint <= 0xFF || codePoint > 0x10FFFF) return m.Value;
+                if (codePoint >= 0xD800 && codePoint <= 0xDFFF) return m.Value;
+            }
+
+            string ret = char.ConvertFromUtf32(codePoint);
+
+            return ret;
+        });
+
+        ret = ret.Replace('\u00A0', ' ');
+
+        ret = ret.Replace("&quot;", "\"");
+
+        ret = ret.Replace("&nbsp;", " ");
+
+        ret = ret.Replace("&amp;", "&");
+
+        ret = ret.Replace(@"\~", "~");
+        ret = ret.Replace(@"\;", ";");
+        ret = ret.Replace(@"\.", ".");
+        ret = ret.Replace(@"\-", "-");
+        ret = ret.Replace(@"\+", "+");
+        ret = ret.Replace(@"\[", "[");
+        ret = ret.Replace(@"\]", "]");
+        ret = ret.Replace(@"\*", "*");
+        ret = ret.Replace(@"\>", ">");
+        ret = ret.Replace(@"\{", "{");
+        ret = ret.Replace(@"\}", "}");
+        ret = ret.Replace(@"\(", "(");
+        ret = ret.Replace(@"\)", ")");
+        ret = ret.Replace(@"\!", "!");
+        ret = ret.Replace(@"\_", "_");
+        ret = ret.Replace(@"\`", "`");
+        ret = ret.Replace(@"\#", "#");
+        ret = ret.Replace(@"\=", "=");
+        ret = ret.Replace(@"\&", "&");
+
+        return ret;
+    }
+
+
+    /// <summary>
+    /// JSON配列文字列を解析し、"type"=="tiptap" の要素の "data" を ABC.Filter に通して差し替えた JSON 文字列を返す。
+    /// </summary>
+    /// <param name="srcJsonStr">入力JSON文字列（配列）</param>
+    /// <returns>加工後JSON文字列（配列）</returns>
+    public static string Test_FilterTiptapData(string srcJsonStr)
+    {
+        if (srcJsonStr is null)
+        {
+            throw new ArgumentNullException(nameof(srcJsonStr));
+        }
+
+        // JSONをメモリ上で展開（配列であることを期待）
+        // ここで壊れたJSONなら JsonReaderException が投げられる（呼び元で捕捉可能）。
+        JToken rootToken = JToken.Parse(srcJsonStr);
+
+        if (rootToken.Type != JTokenType.Array)
+        {
+            // 仕様上「大量の配列」とあるため、配列以外は明確にエラー化
+            throw new JsonException("入力JSONのルートは配列である必要があります。");
+        }
+
+        var array = (JArray)rootToken;
+
+        // 配列要素を順に処理
+        foreach (JToken elementToken in array)
+        {
+            // 要素がオブジェクトでなければスキップ（不正データでも落とさない）
+            if (elementToken is not JObject elementObject)
+            {
+                continue;
+            }
+
+            // "type" を文字列として取得
+            // 文字列でない/存在しない場合は null になる
+            string? typeValue = elementObject.Value<string>("type");
+
+            // "type" が "tiptap" のときだけ "data" をフィルタ
+            if (!string.Equals(typeValue, "tiptap", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            // "data" は「文字列項目」前提だが、
+            // null / 未定義 / 型違いの可能性を考慮して安全に取得する
+            JToken? dataToken = elementObject["data"];
+            if (dataToken is null || dataToken.Type == JTokenType.Null)
+            {
+                continue;
+            }
+
+            if (dataToken.Type != JTokenType.String)
+            {
+                // 文字列でなければ仕様外なので触らない（落とさない）
+                continue;
+            }
+
+            string dataValue = dataToken.Value<string>() ?? string.Empty;
+
+            // 既存フィルタ関数を呼ぶ
+            // フィルタ内部が例外を投げる可能性もあるため、必要なら try-catch をここに追加可能
+            string filteredData = Test_DecodeHexNumericCharacterReferences(dataValue);
+
+            // フィルタ結果を "data" に代入（JObjectなのでその場で書き換え）
+            elementObject["data"] = filteredData;
+        }
+
+        // JSON文字列へ戻す
+        string dstJsonStr = array._ObjectToJson();
+
+        return dstJsonStr;
+    }
+
+    public static void Test_NotesNook_Export_And_Import_260111()
+    {
+        string srcDir = @"C:\tmp2\260111\src1\";
+        string interDir = @"C:\tmp2\260111\inter1\";
+        string modifiedDir = @"C:\tmp2\260111\modified1\";
+        string dstDir = @"C:\tmp2\260111\dst2\";
+
+        var srcFileList = Lfs.EnumDirectory(srcDir).Where(x => x.IsFile && x.Name._InStri("-plain-")).OrderBy(x => x.Name, StrCmpi);
+
+        foreach (var srcFile in srcFileList)
+        {
+            string relativePath = Lfs.PP.GetRelativeFileName(srcFile.FullPath, srcDir);
+
+            Con.WriteLine("Reading " + srcFile);
+            NotesNookBackupData srcFileJsonData = Lfs.ReadJsonFromFile<NotesNookBackupData>(srcFile.FullPath);
+
+            var calcedHash = Secure.HashMD5(srcFileJsonData.data!._GetBytes_UTF8())._GetHexString();
+
+            if (calcedHash._IsSameHex(srcFileJsonData.hash) == false)
+            {
+                throw new CoresLibException($"calcedHash != srcFileJsonData.hash");
+            }
+
+            byte[] compressed = srcFileJsonData.data!._Base64Decode();
+
+            byte[] decompressed = IPA.Cores.Basic.Legacy.GZipUtil.Decompress(compressed);
+
+            string decompressedJsonStr = decompressed._GetString_UTF8();
+
+            string normalizedJsonStr1 = decompressedJsonStr._JsonNormalizeArray();
+            Lfs.WriteStringToFile(PP.Combine(interDir, relativePath + ".json"), normalizedJsonStr1, writeBom: true, flags: FileFlags.AutoCreateDirectory);
+
+            string normalizedJsonStr2 = Test_FilterTiptapData(decompressedJsonStr);
+            Lfs.WriteStringToFile(PP.Combine(modifiedDir, relativePath + ".json"), normalizedJsonStr2, writeBom: true, flags: FileFlags.AutoCreateDirectory);
+
+            NotesNookBackupData dstFileJsonData = srcFileJsonData._CloneDeep();
+
+            dstFileJsonData.data = IPA.Cores.Basic.Legacy.GZipUtil.Compress(JArray.Parse(normalizedJsonStr2)._ObjectToJson(compact: true)._GetBytes_UTF8())._Base64Encode();
+
+            //dstFileJsonData.data = compressed._Base64Encode();
+
+            dstFileJsonData.hash = Secure.HashMD5(dstFileJsonData.data._GetBytes_UTF8())._GetHexString().ToLowerInvariant();
+
+            string dstJsonFinalStr = dstFileJsonData._ObjectToJson();
+
+            //dstJsonFinalStr = dstJsonFinalStr._ReplaceStr("  \"", "\"").TrimEnd('\r', '\n'); // ヘンな癖がある? これをやらないと読み込み失敗するっぽい
+
+            string newFileName = relativePath.Substring(0, relativePath._Search("-", 5) + 1) + dstFileJsonData.hash;
+
+            Lfs.WriteStringToFile(PP.Combine(dstDir, newFileName), dstJsonFinalStr, writeBom: false, flags: FileFlags.AutoCreateDirectory);
+        }
+    }
+
     public static void Test_Generic()
     {
+        if (true)
+        {
+            Test_MakeDnRdpSignCerts_260608();
+            return;
+        }
+
+        if (true)
+        {
+            Test_Make_abc_260317();
+            return;
+        }
+
+        if (true)
+        {
+            while (true)
+            {
+                string line = Con.ReadLine("?>")!;
+
+                try
+                {
+                    string s = Lfs.ReadStringFromFile(line, flags: FileFlags.ReadDataTryUpperDirs);
+
+                    s._Print();
+                }
+                catch (Exception ex)
+                {
+                    ex._Error();
+                }
+            }
+            return;
+        }
+
+        if (true)
+        {
+            Test_NotesNook_Export_And_Import_260111();
+            return;
+        }
+
         if (false)
         {
             Test_Fs_251123Async()._GetResult();

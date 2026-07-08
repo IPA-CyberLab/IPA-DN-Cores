@@ -151,6 +151,9 @@ public enum WindowsFamily : long
     WindowsServer2022 = 20348,
     Windows11_21H2 = 22000,
     Windows11_22H2 = 22621,
+    Windows11_23H2 = 22631,
+    Windows11_24H2 = 26100,
+    Windows11_25H2 = 26200,
 }
 
 public static class EnvFastOsInfo

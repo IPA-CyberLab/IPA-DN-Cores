@@ -108,6 +108,9 @@ namespace IPA.Cores.Helper.Basic
         public static string _JsonNormalize(this string s)
             => Json.Normalize(s);
 
+        public static string _JsonNormalizeArray(this string s, int? maxDepth = 8)
+            => Json.NormalizeArray(s, maxDepth);
+
         public static long _ObjectToFile<T>([AllowNull] this T obj, string path, FileSystem? fs = null, FileFlags flags = FileFlags.None, bool doNotOverwrite = false, CancellationToken cancel = default,
             bool includeNull = false, bool escapeHtml = false, int? maxDepth = Json.DefaultMaxDepth, bool compact = false, bool referenceHandling = false, JsonFlags jsonFlags = JsonFlags.None)
             => (fs ?? Lfs).WriteJsonToFile<T>(path, obj, flags, doNotOverwrite, cancel, includeNull, escapeHtml, maxDepth, compact, referenceHandling, false, jsonFlags);

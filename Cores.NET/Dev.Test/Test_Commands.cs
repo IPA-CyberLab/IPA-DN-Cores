@@ -68,6 +68,25 @@ partial class TestDevCommands
     }
 
     [ConsoleCommand(
+        "ApplyDirFileTimeStampIfOlder command",
+        "ApplyDirFileTimeStampIfOlder [dstDir] [/src:srcDir] [/checkFileSame:yes|no]",
+        "ApplyDirFileTimeStampIfOlder command")]
+    static int ApplyDirFileTimeStampIfOlder(ConsoleService c, string cmdName, string str)
+    {
+        ConsoleParam[] args =
+        {
+            new ConsoleParam("[dstDir]", ConsoleService.Prompt, "Destination Directory: ", ConsoleService.EvalNotEmpty, null),
+            new ConsoleParam("src", ConsoleService.Prompt, "Source Directory: ", ConsoleService.EvalNotEmpty, null),
+            new ConsoleParam("checkFileSame", ConsoleService.Prompt, "Check File Same (Yes/No): ", ConsoleService.EvalNotEmpty, null),
+        };
+        ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
+
+        FileUtil.ApplyDirFileTimeStampIfOlderAsync(vl["src"].StrValue._RemoveQuotation(), vl.DefaultParam.StrValue._RemoveQuotation(), vl["checkFileSame"].BoolValue)._GetResult();
+
+        return 0;
+    }
+
+    [ConsoleCommand(
     "DownloadGitLabCePackages command",
     "DownloadGitLabCePackages [searchBaseUrl] /dir:dest_dir_path /versions:16.8.1,16.8.10",
     "DownloadGitLabCePackages command")]
@@ -220,7 +239,7 @@ partial class TestDevCommands
             return Consts.ExitCodes.GenericError;
         }
 
-        var root2  = RegRoot.LocalMachine.ParseAsDefault(root);
+        var root2 = RegRoot.LocalMachine.ParseAsDefault(root);
 
         MsReg.PrintRegKeys(root2, key);
 
