@@ -3335,9 +3335,6 @@ public static partial class MiscUtil
         var urlsList = @"
 https://www.google.com/
 http://www.google.co.jp/
-https://www.yahoo.com/
-http://www.yahoo.co.jp/
-https://www.yahoo.co.jp/
 http://www.youtube.com/
 https://www.msn.com/
 http://www.msn.co.jp/
