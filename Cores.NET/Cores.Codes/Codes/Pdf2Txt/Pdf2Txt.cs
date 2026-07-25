@@ -72,18 +72,35 @@ namespace IPA.Cores.Codes;
 
 public static class Pdf2Txt
 {
-    public const int DefaultMaxPdfFileSize = 2_100_000_000;
+    public const long DefaultMaxPdfFileSize = uint.MaxValue - 1;
 
-    public static async Task<PdfDocument> LoadPdfFromFileAsync(string fileName, int maxSize = DefaultMaxPdfFileSize, FileFlags flags = FileFlags.None, FileSystem? fs = null, CancellationToken cancel = default)
+    public static async Task<PdfDocument> LoadPdfFromFileAsync(string fileName, long maxSize = DefaultMaxPdfFileSize, FileFlags flags = FileFlags.None, FileSystem? fs = null, CancellationToken cancel = default)
     {
-
         fs ??= Lfs;
 
-        var data = await fs.ReadDataFromFileAsync(fileName, maxSize, flags, cancel);
+        var fileMetaData = await fs.GetFileMetadataAsync(fileName, cancel: cancel);
+
+        if (fileMetaData.Size > maxSize)
+        {
+            throw new CoresLibException($"fileMetaData.Size ({fileMetaData.Size}) > maxSize ({maxSize})");
+        }
+
+        Memory<byte> data;
+
+        if (fileMetaData.Size <= (int.MaxValue - 1))
+        {
+            data = await fs.ReadDataFromFileAsync(fileName, int.MaxValue, flags, cancel);
+        }
+        else
+        {
+            var largeData = await fs.ReadHugeMemoryBufferFromFileAsync(fileName, maxSize, flags, cancel);
+
+            data = largeData.ToArray();
+        }
 
         return LoadPdf(data);
     }
-    public static PdfDocument LoadPdfFromFile(string fileName, int maxSize = DefaultMaxPdfFileSize, FileFlags flags = FileFlags.None, FileSystem? fs = null, CancellationToken cancel = default)
+    public static PdfDocument LoadPdfFromFile(string fileName, long maxSize = DefaultMaxPdfFileSize, FileFlags flags = FileFlags.None, FileSystem? fs = null, CancellationToken cancel = default)
         => LoadPdfFromFileAsync(fileName, maxSize, flags, fs, cancel)._GetResult();
 
     public static PdfDocument LoadPdf(ReadOnlyMemory<byte> pdfBody)
@@ -105,13 +122,13 @@ public static class Pdf2Txt
         return builder.Build();
     }
 
-    public static async Task<string> ExtraceTextFromPdfAsync(FilePath filePath, int maxSize = DefaultMaxPdfFileSize, CancellationToken cancel = default)
+    public static async Task<string> ExtraceTextFromPdfAsync(FilePath filePath, long maxSize = DefaultMaxPdfFileSize, CancellationToken cancel = default)
     {
         using var pdf = await LoadPdfFromFileAsync(filePath, flags: filePath.Flags, fs: filePath.FileSystem, cancel: cancel);
 
         return pdf.ExtractTextFromPdf();
     }
-    public static Task<string> ExtraceTextFromPdfAsync(string filePath, int maxSize = DefaultMaxPdfFileSize, CancellationToken cancel = default)
+    public static Task<string> ExtraceTextFromPdfAsync(string filePath, long maxSize = DefaultMaxPdfFileSize, CancellationToken cancel = default)
         => ExtraceTextFromPdfAsync(new FilePath(filePath), maxSize, cancel);
 
     public static async Task<PdfDocInfo> GetDocInfoFromPdfFileAsync(string pdfPath, CancellationToken cancel = default)
