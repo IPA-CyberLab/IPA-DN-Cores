@@ -5756,6 +5756,12 @@ HOST: www.google.com
     {
         if (true)
         {
+            Secure.HashSHA0("password"._GetBytes_Ascii())._GetHexString()._Print();
+            return;
+        }
+
+        if (true)
+        {
             Test_Make_abc_260317();
             return;
         }
