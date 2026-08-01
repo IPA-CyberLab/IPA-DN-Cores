@@ -3490,7 +3490,9 @@ public class AiUtilFishAudioS2ProEngine : AiUtilFishAudioEngine
             throw new ArgumentException("text が null または空です。", nameof(text));
         }
 
-        text = text.Replace("(", " ").Replace(")", " ").Replace("[", " ").Replace("]", " ").Replace("（", " ").Replace("）", " ");
+        text = text.Replace("(", " ").Replace(")", " ").Replace("（", " ").Replace("）", " ");
+
+        Con.WriteLine($"text: 「{text}」, speaker = {speakerId}");
 
         // 追加: 参照音声・参照テキストを C# 側で読み込む
         string refWavPath = Path.Combine(
@@ -3788,7 +3790,7 @@ public class AiUtilFishAudioEngine : AiUtilVoiceVoxEngine
 
         foreach (var sentence in sentences)
         {
-            if (current.Length + sentence.Length > maxLen)
+            if (GetStrLenWithoutTagAndSpace(current + sentence) > maxLen)
             {
                 if (current._IsFilled())
                 {
@@ -3808,6 +3810,39 @@ public class AiUtilFishAudioEngine : AiUtilVoiceVoxEngine
         }
 
         return chunks;
+    }
+
+    static int GetStrLenWithoutTagAndSpace(string str)
+    {
+        char[] cc = str.ToCharArray();
+
+        int ret = 0;
+
+        int depth = 0;
+
+        foreach (char c in cc)
+        {
+            if (c == '[')
+            {
+                depth++;
+            }
+            else if (c == ']')
+            {
+                depth--;
+            }
+            else if (c == ' ')
+            {
+            }
+            else
+            {
+                if (depth <= 0)
+                {
+                    ret++;
+                }
+            }
+        }
+
+        return ret;
     }
 
     protected static async Task<string> SafeReadAsStringAsync(HttpResponseMessage response, CancellationToken cancel)
@@ -3959,7 +3994,7 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
             if (okResult.IsOk && okResult.Value != null) return okResult.Value;
         }
 
-        ShuffledEndlessQueue<int> speakerIdShuffleQueue = new ShuffledEndlessQueue<int>(speakerIdList, 3);
+        //ShuffledEndlessQueue<int> speakerIdShuffleQueue = new ShuffledEndlessQueue<int>(speakerIdList, 3);
 
         await using var exec = await StartExeAsync(cancel: cancel);
 
@@ -3977,8 +4012,28 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
         {
             if (textBlockList[i].Value == false)
             {
-                string block = textBlockList[i].Key;
-                int speakerId = speakerIdShuffleQueue.Dequeue();
+                string block = textBlockList[i].Key.Trim();
+
+                int speakerIndex = 0;
+
+                if (block.StartsWith(@"SPEAKER_Y:"))
+                {
+                    speakerIndex = 1;
+                    block = block.Substring(10).Trim();
+                }
+                else if (block.StartsWith(@"SPEAKER_X:"))
+                {
+                    speakerIndex = 0;
+                    block = block.Substring(10).Trim();
+                }
+
+                //int speakerId = speakerIdShuffleQueue.Dequeue();
+
+                int speakerId = speakerIdList.ElementAtOrDefault(speakerIndex);
+                if (speakerId == 0)
+                {
+                    speakerId = speakerIdList.FirstOrDefault();
+                }
 
                 byte[] blockWavData = await TextBlockToWavAsync(block, speakerId);
 
