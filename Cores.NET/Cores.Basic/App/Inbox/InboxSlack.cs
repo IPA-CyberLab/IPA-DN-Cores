@@ -408,12 +408,18 @@ public class InboxSlackPerAppAdapter : InboxAdapter
                 if (reload)
                 {
                     // Get the conversation info
-                    SlackApi.Channel convInfo = await Api.GetConversationInfoAsync(conv.id, cancel);
+                    try
+                    {
+                        SlackApi.Channel convInfo = await Api.GetConversationInfoAsync(conv.id, cancel);
 
-                    // Get unread messages
-                    SlackApi.Message[] messages = await Api.GetConversationHistoryAsync(conv.id, convInfo.last_read, this.Inbox.Options.MaxMessagesPerAdapter, cancel: cancel);
+                        // Get unread messages
+                        SlackApi.Message[] messages = await Api.GetConversationHistoryAsync(conv.id, convInfo.last_read, this.Inbox.Options.MaxMessagesPerAdapter, cancel: cancel);
 
-                    MessageListPerConversation[conv.id] = messages;
+                        MessageListPerConversation[conv.id] = messages;
+                    }
+                    catch
+                    {
+                    }
                 }
 
                 if (conv.IsTarget())

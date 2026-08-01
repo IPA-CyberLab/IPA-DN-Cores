@@ -363,7 +363,7 @@ public class SlackApi : WebApi
 
                             interval = Math.Min(Math.Max(interval, 1), 300);
 
-                            int intervalMsecs = Util.GenRandInterval(interval * 1500);
+                            int intervalMsecs = Util.GenRandInterval(interval * 1500) * 2;
 
                             Con.WriteDebug($"Get TooManyRequests for '{url}'. Waiting for {intervalMsecs._ToString3()} msecs...");
 
