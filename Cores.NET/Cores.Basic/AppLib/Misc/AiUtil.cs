@@ -1423,6 +1423,30 @@ public class AiTask
             }
         }
 
+        var xheartSpecialRule = settings.RulesList.FirstOrDefault(x => x.StartTagStr._IsSamei("_XHEART_"));
+
+        if (xheartSpecialRule != null)
+        {
+            for (int i = 0; i < segments.Count; i++)
+            {
+                var seg = segments[i];
+
+                if (seg.XHeartLevel >= 1 && seg.TagStr._IsEmpty() && seg.IsBlank == false && seg.IsSleep == false && seg.TimeLength >= 0.1)
+                {
+                    int count = (seg.XHeartLevel + 1) / 2;
+
+                    for (int k = 0; k < count; k++)
+                    {
+                        double thisLen = Util.GenRandInterval(TimeSpan.FromSeconds(3.0), 60).TotalSeconds;
+
+                        double thisStart = seg.TimePosition + Math.Max(seg.TimeLength * 0.8, 5.0 * count) * Util.RandDouble0To1();
+
+                        opList.Add(new AiTaskOperationDesc { StartPosition = thisStart, EndPosition = thisStart + thisLen, Rule = xheartSpecialRule, MatFilesQueue = xheartSpecialRule.RuleData.MaterialsWavPathQueue });
+                    }
+                }
+            }
+        }
+
         HashSet<string> alreadyUsedList = new HashSet<string>(StrCmpi);
 
         foreach (var op in opList)
@@ -1944,7 +1968,14 @@ public class AiTask
             var voiceSegList = okFileMeta.Value?.Options_VoiceSegmentsList;
             if (voiceSegList != null && voiceSegList.Count >= 1 && settings.Value.ReplaceBgmDirPath._IsFilled())
             {
-                int currentLevel = 0;
+                int currentLevelByTag = 0;
+
+                bool isMultiSpeaker = (voiceSegList.Where(x => x.SpeakerId != 0).Select(x => x.SpeakerId).Distinct().Count() >= 2 && voiceSegList.Where(x => x.IsActiveMovingSpeaker).Count() >= 1);
+
+                string lastStorySpeakerAndFlag = "";
+
+                int currentStorySpeakerMovingLevel = 0;
+                string currentSameLevelId = "";
 
                 for (int i = 0; i < voiceSegList.Count; i++)
                 {
@@ -1952,38 +1983,38 @@ public class AiTask
 
                     if (seg1.TagStr._IsSamei("<ACX_START>"))
                     {
-                        currentLevel += 1;
+                        currentLevelByTag += 1;
                     }
                     else if (seg1.TagStr._IsSamei("<ACX_END>"))
                     {
-                        currentLevel -= 1;
+                        currentLevelByTag -= 1;
                     }
                     else if (seg1.TagStr._IsSamei("<BCX_START>"))
                     {
-                        currentLevel += 2;
+                        currentLevelByTag += 2;
                     }
                     else if (seg1.TagStr._IsSamei("<BCX_FINAL_START>"))
                     {
-                        currentLevel += 2;
+                        currentLevelByTag += 2;
                     }
                     else if (seg1.TagStr._IsSamei("<XCSSTART>"))
                     {
-                        currentLevel += 1;
+                        currentLevelByTag += 1;
                     }
                     else if (seg1.TagStr._IsSamei("<XCSEND>"))
                     {
-                        currentLevel -= 1;
+                        currentLevelByTag -= 1;
                     }
                     else if (seg1.TagStr._IsSamei("<BCX_END>") || seg1.TagStr._IsSamei("<BXC_END>"))
                     {
-                        currentLevel -= 2;
+                        currentLevelByTag -= 2;
                     }
                     else if (seg1.TagStr._IsSamei("<BCX_FINAL_END>") || seg1.TagStr._IsSamei("<BXC_FINAL_END>"))
                     {
-                        currentLevel -= 2;
+                        currentLevelByTag -= 2;
                     }
 
-                    seg1.Level = currentLevel;
+                    seg1.Level = currentLevelByTag;
 
                     if (seg1.TagStr._IsSamei("<BCX_START>"))
                     {
@@ -2020,6 +2051,35 @@ public class AiTask
                                     StartPosition = seg1.TimePosition - 4,
                                 });
                                 break;
+                            }
+                        }
+                    }
+
+                    if (isMultiSpeaker)
+                    {
+                        if (seg1.IsTag == false && seg1.IsBlank == false && seg1.TimeLength >= 0.01)
+                        {
+                            string testStr = "";
+
+                            testStr = $"{seg1.StorySpeakerStr}_{seg1.IsActiveMovingSpeaker}_{currentLevelByTag}";
+
+                            if (lastStorySpeakerAndFlag._IsSamei(testStr) == false)
+                            {
+                                lastStorySpeakerAndFlag = testStr;
+
+                                currentStorySpeakerMovingLevel = seg1.IsActiveMovingSpeaker ? (Secure.RandBool() ? 1 : 2) : 0;
+                                currentSameLevelId = Str.GenRandStr();
+                            }
+
+
+                            if (currentLevelByTag <= 0)
+                            {
+                                seg1.Level = currentStorySpeakerMovingLevel;
+
+                                if (currentStorySpeakerMovingLevel >= 1)
+                                {
+                                    seg1.SameLevelId = currentSameLevelId;
+                                }
                             }
                         }
                     }
@@ -2242,29 +2302,48 @@ public class AiTask
 
             if (okFileMeta.Value?.Options_VoiceSegmentsList != null)
             {
-                foreach (var seg in okFileMeta.Value?.Options_VoiceSegmentsList!)
+                for (int i = 0; i < okFileMeta.Value?.Options_VoiceSegmentsList!.Count; i++)
                 {
-                    if (seg.DataLength != 0 && seg.IsBlank == false && seg.IsTag == false)
+                    var segStart = okFileMeta.Value?.Options_VoiceSegmentsList![i]!;
+
+                    if (segStart.DataLength != 0 && segStart.IsBlank == false && segStart.IsTag == false)
                     {
-                        if (seg.Level >= 1)
+                        if (segStart.Level >= 1)
                         {
+                            var segEnd = segStart;
+
+                            if (segStart.SameLevelId._IsFilled())
+                            {
+                                for (int j = (i + 1); j < okFileMeta.Value?.Options_VoiceSegmentsList!.Count; j++)
+                                {
+                                    var segTest = okFileMeta.Value?.Options_VoiceSegmentsList![j]!;
+
+                                    if (segTest.DataLength != 0 && segTest.IsBlank == false && segTest.IsTag == false && segTest.Level == segStart.Level && segTest.SameLevelId._IsSamei(segStart.SameLevelId))
+                                    {
+                                        segEnd = segTest;
+
+                                        i = j;
+                                    }
+                                }
+                            }
+
                             AiAudioEffectSpeedType speedType = AiAudioEffectSpeedType.Light;
 
-                            if (seg.Level == 2)
+                            if (segStart.Level == 2)
                             {
                                 speedType = AiAudioEffectSpeedType.Normal;
                             }
-                            else if (seg.Level >= 3)
+                            else if (segStart.Level >= 3)
                             {
                                 speedType = AiAudioEffectSpeedType.Heavy;
                             }
 
                             var effect = AiAudioEffectCollection.AllCollectionRandomQueue.Dequeue();
 
-                            AiAudioEffectFilter filter = new AiAudioEffectFilter(effect, speedType, 1.5 + (double)seg.Level, cancel: cancel);
+                            AiAudioEffectFilter filter = new AiAudioEffectFilter(effect, speedType, 1.5 + (double)segStart.Level, cancel: cancel);
 
-                            long dataStartPositionInBytes = AiWaveUtil.GetWavDataPositionInByteFromTime(seg.TimePosition, voiceWavFormat);
-                            long dataEndPositionInBytes = AiWaveUtil.GetWavDataPositionInByteFromTime(seg.TimePosition + seg.TimeLength, voiceWavFormat);
+                            long dataStartPositionInBytes = AiWaveUtil.GetWavDataPositionInByteFromTime(segStart.TimePosition, voiceWavFormat);
+                            long dataEndPositionInBytes = AiWaveUtil.GetWavDataPositionInByteFromTime(segEnd.TimePosition + segStart.TimeLength, voiceWavFormat);
                             long dataLengthInBytes = dataEndPositionInBytes - dataStartPositionInBytes;
 
                             if (voiceWavData2.Length < (dataStartPositionInBytes + dataLengthInBytes))
@@ -2285,9 +2364,9 @@ public class AiTask
 
                                 await voiceWavData2.WriteRandomAsync(dataStartPositionInBytes, voiceProcessTargetMemory, cancel);
 
-                                seg.FilterName = filter.FilterName;
-                                seg.FilterSettings = filter.EffectSettings._ToJObject();
-                                seg.FilterSpeedType = filter.FilterSpeedType;
+                                segStart.FilterName = filter.FilterName;
+                                segStart.FilterSettings = filter.EffectSettings._ToJObject();
+                                segStart.FilterSpeedType = filter.FilterSpeedType;
                             }
                         }
                     }
@@ -4008,23 +4087,68 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
         Dictionary<int, (MediaVoiceSegment SegmentIndexForVoice, MediaVoiceSegment SegmentIndexForBlank)> wavFileNameIndexToSegmentMappingTable = new();
         HashSetDictionary<int, MediaVoiceSegment> wavFileNameIndexToTagSegmentMappindTable = new();
 
+        static int GetXHeartLevel(ref string block)
+        {
+            string tagstr = "XHEART";
+
+            List<string> tmp = new List<string>();
+
+            int ret = 0;
+
+            for (int i = 1; i < 10; i++)
+            {
+                string tagstrList = tagstr + i.ToString();
+                tmp.Add("_" + tagstrList + "_");
+                tmp.Add(tagstrList + "_");
+                tmp.Add("_" + tagstrList);
+                tmp.Add(tagstrList);
+
+                foreach (var tagstr2 in tmp)
+                {
+                    string tmp1 = block._ReplaceStr(tagstr2, " ", false);
+
+                    if (tmp1.Length != block.Length)
+                    {
+                        block = tmp1.Trim();
+                        ret = i;
+                    }
+                }
+            }
+
+            return ret;
+        }
+
         for (int i = 0; i < textBlockList.Count; i++)
         {
             if (textBlockList[i].Value == false)
             {
                 string block = textBlockList[i].Key.Trim();
 
+                int xheartLevel = GetXHeartLevel(ref block);
+
+                block = block.Trim();
+
                 int speakerIndex = 0;
+
+                string? storySpeakerStr = null;
+
+                bool isActiveMovingSpeaker = false;
 
                 if (block.StartsWith(@"SPEAKER_Y:"))
                 {
                     speakerIndex = 1;
+                    storySpeakerStr = block.Substring(0, 9);
                     block = block.Substring(10).Trim();
+
+                    isActiveMovingSpeaker = true;
                 }
                 else if (block.StartsWith(@"SPEAKER_X:"))
                 {
                     speakerIndex = 0;
+                    storySpeakerStr = block.Substring(0, 9);
                     block = block.Substring(10).Trim();
+
+                    isActiveMovingSpeaker = false;
                 }
 
                 //int speakerId = speakerIdShuffleQueue.Dequeue();
@@ -4064,13 +4188,16 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
                 {
                     VoiceText = block,
                     SpeakerId = speakerId,
+                    StorySpeakerStr = storySpeakerStr,
+                    IsActiveMovingSpeaker = isActiveMovingSpeaker,
+                    XHeartLevel = xheartLevel,
                 };
 
                 var segmentForBlank = new MediaVoiceSegment
                 {
                     IsBlank = true,
                     SpeakerId = speakerId,
-                    BlankDuration = Util.GenRandInterval((0.75)._ToTimeSpanSecs()).TotalSeconds, // 0.75 秒 +/- 30%
+                    BlankDuration = Util.GenRandInterval((0.45)._ToTimeSpanSecs()).TotalSeconds, // 0.45 秒 +/- 30%
                 };
 
                 wavFileNameIndexToSegmentMappingTable[wavFileNameIndex] = new(segmentForVoice, segmentForBlank);

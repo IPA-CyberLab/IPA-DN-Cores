@@ -576,14 +576,18 @@ public class MediaVoiceSegment
     public double TimeLength;
     public string? VoiceText;
     public string? TagStr;
+    public string? StorySpeakerStr;
+    public bool IsActiveMovingSpeaker;
     public int SpeakerId;
     public bool IsBlank;
+    public int XHeartLevel;
     public bool IsTag;
     public double BlankDuration;
     public bool IsSleep;
     public double SleepDuration;
 
     public int Level;
+    public string? SameLevelId = null;
     public string? FilterName;
     [Newtonsoft.Json.JsonConverter(typeof(StringEnumConverter))]
     public AiAudioEffectSpeedType? FilterSpeedType;
