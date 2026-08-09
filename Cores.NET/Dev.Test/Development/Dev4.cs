@@ -185,6 +185,11 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
         {
             this.VarsList.Remove(name);
         }
+
+        public void Clear()
+        {
+            this.VarsList.Clear();
+        }
     }
 
     public class ZoneDefOptions : INormalizable
@@ -410,36 +415,82 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
 
         public Config() { }
 
-        public Config(string body, StringWriter err)
+        public Config(IEnumerable<IncludedLine> lines, StringWriter err)
         {
-            var lines = body._GetLines(false, false, null, false, false);
-
             Vars vars = new Vars();
 
             List<ZoneDef>? currentLimitZonesList = null;
 
             for (int j = 0; j < 2; j++) // 走査は、2 回行なう。1 回目は、変数とゾーン名定義の読み込みである。2 回目は、ゾーンのレコード情報の読み込みである。
             {
-                for (int i = 0; i < lines.Length; i++)
+                int currentLimitDepth = -1;
+                currentLimitZonesList = null;
+
+                for (int i = 0; i < lines.Count(); i++)
                 {
-                    string lineSrc = lines[i];
+                    IncludedLine lineData = lines.ElementAt(i);
+                    string lineStr = lineData.LineStr;
 
                     try
                     {
                         // コメント除去
-                        string line = lineSrc.Trim()._StripCommentFromLine(new[] { "#" }).Trim();
+                        string line = lineStr.Trim()._StripCommentFromLine(new[] { "#" }).Trim();
 
                         if (line._IsFilled() && line._GetKeyAndValue(out string key, out string value, " \t"))
                         {
                             key = key.Trim();
                             value = value.Trim();
 
+                            if (key.StartsWith("!Unlimit", StringComparison.CurrentCultureIgnoreCase) ||
+                                key.StartsWith("!DefineZone", StringComparison.CurrentCultureIgnoreCase) ||
+                                key.StartsWith("!DefineForwarder", StringComparison.CurrentCultureIgnoreCase) ||
+                                key.StartsWith("!Limit", StringComparison.CurrentCultureIgnoreCase))
+                            {
+                                if (currentLimitDepth != -1 && lineData.IncludeDepth > currentLimitDepth)
+                                {
+                                    // すでに !Limit が設定されている場合、同一の Include Depth よりも深い Include Depth では、一切の「!」命令を禁止する。
+                                    throw new CoresException($"This instruction is prohibited on the included file");
+                                }
+                            }
+
                             if (key._IsSamei("!Unlimit"))
                             {
                                 // 制限の解除
                                 currentLimitZonesList = null;
+                                currentLimitDepth = -1;
                             }
-                            else if (key._IsFilled() && value._IsFilled())
+                            else if (key._IsSamei("!Limit"))
+                            {
+                                // 制限の定義
+                                List<ZoneDef> tmp = new List<ZoneDef>();
+                                try
+                                {
+                                    var limitsTokenList = value._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, " ", "\t", "　", ",", ";");
+                                    foreach (var limit in limitsTokenList)
+                                    {
+                                        // パース
+                                        var limitDef = new ZoneDef(limit, new Vars(), true);
+                                        tmp.Add(limitDef);
+                                    }
+                                }
+                                catch
+                                {
+                                    // パースで例外が発生したら、安全のために空リストを設定したとみなす
+                                    currentLimitZonesList = new List<ZoneDef>();
+                                    throw;
+                                }
+                                currentLimitZonesList = tmp;
+                                currentLimitDepth = lineData.IncludeDepth;
+                            }
+                            else if (key._IsSamei("!Clear") || key._IsSamei("!Reset"))
+                            {
+                                if (j == 0)
+                                {
+                                    // 変数の全部削除
+                                    vars.Clear();
+                                }
+                            }
+                            else if (key._IsFilled())
                             {
                                 if (j == 0)
                                 {
@@ -499,28 +550,6 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
 
                                             this.ForwarderList.Add(forwarderDef);
                                         }
-                                        else if (key._IsSamei("!Limit"))
-                                        {
-                                            // 制限の定義
-                                            List<ZoneDef> tmp = new List<ZoneDef>();
-                                            try
-                                            {
-                                                var limitsTokenList = value._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, " ", "\t", "　", ",", ";");
-                                                foreach (var limit in limitsTokenList)
-                                                {
-                                                    // パース
-                                                    var limitDef = new ZoneDef(limit, new Vars(), true);
-                                                    tmp.Add(limitDef);
-                                                }
-                                            }
-                                            catch
-                                            {
-                                                // パースで例外が発生したら、安全のために空リストを設定したとみなす
-                                                currentLimitZonesList = new List<ZoneDef>();
-                                                throw;
-                                            }
-                                            currentLimitZonesList = tmp;
-                                        }
                                         else
                                         {
                                             throw new CoresException($"Invalid instruction");
@@ -551,7 +580,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                         }
 
                                         QueryStringList paramsList = new QueryStringList(paramsStr, splitChar: ',', trimKeyAndValue: true);
-                                        
+
                                         EasyDnsResponderRecordSettings? settings = null;
                                         string ttlStr = paramsList._GetFirstValueOrDefault("ttl");
                                         if (ttlStr._IsFilled())
@@ -949,8 +978,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                     }
                     catch (Exception ex)
                     {
-                        err.WriteLine($"Line #{i + 1}: '{lineSrc}'");
-                        err.WriteLine($"  Error: {ex.Message}");
+                        err.WriteLine($"{lineData.OriginalFileNameOrUrl._GetFileNameFromPathOrUrl()}: Line #{lineData.OriginalLineNumber}: '{lineStr}': Error: {ex.Message}");
                     }
                 }
             }
@@ -1143,19 +1171,19 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
         var config = this.Hadb.CurrentDynamicConfig;
 
         // ファイル読み込み
-        var lines = await MiscUtil.ReadIncludesFileLinesAsync(config.Dns_ZoneDefFilePathOrUrl, cancel: cancel);
+        List<IncludedLine> lines = await MiscUtil.ReadIncludesFileLinesAsync(config.Dns_ZoneDefFilePathOrUrl, cancel: cancel);
 
-        string body = lines._LinesToStr();
+        string linesAsJson = lines._ObjectToJson();
 
-        if (body == LastConfigBody && forceReload == false)
+        if (linesAsJson == LastConfigBody && forceReload == false)
         {
             // 前回ゾーンを構築した時からファイル内容に変化がなければ何もしない
             return null;
         }
 
-        Con.WriteLine($"Zone Def File is {(forceReload ? "being reloaded forcefully" : "changed")}. Body size = {body._GetBytes_UTF8().Length._ToString3()} bytes. Reloading...");
+        Con.WriteLine($"Zone Def File is {(forceReload ? "being reloaded forcefully" : "changed")}. Body size = {lines.Select(x => x.LineStr)._LinesToStr()._GetBytes_UTF8().Length._ToString3()} bytes. Reloading...");
 
-        Config cfg = new Config(body, err);
+        Config cfg = new Config(lines, err);
 
         this.Hook.InitDynamicResponderFactoryList(cfg.DynamicResponderFactoryDict);
 
@@ -1377,7 +1405,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
             }
         }
 
-        LastConfigBody = body;
+        LastConfigBody = linesAsJson;
 
         string errorStr = err.ToString();
 

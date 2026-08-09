@@ -2872,6 +2872,14 @@ public class ExpandIncludesSettings
     public int MaxReadFileSize { init; get; } = Consts.MaxLens.MaxCachedFileDownloadSizeDefault;
 }
 
+public class IncludedLine
+{
+    public string LineStr = "";
+    public string OriginalFileNameOrUrl = "";
+    public int OriginalLineNumber = 0;
+    public int IncludeDepth = 0;
+}
+
 // 色々なおまけユーティリティ
 public static partial class MiscUtil
 {
@@ -3456,13 +3464,13 @@ https://www.apple.com/
     }
 
     // ファイルの #include を展開する
-    public static async Task<string> ExpandIncludesToStrAsync(string srcFileBody, FilePath? srcFilePathIfPhysicalFile = null, ExpandIncludesSettings? settings = null, CancellationToken cancel = default, string? newLineStr = null)
+    public static async Task<string> ExpandIncludesToStrAsync(string srcFileBody, string originalFileNameOrUrl, FilePath? srcFilePathIfPhysicalFile = null, ExpandIncludesSettings? settings = null, CancellationToken cancel = default, string? newLineStr = null)
     {
-        var tmp = await ExpandIncludesToListAsync(srcFileBody, srcFilePathIfPhysicalFile, settings, cancel);
+        var tmp = await ExpandIncludesToListAsync(srcFileBody, originalFileNameOrUrl, srcFilePathIfPhysicalFile, settings, cancel);
 
-        return tmp._LinesToStr(newLineStr);
+        return tmp.Select(x => x.LineStr)._LinesToStr(newLineStr);
     }
-    public static async Task<List<string>> ExpandIncludesToListAsync(string srcFileBody, FilePath? srcFilePathIfPhysicalFile = null, ExpandIncludesSettings? settings = null, CancellationToken cancel = default)
+    public static async Task<List<IncludedLine>> ExpandIncludesToListAsync(string srcFileBody, string originalFileNameOrUrl, FilePath? srcFilePathIfPhysicalFile = null, ExpandIncludesSettings? settings = null, CancellationToken cancel = default)
     {
         settings ??= new ExpandIncludesSettings
         {
@@ -3472,24 +3480,29 @@ https://www.apple.com/
                 retryInterval: CoresConfig.DefaultExpandIncludesSettings.WebRetryIntervalMsecs),
         };
 
-        List<string> destLines = new List<string>();
+        List<IncludedLine> destLines = new List<IncludedLine>();
 
         RefInt counter = new RefInt();
 
-        await ProcessAsync(destLines, srcFileBody, srcFilePathIfPhysicalFile, counter);
+        await ProcessAsync(destLines, srcFileBody, srcFilePathIfPhysicalFile, originalFileNameOrUrl, counter, 0);
 
         return destLines;
 
-        async Task ProcessAsync(List<string> destLines, string srcFileBody, FilePath? srcFilePathIfPhysicalFile, RefInt includeCount)
+        async Task ProcessAsync(List<IncludedLine> destLines, string srcFileBody, FilePath? srcFilePathIfPhysicalFile, string originalFileNameOrUrl, RefInt includeCount, int includeDepth)
         {
+            includeDepth++;
             includeCount.Increment();
 
             var fs = srcFilePathIfPhysicalFile?.FileSystem ?? null;
 
             var lines = srcFileBody._GetLines();
 
+            int lineNumber = 0;
+
             foreach (var line in lines)
             {
+                lineNumber++;
+
                 string tmp = line.Trim(' ', '　', '\t');
                 bool consumed = false;
 
@@ -3504,7 +3517,7 @@ https://www.apple.com/
                         {
                             if (includeCount > settings!.MaxIncludes)
                             {
-                                throw new CoresLibException($"'{line}': includeCount ({includeCount}) > settings.MaxIncludes ({settings.MaxIncludes})");
+                                throw new CoresLibException($"{originalFileNameOrUrl._GetFileNameFromPathOrUrl()}: #{lineNumber}: '{line}': includeCount ({includeCount}) > settings.MaxIncludes ({settings.MaxIncludes})");
                             }
 
                             if (name.StartsWith("http://", StrCmpi) || name.StartsWith("https://", StrCmpi))
@@ -3521,19 +3534,19 @@ https://www.apple.com/
                                 else
                                     targetBody = Str.DecodeString(r.Data.Span, encoding, out _);
 
-                                await ProcessAsync(destLines, targetBody, null, includeCount);
+                                await ProcessAsync(destLines, targetBody, null, name, includeCount, includeDepth);
                             }
                             else
                             {
                                 // ローカルファイル
                                 if (fs == null)
                                 {
-                                    throw new CoresLibException($"'{line}': Current file is not a local file.");
+                                    throw new CoresLibException($"{originalFileNameOrUrl._GetFileNameFromPathOrUrl()}: #{lineNumber}: '{line}': Current file is not a local file.");
                                 }
 
                                 if (settings!.AllowIncludeLocalFileByNetworkFile == false && srcFilePathIfPhysicalFile == null)
                                 {
-                                    throw new CoresLibException($"'{line}': AllowIncludeLocalFileByNetworkFile == false");
+                                    throw new CoresLibException($"{originalFileNameOrUrl._GetFileNameFromPathOrUrl()}: #{lineNumber}: '{line}': AllowIncludeLocalFileByNetworkFile == false");
                                 }
 
                                 name = fs.PathParser.NormalizeDirectorySeparatorIncludeWindowsBackslash(name);
@@ -3542,7 +3555,7 @@ https://www.apple.com/
 
                                 var targetBody = await fs.ReadStringFromFileAsync(targetFilePath, settings.Encoding, settings.MaxReadFileSize, FileFlags.None, cancel: cancel);
 
-                                await ProcessAsync(destLines, targetBody, targetFilePath, includeCount);
+                                await ProcessAsync(destLines, targetBody, targetFilePath, name, includeCount, includeDepth);
                             }
 
                             consumed = true;
@@ -3552,13 +3565,19 @@ https://www.apple.com/
 
                 if (consumed == false)
                 {
-                    destLines.Add(line);
+                    destLines.Add(new IncludedLine
+                    {
+                        LineStr = line,
+                        OriginalLineNumber = lineNumber,
+                        OriginalFileNameOrUrl = originalFileNameOrUrl,
+                        IncludeDepth = includeDepth,
+                    });
                 }
             }
         }
     }
 
-    public static async Task<List<string>> ReadIncludesFileLinesAsync(string srcFilePathOrUrl, ExpandIncludesSettings? settings = null, CancellationToken cancel = default)
+    public static async Task<List<IncludedLine>> ReadIncludesFileLinesAsync(string srcFilePathOrUrl, ExpandIncludesSettings? settings = null, CancellationToken cancel = default)
     {
         string srcBody;
         FilePath? srcFilePathIfPhysicalFile;
@@ -3576,14 +3595,14 @@ https://www.apple.com/
             srcFilePathIfPhysicalFile = srcFilePathOrUrl;
         }
 
-        return await MiscUtil.ExpandIncludesToListAsync(srcBody, srcFilePathIfPhysicalFile, settings, cancel);
+        return await MiscUtil.ExpandIncludesToListAsync(srcBody, srcFilePathOrUrl, srcFilePathIfPhysicalFile, settings, cancel);
     }
 
     public static async Task ExpandIncludesFileAsync(string srcFilePathOrUrl, string destFilePath, ExpandIncludesSettings? settings = null, CancellationToken cancel = default, string? newLineStr = null, bool writeBom = false)
     {
         var list = await ReadIncludesFileLinesAsync(srcFilePathOrUrl, settings, cancel);
 
-        byte[] data = list._LinesToStr(newLineStr)._GetBytes_UTF8(writeBom);
+        byte[] data = list.Select(x => x.LineStr)._LinesToStr(newLineStr)._GetBytes_UTF8(writeBom);
 
         await Lfs.WriteDataToFileAsync(destFilePath, data, FileFlags.WriteOnlyIfChanged, false, cancel, true);
     }

@@ -545,6 +545,7 @@ public static class BasicHelper
     public static string _TrimCrlf(this string? s) => Str.TrimCrlf(s);
     public static string _TrimStartWith(this string s, string key, bool caseSensitive = false) { Str.TrimStartWith(ref s, key, caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase); return s; }
     public static string _TrimEndsWith(this string s, string key, bool caseSensitive = false) { Str.TrimEndsWith(ref s, key, caseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase); return s; }
+    public static string _GetFileNameFromPathOrUrl(this string pathOrUrl) => Str.GetFileNameFromPathOrUrl(pathOrUrl);
     [MethodImpl(Inline)]
     public static string _NonNull(this string? s) { if (s == null) return ""; else return s; }
     public static string _NonNullTrim(this string? s) { if (s == null) return ""; else return s.Trim(); }

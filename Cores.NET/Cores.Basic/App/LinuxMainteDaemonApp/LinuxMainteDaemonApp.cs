@@ -313,7 +313,7 @@ public class LinuxMainteDaemonApp : AsyncService
 
         foreach (var line in lines)
         {
-            string line2 = line._StripCommentFromLine();
+            string line2 = line.LineStr._StripCommentFromLine();
 
             if (line2._IsFilled())
             {

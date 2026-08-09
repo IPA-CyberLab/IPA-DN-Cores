@@ -938,7 +938,7 @@ public abstract partial class FileSystem
 
         if (flags.Bit(FileFlags.ReadStr_ExpandIncludes))
         {
-            str = await MiscUtil.ExpandIncludesToStrAsync(str, new FilePath(path, this, flags), expandIncludesSettings, cancel);
+            str = await MiscUtil.ExpandIncludesToStrAsync(str, path, new FilePath(path, this, flags), expandIncludesSettings, cancel);
         }
 
         if (oneLine)

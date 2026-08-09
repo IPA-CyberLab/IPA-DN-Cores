@@ -505,7 +505,7 @@ partial class TestDevCommands
             {
                 var lines = await MiscUtil.ReadIncludesFileLinesAsync(includeFile, new ExpandIncludesSettings { MaxIncludes = 128 });
 
-                foreach (var line in lines.Select(x => x._StripCommentFromLine()).Where(x => x._IsFilled()))
+                foreach (var line in lines.Select(x => x.LineStr._StripCommentFromLine()).Where(x => x._IsFilled()))
                 {
                     string[] tokens = line._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ' ', '　', '\t', ',');
 
