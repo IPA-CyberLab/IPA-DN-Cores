@@ -276,7 +276,7 @@ public class SyslogClient : AsyncServiceWithMainLoop
 
         string dtStr = GetSyslogDateTimeStr(record.TimeStamp.LocalDateTime);
 
-        string[] lines = record.ConsolePrintableString._GetLines(true, trim: true);
+        string[] lines = record.ConsolePrintableString._GetLines(true, trim: true)._OneLine()._SingleArray();
 
         foreach (var line in lines)
         {
