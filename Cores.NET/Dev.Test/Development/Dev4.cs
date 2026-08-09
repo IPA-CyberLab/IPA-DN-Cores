@@ -1143,7 +1143,7 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
         var config = this.Hadb.CurrentDynamicConfig;
 
         // ファイル読み込み
-        string body = await Lfs.ReadStringFromFileAsync(config.Dns_ZoneDefFilePathOrUrl, cancel: cancel);
+        string body = await MiscUtil.ExpandIncludesToStrAsync(config.Dns_ZoneDefFilePathOrUrl, cancel: cancel);
 
         if (body == LastConfigBody && forceReload == false)
         {
