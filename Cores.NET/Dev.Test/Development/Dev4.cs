@@ -442,7 +442,6 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                             value = value.Trim();
 
                             if (key.StartsWith("!Unlimit", StringComparison.CurrentCultureIgnoreCase) ||
-                                key.StartsWith("!DefineZone", StringComparison.CurrentCultureIgnoreCase) ||
                                 key.StartsWith("!DefineForwarder", StringComparison.CurrentCultureIgnoreCase) ||
                                 key.StartsWith("!Limit", StringComparison.CurrentCultureIgnoreCase))
                             {
@@ -520,7 +519,31 @@ public class IpaDnsService : HadbBasedSimpleServiceBase<IpaDnsService.MemDb, Ipa
                                             foreach (var zoneToken in zonesTokenList)
                                             {
                                                 var zone = new ZoneDef(zoneToken, vars);
-                                                this.ZoneList.Add(zone.Fqdn, zone);
+                                                bool allowed = false;
+
+                                                if (zone.Type == ZoneDefType.Reverse)
+                                                {
+                                                    if (IsReverseFqdnAllowedByLimitList(zone.ReverseIpNetwork, zone.ReverseIpSubnetMask))
+                                                    {
+                                                        allowed = true;
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    if (IsForwardFqdnAllowedByLimitList(zone.Fqdn))
+                                                    {
+                                                        allowed = true;
+                                                    }
+                                                }
+
+                                                if (allowed)
+                                                {
+                                                    this.ZoneList.Add(zone.Fqdn, zone);
+                                                }
+                                                else
+                                                {
+                                                    throw new CoresException($"This zone definition is not allowed on this included file.");
+                                                }
                                             }
                                         }
                                         else if (key._IsSamei("!DefineForwarder"))
