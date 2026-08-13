@@ -1909,6 +1909,29 @@ public class AiTask
         }
     }
 
+    public async Task RecognizeVoiceTextAllFilesAsync(string srcAudioDirRootPath, string dstTextDirRootPath, CancellationToken cancel = default)
+    {
+        var srcFiles = await Lfs.EnumDirectoryAsync(srcAudioDirRootPath, true, cancel: cancel);
+
+        foreach (var srcFile in srcFiles.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Filter_MusicFiles) && PP.GetFileName(PP.GetDirectoryName(x.FullPath)).StartsWith("_") == false)
+            .OrderBy(x => x.FullPath, StrCmpi)._Shuffle().ToList())
+        {
+            string relativeDirPth = PP.GetRelativeDirectoryName(PP.GetDirectoryName(srcFile.FullPath), srcAudioDirRootPath);
+
+            string dstDirPath = PP.Combine(dstTextDirRootPath, relativeDirPth);
+
+            string dstFilePath = PP.Combine(dstDirPath, srcFile.Name) + ".txt";
+
+            await Lfs.EnsureCreateDirectoryForFileAsync(dstFilePath, cancel: cancel);
+
+            Con.WriteLine($"--- Input Speech Audio: '{srcFile.FullPath}' -> '{dstFilePath}");
+
+            await using var engine = new AiUtilQWen3Asr17bEngine(this.Settings);
+
+            await engine.RecognizeAsync(srcFile.FullPath, dstFilePath);
+        }
+    }
+
     public async Task AddRandomBgmToAllVoiceFilesAsync(string srcVoiceDirRoot, string dstDirRoot, FfMpegAudioCodec codec, AiRandomBgmSettingsFactory settingsFactory, int kbps = 0, string? oldTagStr = null, string? newTagStr = null, object? userParam = null, bool boostWithLength = false, CancellationToken cancel = default)
     {
         var srcFiles = await Lfs.EnumDirectoryAsync(srcVoiceDirRoot, true, cancel: cancel);
@@ -3152,6 +3175,7 @@ public class AiUtilBasicSettings
     public string AiTest_SeedVc_BaseDir = "";
     public string AiTest_RealEsrgan_BaseDir = "";
     public string AiTest_TesseractOCR_Data_Dir = "";
+    public string AiTest_QWen3Asr17B_BaseDir = "";
     public double AdjustAudioTargetMaxVolume = CoresConfig.DefaultAiUtilSettings.AdjustAudioTargetMaxVolume;
     public double AdjustAudioTargetMeanVolume = CoresConfig.DefaultAiUtilSettings.AdjustAudioTargetMeanVolume;
     public int VoiceBoxLocalhostPort = Consts.Ports.VoiceVox;
@@ -3319,6 +3343,74 @@ public class AiUtilRealEsrganEngine : AiUtilBasicEngine
         finally
         {
             await base.CleanupImplAsync(ex);
+        }
+    }
+}
+
+public class AiUtilQWen3Asr17bEngine : AiUtilBasicEngine
+{
+    public AiUtilQWen3Asr17bEngine(AiUtilBasicSettings settings) : base(settings, "QWen3Asr", settings.AiTest_QWen3Asr17B_BaseDir)
+    {
+    }
+
+    public async Task RecognizeAsync(string srcAudioPath, string dstTxtPath, string tagTitle = "", bool useOkFile = true, CancellationToken cancel = default)
+    {
+        if (tagTitle._IsEmpty()) tagTitle = PP.GetFileNameWithoutExtension(srcAudioPath);
+
+        var srcMeta = await Lfs.GetFileMetadataAsync(srcAudioPath, cancel: cancel);
+
+        string digest = $"{srcMeta.Size} {srcMeta.LastWriteTime?.Ticks}";
+
+        if (useOkFile)
+        {
+            var metaRet = await Lfs.ReadOkFileAsync<OkFileEmptyMetaData>(dstTxtPath, digest, AiUtilVersion.CurrentVersion, cancel: cancel);
+            if (metaRet.IsOk)
+            {
+                return;
+            }
+        }
+
+        await TaskUtil.RetryAsync(async c =>
+        {
+            await ConvertInternalAsync(srcAudioPath, dstTxtPath, tagTitle, cancel);
+
+            return true;
+        },
+        200, 5, cancel, true);
+
+        if (useOkFile)
+        {
+            await Lfs.WriteOkFileAsync(dstTxtPath, new OkFileEmptyMetaData(), digest, AiUtilVersion.CurrentVersion, cancel: cancel);
+        }
+    }
+
+    async Task ConvertInternalAsync(string srcAudioPath, string dstTxtPath, string tagTitle, CancellationToken cancel = default)
+    {
+        if (tagTitle._IsEmpty())
+        {
+            tagTitle = srcAudioPath._GetFileNameWithoutExtension();
+        }
+
+        int timeout = 3600 * 4 * 1000;
+
+        string workDir = Path.Combine(this.Settings.AiTest_QWen3Asr17B_BaseDir, "work");
+
+        if (await Lfs.IsDirectoryExistsAsync(workDir, cancel: cancel))
+        {
+            await Lfs.DeleteDirectoryAsync(workDir, true, cancel: cancel);
+        }
+
+        await Lfs.CreateDirectoryAsync(workDir, cancel: cancel);
+
+        await Lfs.DeleteFileIfExistsAsync(dstTxtPath, cancel: cancel);
+
+        await this.RunVEnvPythonCommandsAsync(
+            $"python scripts/transcribe_qwen3_asr.py --input {srcAudioPath._EnsureQuotation()} --output {dstTxtPath._EnsureQuotation()}",
+            timeout, printTag: tagTitle, cancel: cancel);
+
+        if (await Lfs.IsFileExistsAsync(dstTxtPath, cancel: cancel) == false)
+        {
+            throw new CoresLibException($"{dstTxtPath} not found.");
         }
     }
 }
