@@ -3378,6 +3378,15 @@ public class AiUtilQWen3Asr17bEngine : AiUtilBasicEngine
         },
         200, 5, cancel, true);
 
+
+        string dstContents = await Lfs.ReadStringFromFileAsync(dstTxtPath, cancel: cancel);
+
+        string header = $"###### ============================================================\n###### \n###### Source Filename: {PPWin.GetFileName(srcAudioPath)}\n\n";
+
+        string footer = "\n\n###### ============================================================\n\n\n";
+
+        await Lfs.WriteStringToFileAsync(dstTxtPath, (header + dstContents + footer)._NormalizeCrlf(CrlfStyle.CrLf, true), writeBom: true, cancel: cancel);
+
         if (useOkFile)
         {
             await Lfs.WriteOkFileAsync(dstTxtPath, new OkFileEmptyMetaData(), digest, AiUtilVersion.CurrentVersion, cancel: cancel);
