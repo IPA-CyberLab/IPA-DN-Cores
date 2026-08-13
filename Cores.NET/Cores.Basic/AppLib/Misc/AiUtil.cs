@@ -1914,7 +1914,7 @@ public class AiTask
         var srcFiles = await Lfs.EnumDirectoryAsync(srcAudioDirRootPath, true, cancel: cancel);
 
         foreach (var srcFile in srcFiles.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Filter_MusicFiles) && PP.GetFileName(PP.GetDirectoryName(x.FullPath)).StartsWith("_") == false)
-            .OrderBy(x => x.FullPath, StrCmpi)._Shuffle().ToList())
+            .OrderBy(x => x.FullPath, StrCmpi).ToList())
         {
             string relativeDirPth = PP.GetRelativeDirectoryName(PP.GetDirectoryName(srcFile.FullPath), srcAudioDirRootPath);
 
