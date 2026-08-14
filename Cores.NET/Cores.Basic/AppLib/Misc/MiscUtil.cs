@@ -4978,6 +4978,7 @@ public class DnsHostNameScannerSettings : INormalizable
     public bool PrintStat { get; set; } = true;
     public bool PrintOrderByFqdn { get; set; } = true;
     public int NumTry { get; set; } = 3;
+    public bool Dns { get; set; } = false;
     public IEnumerable<int> TcpPorts { get; set; } = new List<int>();
 
     public void Normalize()
@@ -5082,7 +5083,20 @@ public class DnsHostNameScanner : AsyncService
 
                         List<string>? ret = await Dr.GetHostNameListAsync(target.Ip, additional, cancel);
 
-                        string portsStr = "TCP Ports: " + (anyPortOk ? okPorts.Select(x => x.ToString())._Combine(" / ") : "None");
+                        List<string> okPortsStr = new();
+                        okPorts.ForEach(x => okPortsStr.Add(x.ToString()));
+
+                        if (this.Settings.Dns)
+                        {
+                            target.DnsFound = await DnsRunningCheckerUtil.IsDnsServerRunningAsync(target.Ip.ToString(), Consts.Ports.Dns, candel: cancel);
+
+                            if (target.DnsFound)
+                            {
+                                okPortsStr.Add("[DNS_FOUND]");
+                            }
+                        }
+
+                        string portsStr = "TCP Ports: " + (anyPortOk ? okPortsStr.Select(x => x)._Combine(" / ") : "None");
                         if (usePortScan == false) portsStr = "";
 
                         if (ret._IsFilled())
@@ -5115,8 +5129,6 @@ public class DnsHostNameScanner : AsyncService
                         }
 
                         target.TcpPorts = okPorts;
-
-                        target.DnsFound = await DnsRunningCheckerUtil.IsDnsServerRunningAsync(target.Ip.ToString(), Consts.Ports.Dns, candel: cancel);
 
                         lock (AfterResult)
                         {

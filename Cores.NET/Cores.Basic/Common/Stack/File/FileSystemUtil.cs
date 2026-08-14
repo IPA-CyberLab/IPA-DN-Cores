@@ -2422,15 +2422,20 @@ public class CsvWriter<T> : AsyncService where T : notnull, new()
 
     public void WriteData(T data, bool flush, params string[] additionalStrList)
     {
-        WriteData(data, flush, additionalStrList);
+        WriteDataInternal(data, flush, additionalStrList);
     }
 
     public void WriteData(T data, IEnumerable<string>? additionalStrList)
     {
-        WriteData(data, false, additionalStrList);
+        WriteDataInternal(data, false, additionalStrList);
     }
 
     public void WriteData(T data, bool flush, IEnumerable<string>? additionalStrList)
+    {
+        WriteDataInternal(data, flush, additionalStrList);
+    }
+
+    void WriteDataInternal(T data, bool flush, IEnumerable<string>? additionalStrList)
     {
         string line = Str.ObjectDataToCsv(data, this.Rw, additionalStrList);
 

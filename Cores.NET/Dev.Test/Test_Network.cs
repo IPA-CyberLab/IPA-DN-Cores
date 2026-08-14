@@ -220,6 +220,7 @@ partial class TestDevCommands
             new ConsoleParam("fqdnorder"),
             new ConsoleParam("dest"),
             new ConsoleParam("ports"),
+            new ConsoleParam("dns"),
         };
 
         ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
@@ -233,6 +234,7 @@ partial class TestDevCommands
         bool fqdnorder = vl["fqdnorder"].StrValue._ToBool(true);
         string csv = vl["dest"].StrValue;
         string portsStr = vl["ports"].StrValue;
+        bool dns = vl["dns"].BoolValue;
 
         PortRange portRange = new PortRange(portsStr);
 
@@ -247,7 +249,7 @@ partial class TestDevCommands
         serversList._DoForEach(x => endPointsList.Add(new IPEndPoint(x._ToIPAddress()!, 53)));
 
         using DnsHostNameScanner scan = new DnsHostNameScanner(
-            settings: new DnsHostNameScannerSettings { Interval = interval, NumThreads = threads, NumTry = numtry, PrintStat = true, RandomInterval = true, Shuffle = shuffle, PrintOrderByFqdn = fqdnorder, TcpPorts = portRange.ToArray(), },
+            settings: new DnsHostNameScannerSettings { Interval = interval, Dns = dns, NumThreads = threads, NumTry = numtry, PrintStat = true, RandomInterval = true, Shuffle = shuffle, PrintOrderByFqdn = fqdnorder, TcpPorts = portRange.ToArray(), },
             dnsSettings: new DnsResolverSettings(dnsServersList: endPointsList, flags: DnsResolverFlags.UdpOnly | DnsResolverFlags.RoundRobinServers));
 
         var list = await scan.PerformAsync(subnets);
