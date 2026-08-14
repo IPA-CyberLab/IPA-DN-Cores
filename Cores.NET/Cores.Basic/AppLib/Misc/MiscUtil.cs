@@ -70,6 +70,8 @@ using System.Text.Json.Serialization;
 using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Linq;
 using System.Globalization;
+using System.Net.Sockets;
+using System.Buffers.Binary;
 
 namespace IPA.Cores.Basic;
 
@@ -4993,6 +4995,7 @@ public class DnsHostNameScannerEntry
     public List<string>? HostnameList { get; set; }
     public bool NotFound { get; set; }
     public List<int> TcpPorts { get; set; } = new List<int>();
+    public bool DnsFound { get; set; }
 }
 
 public class DnsHostNameScanner : AsyncService
@@ -5112,6 +5115,8 @@ public class DnsHostNameScanner : AsyncService
                         }
 
                         target.TcpPorts = okPorts;
+
+                        target.DnsFound = await DnsRunningCheckerUtil.IsDnsServerRunningAsync(target.Ip.ToString(), Consts.Ports.Dns, candel: cancel);
 
                         lock (AfterResult)
                         {
@@ -6774,6 +6779,469 @@ public class GitLabDownloader : AsyncService
         {
             await base.CleanupImplAsync(ex);
         }
+    }
+}
+
+public static class DnsRunningCheckerUtil
+{
+    // 2026/08/14 ChatGPT 5.6 Pro で生成
+
+    /// <summary>
+    /// 指定された IPv4 / IPv6 アドレスおよび UDP ポートで、
+    /// UDP DNS サーバーが応答するかどうかを非同期で確認します。
+    ///
+    /// www.google.com. の A レコード問い合わせを独自に組み立てて送信し、
+    /// 1 バイト以上の UDP 応答が得られれば true を返します。
+    ///
+    /// 各試行では新しい UDP ソケットを作成するため、
+    /// 送信元ポートは試行ごとに OS が割り当てる一時ポートとなります。
+    /// DNS 応答の内容自体は解析しません。
+    /// </summary>
+    /// <param name="ipAddress">
+    /// 試験対象 DNS サーバーの IPv4 または IPv6 アドレス。
+    /// FQDN ではなく IP アドレスのみを指定します。
+    /// IPv6 のスコープ ID 付きアドレスにも対応します。
+    /// </param>
+    /// <param name="port">試験対象の UDP ポート番号。既定値は 53。</param>
+    /// <param name="timeoutMsecs">
+    /// DNS 問い合わせを送信してから UDP 応答を待つ最大時間（ミリ秒）。
+    /// </param>
+    /// <param name="tryIntervalMsecs">
+    /// 失敗した試行から次の試行までの基本待機時間（ミリ秒）。
+    /// 各回ごとに -30% ～ +30% のランダムな揺らぎを加えます。
+    /// </param>
+    /// <param name="numTry">
+    /// 初回を含む最大試行回数。1 未満の場合は 1 として扱います。
+    /// </param>
+    /// <param name="candel">
+    /// 通信処理および待機処理をキャンセルするための CancellationToken。
+    /// キャンセルされた場合は false を返します。
+    /// </param>
+    /// <returns>
+    /// 1 バイト以上の UDP 応答を受信した場合 true。
+    /// 全試行が失敗した場合、またはキャンセルされた場合 false。
+    /// </returns>
+    public static async Task<bool> IsDnsServerRunningAsync(
+        string ipAddress,
+        int port = 53,
+        int timeoutMsecs = 500,
+        int tryIntervalMsecs = 200,
+        int numTry = 10,
+        CancellationToken candel = default)
+    {
+        // この関数から例外を外へ出さないという仕様のため、
+        // 引数検証も例外を投げず false とします。
+        if (string.IsNullOrWhiteSpace(ipAddress))
+        {
+            Console.WriteLine("IP address is empty.");
+            return false;
+        }
+
+        if (!IPAddress.TryParse(ipAddress, out IPAddress? serverAddress))
+        {
+            Console.WriteLine($"Invalid IP address: {ipAddress}");
+            return false;
+        }
+
+        if (port < IPEndPoint.MinPort || port > IPEndPoint.MaxPort)
+        {
+            Console.WriteLine($"Invalid UDP port: {port}");
+            return false;
+        }
+
+        // 負数を Task.Delay や CancelAfter に渡さないよう補正します。
+        if (timeoutMsecs < 0)
+        {
+            timeoutMsecs = 0;
+        }
+
+        if (tryIntervalMsecs < 0)
+        {
+            tryIntervalMsecs = 0;
+        }
+
+        // 仕様により 1 未満は 1 回とします。
+        numTry = Math.Max(1, numTry);
+
+        IPEndPoint remoteEndPoint = new(serverAddress, port);
+
+        for (int attempt = 0; attempt < numTry; attempt++)
+        {
+            // キャンセル済みの場合も例外を外へ出さず終了します。
+            if (candel.IsCancellationRequested)
+            {
+                //Console.WriteLine("The operation was canceled.");
+                return false;
+            }
+
+            try
+            {
+                /*
+                 * 試行ごとに必ず新しいソケットを生成します。
+                 *
+                 * AddressFamily.InterNetwork  : IPv4
+                 * AddressFamily.InterNetworkV6: IPv6
+                 *
+                 * SocketType.Dgram + ProtocolType.Udp により UDP 通信を行います。
+                 */
+                using Socket socket = new(
+                    serverAddress.AddressFamily,
+                    SocketType.Dgram,
+                    ProtocolType.Udp);
+
+                /*
+                 * 明示的にポート 0 へ Bind することで、
+                 * OS に一時的な送信元 UDP ポートを割り当てさせます。
+                 *
+                 * ソケット自体を試行ごとに作り直しているため、
+                 * 各試行は独立した一時ポートを使用します。
+                 */
+                EndPoint localEndPoint =
+                    serverAddress.AddressFamily == AddressFamily.InterNetwork
+                        ? new IPEndPoint(IPAddress.Any, 0)
+                        : new IPEndPoint(IPAddress.IPv6Any, 0);
+
+                socket.Bind(localEndPoint);
+
+                /*
+                 * DNS Transaction ID を試行ごとに暗号学的乱数から生成します。
+                 * Random.Shared でも用途上問題ありませんが、
+                 * RandomNumberGenerator を使えば他の並列呼び出し等も含め、
+                 * 独立した 16 bit 値を簡潔に生成できます。
+                 */
+                ushort transactionId =
+                    (ushort)RandomNumberGenerator.GetInt32(0, 65536);
+
+                byte[] queryPacket = BuildDnsQueryPacket(transactionId);
+
+                /*
+                 * SendToAsync の CancellationToken 対応オーバーロードを利用します。
+                 * DNS API（Dns.GetHostEntry 等）は一切使用していません。
+                 */
+                await socket.SendToAsync(
+                    queryPacket.AsMemory(),
+                    SocketFlags.None,
+                    remoteEndPoint,
+                    candel);
+
+                /*
+                 * DNS の UDP 応答は通常 512 バイト以上になる可能性もあるため、
+                 * 十分大きな受信バッファを確保します。
+                 *
+                 * 今回は内容を解析しないため、
+                 * 実際には 1 バイト以上受信できれば成功です。
+                 */
+                byte[] receiveBuffer = new byte[65535];
+
+                /*
+                 * ReceiveFromAsync には送信元 EndPoint を受け取るための
+                 * ダミー EndPoint が必要です。
+                 *
+                 * IPv4/IPv6 のアドレスファミリを送信先に合わせます。
+                 */
+                EndPoint responseEndPoint =
+                    serverAddress.AddressFamily == AddressFamily.InterNetwork
+                        ? new IPEndPoint(IPAddress.Any, 0)
+                        : new IPEndPoint(IPAddress.IPv6Any, 0);
+
+                /*
+                 * 呼び出し元のキャンセルと受信タイムアウトの双方で
+                 * ReceiveFromAsync を停止できるよう、
+                 * linked CancellationTokenSource を作成します。
+                 */
+                using CancellationTokenSource timeoutCancellation =
+                    CancellationTokenSource.CreateLinkedTokenSource(candel);
+
+                /*
+                 * timeoutMsecs == 0 の場合も直ちにタイムアウトさせます。
+                 */
+                timeoutCancellation.CancelAfter(timeoutMsecs);
+
+                try
+                {
+                    SocketReceiveFromResult receiveResult =
+                        await socket.ReceiveFromAsync(
+                            receiveBuffer.AsMemory(),
+                            SocketFlags.None,
+                            responseEndPoint,
+                            timeoutCancellation.Token);
+
+                    /*
+                     * 判断基準は DNS パケットとして正しいかどうかではなく、
+                     * 「1 バイト以上の UDP ペイロードを受け取ったか」です。
+                     */
+                    if (receiveResult.ReceivedBytes >= 1)
+                    {
+                        return true;
+                    }
+                }
+                catch (OperationCanceledException ex)
+                {
+                    /*
+                     * 呼び出し元 CancellationToken によるキャンセルなら、
+                     * 再試行せず関数全体を終了します。
+                     *
+                     * timeoutCancellation の CancelAfter によるものなら
+                     * この試行のみ失敗として次の試行へ進みます。
+                     */
+                    //Console.WriteLine(ex.Message);
+
+                    if (candel.IsCancellationRequested)
+                    {
+                        return false;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    /*
+                     * UDP では、OS によっては ICMP Port Unreachable 等が
+                     * SocketException として ReceiveFromAsync から通知されます。
+                     *
+                     * 仕様に従い、その場合も今回の試行を失敗として扱います。
+                     */
+                    //Console.WriteLine(ex.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                /*
+                 * ソケット作成、Bind、SendToAsync 等を含め、
+                 * 各試行中に発生した例外をすべてここで捕捉します。
+                 *
+                 * この関数から例外は外へ送出しません。
+                 */
+                Console.WriteLine(ex.Message);
+
+                if (candel.IsCancellationRequested)
+                {
+                    return false;
+                }
+            }
+
+            /*
+             * 最終試行後には再試行待ち時間は不要です。
+             */
+            if (attempt + 1 >= numTry)
+            {
+                break;
+            }
+
+            /*
+             * tryIntervalMsecs を -30% ～ +30% の範囲で毎回ランダムに揺らします。
+             *
+             * 例:
+             *   200 ms -> 140 ～ 260 ms
+             *
+             * RandomNumberGenerator.GetInt32 の上限は排他的なので、
+             * double を使わず整数演算で ±30% を算出しています。
+             */
+            int delayMsecs = GetRandomizedTryInterval(tryIntervalMsecs);
+
+            try
+            {
+                await Task.Delay(delayMsecs, candel);
+            }
+            catch (Exception ex)
+            {
+                /*
+                 * Task.Delay 中のキャンセルを含む例外も外へ出しません。
+                 */
+                //Console.WriteLine(ex.Message);
+
+                if (candel.IsCancellationRequested)
+                {
+                    return false;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// www.google.com. の A レコードを問い合わせる DNS Query パケットを生成します。
+    ///
+    /// DNS API は使用せず、RFC 形式のバイト列を直接組み立てます。
+    /// </summary>
+    /// <param name="transactionId">
+    /// DNS ヘッダーへ設定する 16 bit Transaction ID。
+    /// </param>
+    /// <returns>送信可能な DNS Query UDP ペイロード。</returns>
+    private static byte[] BuildDnsQueryPacket(ushort transactionId)
+    {
+        /*
+         * DNS Query:
+         *
+         * Header: 12 bytes
+         *
+         * Transaction ID : 2
+         * Flags          : 2
+         * QDCOUNT        : 2
+         * ANCOUNT        : 2
+         * NSCOUNT        : 2
+         * ARCOUNT        : 2
+         *
+         * QNAME:
+         *   3 "www"
+         *   6 "google"
+         *   3 "com"
+         *   0
+         *
+         * QTYPE  : 2 (A = 1)
+         * QCLASS : 2 (IN = 1)
+         *
+         * QNAME サイズ:
+         *   1+3 + 1+6 + 1+3 + 1 = 16
+         *
+         * 合計:
+         *   12 + 16 + 2 + 2 = 32 bytes
+         */
+        byte[] packet = new byte[32];
+        Span<byte> span = packet.AsSpan();
+
+        // Transaction ID
+        BinaryPrimitives.WriteUInt16BigEndian(
+            span.Slice(0, 2),
+            transactionId);
+
+        /*
+         * Flags = 0x0100
+         *
+         * QR     = 0 : Query
+         * Opcode = 0 : Standard Query
+         * AA     = 0
+         * TC     = 0
+         * RD     = 1 : Recursion Desired
+         * RA     = 0
+         * Z      = 0
+         * RCODE  = 0
+         */
+        BinaryPrimitives.WriteUInt16BigEndian(
+            span.Slice(2, 2),
+            0x0100);
+
+        // QDCOUNT = 1
+        BinaryPrimitives.WriteUInt16BigEndian(
+            span.Slice(4, 2),
+            1);
+
+        // ANCOUNT = 0
+        BinaryPrimitives.WriteUInt16BigEndian(
+            span.Slice(6, 2),
+            0);
+
+        // NSCOUNT = 0
+        BinaryPrimitives.WriteUInt16BigEndian(
+            span.Slice(8, 2),
+            0);
+
+        // ARCOUNT = 0
+        BinaryPrimitives.WriteUInt16BigEndian(
+            span.Slice(10, 2),
+            0);
+
+        int offset = 12;
+
+        /*
+         * QNAME = www.google.com.
+         *
+         * DNS 名は通常の文字列ではなく、
+         * 各ラベルの先頭にラベル長を置く形式です。
+         *
+         * 03 'w' 'w' 'w'
+         * 06 'g' 'o' 'o' 'g' 'l' 'e'
+         * 03 'c' 'o' 'm'
+         * 00
+         */
+
+        packet[offset++] = 3;
+        packet[offset++] = (byte)'w';
+        packet[offset++] = (byte)'w';
+        packet[offset++] = (byte)'w';
+
+        packet[offset++] = 6;
+        packet[offset++] = (byte)'g';
+        packet[offset++] = (byte)'o';
+        packet[offset++] = (byte)'o';
+        packet[offset++] = (byte)'g';
+        packet[offset++] = (byte)'l';
+        packet[offset++] = (byte)'e';
+
+        packet[offset++] = 3;
+        packet[offset++] = (byte)'c';
+        packet[offset++] = (byte)'o';
+        packet[offset++] = (byte)'m';
+
+        // QNAME 終端
+        packet[offset++] = 0;
+
+        // QTYPE = 1 = A
+        BinaryPrimitives.WriteUInt16BigEndian(
+            span.Slice(offset, 2),
+            1);
+        offset += 2;
+
+        // QCLASS = 1 = IN (Internet)
+        BinaryPrimitives.WriteUInt16BigEndian(
+            span.Slice(offset, 2),
+            1);
+
+        return packet;
+    }
+
+    /// <summary>
+    /// 再試行間隔を -30% ～ +30% の範囲でランダム化します。
+    /// </summary>
+    /// <param name="baseIntervalMsecs">
+    /// 揺らぎを加える前の基本待機時間（ミリ秒）。
+    /// </param>
+    /// <returns>
+    /// ランダム化された 0 以上の待機時間（ミリ秒）。
+    /// </returns>
+    private static int GetRandomizedTryInterval(int baseIntervalMsecs)
+    {
+        if (baseIntervalMsecs <= 0)
+        {
+            return 0;
+        }
+
+        /*
+         * ±30% を求めます。
+         *
+         * long に変換して計算することで、
+         * 大きな int 値でも baseIntervalMsecs * 30 の
+         * int オーバーフローを防止します。
+         */
+        long variation =
+            ((long)baseIntervalMsecs * 30L) / 100L;
+
+        long minimum = Math.Max(
+            0L,
+            (long)baseIntervalMsecs - variation);
+
+        long maximum = Math.Min(
+            int.MaxValue,
+            (long)baseIntervalMsecs + variation);
+
+        if (minimum >= maximum)
+        {
+            return (int)minimum;
+        }
+
+        /*
+         * RandomNumberGenerator.GetInt32() は int の範囲しか扱えず、
+         * maxValue が排他的で int.MaxValue + 1 を表現できないため、
+         * 0 ～ 1,000,000 の乱数を使って long 範囲へ写像します。
+         */
+        int randomValue =
+            RandomNumberGenerator.GetInt32(0, 1_000_001);
+
+        long range = maximum - minimum;
+
+        long result =
+            minimum + ((range * randomValue) / 1_000_000L);
+
+        return (int)Math.Clamp(result, 0L, int.MaxValue);
     }
 }
 

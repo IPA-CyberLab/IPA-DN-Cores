@@ -78,6 +78,7 @@ partial class TestDevCommands
         public string FqdnSortKey = "";
         public string FqdnList = "";
         public string TcpPortList = "";
+        public string DnsFound = "";
     }
 
 
@@ -266,6 +267,7 @@ partial class TestDevCommands
                     r.FqdnSortKey = Str.ReverseFqdnStr(item.HostnameList.First()).ToLowerInvariant();
                     r.FqdnList = item.HostnameList._Combine(" / ");
                     r.TcpPortList = item.TcpPorts.Select(x => x.ToString())._Combine(" / ");
+                    r.DnsFound = item.DnsFound ? "[DNS_FOUND]" : "";
 
                     csvWriter.WriteData(r);
                 }

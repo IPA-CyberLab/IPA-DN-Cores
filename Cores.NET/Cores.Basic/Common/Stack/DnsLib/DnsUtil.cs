@@ -2951,7 +2951,7 @@ public class EasyDnsResponder
 
                 this.CurrentDataSet = dataSet;
 
-                ZoneVersionsDict._PrintAsJson();
+                //ZoneVersionsDict._PrintAsJson();
             }
         }
     }

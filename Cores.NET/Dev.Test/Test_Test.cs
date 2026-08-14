@@ -5778,6 +5778,25 @@ HOST: www.google.com
     {
         if (true)
         {
+            while (true)
+            {
+                string line = Con.ReadLine("?>")!;
+
+                try
+                {
+                    bool ret = DnsRunningCheckerUtil.IsDnsServerRunningAsync(line)._GetResult();
+
+                    Con.WriteLine(ret.ToString());
+                }
+                catch (Exception ex)
+                {
+                    ex._Error();
+                }
+            }
+        }
+
+        if (true)
+        {
             Test_MakeDnRdpSignCerts_260608();
             return;
         }
