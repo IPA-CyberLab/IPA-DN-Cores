@@ -78,6 +78,7 @@ partial class TestDevCommands
         public string FqdnSortKey = "";
         public string FqdnList = "";
         public string TcpPortList = "";
+        public string DnsFound = "";
     }
 
 
@@ -219,6 +220,7 @@ partial class TestDevCommands
             new ConsoleParam("fqdnorder"),
             new ConsoleParam("dest"),
             new ConsoleParam("ports"),
+            new ConsoleParam("dns"),
         };
 
         ConsoleParamValueList vl = c.ParseCommandList(cmdName, str, args);
@@ -232,6 +234,7 @@ partial class TestDevCommands
         bool fqdnorder = vl["fqdnorder"].StrValue._ToBool(true);
         string csv = vl["dest"].StrValue;
         string portsStr = vl["ports"].StrValue;
+        bool dns = vl["dns"].BoolValue;
 
         PortRange portRange = new PortRange(portsStr);
 
@@ -246,7 +249,7 @@ partial class TestDevCommands
         serversList._DoForEach(x => endPointsList.Add(new IPEndPoint(x._ToIPAddress()!, 53)));
 
         using DnsHostNameScanner scan = new DnsHostNameScanner(
-            settings: new DnsHostNameScannerSettings { Interval = interval, NumThreads = threads, NumTry = numtry, PrintStat = true, RandomInterval = true, Shuffle = shuffle, PrintOrderByFqdn = fqdnorder, TcpPorts = portRange.ToArray(), },
+            settings: new DnsHostNameScannerSettings { Interval = interval, Dns = dns, NumThreads = threads, NumTry = numtry, PrintStat = true, RandomInterval = true, Shuffle = shuffle, PrintOrderByFqdn = fqdnorder, TcpPorts = portRange.ToArray(), },
             dnsSettings: new DnsResolverSettings(dnsServersList: endPointsList, flags: DnsResolverFlags.UdpOnly | DnsResolverFlags.RoundRobinServers));
 
         var list = await scan.PerformAsync(subnets);
@@ -266,6 +269,7 @@ partial class TestDevCommands
                     r.FqdnSortKey = Str.ReverseFqdnStr(item.HostnameList.First()).ToLowerInvariant();
                     r.FqdnList = item.HostnameList._Combine(" / ");
                     r.TcpPortList = item.TcpPorts.Select(x => x.ToString())._Combine(" / ");
+                    r.DnsFound = item.DnsFound ? "[DNS_FOUND]" : "";
 
                     csvWriter.WriteData(r);
                 }
@@ -505,7 +509,7 @@ partial class TestDevCommands
             {
                 var lines = await MiscUtil.ReadIncludesFileLinesAsync(includeFile, new ExpandIncludesSettings { MaxIncludes = 128 });
 
-                foreach (var line in lines.Select(x => x._StripCommentFromLine()).Where(x => x._IsFilled()))
+                foreach (var line in lines.Select(x => x.LineStr._StripCommentFromLine()).Where(x => x._IsFilled()))
                 {
                     string[] tokens = line._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, ' ', '　', '\t', ',');
 

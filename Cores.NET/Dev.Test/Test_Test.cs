@@ -4067,10 +4067,10 @@ cccadmin
             return;
         }
 
-        Async(async () =>
-        {
-            await MiscUtil.ExpandIncludesToStrAsync("#include https://open_se:xqwZ5MdqDHVbgcvv@git-cloudmirror-static.fed.open.ad.jp/d/fed_share_fed-open-se-netadmin/auth/Pinger/11_OPEN_v4v6.config!18E6D1233CC1983884FAAC1F3F9FE146B15751E3C9E4D53CF67622AC357A7517");
-        });
+        //Async(async () =>
+        //{
+        //    await MiscUtil.ExpandIncludesToStrAsync("#include https://open_se:xqwZ5MdqDHVbgcvv@git-cloudmirror-static.fed.open.ad.jp/d/fed_share_fed-open-se-netadmin/auth/Pinger/11_OPEN_v4v6.config!18E6D1233CC1983884FAAC1F3F9FE146B15751E3C9E4D53CF67622AC357A7517");
+        //});
 
         return;
         Async(async () =>
@@ -5776,6 +5776,25 @@ HOST: www.google.com
 
     public static void Test_Generic()
     {
+        if (true)
+        {
+            while (true)
+            {
+                string line = Con.ReadLine("?>")!;
+
+                try
+                {
+                    bool ret = DnsRunningCheckerUtil.IsDnsServerRunningAsync(line)._GetResult();
+
+                    Con.WriteLine(ret.ToString());
+                }
+                catch (Exception ex)
+                {
+                    ex._Error();
+                }
+            }
+        }
+
         if (true)
         {
             Test_MakeDnRdpSignCerts_260608();

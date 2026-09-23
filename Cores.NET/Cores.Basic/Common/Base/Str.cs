@@ -9152,6 +9152,41 @@ namespace IPA.Cores.Basic
             return a.ToArray();
         }
 
+        // ファイルパスまたは URL からファイル名を頑張って取得
+        public static string GetFileNameFromPathOrUrl(string pathOrUrl)
+        {
+            try
+            {
+                pathOrUrl = pathOrUrl._NonNullTrim();
+
+                pathOrUrl = pathOrUrl._ReplaceStr(@"\", "/");
+
+                int i = pathOrUrl.IndexOf("#");
+                if (i != -1)
+                {
+                    pathOrUrl = pathOrUrl.Substring(0, i);
+                }
+
+                i = pathOrUrl.IndexOf("?");
+                if (i != -1)
+                {
+                    pathOrUrl = pathOrUrl.Substring(0, i);
+                }
+
+                pathOrUrl.TrimEnd('/');
+
+                pathOrUrl = pathOrUrl._NonNullTrim();
+
+                if (pathOrUrl._IsEmpty()) return "";
+
+                return PathParser.Mac.GetFileName(pathOrUrl);
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
         // 複数行をテキストに変換する
         public static string LinesToStr(IEnumerable<string> lines, string? newLineStr = null)
         {
