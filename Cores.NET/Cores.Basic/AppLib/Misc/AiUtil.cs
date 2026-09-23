@@ -67,6 +67,9 @@ using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Linq;
 using IPA.Cores.Basic.HttpClientCore;
 using System.Net;
+using NAudio.Dsp;
+using System.Collections.ObjectModel;
+using System.Security.Cryptography;
 
 namespace IPA.Cores.Basic;
 
@@ -351,6 +354,20 @@ public class AiTask
         checked
         {
             await using (var reader = new WaveFileReader(wavFilePath))
+            {
+                return (int)reader.TotalTime.TotalMilliseconds;
+            }
+        }
+    }
+
+    public static async Task<int> GetWavFileLengthMSecAsync(Memory<byte> wavData)
+    {
+        checked
+        {
+            await using var ms = wavData._ToMemoryStream();
+            ms._SeekToBegin();
+
+            await using (var reader = new WaveFileReader(ms))
             {
                 return (int)reader.TotalTime.TotalMilliseconds;
             }
@@ -3663,6 +3680,51 @@ public class AiUtilFishAudioS2ProEngine : AiUtilFishAudioEngine
 
     public AiUtilFishAudioS2ProEngine(AiUtilBasicSettings settings, FfMpegUtil ffMpeg) : base(settings, ffMpeg)
     {
+    }
+
+    // 音声合成
+    protected override async Task<byte[]> TextBlockToWavAsync(string text, int speakerId, CancellationToken cancel = default)
+    {
+        List<byte[]> resultList = new();
+        int numTextLen = AiUtilVoiceVoxEngine.GetStrLenWithoutTagAndSpace(text);
+
+        for (int i = 0; ;i++)
+        {
+            try
+            {
+                Con.WriteLine($"TryLoop #{i} for 「{text}」 (speakerId = {speakerId})");
+                var wavSrc = await TextBlockToWavSingleAsync(text, speakerId, cancel);
+
+                // 長さの検証
+                double wavSecs = ((double)(await AiTask.GetWavFileLengthMSecAsync(wavSrc))) / 1000.0;
+                double minSecs = (double)numTextLen / 100.0 * 10.0;
+                double maxSecs = Math.Max((double)numTextLen, 10.0) / 100.0 * 40.0;
+
+                if (((wavSecs + 1.0) < minSecs) || ((wavSecs - 1.0) > maxSecs))
+                {
+                    throw new CoresException($"Result wave lenght is too long or too short: wavSecs = {wavSecs:F2}, minSecs = {minSecs:F2}, maxSecs = {maxSecs:F2}");
+                }
+
+                if (wavSecs >= 1.6)
+                {
+                    // 破たん検証
+                    if (AiInternalAudioUtil_WavFailureDetector.IsValidTtsWav(wavSrc) == false)
+                    {
+                        throw new CoresException("WavFailureDetector Error");
+                    }
+
+                    // ブランクトリム
+                    wavSrc = AiInternalAudioUtil_WavBlankTrimmer.TrimBlankMain(wavSrc);
+                }
+
+                return wavSrc;
+            }
+            catch (Exception ex)
+            {
+                ex._Error();
+                continue;
+            }
+        }
     }
 
     protected override async Task<byte[]> TextBlockToWavSingleAsync(string text, int speakerId, CancellationToken cancel = default)
@@ -11434,6 +11496,1738 @@ public class AiAudioEffect_15_SidechainPumping : AiAudioEffectBase
 
 
 
+
+public static class AiInternalAudioUtil_WavFailureDetector
+{
+    /*
+DNNT 260918_QHUN72 Fish Audio 生成結果 wav 破たん検出プログラム生成 by ChatGPT Pro 6
+
+目的:
+  Fish Audio S2 Pro の短い TTS 出力に混入する、持続する非発話的な雑音型破綻を検出する。
+  a = 本検出器の破綻条件を検出しなかった / b = 破綻条件を検出した。
+  a は「日本語の内容、声質、読み、全種類の音響品質が正しい」という保証ではない。
+
+動作原理 (ルール版: stationary-noise-1):
+  NAudio 2.2.1 の WaveFileReader で読み、NAudio.Dsp.FastFourierTransform で解析する。
+  元の標本化周波数のまま 32 ms Hann 窓、10 ms 間隔の FFT を計算する。
+  80 Hz ～ min(7600 Hz, 標本化周波数の 47.5%) を 24 個の mel 間隔帯域に集約する。
+  音量を除いた対数スペクトル包絡が約 1.5 秒間ほぼ静止していることと、
+  FFT の細かな成分が雑音的に揺らぐことを同時に要求する。無声・低音量だけで b にしない。
+  左右は混ぜず独立解析する。全体として極端に小さい側のチャンネルは判定から除く。
+  ファイル名、親ディレクトリ、話者 ID、ハッシュ、長さそのものによる a/b 判定はしない。
+
+入出力:
+  引数 1 個: <input.wav>                 標準出力に a または b だけを 1 行出力。
+  --json <input.wav>                     診断情報を JSON 出力。
+  --verify <ok と fail を含むルート>       各 WAV の期待ラベルと比較する回帰試験。
+  --self-test                            合成信号・WAV 形式・異常入力の自己試験。
+  通常終了コード: a=0 / b=1 / 検証不能・例外=2。
+  --verify と --self-test: 全件成功=0 / 実行・入力エラー=2 / 結果不一致=3。
+  例外時は標準エラーに理由を出し、a/b を標準出力に出さない。入力を書き換えない。
+
+対応:
+  .NET 6 / C# 10。追加参照は NAudio 2.2.1 だけ。最上位レベルのステートメントは不使用。
+  Windows / Linux / macOS のマネージド処理のみ。再生、GPU、ASR、外部モデル、通信は不要。
+  RIFF/WAVE とサイズ拡張表のない RF64/WAVE、1 または 2 チャンネル、8,000～384,000 Hz。
+  PCM unsigned 8 bit / signed 16,24,32 bit、IEEE float 32,64 bit。
+  WAVE_FORMAT_EXTENSIBLE の PCM / IEEE float GUID と valid bits を検査する。
+  PCM の valid bits < container bits は、WAVE 仕様どおり左詰めとして読む。
+  WAVE64、RIFX、圧縮 WAV、3 ch 以上、未対応形式は例外にする。
+  保護上限はファイル 1 GiB / 音声 600 秒。全サンプルの有限性・データ長を検査する。
+
+注意:
+  150 個の完全なフレームが必要なので、必要時間は概ね 1.522 秒。短すぎる入力、
+  全無音、直流だけの入力は AudioValidationException。pause 部分だけの WAV も同様。
+  持続区間が短い破綻、誤読、声色だけの異常、純音だけの異常は検出対象外になり得る。
+  長く同じ音を伸ばす息・摩擦音・効果音も、条件が重なると b になり得る。
+  スコアは確率ではない。独立した多数の正常例で誤検出率を測定してから運用すること。
+  同梱報告の数値試験は参照実装によるもの。作成環境に .NET SDK がないため、
+  この C# ソースのビルド・実行・各 OS 実機試験は未実施。--self-test / --verify で確認する。
+
+再利用:
+  WavFailureDetector.DetectFile(path)          読み込みから判定まで。
+  WavFailureDetector.ClassifyFile(path)        "a" / "b" だけ取得。
+  WavFailureDetector.ExtractFeatures(path)     読み込み・音響特徴抽出だけ。
+  WavFailureDetector.Classify(features)        I/O のない判定だけ。
+  公開 API は例外を握りつぶさない。各呼び出しの状態は独立しており並列呼び出し可能。
+*/
+
+    public static bool IsValidTtsWav(Span<byte> wavData)
+    {
+        var result = WavFailureDetector.DetectFile(wavData._ToMemoryStream());
+
+        return result.Label._IsSamei("A");
+    }
+
+    /// <summary>有効な分析時間や交流音声成分が足りず、a/b を判定できない場合の例外。</summary>
+    public sealed class AudioValidationException : Exception
+    {
+        /// <summary>検証不能の理由を指定する。</summary>
+        /// <param name="message">呼び出し側に通知する理由。</param>
+        public AudioValidationException(string message) : base(message) { }
+    }
+
+    /// <summary>WAV の物理形式。ビット数はビットレートではなく 1 サンプルのコンテナ精度。</summary>
+    /// <param name="Container">RIFF または RF64。</param>
+    /// <param name="Encoding">PCM または IEEE_FLOAT。</param>
+    /// <param name="SampleRate">標本化周波数、Hz。</param>
+    /// <param name="ChannelCount">チャンネル数。</param>
+    /// <param name="BitsPerSample">コンテナのビット数。</param>
+    /// <param name="ValidBitsPerSample">有効ビット数。</param>
+    /// <param name="SampleFrames">全チャンネルを一組とするサンプルフレーム数。</param>
+    /// <param name="DurationSeconds">音声データの長さ、秒。</param>
+    public sealed record AudioFormatInfo(string Container, string Encoding, int SampleRate,
+        int ChannelCount, int BitsPerSample, int ValidBitsPerSample, long SampleFrames,
+        double DurationSeconds);
+
+    /// <summary>約 1.5 秒の窓の特徴。各値の定義はヘッダおよび同梱説明を参照。</summary>
+    /// <param name="ChannelIndex">0 始まりのチャンネル番号。</param>
+    /// <param name="StartSeconds">窓の先頭、秒。</param>
+    /// <param name="EndSeconds">最後の FFT フレームの終端、秒。</param>
+    /// <param name="ActiveFraction">基準 RMS の 4% 以上のフレーム比率。</param>
+    /// <param name="EnvelopeVariation">対数帯域比率の標準偏差を 24 帯域で平均した値。</param>
+    /// <param name="LongLagDistance">400 ms 離れた対数包絡の RMS 距離の中央値。</param>
+    /// <param name="FineSpectralFlux">隣接フレームの正規化振幅スペクトル距離の中央値。</param>
+    /// <param name="SpectralEntropy">正規化パワースペクトルのエントロピーの中央値。</param>
+    /// <param name="HasStatistics">統計を計算できるだけの有効なフレーム対があるか。</param>
+    public sealed record WindowFeatures(int ChannelIndex, double StartSeconds, double EndSeconds,
+        double ActiveFraction, double EnvelopeVariation, double LongLagDistance,
+        double FineSpectralFlux, double SpectralEntropy, bool HasStatistics);
+
+    /// <summary>1 チャンネル分の抽出結果。音声サンプル自体は保持しない。</summary>
+    public sealed class ChannelFeatures
+    {
+        /// <summary>0 始まりのチャンネル番号。</summary>
+        public int ChannelIndex { get; }
+        /// <summary>ほぼ無音のフレームを除いた RMS の 95 パーセンタイル。</summary>
+        public double ReferenceRms { get; }
+        /// <summary>全解析フレームにおける最大 RMS。</summary>
+        public double MaximumFrameRms { get; }
+        /// <summary>基準 RMS の 4% 以上の解析フレーム数。</summary>
+        public int ActiveFrameCount { get; }
+        /// <summary>走査した約 1.5 秒窓の読み取り専用一覧。</summary>
+        public IReadOnlyList<WindowFeatures> Windows { get; }
+
+        /// <summary>抽出器で作成する。一覧を複製し、呼び出し後の変更を防止する。</summary>
+        internal ChannelFeatures(int channelIndex, double referenceRms, double maximumFrameRms,
+            int activeFrameCount, List<WindowFeatures> windows)
+        {
+            ChannelIndex = channelIndex;
+            ReferenceRms = referenceRms;
+            MaximumFrameRms = maximumFrameRms;
+            ActiveFrameCount = activeFrameCount;
+            Windows = Array.AsReadOnly(windows.ToArray());
+        }
+    }
+
+    /// <summary>読み込み・特徴抽出と判定を分離するための変更不可データ。</summary>
+    public sealed class AudioFeatures
+    {
+        /// <summary>特徴定義の互換性を識別するバージョン。</summary>
+        public string FeatureVersion { get; }
+        /// <summary>元 WAV の形式。</summary>
+        public AudioFormatInfo Format { get; }
+        /// <summary>各チャンネル共通の完全な FFT フレーム数。</summary>
+        public int AnalysisFrameCount { get; }
+        /// <summary>チャンネル別の特徴。</summary>
+        public IReadOnlyList<ChannelFeatures> Channels { get; }
+
+        /// <summary>抽出済みデータを変更不可の形で格納する。</summary>
+        internal AudioFeatures(AudioFormatInfo format, int analysisFrameCount,
+            List<ChannelFeatures> channels)
+        {
+            FeatureVersion = WavFailureDetector.RuleVersion;
+            Format = format;
+            AnalysisFrameCount = analysisFrameCount;
+            Channels = Array.AsReadOnly(channels.ToArray());
+        }
+    }
+
+    /// <summary>判定結果。DecisionScore は確率や校正済みの信頼度ではない。</summary>
+    /// <param name="Label">a=条件未検出、b=条件検出。</param>
+    /// <param name="DecisionScore">全採用チャンネル・全窓で最大の条件比スコア。</param>
+    /// <param name="Threshold">判定境界。標準は 1。</param>
+    /// <param name="RuleVersion">特徴およびルールのバージョン。</param>
+    /// <param name="Format">入力形式。</param>
+    /// <param name="StrongestWindow">最大スコアの区間。統計を得られなければ null。</param>
+    /// <param name="IgnoredChannels">全体的に極端に小さいため採用しなかったチャンネル。</param>
+    /// <param name="Reason">判定の意味を説明する短い文字列。</param>
+    public sealed record DetectionResult(string Label, double DecisionScore, double Threshold,
+        string RuleVersion, AudioFormatInfo Format, WindowFeatures? StrongestWindow,
+        IReadOnlyList<int> IgnoredChannels, string Reason);
+
+    /// <summary>NAudio による入力と特徴抽出、自作の持続雑音検出ルールを提供する。</summary>
+    public static class WavFailureDetector
+    {
+        /// <summary>同梱試験と対応する特徴・ルール版。</summary>
+        public const string RuleVersion = "stationary-noise-1";
+        /// <summary>入力サイズの保護上限。音声の分類特徴ではない。</summary>
+        public const long MaximumFileBytes = 1L << 30;
+        /// <summary>短文 TTS 用の処理時間・メモリ保護上限、秒。</summary>
+        public const double MaximumDurationSeconds = 600.0;
+        /// <summary>標準の a/b 境界。スコアは確率ではない。</summary>
+        public const double DefaultThreshold = 1.0;
+
+        private const int BandCount = 24;
+        private const int WindowFrames = 150;
+        private const int WindowStepFrames = 10;
+        private const int LagFrames = 40;
+        private const double RelativeActiveFloor = 0.04;
+        private const double RelativeChannelFloor = 0.01;
+        private static readonly Guid PcmSubtype = new Guid("00000001-0000-0010-8000-00aa00389b71");
+        private static readonly Guid FloatSubtype = new Guid("00000003-0000-0010-8000-00aa00389b71");
+
+        /// <summary>1 個の WAV を検査する。入力を変更せず、失敗は例外として通知する。</summary>
+        /// <param name="path">WAV のファイル名。名前や親ディレクトリは判定に使用しない。</param>
+        /// <returns>ラベル、スコア、最も強い区間など。</returns>
+        public static DetectionResult DetectFile(Stream stream)
+        {
+            return Classify(ExtractFeatures(stream));
+        }
+
+        /// <summary>1 個の WAV のラベルだけを返す、再利用用の簡易関数。</summary>
+        /// <param name="path">検査するファイル名。</param>
+        /// <returns>"a" または "b"。検証不能の場合は例外。</returns>
+        public static string ClassifyFile(Stream stream)
+        {
+            return DetectFile(stream).Label;
+        }
+
+        /// <summary>WAV 全体を読み、形式検査と特徴抽出を行う。判定は行わない。</summary>
+        /// <param name="path">読み込むファイル名。</param>
+        /// <returns>音声サンプルを保持しない、変更不可の抽出結果。</returns>
+        public static AudioFeatures ExtractFeatures(Stream stream)
+        {
+            //if (string.IsNullOrWhiteSpace(path))
+            //    throw new ArgumentException("WAV のファイル名を指定してください。", nameof(path));
+
+            //using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read,
+            //    65536, FileOptions.SequentialScan);
+            //if (stream.Length > MaximumFileBytes)
+            //    throw new NotSupportedException("保護上限の 1 GiB を超える WAV です。");
+
+            RiffInfo riff = AuditContainer(stream);
+            stream.Position = 0;
+            // WaveFileReader(Stream) は渡したストリームの所有権を取らない。
+            using var reader = new WaveFileReader(stream);
+            SampleFormat sampleFormat = InspectFormat(reader.WaveFormat);
+            int rate = reader.WaveFormat.SampleRate;
+            int channels = reader.WaveFormat.Channels;
+            int blockAlign = reader.WaveFormat.BlockAlign;
+            if (reader.Length != riff.DataBytes || stream.Position != riff.DataStart)
+                throw new InvalidDataException("NAudio の data チャンク解釈と構造検査が一致しません。");
+            if (reader.Length == 0 || reader.Length % blockAlign != 0)
+                throw new InvalidDataException("data チャンクが空、またはサンプル境界で終わっていません。");
+
+            long sampleFrames = reader.Length / blockAlign;
+            double duration = (double)sampleFrames / rate;
+            if (duration > MaximumDurationSeconds)
+                throw new NotSupportedException("保護上限の 600 秒を超える WAV です。");
+            int frameLength = (int)Math.Floor(rate * 0.032 + 0.5);
+            long minimumSamples = (long)(WindowFrames - 1) * rate / 100 + frameLength;
+            if (sampleFrames < minimumSamples)
+                throw new AudioValidationException("持続判定には約 1.522 秒以上の音声が必要です。");
+
+            var plan = new SpectrumPlan(rate, frameLength);
+            var rings = new double[channels][];
+            var frameLists = new List<FrameData>[channels];
+            var previousSpectra = new double[channels][];
+            int estimatedFrames = (int)Math.Min(60002, sampleFrames * 100 / rate);
+            for (int c = 0; c < channels; c++)
+            {
+                rings[c] = new double[frameLength];
+                frameLists[c] = new List<FrameData>(estimatedFrames);
+                previousSpectra[c] = new double[plan.SpectrumBins];
+            }
+
+            // 元波形全体は保持しない。32 ms のリングバッファと特徴だけを保存する。
+            byte[] buffer = new byte[4096 * blockAlign];
+            long remaining = reader.Length;
+            long samplesSeen = 0;
+            int ringPosition = 0;
+            int frameIndex = 0;
+            long nextFrameEnd = frameLength;
+            while (remaining > 0)
+            {
+                int requested = (int)Math.Min(buffer.Length, remaining);
+                int obtained = reader.Read(buffer, 0, requested);
+                if (obtained <= 0 || obtained % blockAlign != 0)
+                    throw new InvalidDataException("WAV の音声データが途中で切れています。");
+                remaining -= obtained;
+                for (int offset = 0; offset < obtained; offset += blockAlign)
+                {
+                    for (int c = 0; c < channels; c++)
+                    {
+                        double value = DecodeSample(buffer, offset + c * sampleFormat.BytesPerSample,
+                            sampleFormat);
+                        if (!double.IsFinite(value))
+                            throw new InvalidDataException("音声サンプルに NaN または Infinity があります。");
+                        rings[c][ringPosition] = value;
+                    }
+                    ringPosition++;
+                    if (ringPosition == frameLength) ringPosition = 0;
+                    samplesSeen++;
+                    if (samplesSeen == nextFrameEnd)
+                    {
+                        long startSample = nextFrameEnd - frameLength;
+                        for (int c = 0; c < channels; c++)
+                        {
+                            frameLists[c].Add(plan.Compute(rings[c], ringPosition,
+                                previousSpectra[c], (double)startSample / rate));
+                        }
+                        frameIndex++;
+                        // 整数の標本位置から求め、11,025 Hz などで時刻の丸め誤差を蓄積しない。
+                        nextFrameEnd = (long)frameIndex * rate / 100 + frameLength;
+                    }
+                }
+            }
+            if (samplesSeen != sampleFrames)
+                throw new InvalidDataException("読めたサンプル数が WAV の宣言と一致しません。");
+
+            var channelResults = new List<ChannelFeatures>(channels);
+            for (int c = 0; c < channels; c++)
+                channelResults.Add(BuildWindows(c, frameLists[c], (double)frameLength / rate));
+            if (!channelResults.Any(c => c.ReferenceRms > 0.0 && c.ActiveFrameCount >= 10))
+                throw new AudioValidationException("解析できる交流音声成分がありません。全無音・直流などです。");
+
+            var format = new AudioFormatInfo(riff.Container,
+                sampleFormat.IsFloat ? "IEEE_FLOAT" : "PCM", rate, channels,
+                reader.WaveFormat.BitsPerSample, sampleFormat.ValidBits, sampleFrames, duration);
+            return new AudioFeatures(format, frameIndex, channelResults);
+        }
+
+        /// <summary>I/O を伴わず、抽出済みの特徴だけから a/b を判定する。</summary>
+        /// <param name="features">ExtractFeatures が返した特徴。</param>
+        /// <returns>判定結果。最大窓スコアが 1 以上の場合だけ b。</returns>
+        public static DetectionResult Classify(AudioFeatures features)
+        {
+            if (features is null) throw new ArgumentNullException(nameof(features));
+            if (features.FeatureVersion != RuleVersion)
+                throw new ArgumentException("特徴のバージョンが対応していません。", nameof(features));
+            double largestReference = features.Channels.Max(c => c.ReferenceRms);
+            if (largestReference <= 0.0)
+                throw new AudioValidationException("分析対象になるチャンネルがありません。");
+
+            double bestScore = 0.0;
+            WindowFeatures? strongest = null;
+            var ignored = new List<int>();
+            foreach (ChannelFeatures channel in features.Channels)
+            {
+                // 左右加算による逆相相殺を避ける。小音量そのものを異常とはしない。
+                if (channel.ReferenceRms <= 0.0 ||
+                    channel.ReferenceRms < largestReference * RelativeChannelFloor)
+                {
+                    ignored.Add(channel.ChannelIndex);
+                    continue;
+                }
+                foreach (WindowFeatures window in channel.Windows)
+                {
+                    double score = ScoreWindow(window);
+                    if (window.HasStatistics && (strongest is null || score > bestScore))
+                    {
+                        bestScore = score;
+                        strongest = window;
+                    }
+                }
+            }
+            bool failed = bestScore >= DefaultThreshold;
+            return new DetectionResult(failed ? "b" : "a", bestScore, DefaultThreshold,
+                RuleVersion, features.Format, strongest, Array.AsReadOnly(ignored.ToArray()),
+                failed ? "Sustained stationary spectral envelope with noise-like fine structure."
+                       : "No matching sustained-noise failure; this is not a universal quality guarantee.");
+        }
+
+        /// <summary>5 条件の比の最小値。すべて満たす場合だけ 1 以上になる。</summary>
+        private static double ScoreWindow(WindowFeatures window)
+        {
+            if (!window.HasStatistics) return 0.0;
+            // V と D は小さいほど異常候補。F, H, A は大きいほど異常候補。
+            // 対数包絡は log10(power ratio) 単位であり、この 0.42 は 4.2 dB 相当。
+            double score = 0.42 / Math.Max(1e-12, window.EnvelopeVariation);
+            score = Math.Min(score, 0.60 / Math.Max(1e-12, window.LongLagDistance));
+            score = Math.Min(score, window.FineSpectralFlux / 0.42);
+            score = Math.Min(score, window.SpectralEntropy / 0.48);
+            score = Math.Min(score, window.ActiveFraction / 0.80);
+            return Math.Max(0.0, score);
+        }
+
+        /// <summary>チャンネルのフレームから相対活動基準と窓統計を求める。</summary>
+        private static ChannelFeatures BuildWindows(int channel, List<FrameData> frames,
+            double frameDuration)
+        {
+            double maximum = frames.Max(f => f.Rms);
+            double[] referenceValues = frames.Where(f => f.Rms > maximum * 0.01)
+                .Select(f => f.Rms).ToArray();
+            double reference = referenceValues.Length == 0 ? 0.0 : Quantile(referenceValues, 0.95);
+            bool[] active = frames.Select(f => f.Rms > 0.0 && f.Rms >= reference * RelativeActiveFloor)
+                .ToArray();
+            var windows = new List<WindowFeatures>();
+            int lastStart = frames.Count - WindowFrames;
+            int previousStart = -1;
+            for (int start = 0; start <= lastStart; start += WindowStepFrames)
+            {
+                windows.Add(ComputeWindow(channel, frames, active, start, frameDuration));
+                previousStart = start;
+            }
+            // 最後の完全な窓も調べ、末尾を最大 0.1 秒取りこぼすことを防ぐ。
+            if (lastStart >= 0 && lastStart != previousStart)
+                windows.Add(ComputeWindow(channel, frames, active, lastStart, frameDuration));
+            return new ChannelFeatures(channel, reference, maximum, active.Count(a => a), windows);
+        }
+
+        /// <summary>活動フレームだけから 150 フレーム窓の統計を計算する。</summary>
+        private static WindowFeatures ComputeWindow(int channel, List<FrameData> frames,
+            bool[] active, int start, double frameDuration)
+        {
+            int end = start + WindowFrames;
+            var entropy = new List<double>(WindowFrames);
+            var flux = new List<double>(WindowFrames - 1);
+            var longDistances = new List<double>(WindowFrames - LagFrames);
+            double[] means = new double[BandCount];
+            int count = 0;
+            for (int t = start; t < end; t++)
+            {
+                if (!active[t]) continue;
+                count++;
+                entropy.Add(frames[t].Entropy);
+                for (int band = 0; band < BandCount; band++)
+                    means[band] += frames[t].Envelope[band];
+                if (t > start && active[t - 1]) flux.Add(frames[t].Flux);
+                if (t >= start + LagFrames && active[t - LagFrames])
+                {
+                    double sum = 0.0;
+                    for (int band = 0; band < BandCount; band++)
+                    {
+                        double difference = frames[t].Envelope[band] - frames[t - LagFrames].Envelope[band];
+                        sum += difference * difference;
+                    }
+                    longDistances.Add(Math.Sqrt(sum / BandCount));
+                }
+            }
+            double startSeconds = frames[start].StartSeconds;
+            double endSeconds = frames[end - 1].StartSeconds + frameDuration;
+            if (count < 10 || flux.Count < 5 || longDistances.Count < 5)
+                return new WindowFeatures(channel, startSeconds, endSeconds,
+                    (double)count / WindowFrames, 0, 0, 0, 0, false);
+
+            for (int band = 0; band < BandCount; band++) means[band] /= count;
+            double[] deviations = new double[BandCount];
+            for (int t = start; t < end; t++)
+            {
+                if (!active[t]) continue;
+                for (int band = 0; band < BandCount; band++)
+                {
+                    double difference = frames[t].Envelope[band] - means[band];
+                    deviations[band] += difference * difference;
+                }
+            }
+            double variation = 0.0;
+            for (int band = 0; band < BandCount; band++)
+                variation += Math.Sqrt(deviations[band] / count);
+            variation /= BandCount;
+            return new WindowFeatures(channel, startSeconds, endSeconds,
+                (double)count / WindowFrames, variation, Quantile(longDistances.ToArray(), 0.5),
+                Quantile(flux.ToArray(), 0.5), Quantile(entropy.ToArray(), 0.5), true);
+        }
+
+        /// <summary>配列を昇順ソートし、線形補間による分位点を返す。配列は作業用に変更する。</summary>
+        private static double Quantile(double[] values, double probability)
+        {
+            if (values.Length == 0) throw new ArgumentException("分位点に空の配列は渡せません。");
+            Array.Sort(values);
+            double position = (values.Length - 1) * probability;
+            int lower = (int)Math.Floor(position);
+            int upper = Math.Min(values.Length - 1, lower + 1);
+            return values[lower] + (values[upper] - values[lower]) * (position - lower);
+        }
+
+        /// <summary>NAudio が返す形式と Extensible のサブ形式を検査する。</summary>
+        private static SampleFormat InspectFormat(WaveFormat format)
+        {
+            if (format.Channels < 1 || format.Channels > 2)
+                throw new NotSupportedException("1 または 2 チャンネルの WAV に対応しています。");
+            if (format.SampleRate < 8000 || format.SampleRate > 384000)
+                throw new NotSupportedException("対応標本化周波数は 8,000～384,000 Hz です。");
+            bool isFloat;
+            int validBits = format.BitsPerSample;
+            if (format.Encoding == WaveFormatEncoding.Pcm) isFloat = false;
+            else if (format.Encoding == WaveFormatEncoding.IeeeFloat) isFloat = true;
+            else if (format.Encoding == WaveFormatEncoding.Extensible)
+            {
+                // 重要: NAudio 2.2.1 の WaveFileReader は通常 WaveFormatExtraData を返す。
+                // WaveFormatExtensible への直接キャストや BitsPerSample だけの判別は誤り。
+                if (format is not WaveFormatExtraData extra || format.ExtraSize < 22)
+                    throw new InvalidDataException("Extensible の形式拡張が不足しています。");
+                byte[] extension = extra.ExtraData;
+                validBits = BinaryPrimitives.ReadUInt16LittleEndian(extension.AsSpan(0, 2));
+                Guid subtype = new Guid(extension.AsSpan(6, 16));
+                if (subtype == PcmSubtype) isFloat = false;
+                else if (subtype == FloatSubtype) isFloat = true;
+                else throw new NotSupportedException("PCM / IEEE float 以外の Extensible WAV です。");
+                if (validBits == 0) validBits = format.BitsPerSample;
+            }
+            else throw new NotSupportedException("圧縮 WAV には対応していません。");
+
+            int bits = format.BitsPerSample;
+            if (isFloat ? (bits != 32 && bits != 64) : (bits != 8 && bits != 16 && bits != 24 && bits != 32))
+                throw new NotSupportedException("未対応のサンプル精度です。");
+            if (validBits < 1 || validBits > bits || (isFloat && validBits != bits))
+                throw new InvalidDataException("有効ビット数とコンテナ精度が整合していません。");
+            int bytes = bits / 8;
+            if (format.BlockAlign != bytes * format.Channels ||
+                format.AverageBytesPerSecond != format.SampleRate * format.BlockAlign)
+                throw new InvalidDataException("BlockAlign / AverageBytesPerSecond が形式と整合していません。");
+            return new SampleFormat(isFloat, bytes, validBits);
+        }
+
+        /// <summary>NAudio で読んだ raw data の 1 サンプルを double に変換する。</summary>
+        private static double DecodeSample(byte[] bytes, int offset, SampleFormat format)
+        {
+            ReadOnlySpan<byte> sample = bytes.AsSpan(offset, format.BytesPerSample);
+            if (format.IsFloat)
+            {
+                return format.BytesPerSample == 4
+                    ? BitConverter.Int32BitsToSingle(BinaryPrimitives.ReadInt32LittleEndian(sample))
+                    : BitConverter.Int64BitsToDouble(BinaryPrimitives.ReadInt64LittleEndian(sample));
+            }
+            switch (format.BytesPerSample)
+            {
+                case 1: return (sample[0] - 128) / 128.0;
+                case 2: return BinaryPrimitives.ReadInt16LittleEndian(sample) / 32768.0;
+                case 3:
+                    int value = sample[0] | (sample[1] << 8) | (sample[2] << 16);
+                    if ((value & 0x800000) != 0) value |= unchecked((int)0xFF000000);
+                    return value / 8388608.0;
+                case 4: return BinaryPrimitives.ReadInt32LittleEndian(sample) / 2147483648.0;
+                default: throw new InvalidDataException("内部形式が不正です。");
+            }
+        }
+
+        /// <summary>RIFF の境界だけを追加検査する。形式解釈・音声の読み出しは NAudio に任せる。</summary>
+        private static RiffInfo AuditContainer(Stream stream)
+        {
+            if (stream.Length < 12) throw new InvalidDataException("WAV ヘッダが不足しています。");
+            stream.Position = 0;
+            using var binary = new BinaryReader(stream, Encoding.ASCII, true);
+            uint signature = binary.ReadUInt32();
+            bool rf64 = signature == 0x34364652U; // RF64
+            if (!rf64 && signature != 0x46464952U) // RIFF
+                throw new NotSupportedException("little-endian RIFF/WAVE または RF64/WAVE が必要です。");
+            uint declaredRiffBytes = binary.ReadUInt32();
+            if (binary.ReadUInt32() != 0x45564157U) // WAVE
+                throw new InvalidDataException("WAVE シグネチャがありません。");
+            long riffEnd;
+            long extendedDataBytes = -1;
+            if (rf64)
+            {
+                if (declaredRiffBytes != uint.MaxValue || stream.Length < 48 ||
+                    binary.ReadUInt32() != 0x34367364U) // ds64
+                    throw new InvalidDataException("RF64 の ds64 ヘッダが不正です。");
+                uint length = binary.ReadUInt32();
+                if (length < 28 || length > stream.Length - stream.Position)
+                    throw new InvalidDataException("ds64 チャンク長が不正です。");
+                long chunkStart = stream.Position;
+                ulong riff64 = binary.ReadUInt64();
+                ulong data64 = binary.ReadUInt64();
+                binary.ReadUInt64(); // sample count: データ長から改めて算出する。
+                uint tableCount = binary.ReadUInt32();
+                if (tableCount != 0)
+                    throw new NotSupportedException("RF64 の追加チャンクサイズ表は対応範囲外です。");
+                if (riff64 > (ulong)(stream.Length - 8) || data64 > (ulong)stream.Length)
+                    throw new InvalidDataException("RF64 の宣言長が実ファイルを超えています。");
+                riffEnd = (long)riff64 + 8;
+                extendedDataBytes = (long)data64;
+                stream.Position = chunkStart + length;
+                SkipPadding(binary, length, riffEnd);
+            }
+            else
+            {
+                riffEnd = (long)declaredRiffBytes + 8;
+                if (riffEnd < 12 || riffEnd > stream.Length)
+                    throw new InvalidDataException("RIFF の宣言長が不正、またはファイルが途中で切れています。");
+            }
+            if (riffEnd < stream.Position || riffEnd > stream.Length)
+                throw new InvalidDataException("RIFF/RF64 の境界が不正です。");
+
+            long dataStart = -1;
+            long dataBytes = -1;
+            bool foundFormat = false;
+            while (stream.Position < riffEnd)
+            {
+                if (riffEnd - stream.Position < 8)
+                    throw new InvalidDataException("RIFF チャンクヘッダが途中で切れています。");
+                uint identifier = binary.ReadUInt32();
+                uint size32 = binary.ReadUInt32();
+                long length = rf64 && identifier == 0x61746164U && size32 == uint.MaxValue
+                    ? extendedDataBytes : size32;
+                if (length < 0 || length > riffEnd - stream.Position)
+                    throw new InvalidDataException("RIFF チャンクの宣言長が格納領域を超えています。");
+                if (identifier == 0x20746D66U) // fmt
+                {
+                    if (foundFormat) throw new InvalidDataException("fmt チャンクが重複しています。");
+                    if (length < 16 || length == 17 || length > 118)
+                        throw new NotSupportedException("fmt チャンク長が対応範囲外です。");
+                    foundFormat = true;
+                }
+                if (identifier == 0x61746164U) // data
+                {
+                    if (dataStart >= 0) throw new NotSupportedException("複数 data チャンクには対応していません。");
+                    dataStart = stream.Position;
+                    dataBytes = length;
+                    if (rf64 && length != extendedDataBytes)
+                        throw new InvalidDataException("ds64 と data の宣言長が一致していません。");
+                }
+                stream.Position += length;
+                SkipPadding(binary, length, riffEnd);
+            }
+            if (!foundFormat || dataStart < 0)
+                throw new InvalidDataException("fmt または data チャンクがありません。");
+            return new RiffInfo(rf64 ? "RF64" : "RIFF", dataStart, dataBytes);
+        }
+
+        /// <summary>奇数長チャンクの 0 パディングを検査する。末尾パッド省略だけは許容する。</summary>
+        private static void SkipPadding(BinaryReader reader, long chunkLength, long riffEnd)
+        {
+            if ((chunkLength & 1) != 0 && reader.BaseStream.Position < riffEnd && reader.ReadByte() != 0)
+                throw new InvalidDataException("奇数長チャンクのパディングが 0 ではありません。");
+        }
+
+        /// <summary>サンプルの内部変換形式。</summary>
+        private sealed record SampleFormat(bool IsFloat, int BytesPerSample, int ValidBits);
+        /// <summary>構造検査で得たコンテナ名と data 境界。</summary>
+        private sealed record RiffInfo(string Container, long DataStart, long DataBytes);
+        /// <summary>1 FFT フレームの音響特徴。Envelope は 24 個の対数帯域比率。</summary>
+        private sealed record FrameData(double StartSeconds, double Rms, double[] Envelope,
+            double Entropy, double Flux);
+
+        /// <summary>同一形式の FFT 作業領域と帯域割り当て。呼び出し単位で作成し共有しない。</summary>
+        private sealed class SpectrumPlan
+        {
+            private readonly int frameLength;
+            private readonly int fftPower;
+            private readonly int firstBin;
+            private readonly int lastBin;
+            private readonly double[] window;
+            private readonly int[] bandForBin;
+            private readonly Complex[] fft;
+            private readonly double[] power;
+            private readonly double[] bandPower;
+            /// <summary>採用する FFT 周波数ビン数。</summary>
+            internal int SpectrumBins => lastBin - firstBin + 1;
+
+            /// <summary>窓・FFT 長・80 Hz 以上の mel 帯域割り当てを準備する。</summary>
+            internal SpectrumPlan(int sampleRate, int frameLength)
+            {
+                this.frameLength = frameLength;
+                int fftLength = 1;
+                int exponent = 0;
+                while (fftLength < frameLength) { fftLength <<= 1; exponent++; }
+                fftPower = exponent;
+                fft = new Complex[fftLength];
+                window = new double[frameLength];
+                for (int i = 0; i < frameLength; i++)
+                    window[i] = FastFourierTransform.HannWindow(i, frameLength);
+                double upper = Math.Min(7600.0, sampleRate * 0.475);
+                double binWidth = (double)sampleRate / fftLength;
+                firstBin = (int)Math.Ceiling(80.0 / binWidth);
+                lastBin = (int)Math.Floor(upper / binWidth);
+                power = new double[SpectrumBins];
+                bandForBin = new int[SpectrumBins];
+                bandPower = new double[BandCount];
+                double[] edges = new double[BandCount + 1];
+                double lowMel = Math.Log(1.0 + 80.0 / 700.0);
+                double highMel = Math.Log(1.0 + upper / 700.0);
+                for (int b = 0; b <= BandCount; b++)
+                    edges[b] = 700.0 * (Math.Exp(lowMel + (highMel - lowMel) * b / BandCount) - 1.0);
+                for (int i = 0; i < SpectrumBins; i++)
+                {
+                    double frequency = (firstBin + i) * binWidth;
+                    bandForBin[i] = -1;
+                    for (int b = 0; b < BandCount; b++)
+                    {
+                        if (frequency >= edges[b] && frequency < edges[b + 1])
+                        {
+                            bandForBin[i] = b;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            /// <summary>リングの最古位置から 1 フレームを解析し、前フレームの正規化振幅を更新。</summary>
+            internal FrameData Compute(double[] ring, int oldest, double[] previous, double startSeconds)
+            {
+                double scale = 0.0;
+                for (int i = 0; i < frameLength; i++) scale = Math.Max(scale, Math.Abs(ring[i]));
+                double mean = 0.0;
+                if (scale > 0)
+                    for (int i = 0; i < frameLength; i++) mean += ring[i] / scale;
+                mean /= frameLength;
+                double energy = 0.0;
+                if (scale > 0)
+                {
+                    for (int i = 0; i < frameLength; i++)
+                    {
+                        double centered = ring[i] / scale - mean;
+                        energy += centered * centered;
+                    }
+                }
+                double relativeRms = Math.Sqrt(energy / frameLength);
+                double rms = scale * relativeRms;
+                Array.Clear(fft, 0, fft.Length);
+                if (relativeRms > 0)
+                {
+                    int position = oldest;
+                    for (int i = 0; i < frameLength; i++)
+                    {
+                        fft[i].X = (float)(((ring[position] / scale - mean) / relativeRms) * window[i]);
+                        position++;
+                        if (position == frameLength) position = 0;
+                    }
+                    FastFourierTransform.FFT(true, fftPower, fft);
+                }
+                double total = 0.0;
+                Array.Clear(bandPower, 0, bandPower.Length);
+                for (int i = 0; i < SpectrumBins; i++)
+                {
+                    Complex bin = fft[firstBin + i];
+                    double value = (double)bin.X * bin.X + (double)bin.Y * bin.Y;
+                    power[i] = value;
+                    total += value;
+                    if (bandForBin[i] >= 0) bandPower[bandForBin[i]] += value;
+                }
+                double entropy = 0.0;
+                double fluxSquared = 0.0;
+                for (int i = 0; i < SpectrumBins; i++)
+                {
+                    double probability = total > 0 ? power[i] / total : 0.0;
+                    if (probability > 0) entropy -= probability * Math.Log(probability);
+                    double root = Math.Sqrt(probability);
+                    double difference = root - previous[i];
+                    fluxSquared += difference * difference;
+                    previous[i] = root;
+                }
+                entropy /= Math.Log(SpectrumBins);
+                double[] envelope = new double[BandCount];
+                double envelopeMean = 0.0;
+                for (int b = 0; b < BandCount; b++)
+                {
+                    envelope[b] = Math.Log10((total > 0 ? bandPower[b] / total : 0.0) + 1e-6);
+                    envelopeMean += envelope[b];
+                }
+                envelopeMean /= BandCount;
+                for (int b = 0; b < BandCount; b++) envelope[b] -= envelopeMean;
+                return new FrameData(startSeconds, rms, envelope, entropy, Math.Sqrt(fluxSquared));
+            }
+        }
+    }
+
+}
+
+
+public static class AiInternalAudioUtil_WavBlankTrimmer
+{
+    /*
+    DNNT 260923_LVYKG6 Fish Audio 生成結果 wav ブランク検出・除去プログラム生成  by ChatGPT 6.0 Pro
+
+    目的:
+      Fish Audio 等で生成した短い発話 WAV を a(そのまま) / b(端部要トリム) に分類する。
+      b の場合だけ同じディレクトリに <元の拡張子を除く名前>_trim.wav を作成する。
+      読み込みおよび FFT は NAudio 2.2.1。それ以外の NuGet、外部実行ファイル、
+      学習モデル、ネット接続、GPU、OS の音声再生 API は使用しない。
+
+    原理:
+      各チャンネルを別々に解析し、位相反転ステレオの相殺を避ける。
+      32ms Hann 窓 / 10ms ホップ / 160～6000Hz（低サンプルレートでは帯域制限）。
+      内部だけをピーク正規化し、さらに頑健な参照レベルに対する相対 dB を使う。
+      スペクトル平坦度、12帯域の音量非依存形状変化、局所250msと群全体の
+      時間的一貫性と複数帯域の成分を組み合わせ、長い定常ノイズや掃引音の混入を抑える。
+      ピッチを必須条件にしない。ノイズを増幅しただけでは発話と認めない。
+      0.40秒以上のまとまり、0.20秒以上の候補フレーム、形状変化の条件を満たす
+      発話アンカーをまず要求する。アンカーがない場合は SpeechNotFoundException。
+      弱い発話群、短い発話群、最大280msの連続する弱い音を追加保護する。
+      窓半幅を差し引いた端部ブランクが既定0.50秒以上の場合だけ除去する。
+      既定80msの余白を残し、さらに最大5ms外側の低振幅境界を選ぶ。
+      中間の間・息継ぎは一切切らない。切断位置は全チャンネル共通のサンプル境界。
+
+    入出力:
+      .NET 6 / C# 10。通常の little-endian RIFF/WAVE の非圧縮 PCM 8/16/24/32bit、
+      IEEE float 32/64bit、対応する WAVE_FORMAT_EXTENSIBLE を扱う。
+      8k～192kHz、1～8ch。既定で600秒・合計2500万デコードサンプルまで。
+      RF64、RIFX、WAVE64、圧縮 WAV、多重 data チャンク等は理由付き例外。
+      出力の fmt チャンクは完全複写。残す data は NAudio で読み、元のバイトを
+      無変換で複写する。音量変更、再量子化、リサンプル、フェードは行わない。
+      fact はサンプルフレーム数を更新。時刻情報の不整合を避けるため、その他の
+      メタデータ（cue/smpl/bext/LIST 等）は出力には引き継がない。
+      元 WAV は上書きしない。既存 _trim.wav も --overwrite 指定がなければ保護する。
+      一時ファイルを検証後に移動する。分析後の元ファイル変更は SHA-256 で検出する。
+
+    再利用:
+      WavBlankDetector.Analyze(path) は読み取りだけで AnalysisResult を返す。
+      WavBlankDetector.Process(path) は Analyze 後、b の場合だけ出力する。
+      WavBlankDetector.WriteTrimmed(result) は確定済み結果に従い出力する。
+      Analyze の戻り値、例外コード、チャンネル診断情報をライブラリとして利用できる。
+      DNNT_WAV_TRIM_LIBRARY を定義すると CLI/Main をコンパイル対象から外せる。
+
+    注意・検証範囲:
+      本方式は音声認識ではなく、発話らしさの保守的な音響判定である。
+      意図した長い息・短い間投詞・歌・変動する環境音を意味的に識別する保証はない。
+      発話が非常に短い/極端に低SNR/量子化分解能不足の場合は検証失敗にする。
+      提供11件と追加変形試験は別途の参照実装で検証した。作成環境には .NET SDK が
+      なく、この C# 自体のコンパイル・実行検証は未実施。README と検証 CSV を参照。
+      --verify-samples <展開先> により利用環境で ok / blank 全件を読み取り検証できる。
+    */
+
+    public static byte[] TrimBlankMain(Span<byte> wavData)
+    {
+        var result = WavBlankDetector.Analyze(wavData._ToMemoryStream());
+
+        if (result.Classification == WavClassification.B)
+        {
+            return WavBlankDetector.WriteTrimmed(result, wavData._ToMemoryStream());
+        }
+        else
+        {
+            return wavData.ToArray();
+        }
+    }
+
+    /// <summary>分類結果。発話を確認できない場合はこの列挙値でなく例外を返す。</summary>
+    public enum WavClassification
+    {
+        /// <summary>a: 十分な根拠のある長い端部ブランクは検出されなかった。</summary>
+        A,
+        /// <summary>b: 少なくとも一方の端部で長いブランクを検出した。</summary>
+        B
+    }
+
+    /// <summary>解析・安全制限の設定。変更すると添付サンプルの検証条件とは異なる。</summary>
+    public sealed class DetectorOptions
+    {
+        /// <summary>端部ブランクとする最小秒数。余白を引く前の保守的な推定値に適用。</summary>
+        public double MinimumBlankSeconds { get; init; } = 0.50;
+        /// <summary>検出境界の外側に残す追加余白（秒）。</summary>
+        public double PaddingSeconds { get; init; } = 0.08;
+        /// <summary>アンカーに隣接する弱音を保護する最大秒数。無条件の無音延長ではない。</summary>
+        public double WeakContextSeconds { get; init; } = 0.28;
+        /// <summary>切断境界から外側へ低振幅位置を探す最大秒数。</summary>
+        public double QuietBoundarySearchSeconds { get; init; } = 0.005;
+        /// <summary>異常な巨大入力を防ぐ音声長上限。</summary>
+        public double MaximumDurationSeconds { get; init; } = 600.0;
+        /// <summary>全チャンネル合計のデコードサンプル数上限。double 配列約200MB相当。</summary>
+        public long MaximumDecodedSamples { get; init; } = 25_000_000;
+
+        /// <summary>設定を検証する。範囲外なら ArgumentOutOfRangeException。</summary>
+        internal void Validate()
+        {
+            if (!double.IsFinite(MinimumBlankSeconds) || MinimumBlankSeconds < 0.10)
+                throw new ArgumentOutOfRangeException(nameof(MinimumBlankSeconds));
+            if (!double.IsFinite(PaddingSeconds) || PaddingSeconds < 0 || PaddingSeconds >= MinimumBlankSeconds)
+                throw new ArgumentOutOfRangeException(nameof(PaddingSeconds));
+            if (!double.IsFinite(WeakContextSeconds) || WeakContextSeconds < 0 || WeakContextSeconds > 1.0)
+                throw new ArgumentOutOfRangeException(nameof(WeakContextSeconds));
+            if (!double.IsFinite(QuietBoundarySearchSeconds) || QuietBoundarySearchSeconds < 0 || QuietBoundarySearchSeconds > 0.02)
+                throw new ArgumentOutOfRangeException(nameof(QuietBoundarySearchSeconds));
+            if (!double.IsFinite(MaximumDurationSeconds) || MaximumDurationSeconds <= 0 || MaximumDecodedSamples <= 0)
+                throw new ArgumentOutOfRangeException(nameof(MaximumDurationSeconds));
+        }
+    }
+
+    /// <summary>機械的に利用できるエラーコードを伴う WAV 検証例外。</summary>
+    public class AudioValidationException : Exception
+    {
+        /// <summary>文字列の安定したエラーコード。</summary>
+        public string Code { get; }
+        /// <summary>コード・日本語の理由・任意の内部例外から生成する。</summary>
+        public AudioValidationException(string code, string message, Exception? innerException = null)
+            : base(message, innerException) { Code = code; }
+    }
+
+    /// <summary>全体がノイズ/息/無音の疑い、または十分な発話証拠がない場合の例外。</summary>
+    public sealed class SpeechNotFoundException : AudioValidationException
+    {
+        /// <summary>チャンネル別の診断情報。</summary>
+        public IReadOnlyList<ChannelDiagnostics> Channels { get; }
+        /// <summary>理由とチャンネル診断情報を保持する。</summary>
+        internal SpeechNotFoundException(string message, IReadOnlyList<ChannelDiagnostics> channels)
+            : base("SpeechNotFound", message) { Channels = channels; }
+    }
+
+    /// <summary>元 WAV の音声フォーマット。ビット深度とデータレートを混同しない。</summary>
+    public sealed class WavFormatInfo
+    {
+        /// <summary>元 fmt のフォーマットタグ（1, 3, 65534）。</summary>
+        public ushort FormatTag { get; }
+        /// <summary>浮動小数点形式か。</summary>
+        public bool IsFloatingPoint { get; }
+        /// <summary>サンプルレート（Hz）。</summary>
+        public int SampleRate { get; }
+        /// <summary>チャンネル数。</summary>
+        public int Channels { get; }
+        /// <summary>コンテナのビット深度。</summary>
+        public int BitsPerSample { get; }
+        /// <summary>有効ビット数。通常は BitsPerSample と等しい。</summary>
+        public int ValidBitsPerSample { get; }
+        /// <summary>全チャンネル1サンプルフレーム当たりのバイト数。</summary>
+        public int BlockAlign { get; }
+        /// <summary>Extensible のチャンネルマスク。通常形式では0。</summary>
+        public uint ChannelMask { get; }
+        /// <summary>非圧縮データレート（bit/s）。</summary>
+        public long BitRate => (long)SampleRate * BlockAlign * 8;
+
+        /// <summary>検証済み fmt の情報から構築する。</summary>
+        internal WavFormatInfo(ushort tag, bool floating, int rate, int channels, int bits, int validBits, int blockAlign, uint channelMask)
+        {
+            FormatTag = tag; IsFloatingPoint = floating; SampleRate = rate; Channels = channels;
+            BitsPerSample = bits; ValidBitsPerSample = validBits; BlockAlign = blockAlign; ChannelMask = channelMask;
+        }
+    }
+
+    /// <summary>チャンネル単独の診断。値は確率ではなく、音響的な測定値である。</summary>
+    public sealed class ChannelDiagnostics
+    {
+        /// <summary>0始まりのチャンネル番号。</summary>
+        public int Channel { get; internal init; }
+        /// <summary>発話アンカーを確認したか。</summary>
+        public bool HasSpeech { get; internal init; }
+        /// <summary>判断理由。</summary>
+        public string Reason { get; internal init; } = "";
+        /// <summary>元のピーク dBFS。完全ゼロ時は null。</summary>
+        public double? PeakDbFs { get; internal init; }
+        /// <summary>元の全体 RMS dBFS（DCを含む）。完全ゼロ時は null。</summary>
+        public double? RmsDbFs { get; internal init; }
+        /// <summary>相対エネルギーの基準値。元の振幅スケールへ戻したFFT帯域電力dB。</summary>
+        public double? ReferenceBandPowerDb { get; internal init; }
+        /// <summary>上位フレーム RMS dBFS。量子化分解能チェックに使う。</summary>
+        public double? ReferenceRmsDbFs { get; internal init; }
+        /// <summary>スペクトル平坦度の中央値。</summary>
+        public double MedianFlatness { get; internal init; }
+        /// <summary>音量非依存のスペクトル形状変化の全体平均（dB）。</summary>
+        public double MeanShapeChangeDb { get; internal init; }
+        /// <summary>強い候補フレームの合計秒数（間を含まない）。</summary>
+        public double StrongCandidateSeconds { get; internal init; }
+        /// <summary>採用した発話アンカー数。</summary>
+        public int AnchorCount { get; internal init; }
+        /// <summary>弱い発話群数。</summary>
+        public int WeakGroupCount { get; internal init; }
+        /// <summary>最初の強い発話アンカーの窓中心秒。</summary>
+        public double? FirstAnchorSeconds { get; internal init; }
+        /// <summary>最後の強い発話アンカーの最終窓中心秒。</summary>
+        public double? LastAnchorSeconds { get; internal init; }
+        /// <summary>弱音保護後の先頭境界（秒）。発話がない時は null。</summary>
+        public double? ProtectedStartSeconds { get; internal init; }
+        /// <summary>弱音保護後の末尾境界（秒）。発話がない時は null。</summary>
+        public double? ProtectedEndSeconds { get; internal init; }
+    }
+
+    /// <summary>解析結果。保持範囲は [KeepStartFrame, KeepEndFrameExclusive)。不変の値だけを保持する。</summary>
+    public sealed class AnalysisResult
+    {
+        /// <summary>a / b の分類。</summary>
+        public WavClassification Classification { get; }
+        /// <summary>解析対象ファイル全体の SHA-256。再出力時の変更検知に用いる。</summary>
+        public string InputSha256 { get; }
+        /// <summary>元の WAV 形式。</summary>
+        public WavFormatInfo Format { get; }
+        /// <summary>元の総サンプルフレーム数。</summary>
+        public long TotalFrames { get; }
+        /// <summary>保持する先頭サンプルフレーム番号。</summary>
+        public long KeepStartFrame { get; }
+        /// <summary>保持範囲の終了番号（この番号自身は含まない）。</summary>
+        public long KeepEndFrameExclusive { get; }
+        /// <summary>余白追加前の保守的な先頭ブランク推定秒。</summary>
+        public double LeadingBlankSeconds { get; }
+        /// <summary>余白追加前の保守的な末尾ブランク推定秒。</summary>
+        public double TrailingBlankSeconds { get; }
+        /// <summary>元の全体秒数。</summary>
+        public double OriginalSeconds => TotalFrames / (double)Format.SampleRate;
+        /// <summary>実際に先頭から除去する秒数。</summary>
+        public double RemovedLeadingSeconds => KeepStartFrame / (double)Format.SampleRate;
+        /// <summary>実際に末尾から除去する秒数。</summary>
+        public double RemovedTrailingSeconds => (TotalFrames - KeepEndFrameExclusive) / (double)Format.SampleRate;
+        /// <summary>実際の合計除去秒数。</summary>
+        public double RemovedSeconds => RemovedLeadingSeconds + RemovedTrailingSeconds;
+        /// <summary>結果の秒数。</summary>
+        public double ResultSeconds => (KeepEndFrameExclusive - KeepStartFrame) / (double)Format.SampleRate;
+        /// <summary>削減割合（0～100%）。</summary>
+        public double ReductionPercent => 100.0 * (TotalFrames - (KeepEndFrameExclusive - KeepStartFrame)) / TotalFrames;
+        /// <summary>全チャンネルの診断情報。</summary>
+        public IReadOnlyList<ChannelDiagnostics> Channels { get; }
+
+        /// <summary>検証済みの解析結果から構築する。外部から任意の切断位置を注入できない。</summary>
+        internal AnalysisResult(string hash, WavFormatInfo format, long total, long start, long end,
+            double leading, double trailing, IReadOnlyList<ChannelDiagnostics> channels)
+        {
+            InputSha256 = hash; Format = format; TotalFrames = total;
+            KeepStartFrame = start; KeepEndFrameExclusive = end; LeadingBlankSeconds = leading; TrailingBlankSeconds = trailing;
+            Channels = channels;
+            Classification = start != 0 || end != total ? WavClassification.B : WavClassification.A;
+        }
+    }
+
+    /// <summary>検査と必要時の書き込みをまとめた結果。</summary>
+    public sealed class ProcessResult
+    {
+        /// <summary>検査結果。</summary>
+        public AnalysisResult Analysis { get; }
+        /// <summary>出力パス。a の場合は null。</summary>
+        public string? OutputPath { get; }
+        /// <summary>検査結果と任意の出力パスから生成する。</summary>
+        internal ProcessResult(AnalysisResult analysis, string? outputPath) { Analysis = analysis; OutputPath = outputPath; }
+    }
+
+    /// <summary>再利用可能な公開 API。クラス自体に可変の共有状態を持たない。</summary>
+    public static class WavBlankDetector
+    {
+        private const double WindowSeconds = 0.032;
+        private const double HopSeconds = 0.010;
+        private const int ShapeBands = 12;
+        private const double Tiny = 1e-30;
+
+        /// <summary>
+        /// WAV を読み取り専用で検査する。ファイルを生成・変更しない。
+        /// inputPath: WAV のパス。options: null なら既定値。
+        /// 戻り値: a/b と安全な保持範囲。発話不明、形式不正などは理由付き例外。
+        /// </summary>
+        public static AnalysisResult Analyze(Stream source, DetectorOptions? options = null)
+        {
+            //if (string.IsNullOrWhiteSpace(inputPath)) throw new ArgumentException("WAV のパスを指定してください。", nameof(inputPath));
+            options ??= new DetectorOptions();
+            options.Validate();
+            //string path = Path.GetFullPath(inputPath);
+            //using var source = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 131072, FileOptions.None);
+            RiffLayout layout = RiffLayout.Read(source);
+            if (layout.Frames / (double)layout.Format.SampleRate > options.MaximumDurationSeconds)
+                throw Invalid("ResourceLimit", "音声の長さが設定上限を超えています。");
+            if (layout.Frames > int.MaxValue || layout.Frames * layout.Format.Channels > options.MaximumDecodedSamples)
+                throw Invalid("ResourceLimit", "デコードサンプル数が設定上限を超えています。");
+
+            string hash = ComputeFileHash(source);
+            LoadedAudio audio = DecodeWithNAudio(source, layout);
+            if (!string.Equals(hash, ComputeFileHash(source), StringComparison.Ordinal))
+                throw Invalid("InputChanged", "読み込み中に元の WAV が変更されました。処理を中止しました。");
+
+            var diagnostics = new List<ChannelDiagnostics>(layout.Format.Channels);
+            double protectedStart = double.PositiveInfinity;
+            double protectedEnd = double.NegativeInfinity;
+            for (int channel = 0; channel < layout.Format.Channels; channel++)
+            {
+                ChannelDiagnostics result = AnalyzeChannel(audio, layout.Format, channel, options);
+                diagnostics.Add(result);
+                if (result.HasSpeech)
+                {
+                    // 全チャンネルの「発話がある範囲の和」を残す。平均波形は使わない。
+                    protectedStart = Math.Min(protectedStart, result.ProtectedStartSeconds!.Value);
+                    protectedEnd = Math.Max(protectedEnd, result.ProtectedEndSeconds!.Value);
+                }
+            }
+            var readOnlyDiagnostics = new ReadOnlyCollection<ChannelDiagnostics>(diagnostics);
+            if (!double.IsFinite(protectedStart) || !double.IsFinite(protectedEnd))
+            {
+                string reason = "ファイル全体が小さなノイズ・息・無音だけの可能性があります。" +
+                    "音量に依存しない発話アンカーを確認できないため、正規化を根拠に有音扱いせず、出力を中止しました。 " +
+                    string.Join(" / ", diagnostics.Select(x => $"ch{x.Channel + 1}: {x.Reason}"));
+                throw new SpeechNotFoundException(reason, readOnlyDiagnostics);
+            }
+
+            double duration = layout.Frames / (double)layout.Format.SampleRate;
+            double leading = Math.Clamp(protectedStart, 0, duration);
+            double trailing = Math.Clamp(duration - protectedEnd, 0, duration);
+            long keepStart = 0;
+            long keepEnd = layout.Frames;
+            // 余白を除いた「切る量」でなく、検出したブランクの長さに0.5秒条件を適用。
+            if (leading >= options.MinimumBlankSeconds)
+            {
+                double target = Math.Max(0, protectedStart - options.PaddingSeconds);
+                keepStart = (long)Math.Floor(target * layout.Format.SampleRate);
+                keepStart = FindQuietBoundary(audio.Samples, keepStart, true, layout.Format.SampleRate, options);
+            }
+            if (trailing >= options.MinimumBlankSeconds)
+            {
+                double target = Math.Min(duration, protectedEnd + options.PaddingSeconds);
+                keepEnd = (long)Math.Ceiling(target * layout.Format.SampleRate);
+                keepEnd = FindQuietBoundary(audio.Samples, keepEnd, false, layout.Format.SampleRate, options);
+            }
+            keepStart = Math.Clamp(keepStart, 0L, layout.Frames);
+            keepEnd = Math.Clamp(keepEnd, 0L, layout.Frames);
+            if (keepEnd <= keepStart)
+                throw Invalid("UnsafeBoundary", "保持範囲が空になるためトリミングを中止しました。");
+
+            return new AnalysisResult(hash, layout.Format, layout.Frames, keepStart, keepEnd, leading, trailing, readOnlyDiagnostics);
+        }
+
+        /// <summary>
+        /// b の解析結果を元に、同一形式・元のサンプルバイトのまま _trim.wav を生成する。
+        /// a を渡すと InvalidOperationException。元ファイル変更や検証不一致時は出力しない。
+        /// </summary>
+        public static byte[] WriteTrimmed(AnalysisResult analysis, Stream source)
+        {
+            if (analysis == null) throw new ArgumentNullException(nameof(analysis));
+            if (analysis.Classification != WavClassification.B)
+                throw new InvalidOperationException("a の WAV は処理対象ではありません。");
+            //string directory = Path.GetDirectoryName(analysis.InputPath) ?? throw new IOException("入力ディレクトリを取得できません。");
+            //string output = Path.Combine(directory, Path.GetFileNameWithoutExtension(analysis.InputPath) + "_trim.wav");
+            //if (!overwrite && File.Exists(output)) throw new IOException($"出力先は既に存在します（上書きしません）: {output}");
+            //string temporary = Path.Combine(directory, ".wavtrim-" + Guid.NewGuid().ToString("N") + ".tmp");
+            try
+            {
+                //using (var source = new FileStream(analysis.InputPath, FileMode.Open, FileAccess.Read, FileShare.Read, 131072, FileOptions.None))
+                {
+                    if (!string.Equals(analysis.InputSha256, ComputeFileHash(source), StringComparison.Ordinal))
+                        throw Invalid("InputChanged", "解析後に元の WAV が変更されています。再解析してください。");
+                    RiffLayout layout = RiffLayout.Read(source);
+                    if (layout.Frames != analysis.TotalFrames)
+                        throw Invalid("InputChanged", "元 WAV のサンプル数が解析時と異なります。");
+                    long outputFrames = analysis.KeepEndFrameExclusive - analysis.KeepStartFrame;
+                    long dataBytes = checked(outputFrames * layout.Format.BlockAlign);
+                    byte[]? fact = layout.FactBytes == null ? null : (byte[])layout.FactBytes.Clone();
+                    if (fact == null && layout.Format.IsFloatingPoint) fact = new byte[4];
+                    if (fact != null) BinaryPrimitives.WriteUInt32LittleEndian(fact.AsSpan(0, 4), checked((uint)outputFrames));
+                    long riffBytes = 4 + ChunkStorage(layout.FormatBytes.Length) + ChunkStorage(dataBytes) + (fact == null ? 0 : ChunkStorage(fact.Length));
+                    if (riffBytes > uint.MaxValue || dataBytes > uint.MaxValue)
+                        throw Invalid("UnsupportedSize", "結果が通常の RIFF/WAVE のサイズ上限を超えます。");
+
+                    source.Position = 0;
+                    using (var reader = new WaveFileReader(source))
+                    using (var destination = new MemoryStream())
+                    using (var writer = new BinaryWriter(destination, Encoding.UTF8, leaveOpen: true))
+                    {
+                        WriteFourCc(writer, "RIFF"); writer.Write((uint)riffBytes); WriteFourCc(writer, "WAVE");
+                        WriteChunk(writer, "fmt ", layout.FormatBytes);
+                        if (fact != null) WriteChunk(writer, "fact", fact);
+                        WriteFourCc(writer, "data"); writer.Write((uint)dataBytes);
+                        writer.Flush();
+                        reader.Position = checked(analysis.KeepStartFrame * layout.Format.BlockAlign);
+                        CopyAudioBytes(reader, destination, dataBytes, layout.Format.BlockAlign);
+                        if ((dataBytes & 1) != 0) destination.WriteByte(0);
+                        destination.Flush();
+
+                        return destination.ToArray();
+                    }
+                    //// 出力 fmt と全 data バイトを再読込して照合。推定上の一致で済ませない。
+                    //VerifyOutput(source, temporary, analysis, layout);
+                    //if (!string.Equals(analysis.InputSha256, ComputeFileHash(source), StringComparison.Ordinal))
+                    //    throw Invalid("InputChanged", "トリミング中に入力が変化したため出力を破棄しました。");
+                }
+            }
+            finally
+            {
+            }
+        }
+
+        /// <summary>NAudio の raw 読み込みでデコードする。フォーマット検証は事前に完了している。</summary>
+        private static LoadedAudio DecodeWithNAudio(Stream source, RiffLayout layout)
+        {
+            int count = checked((int)layout.Frames);
+            int channels = layout.Format.Channels;
+            var samples = new double[channels][];
+            var peaks = new double[channels];
+            var squares = new double[channels];
+            var scales = new double[channels];
+            for (int c = 0; c < channels; c++) samples[c] = new double[count];
+            source.Position = 0;
+            try
+            {
+                using var reader = new WaveFileReader(source);
+                if (reader.WaveFormat.SampleRate != layout.Format.SampleRate || reader.WaveFormat.Channels != channels ||
+                    reader.WaveFormat.BlockAlign != layout.Format.BlockAlign || reader.WaveFormat.BitsPerSample != layout.Format.BitsPerSample ||
+                    reader.Length != layout.DataLength)
+                    throw Invalid("ReaderDisagreement", "NAudio と RIFF 検証で形式・データ長が一致しません。");
+                int frameBytes = layout.Format.BlockAlign;
+                int sampleBytes = layout.Format.BitsPerSample / 8;
+                byte[] buffer = new byte[4096 * frameBytes];
+                int position = 0;
+                while (position < count)
+                {
+                    int frames = Math.Min(4096, count - position);
+                    ReadExactly(reader, buffer, frames * frameBytes, frameBytes);
+                    int offset = 0;
+                    for (int i = 0; i < frames; i++)
+                    {
+                        for (int c = 0; c < channels; c++)
+                        {
+                            double value = DecodeSample(buffer.AsSpan(offset, sampleBytes), layout.Format);
+                            if (!double.IsFinite(value)) throw Invalid("NonFiniteSample", "NaN または Infinity の音声サンプルを検出しました。");
+                            samples[c][position + i] = value;
+                            double magnitude = Math.Abs(value);
+                            peaks[c] = Math.Max(peaks[c], magnitude);
+                            // スケーリング二乗和: float64 の極端な値でも RMS 計算を溢れさせない。
+                            if (magnitude > 0)
+                            {
+                                if (scales[c] < magnitude)
+                                {
+                                    double ratio = scales[c] / magnitude;
+                                    squares[c] = 1 + squares[c] * ratio * ratio;
+                                    scales[c] = magnitude;
+                                }
+                                else
+                                {
+                                    double ratio = magnitude / scales[c];
+                                    squares[c] += ratio * ratio;
+                                }
+                            }
+                            offset += sampleBytes;
+                        }
+                    }
+                    position += frames;
+                }
+            }
+            catch (AudioValidationException) { throw; }
+            catch (Exception ex) when (ex is FormatException || ex is InvalidDataException || ex is ArgumentException || ex is EndOfStreamException)
+            { throw new AudioValidationException("NAudioReadFailure", "NAudio による WAV 読み込みに失敗しました: " + ex.Message, ex); }
+
+            var rmsDb = new double?[channels];
+            for (int c = 0; c < channels; c++)
+            {
+                if (peaks[c] <= 0) continue;
+                rmsDb[c] = 20 * Math.Log10(scales[c]) + 10 * Math.Log10(squares[c] / count);
+                // 保存データではなく解析用コピーだけを正規化。割ってから掛けることで桁溢れを避ける。
+                for (int i = 0; i < count; i++) samples[c][i] = (samples[c][i] / peaks[c]) * 0.5;
+            }
+            return new LoadedAudio(samples, peaks, rmsDb);
+        }
+
+        /// <summary>1チャンネル分の PCM/IEEE を little-endian から double に変換する。</summary>
+        private static double DecodeSample(ReadOnlySpan<byte> bytes, WavFormatInfo format)
+        {
+            if (format.IsFloatingPoint)
+                return format.BitsPerSample == 32
+                    ? BitConverter.Int32BitsToSingle(BinaryPrimitives.ReadInt32LittleEndian(bytes))
+                    : BitConverter.Int64BitsToDouble(BinaryPrimitives.ReadInt64LittleEndian(bytes));
+            switch (format.BitsPerSample)
+            {
+                case 8: return (bytes[0] - 128) / 128.0;
+                case 16: return BinaryPrimitives.ReadInt16LittleEndian(bytes) / 32768.0;
+                case 24:
+                    int value = bytes[0] | (bytes[1] << 8) | (bytes[2] << 16);
+                    if ((value & 0x800000) != 0) value |= unchecked((int)0xff000000);
+                    return value / 8388608.0;
+                case 32: return BinaryPrimitives.ReadInt32LittleEndian(bytes) / 2147483648.0;
+                default: throw Invalid("UnsupportedBitDepth", "サポート外の PCM ビット深度です。");
+            }
+        }
+
+        /// <summary>発話アンカーを確認した後に弱い発話と文脈を保護し、端部候補を返す。</summary>
+        private static ChannelDiagnostics AnalyzeChannel(LoadedAudio audio, WavFormatInfo format, int channel, DetectorOptions options)
+        {
+            if (audio.Peaks[channel] <= 0)
+                return new ChannelDiagnostics { Channel = channel, HasSpeech = false, Reason = "全サンプルがデジタルゼロです。" };
+            Features f = ExtractFeatures(audio.Samples[channel], format.SampleRate);
+            int count = f.Db.Length;
+            double probability = 1 - Math.Min(0.10, 25.0 / count);
+            double reference = Quantile(MedianFive(f.Db), probability);
+            double amplitudeOffsetDb = 20 * Math.Log10(audio.Peaks[channel]) + 20 * Math.Log10(2.0);
+            double refRms = Quantile(MedianFive(f.Rms), probability);
+            double? referenceRmsDb = refRms > 0 ? 20 * Math.Log10(refRms) + amplitudeOffsetDb : null;
+            bool[] localArticulation = LocalArticulationMask(f.Change);
+            bool[] seed = new bool[count];
+            bool[] weakSeed = new bool[count];
+            bool[] possible = new bool[count];
+            int seedCount = 0;
+            for (int i = 0; i < count; i++)
+            {
+                double relative = f.Db[i] - reference;
+                seed[i] = localArticulation[i] && relative >= -18 && f.PeakShare[i] < 0.80 &&
+                    (f.Flatness[i] < 0.10 || (f.Flatness[i] < 0.45 && f.Change[i] >= 2.2));
+                weakSeed[i] = localArticulation[i] && relative >= -36 && f.PeakShare[i] < 0.80 &&
+                    (f.Flatness[i] < 0.10 || (f.Flatness[i] < 0.40 && f.Change[i] >= 3.5));
+                possible[i] = relative >= -40 && f.Flatness[i] < 0.55;
+                if (seed[i]) seedCount++;
+            }
+            List<FrameGroup> anchors = QualifyGroups(seed, f.Change, f.OccupiedBands, f.HopDuration, 0.40, 0.20, 3.2, 0.25);
+            string? rejection = null;
+            if (anchors.Count == 0)
+                rejection = "持続0.40秒・候補0.20秒とスペクトル形状変化・複数帯域成分を併せ持つ発話群がありません。定常ノイズ、息、短い音だけの可能性があります。";
+            // PCM の数値分解能未満の声を、ノイズから確実に区別したとは扱わない。
+            if (!format.IsFloatingPoint)
+            {
+                double twoStepsDb = 20 * Math.Log10(2.0) - (format.ValidBitsPerSample - 1) * 20 * Math.Log10(2.0);
+                if (!referenceRmsDb.HasValue || referenceRmsDb.Value < twoStepsDb)
+                    rejection = "有効ビット数に対し音声レベルが約2量子化ステップ未満で、発話/ノイズを安全に判定できません。";
+            }
+            if (rejection != null)
+                return new ChannelDiagnostics
+                {
+                    Channel = channel,
+                    HasSpeech = false,
+                    Reason = rejection,
+                    PeakDbFs = 20 * Math.Log10(audio.Peaks[channel]),
+                    RmsDbFs = audio.RmsDb[channel],
+                    ReferenceBandPowerDb = reference + amplitudeOffsetDb,
+                    ReferenceRmsDbFs = referenceRmsDb,
+                    MedianFlatness = Quantile(f.Flatness, 0.5),
+                    MeanShapeChangeDb = f.Change.Average(),
+                    StrongCandidateSeconds = seedCount * f.HopDuration,
+                    AnchorCount = anchors.Count
+                };
+
+            List<FrameGroup> weak = QualifyGroups(weakSeed, f.Change, f.OccupiedBands, f.HopDuration, 0.40, 0.20, 4.0, 0.40);
+            List<FrameGroup> satellites = QualifyGroups(seed, f.Change, f.OccupiedBands, f.HopDuration, 0.24, 0.12, 4.0, 0.40);
+            int first = anchors.Min(x => x.Start);
+            int last = anchors.Max(x => x.End);
+            foreach (FrameGroup group in weak.Concat(satellites))
+            { first = Math.Min(first, group.Start); last = Math.Max(last, group.End); }
+            bool[] connected = BridgeShortGaps(possible, SecondsToFrames(0.06, f.HopDuration));
+            int allowance = SecondsToFrames(options.WeakContextSeconds, f.HopDuration);
+            int firstLimit = Math.Max(0, first - allowance);
+            int lastLimit = Math.Min(count, last + allowance);
+            while (first > firstLimit && connected[first - 1]) first--;
+            while (last < lastLimit && connected[last]) last++;
+            double duration = audio.Samples[channel].Length / (double)format.SampleRate;
+            double start = Math.Max(0, first * f.HopDuration - f.WindowDuration / 2);
+            double end = Math.Min(duration, (last - 1) * f.HopDuration + f.WindowDuration / 2);
+            return new ChannelDiagnostics
+            {
+                Channel = channel,
+                HasSpeech = true,
+                Reason = "発話アンカーを確認。弱い発話と隣接弱音を保護しました。",
+                PeakDbFs = 20 * Math.Log10(audio.Peaks[channel]),
+                RmsDbFs = audio.RmsDb[channel],
+                ReferenceBandPowerDb = reference + amplitudeOffsetDb,
+                ReferenceRmsDbFs = referenceRmsDb,
+                MedianFlatness = Quantile(f.Flatness, 0.5),
+                MeanShapeChangeDb = f.Change.Average(),
+                StrongCandidateSeconds = seedCount * f.HopDuration,
+                AnchorCount = anchors.Count,
+                WeakGroupCount = weak.Count,
+                FirstAnchorSeconds = anchors.Min(x => x.Start) * f.HopDuration,
+                LastAnchorSeconds = (anchors.Max(x => x.End) - 1) * f.HopDuration,
+                ProtectedStartSeconds = start,
+                ProtectedEndSeconds = end
+            };
+        }
+
+        /// <summary>NAudio FFT を用いて短時間エネルギー・平坦度・音量非依存形状変化を計算する。</summary>
+        private static Features ExtractFeatures(double[] samples, int rate)
+        {
+            int windowLength = (int)Math.Round(rate * WindowSeconds, MidpointRounding.AwayFromZero);
+            int hop = (int)Math.Round(rate * HopSeconds, MidpointRounding.AwayFromZero);
+            int fftLength = 1;
+            int exponent = 0;
+            while (fftLength < windowLength) { fftLength <<= 1; exponent++; }
+            int count = 1 + (samples.Length - 1) / hop;
+            var result = new Features(count, hop / (double)rate, windowLength / (double)rate);
+            var window = new double[windowLength];
+            for (int j = 0; j < windowLength; j++) window[j] = FastFourierTransform.HannWindow(j, windowLength);
+            var fft = new Complex[fftLength];
+            var powers = new double[fftLength / 2 + 1];
+            var shape = new double[count * ShapeBands];
+            var smooth = new double[shape.Length];
+            double highFrequency = Math.Min(6000.0, rate * 0.47);
+            int lowBin = (int)Math.Ceiling(160.0 * fftLength / rate);
+            int highBin = (int)Math.Floor(highFrequency * fftLength / rate);
+            int[] bandStarts = new int[ShapeBands];
+            int[] bandEnds = new int[ShapeBands];
+            for (int band = 0; band < ShapeBands; band++)
+            {
+                double low = 160 * Math.Pow(highFrequency / 160, band / (double)ShapeBands);
+                double high = 160 * Math.Pow(highFrequency / 160, (band + 1) / (double)ShapeBands);
+                bandStarts[band] = Math.Max(lowBin, (int)Math.Ceiling(low * fftLength / rate));
+                // high は含めない。FFTの周波数ビン単位で処理する。
+                bandEnds[band] = Math.Min(highBin + 1, (int)Math.Ceiling(high * fftLength / rate));
+                if (bandEnds[band] <= bandStarts[band])
+                    throw Invalid("InsufficientFrequencyResolution", "帯域特徴を計算する周波数分解能が不足しています。");
+            }
+            for (int frame = 0; frame < count; frame++)
+            {
+                int start = frame * hop - windowLength / 2;
+                double mean = 0;
+                for (int j = 0; j < windowLength; j++)
+                {
+                    int index = start + j;
+                    if ((uint)index < (uint)samples.Length) mean += samples[index];
+                }
+                mean /= windowLength;
+                Array.Clear(fft, 0, fft.Length);
+                double squared = 0;
+                for (int j = 0; j < windowLength; j++)
+                {
+                    int index = start + j;
+                    double value = ((uint)index < (uint)samples.Length ? samples[index] : 0) - mean;
+                    squared += value * value;
+                    fft[j].X = (float)(value * window[j]);
+                }
+                result.Rms[frame] = Math.Sqrt(squared / windowLength);
+                FastFourierTransform.FFT(true, exponent, fft);
+                double energy = 0, logSum = 0, maximum = 0;
+                for (int k = lowBin; k <= highBin; k++)
+                {
+                    double power = (double)fft[k].X * fft[k].X + (double)fft[k].Y * fft[k].Y;
+                    powers[k] = power;
+                    power += Tiny;
+                    energy += power; logSum += Math.Log(power); maximum = Math.Max(maximum, power);
+                }
+                int bins = highBin - lowBin + 1;
+                result.Db[frame] = 10 * Math.Log10(energy + Tiny);
+                result.Flatness[frame] = Math.Exp(logSum / bins) / (energy / bins);
+                result.PeakShare[frame] = maximum / energy;
+                double bandMean = 0, maximumBand = double.NegativeInfinity;
+                for (int band = 0; band < ShapeBands; band++)
+                {
+                    double sum = 0;
+                    for (int k = bandStarts[band]; k < bandEnds[band]; k++) sum += powers[k];
+                    double value = 10 * Math.Log10(sum / (bandEnds[band] - bandStarts[band]) + Tiny);
+                    shape[frame * ShapeBands + band] = value;
+                    bandMean += value; maximumBand = Math.Max(maximumBand, value);
+                }
+                // 少なくとも複数帯域に有意な成分があることも群単位で確認する。
+                // 単一の掃引音・FM音を「形状が変わるから発話」と誤認しにくくする。
+                for (int band = 0; band < ShapeBands; band++)
+                    if (shape[frame * ShapeBands + band] >= maximumBand - 25) result.OccupiedBands[frame]++;
+                bandMean /= ShapeBands;
+                // 全帯域が同時に大きくなるだけの変化を取り除き、「形の変化」だけを残す。
+                for (int band = 0; band < ShapeBands; band++) shape[frame * ShapeBands + band] -= bandMean;
+            }
+            for (int frame = 0; frame < count; frame++)
+                for (int band = 0; band < ShapeBands; band++)
+                {
+                    double sum = 0;
+                    for (int delta = -2; delta <= 2; delta++)
+                        sum += shape[Math.Clamp(frame + delta, 0, count - 1) * ShapeBands + band];
+                    smooth[frame * ShapeBands + band] = sum / 5;
+                }
+            for (int frame = 0; frame < count; frame++)
+            {
+                int before = Math.Max(0, frame - 4), after = Math.Min(count - 1, frame + 4);
+                double sum = 0;
+                for (int band = 0; band < ShapeBands; band++)
+                {
+                    double delta = smooth[after * ShapeBands + band] - smooth[before * ShapeBands + band];
+                    sum += delta * delta;
+                }
+                result.Change[frame] = Math.Sqrt(sum / ShapeBands);
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// 約250msの局所窓でも形状変化が継続しているか確認する。
+        /// 群全体の平均だけだと、後続発話の変化量によって直前の長い定常ノイズまで
+        /// 発話群に取り込む危険があるため、各候補フレームに独立の局所条件を課す。
+        /// </summary>
+        private static bool[] LocalArticulationMask(double[] change)
+        {
+            var result = new bool[change.Length];
+            for (int frame = 0; frame < change.Length; frame++)
+            {
+                double sum = 0;
+                int changing = 0;
+                for (int delta = -12; delta <= 12; delta++)
+                {
+                    double value = change[Math.Clamp(frame + delta, 0, change.Length - 1)];
+                    sum += value;
+                    if (value >= 3.5) changing++;
+                }
+                result[frame] = sum / 25 >= 3.2 && changing / 25.0 >= 0.25;
+            }
+            return result;
+        }
+
+        /// <summary>短い間を連結後、候補総量・群の長さ・形状変化を同時に満たす群だけを返す。</summary>
+        private static List<FrameGroup> QualifyGroups(bool[] mask, double[] change, int[] occupiedBands, double hop,
+            double minimumSpan, double minimumActive, double minimumMeanChange, double minimumChangingFraction)
+        {
+            bool[] closed = BridgeShortGaps(mask, SecondsToFrames(0.15, hop));
+            var groups = new List<FrameGroup>();
+            int position = 0;
+            while (position < closed.Length)
+            {
+                if (!closed[position]) { position++; continue; }
+                int start = position;
+                while (position < closed.Length && closed[position]) position++;
+                int end = position, active = 0, changing = 0, broad = 0;
+                double sum = 0;
+                for (int i = start; i < end; i++)
+                    if (mask[i])
+                    {
+                        active++; sum += change[i];
+                        if (change[i] >= 3.5) changing++;
+                        if (occupiedBands[i] >= 4) broad++;
+                    }
+                if (active > 0 && (end - start) * hop + 1e-9 >= minimumSpan && active * hop + 1e-9 >= minimumActive &&
+                    sum / active >= minimumMeanChange && changing / (double)active >= minimumChangingFraction &&
+                    broad * hop + 1e-9 >= 0.04 && broad / (double)active >= 0.10)
+                    groups.Add(new FrameGroup(start, end));
+            }
+            return groups;
+        }
+
+        /// <summary>両側を true に挟まれた短い false 区間だけを埋める。端部の無音は埋めない。</summary>
+        private static bool[] BridgeShortGaps(bool[] mask, int maximumGap)
+        {
+            bool[] result = (bool[])mask.Clone();
+            int position = 0;
+            while (position < result.Length)
+            {
+                if (result[position]) { position++; continue; }
+                int start = position;
+                while (position < result.Length && !result[position]) position++;
+                if (start > 0 && position < result.Length && position - start <= maximumGap)
+                    for (int i = start; i < position; i++) result[i] = true;
+            }
+            return result;
+        }
+
+        /// <summary>切り過ぎない方向だけへ境界を調整する。入力波形の値自体は変更しない。</summary>
+        private static long FindQuietBoundary(double[][] samples, long target, bool leading, int rate, DetectorOptions options)
+        {
+            int length = samples[0].Length;
+            int position = (int)Math.Clamp(target, 0L, length);
+            int radius = (int)Math.Round(options.QuietBoundarySearchSeconds * rate, MidpointRounding.AwayFromZero);
+            int low = leading ? Math.Max(0, position - radius) : position;
+            int high = leading ? position : Math.Min(length, position + radius);
+            int best = position;
+            double bestScore = double.PositiveInfinity;
+            for (int boundary = low; boundary <= high; boundary++)
+            {
+                int index = Math.Clamp(leading ? boundary : boundary - 1, 0, length - 1);
+                double score = 0;
+                foreach (double[] channel in samples)
+                {
+                    double value = Math.Abs(channel[index]) + 0.25 * Math.Abs(channel[Math.Max(0, index - 1)]) +
+                        0.25 * Math.Abs(channel[Math.Min(length - 1, index + 1)]);
+                    score = Math.Max(score, value);
+                }
+                // 同じ振幅なら当初の切断位置に近い方。完全無音で無駄に5ms延長しない。
+                if (score < bestScore || (score == bestScore && Math.Abs(boundary - position) < Math.Abs(best - position)))
+                { best = boundary; bestScore = score; }
+            }
+            return best;
+        }
+
+        /// <summary>5点メディアン。両端は端の値を延長する。</summary>
+        private static double[] MedianFive(double[] values)
+        {
+            var result = new double[values.Length];
+            var local = new double[5];
+            for (int i = 0; i < values.Length; i++)
+            {
+                for (int j = -2; j <= 2; j++) local[j + 2] = values[Math.Clamp(i + j, 0, values.Length - 1)];
+                Array.Sort(local); result[i] = local[2];
+            }
+            return result;
+        }
+
+        /// <summary>元配列を変更しない線形補間分位点。確率は0～1。</summary>
+        private static double Quantile(double[] values, double probability)
+        {
+            if (values.Length == 0) throw Invalid("EmptyFeatures", "解析フレームが空です。");
+            double[] sorted = (double[])values.Clone(); Array.Sort(sorted);
+            double index = (sorted.Length - 1) * Math.Clamp(probability, 0, 1);
+            int low = (int)Math.Floor(index), high = (int)Math.Ceiling(index);
+            return sorted[low] + (sorted[high] - sorted[low]) * (index - low);
+        }
+
+        /// <summary>秒数を最も近い解析フレーム数に変換する。</summary>
+        private static int SecondsToFrames(double seconds, double hop) => (int)Math.Round(seconds / hop, MidpointRounding.AwayFromZero);
+
+        /// <summary>ストリームの指定バイト数を読み切る。音声読み込みではブロック境界を厳守する。</summary>
+        private static void ReadExactly(Stream stream, byte[] buffer, int count, int blockAlign = 1)
+        {
+            int total = 0;
+            while (total < count)
+            {
+                int read = stream.Read(buffer, total, count - total);
+                if (read <= 0 || read % blockAlign != 0)
+                    throw Invalid("TruncatedData", "WAV のデータが途中で終わったか、サンプル境界が壊れています。");
+                total += read;
+            }
+        }
+
+        /// <summary>全体 SHA-256 を計算し、元のストリーム位置を戻す。</summary>
+        private static string ComputeFileHash(Stream stream)
+        {
+            long position = stream.Position;
+            try { stream.Position = 0; using var sha = SHA256.Create(); return Convert.ToHexString(sha.ComputeHash(stream)); }
+            finally { stream.Position = position; }
+        }
+
+        /// <summary>NAudio から要求したデータバイト数だけを無変換でコピーする。</summary>
+        private static void CopyAudioBytes(WaveFileReader reader, Stream destination, long bytes, int align)
+        {
+            var buffer = new byte[(131072 / align) * align];
+            while (bytes > 0)
+            {
+                int wanted = (int)Math.Min(bytes, buffer.Length);
+                ReadExactly(reader, buffer, wanted, align);
+                destination.Write(buffer, 0, wanted); bytes -= wanted;
+            }
+        }
+
+        /// <summary>出力形式と保持した全サンプルバイトを元 WAV と照合する。</summary>
+        private static void VerifyOutput(FileStream source, string output, AnalysisResult analysis, RiffLayout original)
+        {
+            using var outputStream = new FileStream(output, FileMode.Open, FileAccess.Read, FileShare.Read);
+            RiffLayout written = RiffLayout.Read(outputStream);
+            if (!written.FormatBytes.AsSpan().SequenceEqual(original.FormatBytes) ||
+                written.Frames != analysis.KeepEndFrameExclusive - analysis.KeepStartFrame)
+                throw Invalid("OutputVerificationFailed", "出力の音声形式またはサンプル数が一致しません。");
+            source.Position = 0; outputStream.Position = 0;
+            using var originalReader = new WaveFileReader(source);
+            using var outputReader = new WaveFileReader(outputStream);
+            originalReader.Position = analysis.KeepStartFrame * original.Format.BlockAlign;
+            int align = original.Format.BlockAlign;
+            var left = new byte[(131072 / align) * align];
+            var right = new byte[left.Length];
+            long remaining = written.DataLength;
+            while (remaining > 0)
+            {
+                int count = (int)Math.Min(remaining, left.Length);
+                ReadExactly(originalReader, left, count, align);
+                ReadExactly(outputReader, right, count, align);
+                if (!left.AsSpan(0, count).SequenceEqual(right.AsSpan(0, count)))
+                    throw Invalid("OutputVerificationFailed", "出力サンプルが元 WAV の保持区間と一致しません。");
+                remaining -= count;
+            }
+        }
+
+        /// <summary>RIFF チャンクのヘッダと偶数境界パディングを含めた長さ。</summary>
+        private static long ChunkStorage(long bytes) => checked(8 + bytes + (bytes & 1));
+        /// <summary>4文字の ASCII チャンク識別子を出力する。</summary>
+        private static void WriteFourCc(BinaryWriter writer, string id) => writer.Write(Encoding.ASCII.GetBytes(id));
+        /// <summary>小さいチャンクを内容そのまま出力し、奇数長ならパディングする。</summary>
+        private static void WriteChunk(BinaryWriter writer, string id, byte[] data)
+        {
+            WriteFourCc(writer, id); writer.Write((uint)data.Length); writer.Write(data);
+            if ((data.Length & 1) != 0) writer.Write((byte)0);
+        }
+        /// <summary>一貫した形式の検証例外を作る。</summary>
+        private static AudioValidationException Invalid(string code, string message) => new AudioValidationException(code, message);
+
+        /// <summary>正規化済み解析コピーと、元振幅の統計値。外部には公開しない。</summary>
+        private sealed class LoadedAudio
+        {
+            public double[][] Samples { get; }
+            public double[] Peaks { get; }
+            public double?[] RmsDb { get; }
+            public LoadedAudio(double[][] samples, double[] peaks, double?[] rmsDb) { Samples = samples; Peaks = peaks; RmsDb = rmsDb; }
+        }
+        /// <summary>解析フレームの特徴量配列。HopDuration/WindowDuration の単位は秒。</summary>
+        private sealed class Features
+        {
+            public double[] Db { get; }
+            public double[] Flatness { get; }
+            public double[] PeakShare { get; }
+            public double[] Change { get; }
+            public double[] Rms { get; }
+            public int[] OccupiedBands { get; }
+            public double HopDuration { get; }
+            public double WindowDuration { get; }
+            public Features(int count, double hop, double window)
+            {
+                Db = new double[count]; Flatness = new double[count]; PeakShare = new double[count];
+                Change = new double[count]; Rms = new double[count]; OccupiedBands = new int[count]; HopDuration = hop; WindowDuration = window;
+            }
+        }
+        /// <summary>解析フレームの半開区間 [Start, End)。</summary>
+        private readonly struct FrameGroup
+        {
+            public int Start { get; }
+            public int End { get; }
+            public FrameGroup(int start, int end) { Start = start; End = end; }
+        }
+
+        /// <summary>厳格な RIFF 検証と元 fmt バイトの保持。音声内容はこの型ではデコードしない。</summary>
+        private sealed class RiffLayout
+        {
+            public byte[] FormatBytes { get; }
+            public byte[]? FactBytes { get; }
+            public long DataLength { get; }
+            public long Frames { get; }
+            public WavFormatInfo Format { get; }
+            private RiffLayout(byte[] formatBytes, byte[]? factBytes, long dataLength, WavFormatInfo format)
+            { FormatBytes = formatBytes; FactBytes = factBytes; DataLength = dataLength; Format = format; Frames = dataLength / format.BlockAlign; }
+
+            /// <summary>RIFF レイアウトと PCM/IEEE 形式の整合性を確認し、検証済み情報を返す。</summary>
+            public static RiffLayout Read(Stream stream)
+            {
+                stream.Position = 0;
+                if (stream.Length < 12) throw Invalid("InvalidRiff", "RIFF/WAVE ヘッダがありません。");
+                byte[] header = new byte[12]; ReadExactly(stream, header, 12);
+                if (Encoding.ASCII.GetString(header, 0, 4) != "RIFF" || Encoding.ASCII.GetString(header, 8, 4) != "WAVE")
+                    throw Invalid("UnsupportedContainer", "通常の little-endian RIFF/WAVE のみ対応です。RF64/RIFX/WAVE64 等は対象外です。");
+                long riffEnd = 8L + BinaryPrimitives.ReadUInt32LittleEndian(header.AsSpan(4, 4));
+                if (riffEnd < 12 || riffEnd > stream.Length) throw Invalid("TruncatedRiff", "RIFF の宣言サイズと実ファイル長が不整合です。");
+                byte[]? format = null, fact = null;
+                long dataLength = -1;
+                byte[] chunk = new byte[8];
+                while (stream.Position < riffEnd)
+                {
+                    if (riffEnd - stream.Position < 8) throw Invalid("InvalidChunk", "RIFF 内に不完全なチャンクヘッダがあります。");
+                    ReadExactly(stream, chunk, 8);
+                    string id = Encoding.ASCII.GetString(chunk, 0, 4);
+                    uint length = BinaryPrimitives.ReadUInt32LittleEndian(chunk.AsSpan(4, 4));
+                    long start = stream.Position;
+                    long next = start + length + (length & 1U);
+                    if (next > riffEnd) throw Invalid("TruncatedChunk", $"{id} チャンクが RIFF の終端を超えています。");
+                    if (id == "fmt ")
+                    {
+                        if (format != null || length < 16 || length > 65536) throw Invalid("InvalidFormatChunk", "fmt チャンクが多重・過大・不完全です。");
+                        format = new byte[(int)length]; ReadExactly(stream, format, format.Length);
+                    }
+                    else if (id == "data")
+                    {
+                        if (dataLength >= 0) throw Invalid("MultipleDataChunks", "複数 data チャンクの WAV は安全のため処理しません。");
+                        dataLength = length;
+                    }
+                    else if (id == "fact")
+                    {
+                        if (fact != null || length < 4 || length > 65536) throw Invalid("InvalidFactChunk", "fact チャンクが不正です。");
+                        fact = new byte[(int)length]; ReadExactly(stream, fact, fact.Length);
+                    }
+                    stream.Position = next;
+                }
+                if (format == null || dataLength <= 0) throw Invalid("MissingAudioData", "fmt または空でない data チャンクがありません。");
+                WavFormatInfo info = ParseFormat(format);
+                if (dataLength % info.BlockAlign != 0) throw Invalid("InvalidBlockAlignment", "data サイズが全チャンネルのサンプル境界に一致しません。");
+                return new RiffLayout(format, fact, dataLength, info);
+            }
+
+            /// <summary>形式タグ、有効ビット数、Subtype GUID、BlockAlign、AvgBytesPerSec を検証する。</summary>
+            private static WavFormatInfo ParseFormat(byte[] data)
+            {
+                ushort tag = BinaryPrimitives.ReadUInt16LittleEndian(data.AsSpan(0, 2));
+                int channels = BinaryPrimitives.ReadUInt16LittleEndian(data.AsSpan(2, 2));
+                uint rateValue = BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(4, 4));
+                uint averageBytes = BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(8, 4));
+                int align = BinaryPrimitives.ReadUInt16LittleEndian(data.AsSpan(12, 2));
+                int bits = BinaryPrimitives.ReadUInt16LittleEndian(data.AsSpan(14, 2));
+                int validBits = bits; uint mask = 0;
+                bool floating;
+                if (tag == 1) floating = false;
+                else if (tag == 3) floating = true;
+                else if (tag == 65534)
+                {
+                    if (data.Length < 40) throw Invalid("InvalidExtensible", "WAVE_FORMAT_EXTENSIBLE が40バイト未満です。");
+                    int extra = BinaryPrimitives.ReadUInt16LittleEndian(data.AsSpan(16, 2));
+                    if (extra < 22 || 18 + extra > data.Length) throw Invalid("InvalidExtensible", "Extensible の追加データ長が不正です。");
+                    validBits = BinaryPrimitives.ReadUInt16LittleEndian(data.AsSpan(18, 2));
+                    if (validBits == 0) validBits = bits;
+                    mask = BinaryPrimitives.ReadUInt32LittleEndian(data.AsSpan(20, 4));
+                    Guid subtype = new Guid(data.AsSpan(24, 16));
+                    if (subtype == new Guid("00000001-0000-0010-8000-00aa00389b71")) floating = false;
+                    else if (subtype == new Guid("00000003-0000-0010-8000-00aa00389b71")) floating = true;
+                    else throw Invalid("UnsupportedEncoding", "Extensible の SubFormat が PCM/IEEE float ではありません。");
+                }
+                else throw Invalid("UnsupportedEncoding", $"圧縮または非対応の WAV 形式タグです: {tag}");
+                if (rateValue < 8000 || rateValue > 192000 || channels < 1 || channels > 8)
+                    throw Invalid("UnsupportedAudioFormat", "対応範囲は8k～192kHz、1～8チャンネルです。");
+                if ((!floating && bits != 8 && bits != 16 && bits != 24 && bits != 32) ||
+                    (floating && bits != 32 && bits != 64))
+                    throw Invalid("UnsupportedBitDepth", "対応ビット深度は PCM 8/16/24/32、IEEE float 32/64 です。");
+                if (validBits < 1 || validBits > bits || (floating && validBits != bits))
+                    throw Invalid("InvalidValidBits", "有効ビット数がコンテナのビット数と整合しません。");
+                int expectedAlign = channels * (bits / 8);
+                if (align != expectedAlign || averageBytes != (long)rateValue * align)
+                    throw Invalid("InvalidFormatRates", "BlockAlign または AvgBytesPerSec が非圧縮形式と整合しません。");
+                if (data.Length == 17) throw Invalid("InvalidFormatChunk", "fmt の追加データ長フィールドが不完全です。");
+                if (data.Length >= 18 && 18 + BinaryPrimitives.ReadUInt16LittleEndian(data.AsSpan(16, 2)) > data.Length)
+                    throw Invalid("InvalidFormatChunk", "fmt の追加データが不足しています。");
+                return new WavFormatInfo(tag, floating, (int)rateValue, channels, bits, validBits, align, mask);
+            }
+        }
+    }
+}
 
 
 
