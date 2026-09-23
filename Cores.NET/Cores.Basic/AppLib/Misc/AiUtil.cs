@@ -1105,8 +1105,10 @@ public class AiTask
             }
         }
     }
-    public async Task EncodeAndNormalizeAllMusicAsync(string srcDirPath, string dstMusicDirPath, string tmpBaseDir, string albumName, CancellationToken cancel = default)
+    public async Task EncodeAndNormalizeAllMusicAsync(string srcDirPath, string dstMusicDirPath, string tmpBaseDir, string albumName, FfMpegAudioCodec codec = FfMpegAudioCodec.Aac, string ext = ".m4a", CancellationToken cancel = default)
     {
+        if (ext.StartsWith(".") == false) ext = "." + ext;
+
         string tmpMusicDirPath = PP.Combine(tmpBaseDir, "0_MusicRelease_TMP");
 
         var artistsDirList = await Lfs.EnumDirectoryAsync(srcDirPath, cancel: cancel);
@@ -1142,7 +1144,7 @@ public class AiTask
                         await Lfs.CreateDirectoryAsync(dstMusicDirPath, cancel: cancel);
 
                         var currentDstDirFiles = await Lfs.EnumDirectoryAsync(dstMusicDirPath, cancel: cancel);
-                        var currentDstAacFiles = currentDstDirFiles.Where(x => x.IsFile && x.Name._IsExtensionMatch(".m4a"));
+                        var currentDstAacFiles = currentDstDirFiles.Where(x => x.IsFile && x.Name._IsExtensionMatch(ext));
 
                         string albumName2;
 
@@ -1170,9 +1172,9 @@ public class AiTask
                             Artist = albumName2 + " - " + artistName,
                         };
 
-                        string dstMusicAacPath = PP.Combine(dstMusicDirPath, $"{albumName2} - {safeArtistName} - {formalSongTitle._TruncStr(48)}.m4a");
+                        string dstMusicAacPath = PP.Combine(dstMusicDirPath, $"{albumName2} - {safeArtistName} - {formalSongTitle._TruncStr(48)}{ext}");
 
-                        await FfMpeg.EncodeAudioAsync(tmpOriginalSongWavPath, dstMusicAacPath, FfMpegAudioCodec.Aac, 0, 100, meta, safeSongTitle, cancel: cancel);
+                        await FfMpeg.EncodeAudioAsync(tmpOriginalSongWavPath, dstMusicAacPath, codec, 0, 100, meta, safeSongTitle, cancel: cancel);
                     }
                 }
                 catch (Exception ex)
@@ -4150,6 +4152,22 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
 
                     isActiveMovingSpeaker = false;
                 }
+                else if (block.StartsWith(@"SPEAKER_W:"))
+                {
+                    speakerIndex = 2;
+                    storySpeakerStr = block.Substring(0, 9);
+                    block = block.Substring(10).Trim();
+
+                    isActiveMovingSpeaker = false;
+                }
+                else if (block.StartsWith(@"SPEAKER_Z:"))
+                {
+                    speakerIndex = 3;
+                    storySpeakerStr = block.Substring(0, 9);
+                    block = block.Substring(10).Trim();
+
+                    isActiveMovingSpeaker = true;
+                }
 
                 //int speakerId = speakerIdShuffleQueue.Dequeue();
 
@@ -4159,7 +4177,30 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
                     speakerId = speakerIdList.FirstOrDefault();
                 }
 
-                byte[] blockWavData = await TextBlockToWavAsync(block, speakerId);
+                byte[] blockWavData;
+
+                if (block._IsFilled())
+                {
+                    blockWavData = await TextBlockToWavAsync(block, speakerId);
+                }
+                else
+                {
+                    double durationOriginal = Math.Min(0.2, 3600);
+                    double duration = Math.Max(durationOriginal - 0.1, 0.11);
+                    WaveFormat waveFormat = new WaveFormat(this.BaseWavBitRateKHz, this.BaseWavBitDepth, this.BaseWavChannels);
+
+                    int silenceBytes = AiWaveUtil.GetWavDataSizeInByteFromTime(duration, waveFormat);
+                    blockWavData = new byte[silenceBytes];
+
+                    MemoryStream waveMs = new();
+                    await using (WaveFileWriter writer = new(waveMs, waveFormat))
+                    {
+                        await writer.WriteAsync(blockWavData, cancel);
+                        await writer.FlushAsync();
+                    }
+
+                    blockWavData = waveMs.ToArray();
+                }
 
                 var tmpPath = await Lfs.GenerateUniqueTempFilePathAsync($"{tagTitle}_{i:D8}_speaker{speakerId:D3}", ".wav", cancel: cancel);
 
