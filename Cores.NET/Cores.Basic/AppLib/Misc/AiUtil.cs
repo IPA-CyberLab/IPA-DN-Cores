@@ -3702,7 +3702,7 @@ public class AiUtilFishAudioS2ProEngine : AiUtilFishAudioEngine
 
                 if (((wavSecs + 1.0) < minSecs) || ((wavSecs - 1.0) > maxSecs))
                 {
-                    throw new CoresException($"Result wave lenght is too long or too short: wavSecs = {wavSecs:F2}, minSecs = {minSecs:F2}, maxSecs = {maxSecs:F2}");
+                    throw new CoresException($"Result wave lenght is too long or too short (1): wavSecs = {wavSecs:F2}, minSecs = {minSecs:F2}, maxSecs = {maxSecs:F2}");
                 }
 
                 if (wavSecs >= 1.6)
@@ -3715,6 +3715,16 @@ public class AiUtilFishAudioS2ProEngine : AiUtilFishAudioEngine
 
                     // ブランクトリム
                     wavSrc = AiInternalAudioUtil_WavBlankTrimmer.TrimBlankMain(wavSrc);
+                }
+
+                // 再度 長さの検証
+                wavSecs = ((double)(await AiTask.GetWavFileLengthMSecAsync(wavSrc))) / 1000.0;
+                minSecs = (double)numTextLen / 100.0 * 10.0;
+                maxSecs = Math.Max((double)numTextLen, 10.0) / 100.0 * 40.0;
+
+                if (((wavSecs + 1.0) < minSecs) || ((wavSecs - 1.0) > maxSecs))
+                {
+                    throw new CoresException($"Result wave lenght is too long or too short (2): wavSecs = {wavSecs:F2}, minSecs = {minSecs:F2}, maxSecs = {maxSecs:F2}");
                 }
 
                 return wavSrc;
