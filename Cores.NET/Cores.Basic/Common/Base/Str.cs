@@ -1410,7 +1410,7 @@ namespace IPA.Cores.Basic
             EucKrEncoding = GetNonBomEncoding(Encoding.GetEncoding("euc-kr"));
             Utf8Encoding = GetNonBomEncoding(Encoding.UTF8);
             UniEncoding = GetNonBomEncoding(Encoding.Unicode);
-            BomUtf8 = Str.GetBOM(Str.Utf8Encoding)!; 
+            BomUtf8 = Str.GetBOM(Str.Utf8Encoding)!;
 
             var suitableEncodingListForJapaneseWin32 = new List<Encoding>();
             suitableEncodingListForJapaneseWin32.Add(ShiftJisEncoding);
@@ -11432,13 +11432,14 @@ namespace IPA.Cores.Basic
 
     public class QueryStringList : KeyValueList<string, string>
     {
-        public char SplitChar = '&';
+        public readonly char SplitChar = '&';
+        public readonly IEnumerable<char>? AdditionalSplitCharsList = null;
 
-        public static QueryStringList Parse(string queryString, Encoding? encoding = null, char splitChar = '&', bool trimKeyAndValue = false)
+        public static QueryStringList Parse(string queryString, Encoding? encoding = null, char splitChar = '&', bool trimKeyAndValue = false, IEnumerable<char>? additionalSplitCharsList = null)
         {
             try
             {
-                return new QueryStringList(queryString, encoding, splitChar, trimKeyAndValue);
+                return new QueryStringList(queryString, encoding, splitChar, trimKeyAndValue, additionalSplitCharsList);
             }
             catch
             {
@@ -11456,9 +11457,10 @@ namespace IPA.Cores.Basic
             }
         }
 
-        public QueryStringList(string queryString, Encoding? encoding = null, char splitChar = '&', bool trimKeyAndValue = false)
+        public QueryStringList(string queryString, Encoding? encoding = null, char splitChar = '&', bool trimKeyAndValue = false, IEnumerable<char>? additionalSplitCharsList = null)
         {
             this.SplitChar = splitChar;
+            this.AdditionalSplitCharsList = additionalSplitCharsList;
 
             if (encoding == null) encoding = Str.Utf8Encoding;
 
@@ -11472,7 +11474,25 @@ namespace IPA.Cores.Basic
             if (i != -1) queryString = queryString.Substring(0, i);
 
             // & で分離する
-            string[] tokens = queryString.Split(this.SplitChar, StringSplitOptions.RemoveEmptyEntries);
+            string[] tokens;
+
+            if (this.AdditionalSplitCharsList == null || this.AdditionalSplitCharsList.Any() == false)
+            {
+                tokens = queryString.Split(this.SplitChar, StringSplitOptions.RemoveEmptyEntries);
+            }
+            else
+            {
+                HashSet<char> a = new();
+
+                a.Add(splitChar);
+
+                foreach (char b in this.AdditionalSplitCharsList)
+                {
+                    a.Add(b);
+                }
+
+                tokens = queryString.Split(a.ToArray(), StringSplitOptions.RemoveEmptyEntries);
+            }
 
             foreach (string token in tokens)
             {

@@ -3934,37 +3934,40 @@ public class AiUtilFishAudioEngine : AiUtilVoiceVoxEngine
 
 
     // テキスト分割 (タグも分離)
-    public override KeyValueList<string, bool> SplitText(string text, int maxLen = 100)
+    public override List<TextBlock> SplitText(string text, int maxLen = 100)
     {
-        KeyValueList<string, bool> ret = new KeyValueList<string, bool>();
+        List<TextBlock> ret = new();
 
         var textAndTags = SplitTextToNormalAndTag(text);
 
         foreach (var part in textAndTags)
         {
-            if (part.Value == false)
+            if (part.Text._GetLines(removeEmpty: true, trim: true)._Combine()._IsFilled())
             {
-                var lines = part.Key._GetLines(true, singleLineAtLeast: true, trim: true);
-
-                foreach (var line in lines)
+                if (part.Type == TextBlockType.NormalText)
                 {
-                    var a = SplitTextCore(line, maxLen);
-                    foreach (var s in a)
+                    var lines = part.Text._GetLines(true, singleLineAtLeast: true, trim: true);
+
+                    foreach (var line in lines)
                     {
-                        ret.Add(s, false);
+                        var a = SplitTextCore(line, maxLen);
+                        foreach (var s in a)
+                        {
+                            ret.Add(new TextBlock { Text = part.Text, Type = TextBlockType.NormalText });
+                        }
                     }
                 }
-            }
-            else
-            {
-                ret.Add(part.Key, true);
+                else
+                {
+                    ret.Add(new TextBlock { Text = part.Text, Type = part.Type });
+                }
             }
         }
 
         return ret;
     }
 
-    protected override List<string> SplitTextCore(string text, int maxLen = 100)
+    List<string> SplitTextCore(string text, int maxLen = 100)
     {
         var sentences = Regex.Split(text, @"(?<=[。！？.!?])");
         var chunks = new List<string>();
@@ -3994,38 +3997,6 @@ public class AiUtilFishAudioEngine : AiUtilVoiceVoxEngine
         return chunks;
     }
 
-    static int GetStrLenWithoutTagAndSpace(string str)
-    {
-        char[] cc = str.ToCharArray();
-
-        int ret = 0;
-
-        int depth = 0;
-
-        foreach (char c in cc)
-        {
-            if (c == '[')
-            {
-                depth++;
-            }
-            else if (c == ']')
-            {
-                depth--;
-            }
-            else if (c == ' ')
-            {
-            }
-            else
-            {
-                if (depth <= 0)
-                {
-                    ret++;
-                }
-            }
-        }
-
-        return ret;
-    }
 
     protected static async Task<string> SafeReadAsStringAsync(HttpResponseMessage response, CancellationToken cancel)
     {
@@ -4118,6 +4089,41 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
         this.FfMpeg = ffMpeg;
     }
 
+    public static int GetStrLenWithoutTagAndSpace(string str)
+    {
+        str = str._NonNull();
+
+        char[] cc = str.ToCharArray();
+
+        int ret = 0;
+
+        int depth = 0;
+
+        foreach (char c in cc)
+        {
+            if (c == '[')
+            {
+                depth++;
+            }
+            else if (c == ']')
+            {
+                depth--;
+            }
+            else if (c == ' ')
+            {
+            }
+            else
+            {
+                if (depth <= 0)
+                {
+                    ret++;
+                }
+            }
+        }
+
+        return ret;
+    }
+
     public async Task<FfMpegParsedList> TextToWavAsync(string text, IEnumerable<int> speakerIdList /* 0 ～ 98 */, string dstWavPath, string tagTitle, bool useOkFile = true, CancellationToken cancel = default)
     {
         return await TaskUtil.RetryAsync(async c =>
@@ -4160,13 +4166,28 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
         return ret;
     }
 
+    [Flags]
+    public enum TextBlockType
+    {
+        NormalText = 0,
+        ControlTag,
+        SpeakTag,
+    }
+
+    public class TextBlock
+    {
+        public string Text = "";
+        public TextBlockType Type = TextBlockType.NormalText;
+        public int TextLenWithoutTagAndSpace => AiUtilVoiceVoxEngine.GetStrLenWithoutTagAndSpace(this.Text);
+    }
+
     async Task<FfMpegParsedList> TextToWavMainAsync(string text, IEnumerable<int> speakerIdList /* 0 ～ 98 */, string dstWavPath, string tagTitle = "", bool useOkFile = true, CancellationToken cancel = default)
     {
         if (tagTitle._IsEmpty()) tagTitle = "voicetext";
 
         text = PreProcessText(text);
 
-        var textBlockList = SplitText(text, this.TextSplitMaxLen);
+        List<TextBlock> textBlockList = SplitText(text, this.TextSplitMaxLen);
 
         string digest = $"text={textBlockList._ObjectToJson()._Digest()},speakerId={speakerIdList.Select(x => x.ToString())._Combine("+")},targetMaxVolume={Settings.AdjustAudioTargetMaxVolume},targetMeanVolume={Settings.AdjustAudioTargetMeanVolume}";
 
@@ -4221,11 +4242,33 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
             return ret;
         }
 
+        StrDictionary<string> speakerVarsList = new(StrCmpi);
+
         for (int i = 0; i < textBlockList.Count; i++)
         {
-            if (textBlockList[i].Value == false)
+            if (textBlockList[i].Type == TextBlockType.SpeakTag)
             {
-                string block = textBlockList[i].Key.Trim();
+                string tmp1 = textBlockList[i].Text.Trim();
+
+                string tmp2 = tmp1._RemoveQuotation('{', '}').Trim();
+
+                try
+                {
+                    QueryStringList qs = new QueryStringList(tmp2, splitChar: ';', additionalSplitCharsList: new[] { ',' });
+
+                    foreach (var kv in qs)
+                    {
+                        speakerVarsList[kv.Key._NonNullTrim()] = kv.Value._NonNullTrim();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ex._Error();
+                }
+            }
+            else if (textBlockList[i].Type == TextBlockType.NormalText)
+            {
+                string block = textBlockList[i].Text.Trim();
 
                 int xheartLevel = GetXHeartLevel(ref block);
 
@@ -4233,38 +4276,34 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
 
                 int speakerIndex = 0;
 
-                string? storySpeakerStr = null;
-
                 bool isActiveMovingSpeaker = false;
 
-                if (block.StartsWith(@"SPEAKER_Y:"))
+                string speaker = speakerVarsList._GetOrDefault("speaker", "x").ToUpperInvariant();
+
+                if (speaker == "Y")
                 {
                     speakerIndex = 1;
-                    storySpeakerStr = block.Substring(0, 9);
                     block = block.Substring(10).Trim();
 
                     isActiveMovingSpeaker = true;
                 }
-                else if (block.StartsWith(@"SPEAKER_X:"))
+                else if (speaker == "X")
                 {
                     speakerIndex = 0;
-                    storySpeakerStr = block.Substring(0, 9);
                     block = block.Substring(10).Trim();
 
                     isActiveMovingSpeaker = false;
                 }
-                else if (block.StartsWith(@"SPEAKER_W:"))
+                else if (speaker == "W")
                 {
                     speakerIndex = 2;
-                    storySpeakerStr = block.Substring(0, 9);
                     block = block.Substring(10).Trim();
 
                     isActiveMovingSpeaker = false;
                 }
-                else if (block.StartsWith(@"SPEAKER_Z:"))
+                else if (speaker == "Z")
                 {
                     speakerIndex = 3;
-                    storySpeakerStr = block.Substring(0, 9);
                     block = block.Substring(10).Trim();
 
                     isActiveMovingSpeaker = true;
@@ -4330,7 +4369,7 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
                 {
                     VoiceText = block,
                     SpeakerId = speakerId,
-                    StorySpeakerStr = storySpeakerStr,
+                    StorySpeakerStr = speaker,
                     IsActiveMovingSpeaker = isActiveMovingSpeaker,
                     XHeartLevel = xheartLevel,
                 };
@@ -4348,10 +4387,10 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
 
                 segmentsList.Add(segmentForBlank);
             }
-            else if (textBlockList[i].Key.StartsWith("<SLEEP:", StrCmp) || textBlockList[i].Key.StartsWith("<SLEEP_", StrCmp))
+            else if (textBlockList[i].Type == TextBlockType.ControlTag && (textBlockList[i].Text.StartsWith("<SLEEP:", StrCmp) || textBlockList[i].Text.StartsWith("<SLEEP_", StrCmp)))
             {
                 // 特別タグ: <SLEEP:xxx> または <SLEEP_xxx>
-                string innerText = textBlockList[i].Key._RemoveQuotation('<', '>');
+                string innerText = textBlockList[i].Text._RemoveQuotation('<', '>');
                 if (innerText._IsFilled())
                 {
                     string sepstr = ":";
@@ -4412,12 +4451,12 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
                     }
                 }
             }
-            else
+            else if (textBlockList[i].Type == TextBlockType.ControlTag)
             {
                 var segmentForTag = new MediaVoiceSegment
                 {
                     IsTag = true,
-                    TagStr = textBlockList[i].Key,
+                    TagStr = textBlockList[i].Text,
                 };
 
                 segmentsList.Add(segmentForTag);
@@ -4558,7 +4597,7 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
     }
 
     // テキスト文字列からタグとそれ以外を分離
-    public static KeyValueList<string, bool> SplitTextToNormalAndTag(string text)
+    public static List<TextBlock> SplitTextToNormalAndTag(string text)
     {
         // "SLEEP:" の前に必ず改行を入れる
         StringBuilder tmpBuilder = new();
@@ -4627,9 +4666,9 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
 
         StringBuilder b = new StringBuilder();
 
-        KeyValueList<string, bool> ret = new();
+        List<TextBlock> ret = new();
 
-        int mode = 0;
+        TextBlockType mode = TextBlockType.NormalText;
 
         int i;
         for (i = 0; i < text.Length; i++)
@@ -4638,13 +4677,28 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
 
             if (c == '<')
             {
-                if (mode == 0)
+                if (mode != TextBlockType.ControlTag)
                 {
-                    mode = 1;
+                    mode = TextBlockType.ControlTag;
 
                     if (b.Length >= 1)
                     {
-                        ret.Add(b.ToString(), false);
+                        ret.Add(new TextBlock { Text = b.ToString(), Type = TextBlockType.NormalText });
+                        b.Clear();
+                    }
+                }
+
+                b.Append(c);
+            }
+            else if (c == '{')
+            {
+                if (mode != TextBlockType.SpeakTag)
+                {
+                    mode = TextBlockType.SpeakTag;
+
+                    if (b.Length >= 1)
+                    {
+                        ret.Add(new TextBlock { Text = b.ToString(), Type = TextBlockType.NormalText });
                         b.Clear();
                     }
                 }
@@ -4655,11 +4709,23 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
             {
                 b.Append(c);
 
-                if (mode == 1)
+                if (mode == TextBlockType.ControlTag)
                 {
-                    mode = 0;
+                    mode = TextBlockType.NormalText;
 
-                    ret.Add(b.ToString(), true);
+                    ret.Add(new TextBlock { Text = b.ToString(), Type = TextBlockType.ControlTag });
+                    b.Clear();
+                }
+            }
+            else if (c == '}')
+            {
+                b.Append(c);
+
+                if (mode == TextBlockType.SpeakTag)
+                {
+                    mode = TextBlockType.SpeakTag;
+
+                    ret.Add(new TextBlock { Text = b.ToString(), Type = TextBlockType.SpeakTag });
                     b.Clear();
                 }
             }
@@ -4671,32 +4737,35 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
 
         if (b.Length >= 1)
         {
-            ret.Add(b.ToString(), mode != 0);
+            ret.Add(new TextBlock { Text = b.ToString(), Type = mode });
         }
 
         return ret;
     }
 
     // テキスト分割 (タグも分離)
-    public virtual KeyValueList<string, bool> SplitText(string text, int maxLen = 100)
+    public virtual List<TextBlock> SplitText(string text, int maxLen = 100)
     {
-        KeyValueList<string, bool> ret = new KeyValueList<string, bool>();
+        List<TextBlock> ret = new();
 
-        var textAndTags = SplitTextToNormalAndTag(text);
+        List<TextBlock> textAndTags = SplitTextToNormalAndTag(text);
 
         foreach (var part in textAndTags)
         {
-            if (part.Value == false)
+            if (part.Text._GetLines(removeEmpty: true, trim: true)._Combine()._IsFilled())
             {
-                var a = SplitTextCore(part.Key, maxLen);
-                foreach (var s in a)
+                if (part.Type == TextBlockType.NormalText)
                 {
-                    ret.Add(s, false);
+                    var a = SplitTextCore(part.Text, maxLen);
+                    foreach (var s in a)
+                    {
+                        ret.Add(new TextBlock { Text = s, Type = TextBlockType.NormalText });
+                    }
                 }
-            }
-            else
-            {
-                ret.Add(part.Key, true);
+                else
+                {
+                    ret.Add(new TextBlock { Text = part.Text, Type = part.Type });
+                }
             }
         }
 
@@ -4704,7 +4773,7 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
     }
 
     // テキスト分割
-    protected virtual List<string> SplitTextCore(string text, int maxLen = 100)
+    List<string> SplitTextCore(string text, int maxLen = 100)
     {
         var sentences = Regex.Split(text, @"(?<=[。！？])");
         var chunks = new List<string>();

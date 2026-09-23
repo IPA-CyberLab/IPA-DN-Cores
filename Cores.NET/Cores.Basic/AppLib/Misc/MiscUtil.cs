@@ -6987,7 +6987,7 @@ public static class DnsRunningCheckerUtil
                         return true;
                     }
                 }
-                catch (OperationCanceledException ex)
+                catch (OperationCanceledException/* ex */)
                 {
                     /*
                      * 呼び出し元 CancellationToken によるキャンセルなら、
@@ -7003,7 +7003,7 @@ public static class DnsRunningCheckerUtil
                         return false;
                     }
                 }
-                catch (Exception ex)
+                catch (Exception/* ex*/)
                 {
                     /*
                      * UDP では、OS によっては ICMP Port Unreachable 等が
@@ -7053,7 +7053,7 @@ public static class DnsRunningCheckerUtil
             {
                 await Task.Delay(delayMsecs, candel);
             }
-            catch (Exception ex)
+            catch (Exception/* ex */)
             {
                 /*
                  * Task.Delay 中のキャンセルを含む例外も外へ出しません。
