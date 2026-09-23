@@ -4723,7 +4723,7 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
 
                 if (mode == TextBlockType.SpeakTag)
                 {
-                    mode = TextBlockType.SpeakTag;
+                    mode = TextBlockType.NormalText;
 
                     ret.Add(new TextBlock { Text = b.ToString(), Type = TextBlockType.SpeakTag });
                     b.Clear();
