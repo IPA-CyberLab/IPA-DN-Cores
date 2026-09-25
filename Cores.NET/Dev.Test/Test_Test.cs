@@ -766,6 +766,28 @@ static class TestClass
         }
     }
 
+    static void Test_MakeUtVpnRootCerts_260925()
+    {
+        string baseDir = @"c:\tmp\260925_utvpn_root_certs\";
+
+        if (true)
+        {
+            PkiUtil.GenerateRsaKeyPair(4096, out PrivKey priv, out _);
+
+            var cert = new Certificate(priv, new CertificateOptions(PkiAlgorithm.RSA, CertificateOptionsType.RootCertiticate, "260925_utvpn_root_certs", c: "JP", expires: Util.MaxDateTimeOffsetValue, shaSize: PkiShaSize.SHA512));
+
+            CertificateStore store = new CertificateStore(cert, priv);
+
+            Lfs.WriteDataToFile(baseDir + @"260925_utvpn_root_certs_00.pfx", store.ExportPkcs12(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteDataToFile(baseDir + @"260925_utvpn_root_certs_00.cer", store.PrimaryCertificate.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteDataToFile(baseDir + @"260925_utvpn_root_certs_00.key", store.PrimaryPrivateKey.Export(), FileFlags.AutoCreateDirectory, doNotOverwrite: true);
+
+            Lfs.WriteStringToFile(baseDir + @"260925_utvpn_root_certs_00.txt", store.ExportCertInfo(), FileFlags.AutoCreateDirectory, doNotOverwrite: true, writeBom: true);
+        }
+    }
+
     static void Test_MakeDummyCerts_211115()
     {
         string baseDir = @"c:\tmp\211115_dummy_certs2\";
