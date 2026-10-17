@@ -3697,8 +3697,8 @@ public class AiUtilFishAudioS2ProEngine : AiUtilFishAudioEngine
 
                 // 長さの検証
                 double wavSecs = ((double)(await AiTask.GetWavFileLengthMSecAsync(wavSrc))) / 1000.0;
-                double minSecs = (double)numTextLen / 100.0 * 10.0;
-                double maxSecs = Math.Max((double)numTextLen, 10.0) / 100.0 * 40.0;
+                double minSecs = (double)numTextLen / 100.0 * 10.0 - (double)i;
+                double maxSecs = Math.Max((double)numTextLen, 10.0) / 100.0 * 40.0 + (double)i;
 
                 if (((wavSecs + 1.0) < minSecs) || ((wavSecs - 1.0) > maxSecs))
                 {
@@ -3719,8 +3719,8 @@ public class AiUtilFishAudioS2ProEngine : AiUtilFishAudioEngine
 
                 // 再度 長さの検証
                 wavSecs = ((double)(await AiTask.GetWavFileLengthMSecAsync(wavSrc))) / 1000.0;
-                minSecs = (double)numTextLen / 100.0 * 10.0;
-                maxSecs = Math.Max((double)numTextLen, 10.0) / 100.0 * 40.0;
+                minSecs = (double)numTextLen / 100.0 * 10.0 - (double)i;
+                maxSecs = Math.Max((double)numTextLen, 10.0) / 100.0 * 40.0 + (double)i;
 
                 if (((wavSecs + 1.0) < minSecs) || ((wavSecs - 1.0) > maxSecs))
                 {
@@ -4025,7 +4025,7 @@ public class AiUtilFishAudioEngine : AiUtilVoiceVoxEngine
                         var a = SplitTextCore(line, maxLen);
                         foreach (var s in a)
                         {
-                            ret.Add(new TextBlock { Text = part.Text, Type = TextBlockType.NormalText });
+                            ret.Add(new TextBlock { Text = s, Type = TextBlockType.NormalText });
                         }
                     }
                 }
@@ -4355,28 +4355,24 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
                 if (speaker == "Y")
                 {
                     speakerIndex = 1;
-                    block = block.Substring(10).Trim();
 
                     isActiveMovingSpeaker = true;
                 }
                 else if (speaker == "X")
                 {
                     speakerIndex = 0;
-                    block = block.Substring(10).Trim();
 
                     isActiveMovingSpeaker = false;
                 }
                 else if (speaker == "W")
                 {
                     speakerIndex = 2;
-                    block = block.Substring(10).Trim();
 
                     isActiveMovingSpeaker = false;
                 }
                 else if (speaker == "Z")
                 {
                     speakerIndex = 3;
-                    block = block.Substring(10).Trim();
 
                     isActiveMovingSpeaker = true;
                 }
@@ -5123,7 +5119,7 @@ public class AiRandomBgmSettings
 
     public bool Concat_UseTailIfSingle = false;
 
-    public int Medley_SingleFilePartMSecs = 100 * 1000;
+    public int Medley_SingleFilePartMSecs = 80 * 1000;
     public int Medley_FadeInOutMsecs = 5 * 1000;
     public int Medley_PlusMinusPercentage = 44;
     public int Medley_MarginMsecs = 15 * 1000;
