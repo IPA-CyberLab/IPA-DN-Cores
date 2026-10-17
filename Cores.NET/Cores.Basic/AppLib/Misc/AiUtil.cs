@@ -494,6 +494,79 @@ public class AiTask
         return ret;
     }
 
+    public async Task ConvertAllTextListToVoiceAsync(string srcDirPath, AiVoiceSettingFactory settingsFactory, string dstVoiceDirPath, CancellationToken cancel = default)
+    {
+        var seriesDirList = await Lfs.EnumDirectoryAsync(srcDirPath, cancel: cancel);
+
+        foreach (var seriesDir in seriesDirList.Where(x => x.IsDirectory && x.IsCurrentOrParentDirectory == false && x.Name.StartsWith("_") == false).OrderBy(x => x.Name, StrCmpi))
+        {
+            var settings = settingsFactory.GetAiVoiceSetting(seriesDir.FullPath);
+
+            var srcTextList = await Lfs.EnumDirectoryAsync(seriesDir.FullPath, false, cancel: cancel);
+
+            foreach (var srcTextFile in srcTextList.Where(x => x.IsFile && x.Name._IsExtensionMatch(Consts.Extensions.Text) && x.Name.StartsWith("_") == false && x.Name.EndsWith(".ok.txt", StrCmpi) == false).OrderBy(x => x.Name, StrCmpi)
+                //._Shuffle()
+                .ToList())
+            {
+                try
+                {
+                    string srcText = await Lfs.ReadStringFromFileAsync(srcTextFile.FullPath, cancel: cancel);
+
+                    string seriesName = PP.GetFileName(PP.GetDirectoryName(srcTextFile.FullPath))._Normalize(false, true, false, true);
+                    string storyTitle = PPWin.GetFileNameWithoutExtension(srcTextFile.FullPath)._Normalize(false, true, false, true);
+
+                    if (settings.ReplaceStrListTxtFileName._IsFilled())
+                    {
+                        string yomiTxtFilePath = PP.Combine(seriesDir.FullPath, settings.ReplaceStrListTxtFileName, true);
+
+                        try
+                        {
+                            string rulesBody = await Lfs.ReadStringFromFileAsync(yomiTxtFilePath, flags: FileFlags.ReadDataTryUpperDirs, cancel: cancel);
+
+                            srcText = srcText._IntelliReplaceStr(rulesBody, false);
+                        }
+                        catch (Exception ex)
+                        {
+                            ex._Error();
+                        }
+                    }
+
+                    var lines = srcText._GetLines(true, false, trim: true);
+
+                    List<Pair2<string, string>> list = new();
+
+                    foreach (var line in lines)
+                    {
+                        if (line._GetKeyAndValue(out var key, out var value))
+                        {
+                            key = key.Trim();
+                            value = value.Trim();
+
+                            if (key._IsFilled())
+                            {
+                                list.Add(new(key, value));
+                            }
+                        }
+                    }
+
+                    string dstDirPath = PP.Combine(dstVoiceDirPath, seriesDir.Name, PP.GetFileNameWithoutExtension(srcTextFile.Name));
+
+                    await ConvertTextListToVoiceAsync(AiTaskTtsEngine.FishAudioS2ProPlain, list, 0, dstDirPath, cancel: cancel);
+
+                    // テキストファイルの先頭に _ を付ける
+                    string newFilePath = PP.Combine(PP.GetDirectoryName(srcTextFile.FullPath), "_" + PP.GetFileName(srcTextFile.FullPath));
+
+                    await Lfs.MoveFileAsync(srcTextFile.FullPath, newFilePath);
+                }
+                catch (Exception ex)
+                {
+                    srcTextFile.FullPath._Error();
+                    ex._Error();
+                }
+            }
+        }
+    }
+
     public async Task ConvertAllTextToVoiceAsync(string srcDirPath, AiVoiceSettingFactory settingsFactory, string dstVoiceDirPath, string tmpVoiceBoxDir, string tmpVoiceWavDir, int[]? speedPercentList = null,
         Func<Task>? finalizeProc = null,
         CancellationToken cancel = default)
@@ -686,6 +759,16 @@ public class AiTask
 
                 await FfMpeg.EncodeAudioAsync(tmpVoiceWavPath, dstVoiceFlacPath, FfMpegAudioCodec.Aac, 0, speed, meta, tagTitle, useOkFile, cancel: cancel);
             }
+        }
+    }
+
+    public async Task ConvertTextListToVoiceAsync(AiTaskTtsEngine engine, IEnumerable<Pair2<string, string>> textList, int speakerId, string dstDirPath, CancellationToken cancel = default)
+    {
+        if (engine != AiTaskTtsEngine.FishAudioS2ProPlain) throw new CoresLibException("engine != AiTaskTtsEngine.FishAudioS2ProPlain");
+
+        await using (var vv = new AiUtilFishAudioS2ProEngine(this.Settings, this.FfMpeg))
+        {
+            await vv.TextListToWavFilesAsync(textList, speakerId, dstDirPath, cancel: cancel);
         }
     }
 
@@ -4584,6 +4667,73 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
         public string Text = "";
         public TextBlockType Type = TextBlockType.NormalText;
         public int TextLenWithoutTagAndSpace => AiUtilVoiceVoxEngine.GetStrLenWithoutTagAndSpace(this.Text);
+    }
+
+    public async Task TextListToWavFilesAsync(IEnumerable<Pair2<string, string>> textList, int speakerId, string dstDirPath, CancellationToken cancel = default)
+    {
+        await using var exec = await StartExeAsync(cancel: cancel);
+
+        int index = 0;
+
+        foreach (var textItem in textList)
+        {
+            index++;
+
+            string safeFn = textItem.A._MakeVerySafeAsciiOnlyNonSpaceFileName();
+
+            string dstPath = PP.Combine(dstDirPath, safeFn + ".mp3");
+
+            if (await Lfs.IsOkFileExistsAsync(dstPath, cancel: cancel))
+            {
+                continue;
+            }
+
+            string block = PreProcessText(textItem.A).Trim();
+
+            byte[] blockWavData;
+
+            if (block._IsFilled())
+            {
+                blockWavData = await TextBlockToWavAsync(block, speakerId);
+            }
+            else
+            {
+                double durationOriginal = Math.Min(0.2, 3600);
+                double duration = Math.Max(durationOriginal - 0.1, 0.11);
+                WaveFormat waveFormat = new WaveFormat(this.BaseWavBitRateKHz, this.BaseWavBitDepth, this.BaseWavChannels);
+
+                int silenceBytes = AiWaveUtil.GetWavDataSizeInByteFromTime(duration, waveFormat);
+                blockWavData = new byte[silenceBytes];
+
+                MemoryStream waveMs = new();
+                await using (WaveFileWriter writer = new(waveMs, waveFormat))
+                {
+                    await writer.WriteAsync(blockWavData, cancel);
+                    await writer.FlushAsync();
+                }
+
+                blockWavData = waveMs.ToArray();
+            }
+
+
+            var tmpPath = await Lfs.GenerateUniqueTempFilePathAsync($"{index:D8}_speaker{speakerId:D3}_{safeFn}", ".wav", cancel: cancel);
+
+            await Lfs.WriteDataToFileAsync(tmpPath, blockWavData, FileFlags.AutoCreateDirectory, cancel: cancel);
+
+            if (this is AiUtilFishAudioEngine)
+            {
+                var tmpPath2 = await Lfs.GenerateUniqueTempFilePathAsync($"{index:D8}_speaker{speakerId:D3}_{safeFn}_adjusted", ".wav", cancel: cancel);
+                await this.FfMpeg.AdjustAudioVolumeAsync(tmpPath, tmpPath2, Settings.AdjustAudioTargetMaxVolume, Settings.AdjustAudioTargetMeanVolume, FfmpegAdjustVolumeOptiono.MeanOnly, "", false, cancel);
+                tmpPath = tmpPath2;
+            }
+
+            Con.WriteLine($"Text to Wav: {index} / {textList.Count()}: \"{textItem.A}\": {textItem.B}, Size: {blockWavData.Length._ToString3()} bytes, Speaker: {speakerId:D3}");
+
+            await Lfs.EnsureCreateDirectoryForFileAsync(dstPath, cancel: cancel);
+
+            await this.FfMpeg.EncodeAudioAsync(tmpPath, dstPath, FfMpegAudioCodec.Mp3, cancel: cancel);
+            await Lfs.WriteOkFileAsync(dstPath, new OkFileEmptyMetaData(), cancel: cancel);
+        }
     }
 
     async Task<FfMpegParsedList> TextToWavMainAsync(string text, IEnumerable<int> speakerIdList /* 0 ～ 98 */, string dstWavPath, string tagTitle = "", bool useOkFile = true, CancellationToken cancel = default)
