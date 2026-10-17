@@ -517,7 +517,7 @@ public class AiTask
 
                     if (settings.ReplaceStrListTxtFileName._IsFilled())
                     {
-                        string yomiTxtFilePath = PP.Combine(seriesDir.FullPath, settings.ReplaceStrListTxtFileName, true);
+                        string yomiTxtFilePath = PP.Combine(seriesDir.FullPath, settings.ReplaceStrListTxtFileName);
 
                         try
                         {
@@ -551,7 +551,7 @@ public class AiTask
 
                     string dstDirPath = PP.Combine(dstVoiceDirPath, seriesDir.Name, PP.GetFileNameWithoutExtension(srcTextFile.Name));
 
-                    await ConvertTextListToVoiceAsync(AiTaskTtsEngine.FishAudioS2ProPlain, list, 0, dstDirPath, cancel: cancel);
+                    await ConvertTextListToVoiceAsync(AiTaskTtsEngine.FishAudioS2ProPlain, list, 15, dstDirPath, cancel: cancel);
 
                     // テキストファイルの先頭に _ を付ける
                     string newFilePath = PP.Combine(PP.GetDirectoryName(srcTextFile.FullPath), "_" + PP.GetFileName(srcTextFile.FullPath));
@@ -4688,7 +4688,7 @@ public class AiUtilVoiceVoxEngine : AiUtilBasicEngine
                 continue;
             }
 
-            string block = PreProcessText(textItem.A).Trim();
+            string block = PreProcessText(textItem.B).Trim();
 
             byte[] blockWavData;
 
