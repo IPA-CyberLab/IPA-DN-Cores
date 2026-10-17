@@ -70,6 +70,7 @@ using System.Net;
 using NAudio.Dsp;
 using System.Collections.ObjectModel;
 using System.Security.Cryptography;
+using SystemHttp = System.Net.Http;
 
 namespace IPA.Cores.Basic;
 
@@ -3676,11 +3677,38 @@ public class AiUtilSeedVcEngine : AiUtilBasicEngine
 
 public class AiUtilFishAudioS2ProEngine : AiUtilFishAudioEngine
 {
+    private const string AudioModelId = "s2pro-q8";
+
     public override int NumTryCount => 1;
 
     public AiUtilFishAudioS2ProEngine(AiUtilBasicSettings settings, FfMpegUtil ffMpeg) : base(settings, ffMpeg)
     {
     }
+
+    /// <summary>
+    /// audio.cpp への通信で共有する .NET 標準 HTTP クライアント。
+    /// アプリケーションの存続期間中は保持し、要求ごとには破棄しない。
+    /// localhost への要求をプロキシや別URLへ転送しない。
+    /// </summary>
+    private static readonly SystemHttp.HttpClient audioHttpClient =
+        new SystemHttp.HttpClient(
+            new SystemHttp.SocketsHttpHandler
+            {
+                UseProxy = false,
+                AllowAutoRedirect = false,
+                AutomaticDecompression = DecompressionMethods.None,
+                ConnectTimeout = TimeSpan.FromSeconds(10),
+            })
+        {
+            // ResponseContentRead と組み合わせ、WAV本文の受信完了までを制限する。
+            Timeout = TimeSpan.FromMinutes(30),
+        };
+
+    /// <summary>
+    /// 現在のサーバープロセスに対する初回ウォームアップの完了状態。
+    /// StartExeAsync でリセットする。既存どおり逐次呼び出しで使用する。
+    /// </summary>
+    private bool audioWarmupCompleted;
 
     // 音声合成
     protected override async Task<byte[]> TextBlockToWavAsync(string text, int speakerId, CancellationToken cancel = default)
@@ -3729,162 +3757,467 @@ public class AiUtilFishAudioS2ProEngine : AiUtilFishAudioEngine
 
                 return wavSrc;
             }
+            catch (OperationCanceledException)
+            {
+                // ユーザーキャンセルやHTTPタイムアウトを無限再試行にしない。
+                throw;
+            }
             catch (Exception ex)
             {
                 ex._Error();
-                continue;
+
+                // 通信・ファイル・引数の異常は、同じ条件で再生成しても解決しないため、
+                // このブロック内では再試行せず、呼び出し元へ通知する。
+                //
+                // それ以外の音声検査失敗等は、既存の i を利用して最大3回まで試す。
+                // i は0始まりなので、i == 2 が3回目。
+                if (ex is SystemHttp.HttpRequestException ||
+                    ex is IOException ||
+                    ex is UnauthorizedAccessException ||
+                    ex is ArgumentException ||
+                    i >= 2)
+                {
+                    throw;
+                }
+
+                await Task.Delay(250, cancel).ConfigureAwait(false);
             }
         }
     }
 
-    protected override async Task<byte[]> TextBlockToWavSingleAsync(string text, int speakerId, CancellationToken cancel = default)
+    /// <summary>
+    /// 指定テキストを、audio.cpp の S2 Pro Q8_0 モデルで音声合成する。
+    /// サーバー起動後の最初の呼び出しでは、同じ参照音声で3回ウォームアップする。
+    /// </summary>
+    /// <param name="text">
+    /// 読み上げるテキスト。S2 Pro の角括弧タグはそのまま送信する。
+    /// </param>
+    /// <param name="speakerId">
+    /// 参照音声の識別番号。ref\番号.wav と ref\番号.txt を使用する。
+    /// </param>
+    /// <param name="cancel">
+    /// 参照テキストの読み込み、およびHTTP通信を中止するキャンセルトークン。
+    /// </param>
+    /// <returns>
+    /// 本番要求で生成された、RIFF/WAVEヘッダー付きのWAVバイト配列。
+    /// ウォームアップで生成された音声は返さない。
+    /// </returns>
+    protected override async Task<byte[]> TextBlockToWavSingleAsync(
+        string text,
+        int speakerId,
+        CancellationToken cancel = default)
     {
+        cancel.ThrowIfCancellationRequested();
+
         if (string.IsNullOrWhiteSpace(text))
         {
-            throw new ArgumentException("text が null または空です。", nameof(text));
+            throw new ArgumentException(
+                "text が null または空です。",
+                nameof(text));
         }
 
-        text = text.Replace("(", " ").Replace(")", " ").Replace("（", " ").Replace("）", " ");
+        // 従来の前処理を維持する。S2 Pro の [角括弧タグ] は変更しない。
+        text = text.Replace("(", " ")
+                   .Replace(")", " ")
+                   .Replace("（", " ")
+                   .Replace("）", " ");
+
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            throw new ArgumentException(
+                "前処理後の text が空です。",
+                nameof(text));
+        }
+
+        string referenceDirectory = Path.GetFullPath(
+            Path.Combine(Settings.AiTest_FishAudioS2Pro_BaseDir, "ref"));
+
+        string speakerName = speakerId.ToString(
+            System.Globalization.CultureInfo.InvariantCulture);
+
+        string referenceAudioPath = Path.Combine(
+            referenceDirectory, speakerName + ".wav");
+
+        string referenceTextPath = Path.Combine(
+            referenceDirectory, speakerName + ".txt");
+
+        // 話者ファイルがない場合、既定話者へ黙って切り替えない。
+        if (!File.Exists(referenceAudioPath))
+        {
+            throw new FileNotFoundException(
+                $"話者ID {speakerId} の参照WAVがありません。",
+                referenceAudioPath);
+        }
+
+        string referenceText = (
+            await File.ReadAllTextAsync(
+                referenceTextPath,
+                Encoding.UTF8,
+                cancel).ConfigureAwait(false)
+            ).Trim();
+
+        if (string.IsNullOrWhiteSpace(referenceText))
+        {
+            throw new InvalidDataException(
+                $"参照テキストが空です: {referenceTextPath}");
+        }
+
+        string endpoint =
+            $"http://127.0.0.1:{Settings.FishAudioLocalhostPort}/v1/audio/speech";
 
         Con.WriteLine($"text: 「{text}」, speaker = {speakerId}");
 
-        // 追加: 参照音声・参照テキストを C# 側で読み込む
-        string refWavPath = Path.Combine(
-            Settings.AiTest_FishAudioS2Pro_BaseDir._CombinePath("ref"),
-            speakerId.ToString() + ".wav"
-        );
+        // 同じサーバーでは初回だけ実施する。
+        // 既存の呼び出し元は、各テキストブロックを逐次処理している。
+        int warmupCount = audioWarmupCompleted ? 0 : 3;
+        byte[] wavBytes = Array.Empty<byte>();
 
-        string refTxtPath = Path.Combine(
-            Settings.AiTest_FishAudioS2Pro_BaseDir._CombinePath("ref"),
-            speakerId.ToString() + ".txt"
-        );
-
-        byte[] refAudioBytes = (await Lfs.ReadDataFromFileAsync(refWavPath, cancel: cancel)).ToArray();
-        string refText = await Lfs.ReadStringFromFileAsync(refTxtPath, cancel: cancel);
-
-        // Python例[1]と同等の payload を JObject で構築（Newtonsoft.Json）
-        // 重要：感情マーカーを入れる場合、正規化が邪魔をすることがあるため normalize=false 推奨（Python例と同様）
-        var payload = new JObject
+        for (int requestIndex = 0; requestIndex <= warmupCount; requestIndex++)
         {
-            ["text"] = text,
-            ["references"] = new JArray
+            cancel.ThrowIfCancellationRequested();
+
+            bool isWarmup = requestIndex < warmupCount;
+
+            string requestText = isWarmup
+                ? "[soft whispering voice]こんにちは。今日は、ゆっくりお話ししましょう。"
+                : text;
+
+            // audio.cpp の /v1/audio/speech 用JSON。
+            // voice_ref を明示して、server.json の既定話者より speakerId を優先する。
+            var payload = new JObject
             {
-                new JObject
+                ["model"] = AudioModelId,
+                ["input"] = requestText,
+                ["voice_ref"] = referenceAudioPath.Replace('\\', '/'),
+                ["reference_text"] = referenceText,
+                ["response_format"] = "wav",
+
+                // 特に text_chunk_size / text_chunk_mode は options 内に指定する。
+                ["options"] = new JObject
                 {
-                    ["audio"] = Convert.ToBase64String(refAudioBytes),
-                    ["text"] = refText,
+                    ["temperature"] = 0.78,
+                    ["top_p"] = 0.82,
+                    ["top_k"] = 30,
+                    ["text_chunk_size"] = 200,
+                    ["text_chunk_mode"] = "japanese",
+
+                    // 途中打ち切りの条件を不用意に変えないよう、
+                    // 元コードの max_new_tokens=4096 を新APIの上限へ引き継ぐ。
+                    ["max_tokens"] = 4096,
+
+                    // 破綻検出後の再生成で、同じ失敗音声を繰り返さないようにする。
+                    ["seed"] = RandomNumberGenerator.GetInt32(1, int.MaxValue),
+                },
+            };
+
+            using var request = new SystemHttp.HttpRequestMessage(
+                SystemHttp.HttpMethod.Post,
+                endpoint)
+            {
+                Content = new SystemHttp.StringContent(
+                    payload.ToString(Formatting.None),
+                    Encoding.UTF8,
+                    "application/json"),
+            };
+
+            request.Headers.Accept.ParseAdd("audio/wav");
+
+            // ヘッダーだけでなく本文全体を受信してから完了する。
+            // これにより、共有クライアントの Timeout が本文受信にも適用される。
+            using var response = await audioHttpClient.SendAsync(
+                request,
+                SystemHttp.HttpCompletionOption.ResponseContentRead,
+                cancel).ConfigureAwait(false);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                string errorBody = await response.Content
+                    .ReadAsStringAsync(cancel).ConfigureAwait(false);
+
+                if (errorBody.Length > 4096)
+                {
+                    errorBody = errorBody.Substring(0, 4096);
                 }
-            },
-            ["reference_id"] = null,
-            ["format"] = "wav",
-            ["normalize"] = false,
-            ["use_memory_cache"] = "on",
 
-            // 生成の揺らぎ（Python例と同じ）
-            ["temperature"] = 0.8,
-            ["top_p"] = 0.9,
-            ["repetition_penalty"] = 1.1,
+                throw new SystemHttp.HttpRequestException(
+                    $"audio.cpp TTS API 失敗: " +
+                    $"{(int)response.StatusCode} {response.ReasonPhrase}. " +
+                    $"Body={errorBody}",
+                    null,
+                    response.StatusCode);
+            }
 
-            // 長文向け内部チャンク（100-300程度が目安。Python例と同じ 200）
-            ["chunk_length"] = 200,
-            ["max_new_tokens"] = 4096,
-            ["latency"] = "normal",
-        };
+            wavBytes = await response.Content
+                .ReadAsByteArrayAsync(cancel).ConfigureAwait(false);
 
-        // JSON文字列化（不要な整形はしない）
-        string json = payload.ToString(Formatting.None);
+            // JSONエラーや別形式を、WAVとして後段へ渡さない。
+            if (wavBytes.Length < 44 ||
+                Encoding.ASCII.GetString(wavBytes, 0, 4) != "RIFF" ||
+                Encoding.ASCII.GetString(wavBytes, 8, 4) != "WAVE")
+            {
+                throw new InvalidDataException(
+                    "audio.cpp の応答が RIFF/WAVE 形式ではありません。");
+            }
 
-        using var requestContent = new StringContent(json, Encoding.UTF8, "application/json");
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"http://127.0.0.1:{this.Settings.FishAudioLocalhostPort}/v1/tts")
-        {
-            Content = requestContent
-        };
-
-        using var http = CreateHttpClient();
-
-        // 応答は WAV バイナリ。ヘッダ受領後にストリーム読み込みでも良いが、要件どおり byte[] で返す。
-        using HttpResponseMessage response = await http.SendAsync(
-            request,
-            HttpCompletionOption.ResponseHeadersRead,
-            cancel
-        ).ConfigureAwait(false);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            // 失敗時：本文(JSONエラー等)を読んで原因特定しやすくする
-            string errorBody = await SafeReadAsStringAsync(response, cancel).ConfigureAwait(false);
-            throw new CoresLibException(
-                $"TTS API 失敗: {(int)response.StatusCode} {response.ReasonPhrase}. Body={errorBody}"
-            );
+            if (isWarmup)
+            {
+                Con.WriteLine(
+                    $"audio.cpp warmup: {requestIndex + 1}/{warmupCount}");
+            }
         }
 
-        byte[] wavBytes = await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+        audioWarmupCompleted = true;
 
-        if (wavBytes.Length == 0)
-        {
-            throw new CoresLibException(
-                message: "TTS API の応答ボディが空でした (0 bytes)。"
-            );
-        }
-
-        // 軽い妥当性チェック：WAVなら先頭が "RIFF" のことが多い（厳密ではないが事故検知に有効）
-        if (wavBytes.Length >= 4 &&
-            wavBytes[0] == (byte)'R' &&
-            wavBytes[1] == (byte)'I' &&
-            wavBytes[2] == (byte)'F' &&
-            wavBytes[3] == (byte)'F')
-        {
-            return wavBytes;
-        }
-
-        // サーバーが別形式やエラーバイナリを返した可能性もあるので、ここで例外にする
-        // ※運用で「とにかく返してほしい」なら、このチェックは外してもよい
-        throw new CoresLibException(
-            message: "応答がWAV(RIFF)形式に見えません。APIサーバー設定やエンドポイントを確認してください。"
-        );
+        // 最後のループは必ず本番要求。既存の後段で長さ・破綻・無音を検査する。
+        return wavBytes;
     }
 
-    protected override async Task<ExecInstance> StartExeAsync(CancellationToken cancel = default)
+    /// <summary>
+    /// Q201 の設定ファイルを使って audio.cpp サーバーを起動し、
+    /// HTTP応答と対象モデルのロード完了を確認する。
+    /// </summary>
+    /// <param name="cancel">
+    /// 起動待機を中止するキャンセルトークン。
+    /// 起動確認に失敗した場合は、ここで起動したプロセスを破棄する。
+    /// </param>
+    /// <returns>
+    /// 起動済みサーバーを管理する ExecInstance。
+    /// 所有権は呼び出し元へ渡し、既存の await using によって終了させる。
+    /// </returns>
+    protected override async Task<ExecInstance> StartExeAsync(
+        CancellationToken cancel = default)
     {
-        var ret = await TaskUtil.RetryAsync(async c =>
+        cancel.ThrowIfCancellationRequested();
+
+        if (string.IsNullOrWhiteSpace(Settings.AiTest_FishAudioS2Pro_BaseDir))
         {
-            var envVars = new StrDictionary<string>();
-            envVars.Add("PYTHONUTF8", "1");
-            envVars.Add("PYTHONIOENCODING", "utf-8");
+            throw new InvalidOperationException(
+                "AiTest_FishAudioS2Pro_BaseDir が設定されていません。");
+        }
 
-            ExecInstance exec = new ExecInstance(new ExecOptions(Settings.AiTest_FishAudioS2Pro_BaseDir._CombinePath("venv", "Scripts", "python.exe"),
-                $"-m tools.api_server --listen 127.0.0.1:{this.Settings.FishAudioLocalhostPort} --llama-checkpoint-path \"checkpoints\\s2-pro\" --decoder-checkpoint-path \"checkpoints\\s2-pro\\codec.pth\" --decoder-config-name modded_dac_vq",
-                Settings.AiTest_FishAudioS2Pro_BaseDir,
-                additionalEnvVars: envVars));
+        int port = Settings.FishAudioLocalhostPort;
 
-            Con.WriteLine($"proc id = {exec.ProcessId}");
+        if (port < 1 || port > 65535)
+        {
+            throw new InvalidOperationException(
+                $"FishAudioLocalhostPort が不正です: {port}");
+        }
 
-            try
+        string rootDirectory = Path.GetFullPath(
+            Settings.AiTest_FishAudioS2Pro_BaseDir);
+
+        string runtimeDirectory = Path.Combine(rootDirectory, "runtime");
+        string configPath = Path.Combine(rootDirectory, "config", "server.json");
+
+        if (!Directory.Exists(runtimeDirectory))
+        {
+            throw new DirectoryNotFoundException(
+                $"audio.cpp の展開先がありません: {runtimeDirectory}");
+        }
+
+        if (!File.Exists(configPath))
+        {
+            throw new FileNotFoundException(
+                "Q201 のサーバー設定ファイルがありません。",
+                configPath);
+        }
+
+        // ZIPの内部構造に依存せずに実行ファイルを探す。
+        // 複数ある場合は、別バックエンドや別バージョンを誤選択しない。
+        string[] executablePaths = Directory.EnumerateFiles(
+                runtimeDirectory,
+                "audiocpp_server.exe",
+                SearchOption.AllDirectories)
+            .Take(2)
+            .ToArray();
+
+        if (executablePaths.Length != 1)
+        {
+            throw new InvalidOperationException(
+                "runtime 以下の audiocpp_server.exe は1個だけにしてください。" +
+                $" 検出数: {(executablePaths.Length == 0 ? "0" : "2個以上")}");
+        }
+
+        // 手動起動した別サーバーの応答を、今回起動したプロセスの応答と誤認しない。
+        bool portInUse = System.Net.NetworkInformation.IPGlobalProperties
+            .GetIPGlobalProperties()
+            .GetActiveTcpListeners()
+            .Any(endpoint => endpoint.Port == port);
+
+        if (portInUse)
+        {
+            throw new InvalidOperationException(
+                $"TCPポート {port} は使用中です。" +
+                "手動起動した Fish Speech/audio.cpp などを停止してから実行してください。");
+        }
+
+        string executablePath = executablePaths[0];
+        string workingDirectory = Path.GetDirectoryName(executablePath)
+            ?? throw new InvalidOperationException(
+                "実行ファイルのディレクトリを取得できません。");
+
+        string baseUrl = $"http://127.0.0.1:{port}";
+
+        // 以前のプロセスで温めた状態は、新しいプロセスには引き継がれない。
+        audioWarmupCompleted = false;
+
+        // モデル・参照キャッシュ等の設定は既存の server.json を使用する。
+        // ポートはC#の設定と一致させ、アイドル時のアンロードを禁止する。
+        string[] arguments =
+        {
+            "--config", configPath,
+            "--host", "127.0.0.1",
+            "--port", port.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            "--backend", "cuda",
+            "--idle-unload-ms", "0",
+            "--ui",
+        };
+
+        using var startupCancellation =
+            CancellationTokenSource.CreateLinkedTokenSource(cancel);
+
+        startupCancellation.CancelAfter(TimeSpan.FromMinutes(15));
+
+        var exec = new ExecInstance(
+            new ExecOptions(
+                executablePath,
+                argumentsList: arguments,
+                currentDirectory: workingDirectory,
+                flags: ExecFlags.Default |
+                       ExecFlags.EasyPrintRealtimeStdOut |
+                       ExecFlags.EasyPrintRealtimeStdErr,
+                outputEncoding: Encoding.UTF8,
+                errorEncoding: Encoding.UTF8));
+
+        try
+        {
+            Con.WriteLine($"audio.cpp proc id = {exec.ProcessId}");
+
+            // ExecInstance 自体は返却する。こちらは生存確認用の別ハンドル。
+            using var serverProcess = Process.GetProcessById(exec.ProcessId);
+
+            while (true)
             {
-                await TaskUtil.RetryAsync(async c2 =>
+                startupCancellation.Token.ThrowIfCancellationRequested();
+
+                if (serverProcess.HasExited)
                 {
-                    await using var http = new WebApi(new WebApiOptions(new WebApiSettings { DoNotThrowHttpResultError = true }, doNotUseTcpStack: true));
+                    throw new InvalidOperationException(
+                        "audio.cpp が起動確認中に終了しました。" +
+                        $" ExitCode={serverProcess.ExitCode}");
+                }
 
-                    string url1 = $"http://127.0.0.1:{this.Settings.FishAudioLocalhostPort}/";
+                // 1回の疎通確認は短く打ち切り、起動全体には15分の上限を設ける。
+                using var probeCancellation =
+                    CancellationTokenSource.CreateLinkedTokenSource(
+                        startupCancellation.Token);
 
-                    await http.SimpleQueryAsync(WebMethods.GET, url1, c);
+                probeCancellation.CancelAfter(TimeSpan.FromSeconds(3));
 
-                    return true;
-                },
-                200, 30, c, true);
+                try
+                {
+                    using var healthResponse = await audioHttpClient.GetAsync(
+                        baseUrl + "/health",
+                        probeCancellation.Token).ConfigureAwait(false);
 
-                return exec;
+                    if (healthResponse.StatusCode != HttpStatusCode.ServiceUnavailable)
+                    {
+                        healthResponse.EnsureSuccessStatusCode();
+
+                        string healthBody = await healthResponse.Content
+                            .ReadAsStringAsync(probeCancellation.Token)
+                            .ConfigureAwait(false);
+
+                        var health = JObject.Parse(healthBody);
+
+                        if (health.Value<string>("status") != "ok" ||
+                            health.Value<string>("backend") != "cuda")
+                        {
+                            throw new InvalidOperationException(
+                                "audio.cpp の /health が期待する状態ではありません。" +
+                                $" Body={healthBody}");
+                        }
+
+                        using var modelsResponse = await audioHttpClient.GetAsync(
+                            baseUrl + "/v1/models",
+                            probeCancellation.Token).ConfigureAwait(false);
+
+                        modelsResponse.EnsureSuccessStatusCode();
+
+                        string modelsBody = await modelsResponse.Content
+                            .ReadAsStringAsync(probeCancellation.Token)
+                            .ConfigureAwait(false);
+
+                        var modelsDocument = JObject.Parse(modelsBody);
+
+                        var models = modelsDocument["data"] as JArray
+                            ?? throw new InvalidDataException(
+                                "/v1/models の応答に data 配列がありません。");
+
+                        var model = models.OfType<JObject>().SingleOrDefault(
+                            item => item.Value<string>("id") == AudioModelId);
+
+                        if (model == null ||
+                            model.Value<string>("family") != "fish_audio" ||
+                            model.Value<string>("mode") != "offline")
+                        {
+                            throw new InvalidOperationException(
+                                $"server.json にモデル {AudioModelId} が正しく登録されていません。" +
+                                " family=fish_audio、mode=offline を確認してください。");
+                        }
+
+                        if (model.Value<bool?>("loaded") != true)
+                        {
+                            throw new InvalidOperationException(
+                                $"モデル {AudioModelId} がロードされていません。" +
+                                " Q201 の設定どおり lazy_load=false、models[].lazy=false にしてください。");
+                        }
+
+                        startupCancellation.Token.ThrowIfCancellationRequested();
+
+                        if (serverProcess.HasExited)
+                        {
+                            throw new InvalidOperationException(
+                                "audio.cpp が起動確認の直後に終了しました。");
+                        }
+
+                        // ここでは exec を破棄しない。呼び出し元が所有・破棄する。
+                        return exec;
+                    }
+                }
+                catch (SystemHttp.HttpRequestException exception)
+                    when (exception.StatusCode == null)
+                {
+                    // モデルロード中など、まだHTTP接続を受け付けていない場合は再確認する。
+                    // 404等のHTTPエラーはここでは握りつぶさない。
+                }
+                catch (OperationCanceledException)
+                    when (!startupCancellation.IsCancellationRequested)
+                {
+                    // 1回の疎通確認だけがタイムアウトした場合は再確認する。
+                }
+
+                await Task.Delay(
+                    500,
+                    startupCancellation.Token).ConfigureAwait(false);
             }
-            catch
-            {
-                await exec._DisposeSafeAsync();
-                throw;
-            }
+        }
+        catch (OperationCanceledException exception)
+            when (!cancel.IsCancellationRequested)
+        {
+            await exec._DisposeSafeAsync();
 
-        },
-        1000, 5, cancel, true);
-
-        return ret;
+            throw new TimeoutException(
+                "audio.cpp の起動確認が15分以内に完了しませんでした。" +
+                "サーバーの標準出力・標準エラーを確認してください。",
+                exception);
+        }
+        catch
+        {
+            // キャンセル・設定不整合・ロード失敗時に子プロセスを残さない。
+            await exec._DisposeSafeAsync();
+            throw;
+        }
     }
 }
 
