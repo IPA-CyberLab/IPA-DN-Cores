@@ -645,7 +645,9 @@ public partial class LocalFileSystem : FileSystem
     protected override Task<string> NormalizePathImplAsync(string path, CancellationToken cancel = default)
     {
         // The exception will thrown if the path is not an absolute path
-        return Task.FromResult(Path.GetFullPath(PathParser.NormalizeDirectorySeparatorAndCheckIfAbsolutePath(path)));
+        string a = PathParser.NormalizeDirectorySeparatorAndCheckIfAbsolutePath(path);
+        string b = Path.GetFullPath(a);
+        return Task.FromResult(b);
     }
 
     protected override async Task<FileMetadata> GetFileMetadataImplAsync(string path, FileMetadataGetFlags flags = FileMetadataGetFlags.DefaultAll, CancellationToken cancel = default)

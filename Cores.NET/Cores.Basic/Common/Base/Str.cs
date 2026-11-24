@@ -6634,7 +6634,22 @@ namespace IPA.Cores.Basic
                 sb.Append(s);
             }
 
-            return sb.ToString();
+            string ret = sb.ToString();
+
+            string retTrimmed = ret.Trim();
+
+            if (retTrimmed._IsEmpty())
+            {
+                // 空
+                ret = "_";
+            }
+            else if (retTrimmed.All(x => x == '.'))
+            {
+                // 予備的: . .. ... 等
+                ret = "_";
+            }
+            
+            return ret;
         }
 
         // オブジェクト配列を CSV に変換する

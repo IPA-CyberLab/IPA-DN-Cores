@@ -1833,6 +1833,25 @@ public class PathParser
     // 指定された文字列がディレクトリトラバーサルを引き起こす危険なパスかどうか安全寄りに判定
     public static bool IsDangerousStrForDirectoryTraversal(string str)
     {
+        static bool IsDangerTrimmed(string str)
+        {
+            string trimmed = str.Trim();
+            if (trimmed == ".")
+            {
+                return true;
+            }
+            else if (trimmed == "..")
+            {
+                return true;
+            }
+            else if (trimmed.Length >= 1 && trimmed[0] == '.' && trimmed.ToCharArray().Where(c => c != '.').Any() == false)
+            {
+                // "....." 等の '.' のみで構成される文字列 (念のため)
+                return true;
+            }
+            return false;
+        }
+
         try
         {
             str = str._NonNullTrim();
@@ -1901,12 +1920,12 @@ public class PathParser
 
             // 元の文字のトークン分割
             var tokens = str._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, '/', '\\');
-            if (tokens.Select(x => x.Trim()).Where(x => x._IsSamei("..") || x.StartsWith("%2F", StringComparison.OrdinalIgnoreCase) || x.StartsWith("%5C", StringComparison.OrdinalIgnoreCase)).Any())
+            if (tokens.Select(x => x.Trim()).Where(x => x._IsSamei("..") || IsDangerTrimmed(x) || x.StartsWith("%2F", StringComparison.OrdinalIgnoreCase) || x.StartsWith("%5C", StringComparison.OrdinalIgnoreCase)).Any())
             {
                 // トークンの間に .. が入っていた。危険。
                 return true;
             }
-            if (tokens.Select(x => x.Trim()._DecodeUrlPath()).Where(x => x._IsSamei("..") || x.StartsWith("%2F", StringComparison.OrdinalIgnoreCase) || x.StartsWith("%5C", StringComparison.OrdinalIgnoreCase) || x.StartsWith("/", StringComparison.OrdinalIgnoreCase) || x.StartsWith("\\", StringComparison.OrdinalIgnoreCase)).Any())
+            if (tokens.Select(x => x.Trim()._DecodeUrlPath()).Where(x => x._IsSamei("..") || IsDangerTrimmed(x) || x.StartsWith("%2F", StringComparison.OrdinalIgnoreCase) || x.StartsWith("%5C", StringComparison.OrdinalIgnoreCase) || x.StartsWith("/", StringComparison.OrdinalIgnoreCase) || x.StartsWith("\\", StringComparison.OrdinalIgnoreCase)).Any())
             {
                 // トークンの間にデコードされたら .. となる文字 または / \ で始まる文字が入っていた。危険。
                 return true;
@@ -1914,17 +1933,17 @@ public class PathParser
 
             // 1 回デコード後の文字のトークン分割
             tokens = tmp2._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, '/', '\\');
-            if (tokens.Select(x => x.Trim()).Where(x => x._IsSamei("..") || x.StartsWith("%2F", StringComparison.OrdinalIgnoreCase) || x.StartsWith("%5C", StringComparison.OrdinalIgnoreCase)).Any())
+            if (tokens.Select(x => x.Trim()).Where(x => x._IsSamei("..") || IsDangerTrimmed(x) || x.StartsWith("%2F", StringComparison.OrdinalIgnoreCase) || x.StartsWith("%5C", StringComparison.OrdinalIgnoreCase)).Any())
             {
                 // トークンの間に .. が入っていた。危険。
                 return true;
             }
-            if (tokens.Select(x => x.Trim()._DecodeUrlPath()).Where(x => x._IsSamei("..") || x.StartsWith("%2F", StringComparison.OrdinalIgnoreCase) || x.StartsWith("%5C", StringComparison.OrdinalIgnoreCase) || x.StartsWith("/", StringComparison.OrdinalIgnoreCase) || x.StartsWith("\\", StringComparison.OrdinalIgnoreCase)).Any())
+            if (tokens.Select(x => x.Trim()._DecodeUrlPath()).Where(x => x._IsSamei("..") || IsDangerTrimmed(x) || x.StartsWith("%2F", StringComparison.OrdinalIgnoreCase) || x.StartsWith("%5C", StringComparison.OrdinalIgnoreCase) || x.StartsWith("/", StringComparison.OrdinalIgnoreCase) || x.StartsWith("\\", StringComparison.OrdinalIgnoreCase)).Any())
             {
                 // トークンの間に 1 回デコードされたら .. となる文字 または / \ で始まる文字が入っていた。危険。
                 return true;
             }
-            if (tokens.Select(x => x.Trim()._DecodeUrlPath()).Where(x => x._IsSamei("..") || x.StartsWith("%2F", StringComparison.OrdinalIgnoreCase) || x.StartsWith("%5C", StringComparison.OrdinalIgnoreCase) || x.StartsWith("/", StringComparison.OrdinalIgnoreCase) || x.StartsWith("\\", StringComparison.OrdinalIgnoreCase)).Any())
+            if (tokens.Select(x => x.Trim()._DecodeUrlPath()._DecodeUrlPath()).Where(x => x._IsSamei("..") || IsDangerTrimmed(x) || x.StartsWith("%2F", StringComparison.OrdinalIgnoreCase) || x.StartsWith("%5C", StringComparison.OrdinalIgnoreCase) || x.StartsWith("/", StringComparison.OrdinalIgnoreCase) || x.StartsWith("\\", StringComparison.OrdinalIgnoreCase)).Any())
             {
                 // トークンの間に 2 回デコードされたら .. となる文字 または / \ で始まる文字が入っていた。危険。
                 return true;
@@ -1932,17 +1951,17 @@ public class PathParser
 
             // 2 回デコード後の文字のトークン分割
             tokens = tmp3._Split(StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries, '/', '\\');
-            if (tokens.Select(x => x.Trim()).Where(x => x._IsSamei("..") || x.StartsWith("%2F", StringComparison.OrdinalIgnoreCase) || x.StartsWith("%5C", StringComparison.OrdinalIgnoreCase)).Any())
+            if (tokens.Select(x => x.Trim()).Where(x => x._IsSamei("..") || IsDangerTrimmed(x) || x.StartsWith("%2F", StringComparison.OrdinalIgnoreCase) || x.StartsWith("%5C", StringComparison.OrdinalIgnoreCase)).Any())
             {
                 // トークンの間に .. が入っていた。危険。
                 return true;
             }
-            if (tokens.Select(x => x.Trim()._DecodeUrlPath()).Where(x => x._IsSamei("..") || x.StartsWith("%2F", StringComparison.OrdinalIgnoreCase) || x.StartsWith("%5C", StringComparison.OrdinalIgnoreCase) || x.StartsWith("/", StringComparison.OrdinalIgnoreCase) || x.StartsWith("\\", StringComparison.OrdinalIgnoreCase)).Any())
+            if (tokens.Select(x => x.Trim()._DecodeUrlPath()).Where(x => x._IsSamei("..") || IsDangerTrimmed(x) || x.StartsWith("%2F", StringComparison.OrdinalIgnoreCase) || x.StartsWith("%5C", StringComparison.OrdinalIgnoreCase) || x.StartsWith("/", StringComparison.OrdinalIgnoreCase) || x.StartsWith("\\", StringComparison.OrdinalIgnoreCase)).Any())
             {
                 // トークンの間に 1 回デコードされたら .. となる文字が入っていた。危険。
                 return true;
             }
-            if (tokens.Select(x => x.Trim()._DecodeUrlPath()).Where(x => x._IsSamei("..") || x.StartsWith("%2F", StringComparison.OrdinalIgnoreCase) || x.StartsWith("%5C", StringComparison.OrdinalIgnoreCase) || x.StartsWith("/", StringComparison.OrdinalIgnoreCase) || x.StartsWith("\\", StringComparison.OrdinalIgnoreCase)).Any())
+            if (tokens.Select(x => x.Trim()._DecodeUrlPath()._DecodeUrlPath()).Where(x => x._IsSamei("..") || IsDangerTrimmed(x) || x.StartsWith("%2F", StringComparison.OrdinalIgnoreCase) || x.StartsWith("%5C", StringComparison.OrdinalIgnoreCase) || x.StartsWith("/", StringComparison.OrdinalIgnoreCase) || x.StartsWith("\\", StringComparison.OrdinalIgnoreCase)).Any())
             {
                 // トークンの間に 2 回デコードされたら .. となる文字が入っていた。危険。
                 return true;
