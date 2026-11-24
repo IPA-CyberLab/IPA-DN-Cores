@@ -6641,7 +6641,10 @@ namespace IPA.Cores.Basic
             if (retTrimmed._IsEmpty())
             {
                 // 空
-                ret = "_";
+                if (ret != "")
+                {
+                    ret = "_";
+                }
             }
             else if (retTrimmed.All(x => x == '.'))
             {
